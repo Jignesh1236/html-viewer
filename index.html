@@ -768,6 +768,8 @@ function setVisualMode(on){
   document.getElementById('previewHint').textContent=on?'🎨 Visual':'';
   if(on){
     attachVisualListeners();
+    propPanel.classList.add('open');
+    clearProps();
   } else {
     vHover.style.display='none';
     vSel.style.display='none';
@@ -823,9 +825,10 @@ function positionSel(rect, el){
 
 function iOnMove(e){
   if(!visualModeOn||isDragging||isResizing||isRotating) return;
+  /* Show hover only when nothing is selected */
+  if(selectedEl!==null){vHover.style.display='none';return;}
   const el=e.target;
   if(!el||el.tagName==='HTML'||el.tagName==='BODY'){vHover.style.display='none';return;}
-  if(el===selectedEl){vHover.style.display='none';return;}
   const r=getRect(el);
   if(!r){vHover.style.display='none';return;}
   vHover.style.display='block';
@@ -835,18 +838,34 @@ function iOnMove(e){
 
 function iOnClick(e){
   if(!visualModeOn) return;
+  /* Ignore clicks that fire right after a drag/resize/rotate ends */
+  if(isDragging||isResizing||isRotating) return;
   e.preventDefault(); e.stopPropagation();
   const el=e.target;
+  /* Click on empty area (body/html) always deselects */
   if(!el||el.tagName==='HTML'||el.tagName==='BODY'){deselect();return;}
+  /* If something already selected → clicking outside selection box deselects (don't select new el) */
+  if(selectedEl!==null){deselect();return;}
+  /* Nothing selected → select clicked element */
   selectEl(el);
 }
+
+/* Block / unblock the iframe during drag so it can't steal mouse events */
+function lockIframe(){ vOverlay.style.pointerEvents='all'; }
+function unlockIframe(){ vOverlay.style.pointerEvents=''; }
+
+/* Escape key deselects */
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && visualModeOn && selectedEl) deselect();
+});
 
 function deselect(){
   selectedEl=null;
   savedStyles=null;
   vSel.style.display='none';
   vHover.style.display='none';
-  propPanel.classList.remove('open');
+  /* Keep panel open — just clear values */
+  clearProps();
 }
 
 function selectEl(el){
@@ -860,7 +879,7 @@ function selectEl(el){
   setStatus('Selected: <'+el.tagName.toLowerCase()+'>');
 }
 
-function closePropPanel(){deselect();}
+function closePropPanel(){if(selectedEl)deselect();}
 
 function deleteEl(){
   if(!selectedEl) return;
@@ -969,6 +988,27 @@ function fillProps(el){
   document.getElementById('pp-css').value=el.getAttribute('style')||'';
 }
 
+function clearProps(){
+  document.getElementById('ppTag').textContent='—';
+  ['pp-x','pp-y','pp-w','pp-h','pp-rot',
+   'pp-mx','pp-my','pp-px','pp-py',
+   'pp-text','pp-fs','pp-opacity',
+   'pp-bw-t','pp-bw-r','pp-bw-b','pp-bw-l','pp-br',
+   'pp-css'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  ['pp-color','pp-bg','pp-bc-t','pp-bc-r','pp-bc-b','pp-bc-l'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='#000000';
+  });
+  ['pp-color-hex','pp-bg-hex','pp-bc-t-hex','pp-bc-r-hex','pp-bc-b-hex','pp-bc-l-hex'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.value='';
+  });
+  document.querySelectorAll('.pp-align-btn').forEach(b=>b.classList.remove('on'));
+}
+
 function applyLayout(){
   if(!selectedEl) return;
   const x=parseInt(document.getElementById('pp-x').value)||0;
@@ -1067,6 +1107,7 @@ function syncToCode(){
     oy=parseFloat(selectedEl.style.top)||0;
     document.body.style.userSelect='none';
     document.body.style.cursor='move';
+    lockIframe();
     e.preventDefault();e.stopPropagation();
   });
   document.addEventListener('mousemove',e=>{
@@ -1081,6 +1122,7 @@ function syncToCode(){
     if(!d)return;d=false;isDragging=false;
     document.body.style.userSelect='';
     document.body.style.cursor='';
+    unlockIframe();
     setStatus('Moved');
   });
 })();
@@ -1099,6 +1141,7 @@ function syncToCode(){
       oy=parseFloat(selectedEl.style.top)||0;
       document.body.style.userSelect='none';
       document.body.style.cursor=getComputedStyle(h).cursor;
+      lockIframe();
       e.preventDefault();e.stopPropagation();
     });
   });
@@ -1121,6 +1164,7 @@ function syncToCode(){
   document.addEventListener('mouseup',()=>{
     if(!d)return;d=false;isResizing=false;
     document.body.style.userSelect='';document.body.style.cursor='';
+    unlockIframe();
     setStatus('Resized');
   });
 })();
@@ -1137,6 +1181,7 @@ function syncToCode(){
     curRot=parseFloat(document.getElementById('pp-rot').value)||0;
     document.body.style.userSelect='none';
     document.body.style.cursor='grabbing';
+    lockIframe();
     e.preventDefault();e.stopPropagation();
   });
   document.addEventListener('mousemove',e=>{
@@ -1150,6 +1195,7 @@ function syncToCode(){
   document.addEventListener('mouseup',()=>{
     if(!d)return;d=false;isRotating=false;
     document.body.style.userSelect='';document.body.style.cursor='';
+    unlockIframe();
     setStatus('Rotated');
   });
 })();
