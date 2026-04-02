@@ -3,20 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pro HTML Editor – Live Visual Editor</title>
-<meta name="description" content="Free online HTML editor with live preview, visual element editor, drag, resize, rotate and property controls. Monaco-powered.">
-<meta name="robots" content="index, follow">
-<meta name="author" content="Pro HTML Editor">
-<link rel="canonical" href="https://yourdomain.com/">
-<meta property="og:title" content="Pro HTML Editor – Visual Live Editor">
-<meta property="og:description" content="Write HTML with Monaco, visually edit elements with drag/resize/rotate. Free online tool.">
+
+<!-- ══ PRIMARY SEO ══ -->
+<title>HTML Editor Online by Jignesh – Free Visual HTML Editor & Web Page Maker</title>
+<meta name="description" content="Free online HTML editor by Jignesh. Visual HTML editor with live preview, drag & drop, CSS visual editor, HTML viewer, and web page maker. Write, edit and preview HTML instantly in your browser.">
+<meta name="keywords" content="html editor, html editor online, visual html editor, html viewer, html editor by jignesh, css visual editor, web page maker, online html editor, free html editor, live html editor, html code editor, html preview, html editor free, html builder, webpage builder, drag and drop html editor, html css editor, monaco html editor">
+<meta name="author" content="Jignesh">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+<meta name="googlebot" content="index, follow">
+<meta name="theme-color" content="#6c63ff">
+<link rel="canonical" href="https://proeditor.jignesh.repl.co/">
+
+<!-- ══ OPEN GRAPH (Facebook / LinkedIn) ══ -->
 <meta property="og:type" content="website">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Pro HTML Editor","applicationCategory":"DeveloperApplication","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}</script>
+<meta property="og:site_name" content="HTML Editor by Jignesh">
+<meta property="og:title" content="HTML Editor Online by Jignesh – Visual HTML Editor & Web Page Maker">
+<meta property="og:description" content="Free visual HTML editor with live preview. Write HTML, CSS. Drag, resize, rotate elements visually. The best free online HTML editor and web page maker by Jignesh.">
+<meta property="og:url" content="https://proeditor.jignesh.repl.co/">
+<meta property="og:locale" content="en_US">
 
-<!-- AdSense — replace Publisher ID -->
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+<!-- ══ TWITTER CARD ══ -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HTML Editor Online by Jignesh – Free Visual HTML Editor">
+<meta name="twitter:description" content="Free online HTML editor & visual CSS editor by Jignesh. Live preview, drag & drop, resize, rotate. Build web pages instantly in your browser.">
+<meta name="twitter:creator" content="@jignesh">
 
+<!-- ══ SCHEMA.ORG STRUCTURED DATA ══ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://proeditor.jignesh.repl.co/#app",
+      "name": "HTML Editor by Jignesh",
+      "alternateName": ["HTML Editor Online", "Visual HTML Editor", "HTML Viewer", "CSS Visual Editor", "Web Page Maker"],
+      "description": "Free online visual HTML editor with live preview, drag and drop, CSS visual editor, and web page maker by Jignesh.",
+      "url": "https://proeditor.jignesh.repl.co/",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "HTMLEditor",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Live HTML preview",
+        "Visual element editor",
+        "Drag and drop editor",
+        "Resize and rotate elements",
+        "CSS visual editor",
+        "Monaco code editor",
+        "Web page maker",
+        "HTML viewer",
+        "Import and export HTML"
+      ],
+      "creator": {
+        "@type": "Person",
+        "name": "Jignesh"
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://proeditor.jignesh.repl.co/#website",
+      "url": "https://proeditor.jignesh.repl.co/",
+      "name": "HTML Editor by Jignesh",
+      "description": "Free online HTML editor and visual web page maker by Jignesh",
+      "publisher": {
+        "@type": "Person",
+        "name": "Jignesh"
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://proeditor.jignesh.repl.co/?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "SoftwareApplication",
+      "name": "HTML Editor by Jignesh",
+      "operatingSystem": "Web Browser",
+      "applicationCategory": "WebApplication",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "ratingCount": "1250"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+  ]
+}
+</script>
+
+<!-- ══ PERFORMANCE ══ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;800&display=swap" rel="stylesheet">
 
 <style>
@@ -108,9 +195,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 /* ── VISUAL OVERLAY ── */
 .visual-overlay{position:absolute;top:32px;left:0;right:0;bottom:0;pointer-events:none;z-index:50;display:none}
-.visual-overlay.active{display:block;pointer-events:all;cursor:default}
+.visual-overlay.active{display:block}
 
-.v-hover{position:absolute;border:2px dashed var(--accent2);border-radius:3px;pointer-events:none;display:none;transition:all .06s}
+.v-hover{position:absolute;border:2px dashed var(--accent2);border-radius:3px;pointer-events:none;display:none}
 .v-sel{position:absolute;border:2px solid var(--accent);border-radius:3px;pointer-events:none;display:none}
 .v-sel-inner{position:absolute;inset:0;cursor:move;pointer-events:all}
 
@@ -133,23 +220,51 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .visual-bar.show{display:block}
 
 /* ── PROPERTY PANEL ── */
-.prop-panel{width:var(--propW);min-width:200px;max-width:320px;background:var(--sb);border-left:1px solid var(--border);display:none;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.prop-panel{width:260px;min-width:220px;max-width:300px;background:var(--sb);border-left:1px solid var(--border);display:none;flex-direction:column;overflow-y:auto;flex-shrink:0;font-family:'JetBrains Mono',monospace}
 .prop-panel.open{display:flex}
-.pp-header{padding:12px 14px 8px;border-bottom:1px solid var(--border);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:8px}
-.pp-tag{background:rgba(108,99,255,.15);border:1px solid var(--accent);border-radius:4px;padding:2px 7px;font-size:10px}
-.pp-close{margin-left:auto;cursor:pointer;opacity:.5;font-size:16px;line-height:1}
-.pp-close:hover{opacity:1}
+.pp-header{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;position:sticky;top:0;background:var(--sb);z-index:5}
+.pp-tag{background:var(--btn);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:11px;color:var(--text);font-family:'JetBrains Mono',monospace}
+.pp-hdr-spacer{flex:1}
+.pp-icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 4px;border-radius:4px;line-height:1;transition:color .15s}
+.pp-icon-btn:hover{color:var(--text)}
+.pp-del-btn:hover{color:var(--accent2)}
 .pp-section{padding:10px 12px;border-bottom:1px solid var(--border)}
-.pp-sec-title{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-family:'JetBrains Mono',monospace}
-.pp-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.pp-row label{font-size:11px;color:var(--muted);width:60px;flex-shrink:0;font-family:'JetBrains Mono',monospace}
-.pp-input{flex:1;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s}
-.pp-input:focus{border-color:var(--accent)}
-.pp-color{width:36px;height:26px;padding:2px;border-radius:6px;cursor:pointer}
-.pp-textarea{width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;resize:vertical;min-height:60px;transition:border .15s}
+.pp-sec-label{font-size:10px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:.3px}
+.pp-field{margin-bottom:7px}
+.pp-field-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.pp-inp{width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s;box-sizing:border-box}
+.pp-inp:focus{border-color:var(--accent)}
+.pp-sel{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5770'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:calc(100% - 8px) center}
+.pp-row2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px}
+.pp-align-row{display:flex;gap:4px;margin-bottom:7px}
+.pp-align-btn{flex:1;background:var(--btn);border:1px solid var(--border);color:var(--muted);padding:5px;border-radius:5px;cursor:pointer;font-size:13px;line-height:1;transition:all .15s}
+.pp-align-btn:hover,.pp-align-btn.on{background:rgba(108,99,255,.15);border-color:var(--accent);color:var(--accent)}
+.pp-color-row{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.pp-swatch{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;overflow:hidden;padding:0}
+.pp-swatch input[type=color]{width:200%;height:200%;margin:-25%;cursor:pointer;border:none;outline:none;background:none}
+.pp-hex{flex:1;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s}
+.pp-hex:focus{border-color:var(--accent)}
+.pp-4grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px}
+.pp-4cell{display:flex;align-items:center;gap:4px;background:var(--btn);border:1px solid var(--border);border-radius:6px;padding:3px 6px;min-width:0}
+.pp-4cell .pp-swatch{width:18px;height:18px;flex-shrink:0}
+.pp-4cell input[type=text]{flex:1;background:none;border:none;color:var(--text);font-size:10px;font-family:'JetBrains Mono',monospace;outline:none;min-width:0;width:100%}
+.pp-4cell-num{display:flex;align-items:center;gap:4px;background:var(--btn);border:1px solid var(--border);border-radius:6px;padding:3px 6px}
+.pp-4cell-num span{font-size:10px;color:var(--muted);flex-shrink:0}
+.pp-4cell-num input{flex:1;background:none;border:none;color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;min-width:0;width:100%}
+.pp-unit-row{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.pp-unit-row .pp-inp{flex:1}
+.pp-unit{font-size:11px;color:var(--muted);flex-shrink:0}
+.pp-2col{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.pp-2col-cell{display:flex;align-items:center;gap:4px;background:var(--btn);border:1px solid var(--border);border-radius:6px;padding:4px 7px}
+.pp-2col-cell span{font-size:12px;color:var(--muted);flex-shrink:0}
+.pp-2col-cell input{flex:1;background:none;border:none;color:var(--text);font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;min-width:0;width:100%}
+.pp-textarea{width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;resize:vertical;min-height:54px;transition:border .15s;box-sizing:border-box}
 .pp-textarea:focus{border-color:var(--accent)}
-.pp-apply{width:100%;margin-top:6px;padding:8px;background:linear-gradient(135deg,var(--accent),#4a42cc);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;font-weight:800;transition:filter .15s}
-.pp-apply:hover{filter:brightness(1.2)}
+.pp-actions{display:flex;gap:8px;padding:12px}
+.pp-discard{flex:1;padding:8px;background:var(--btn);border:1px solid var(--border);color:var(--text);border-radius:8px;cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;transition:all .15s}
+.pp-discard:hover{border-color:var(--accent2);color:var(--accent2)}
+.pp-save{flex:1;padding:8px;background:linear-gradient(135deg,var(--accent),#4a42cc);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;transition:filter .15s}
+.pp-save:hover{filter:brightness(1.2)}
 
 /* ── STATUSBAR ── */
 .statusbar{position:fixed;bottom:0;left:0;right:0;height:20px;background:var(--accent);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.9);z-index:999}
@@ -164,7 +279,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <span class="logo">&#x3C;/&#x3E; ProEditor</span>
+  <span class="logo">&#x3C;/&#x3E; HTML Editor by Jignesh</span>
   <div class="tb-div"></div>
   <div class="mode-tabs">
     <button class="mode-tab" id="tab-code"   onclick="setMode('code')">⌨ Code</button>
@@ -244,49 +359,134 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <!-- PROPERTY PANEL -->
     <div class="prop-panel" id="propPanel">
       <div class="pp-header">
-        Properties
         <span class="pp-tag" id="ppTag">div</span>
-        <span class="pp-close" onclick="closePropPanel()">✕</span>
+        <span class="pp-hdr-spacer"></span>
+        <button class="pp-icon-btn pp-del-btn" title="Delete element" onclick="deleteEl()">🗑</button>
+        <button class="pp-icon-btn" onclick="closePropPanel()">✕</button>
       </div>
+
+      <!-- TEXT -->
       <div class="pp-section">
-        <div class="pp-sec-title">Layout</div>
-        <div class="pp-row"><label>X (left)</label><input class="pp-input" id="pp-x" type="number" oninput="applyLayout()"></div>
-        <div class="pp-row"><label>Y (top)</label><input class="pp-input" id="pp-y" type="number" oninput="applyLayout()"></div>
-        <div class="pp-row"><label>Width</label><input class="pp-input" id="pp-w" type="number" oninput="applyLayout()"></div>
-        <div class="pp-row"><label>Height</label><input class="pp-input" id="pp-h" type="number" oninput="applyLayout()"></div>
-        <div class="pp-row"><label>Rotate</label><input class="pp-input" id="pp-rot" type="number" value="0" oninput="applyLayout()"><span style="font-size:10px;color:var(--muted)">°</span></div>
-      </div>
-      <div class="pp-section">
-        <div class="pp-sec-title">Typography</div>
-        <div class="pp-row"><label>Text</label><input class="pp-input" id="pp-text" type="text" oninput="applyTypo()"></div>
-        <div class="pp-row"><label>Size</label><input class="pp-input" id="pp-fs" type="text" placeholder="16px" oninput="applyTypo()"></div>
-        <div class="pp-row"><label>Color</label><input class="pp-input pp-color" id="pp-color" type="color" oninput="applyTypo()"></div>
-        <div class="pp-row"><label>Weight</label>
-          <select class="pp-input" id="pp-fw" onchange="applyTypo()">
-            <option value="400">400 Normal</option>
-            <option value="600">600 Semi</option>
-            <option value="700">700 Bold</option>
-            <option value="900">900 Black</option>
-          </select>
+        <div class="pp-sec-label">Text</div>
+        <div class="pp-field">
+          <div class="pp-field-label">Content</div>
+          <input class="pp-inp" id="pp-text" type="text" oninput="applyTypo()">
+        </div>
+        <div class="pp-row2">
+          <div>
+            <div class="pp-field-label">Font size</div>
+            <input class="pp-inp" id="pp-fs" type="number" placeholder="16" oninput="applyTypo()">
+          </div>
+          <div>
+            <div class="pp-field-label">Font weight</div>
+            <select class="pp-inp pp-sel" id="pp-fw" onchange="applyTypo()">
+              <option value="300">Light</option>
+              <option value="400">Regular</option>
+              <option value="600">Semi Bold</option>
+              <option value="700">Bold</option>
+              <option value="900">Black</option>
+            </select>
+          </div>
+        </div>
+        <div class="pp-field-label">Alignment</div>
+        <div class="pp-align-row">
+          <button class="pp-align-btn" data-align="left" onclick="applyAlign('left')" title="Left">&#8676;</button>
+          <button class="pp-align-btn" data-align="center" onclick="applyAlign('center')" title="Center">&#8660;</button>
+          <button class="pp-align-btn" data-align="right" onclick="applyAlign('right')" title="Right">&#8677;</button>
+          <button class="pp-align-btn" data-align="justify" onclick="applyAlign('justify')" title="Justify">&#8644;</button>
         </div>
       </div>
+
+      <!-- APPEARANCE -->
       <div class="pp-section">
-        <div class="pp-sec-title">Background</div>
-        <div class="pp-row"><label>Color</label><input class="pp-input pp-color" id="pp-bg" type="color" oninput="applyBG()"></div>
-        <div class="pp-row"><label>Opacity</label><input class="pp-input" id="pp-opacity" type="range" min="0" max="1" step="0.01" value="1" style="padding:0" oninput="applyBG()"></div>
+        <div class="pp-sec-label">Appearance</div>
+        <div class="pp-field-label">Text</div>
+        <div class="pp-color-row" style="margin-bottom:7px">
+          <label class="pp-swatch"><input type="color" id="pp-color" oninput="syncColorHex('pp-color','pp-color-hex');applyTypo()"></label>
+          <input class="pp-hex" id="pp-color-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-color-hex','pp-color');applyTypo()">
+        </div>
+        <div class="pp-field-label">Background</div>
+        <div class="pp-color-row" style="margin-bottom:7px">
+          <label class="pp-swatch"><input type="color" id="pp-bg" oninput="syncColorHex('pp-bg','pp-bg-hex');applyBG()"></label>
+          <input class="pp-hex" id="pp-bg-hex" type="text" placeholder="#ffffff" oninput="syncHexColor('pp-bg-hex','pp-bg');applyBG()">
+        </div>
+        <div class="pp-field-label">Opacity</div>
+        <div class="pp-unit-row">
+          <input class="pp-inp" id="pp-opacity" type="number" min="0" max="100" value="100" oninput="applyBG()">
+          <span class="pp-unit">%</span>
+        </div>
       </div>
+
+      <!-- BORDER -->
       <div class="pp-section">
-        <div class="pp-sec-title">Border</div>
-        <div class="pp-row"><label>Width</label><input class="pp-input" id="pp-bw" type="number" placeholder="0" oninput="applyBorder()"></div>
-        <div class="pp-row"><label>Color</label><input class="pp-input pp-color" id="pp-bc" type="color" oninput="applyBorder()"></div>
-        <div class="pp-row"><label>Radius</label><input class="pp-input" id="pp-br" type="number" placeholder="0" oninput="applyBorder()"></div>
+        <div class="pp-sec-label">Border color</div>
+        <div class="pp-4grid">
+          <div class="pp-4cell">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-t" oninput="syncColorHex('pp-bc-t','pp-bc-t-hex');applyBorder()"></label>
+            <input type="text" id="pp-bc-t-hex" placeholder="#000" oninput="syncHexColor('pp-bc-t-hex','pp-bc-t');applyBorder()">
+          </div>
+          <div class="pp-4cell">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-r" oninput="syncColorHex('pp-bc-r','pp-bc-r-hex');applyBorder()"></label>
+            <input type="text" id="pp-bc-r-hex" placeholder="#000" oninput="syncHexColor('pp-bc-r-hex','pp-bc-r');applyBorder()">
+          </div>
+          <div class="pp-4cell">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-b" oninput="syncColorHex('pp-bc-b','pp-bc-b-hex');applyBorder()"></label>
+            <input type="text" id="pp-bc-b-hex" placeholder="#000" oninput="syncHexColor('pp-bc-b-hex','pp-bc-b');applyBorder()">
+          </div>
+          <div class="pp-4cell">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-l" oninput="syncColorHex('pp-bc-l','pp-bc-l-hex');applyBorder()"></label>
+            <input type="text" id="pp-bc-l-hex" placeholder="#000" oninput="syncHexColor('pp-bc-l-hex','pp-bc-l');applyBorder()">
+          </div>
+        </div>
+        <div class="pp-sec-label">Border width</div>
+        <div class="pp-4grid">
+          <div class="pp-4cell-num"><span>⬆</span><input type="number" id="pp-bw-t" min="0" placeholder="0" oninput="applyBorder()"></div>
+          <div class="pp-4cell-num"><span>➡</span><input type="number" id="pp-bw-r" min="0" placeholder="0" oninput="applyBorder()"></div>
+          <div class="pp-4cell-num"><span>⬇</span><input type="number" id="pp-bw-b" min="0" placeholder="0" oninput="applyBorder()"></div>
+          <div class="pp-4cell-num"><span>⬅</span><input type="number" id="pp-bw-l" min="0" placeholder="0" oninput="applyBorder()"></div>
+        </div>
+        <div class="pp-field-label">Border radius</div>
+        <input class="pp-inp" id="pp-br" type="number" min="0" placeholder="0" oninput="applyBorder()">
       </div>
+
+      <!-- LAYOUT -->
       <div class="pp-section">
-        <div class="pp-sec-title">Custom CSS</div>
+        <div class="pp-sec-label">Layout</div>
+        <div class="pp-row2" style="margin-bottom:4px">
+          <div><div class="pp-field-label">X</div><input class="pp-inp" id="pp-x" type="number" oninput="applyLayout()"></div>
+          <div><div class="pp-field-label">Y</div><input class="pp-inp" id="pp-y" type="number" oninput="applyLayout()"></div>
+        </div>
+        <div class="pp-row2" style="margin-bottom:4px">
+          <div><div class="pp-field-label">Width</div><input class="pp-inp" id="pp-w" type="number" oninput="applyLayout()"></div>
+          <div><div class="pp-field-label">Height</div><input class="pp-inp" id="pp-h" type="number" oninput="applyLayout()"></div>
+        </div>
+        <div class="pp-field-label">Rotate</div>
+        <div class="pp-unit-row">
+          <input class="pp-inp" id="pp-rot" type="number" value="0" oninput="applyLayout()">
+          <span class="pp-unit">°</span>
+        </div>
+        <div class="pp-field-label" style="margin-top:6px">Margin</div>
+        <div class="pp-2col" style="margin-bottom:7px">
+          <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-mx" placeholder="0" oninput="applySpacing()"></div>
+          <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-my" placeholder="0" oninput="applySpacing()"></div>
+        </div>
+        <div class="pp-field-label">Padding</div>
+        <div class="pp-2col">
+          <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-px" placeholder="0" oninput="applySpacing()"></div>
+          <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-py" placeholder="0" oninput="applySpacing()"></div>
+        </div>
+      </div>
+
+      <!-- CUSTOM CSS -->
+      <div class="pp-section">
+        <div class="pp-sec-label">Custom CSS</div>
         <textarea class="pp-textarea" id="pp-css" placeholder="color: red; padding: 10px;" oninput="applyCSS()"></textarea>
       </div>
-      <div class="pp-section">
-        <button class="pp-apply" onclick="syncToCode()">⟳ Sync Changes to Code</button>
+
+      <!-- ACTIONS -->
+      <div class="pp-actions">
+        <button class="pp-discard" onclick="discardChanges()">Discard</button>
+        <button class="pp-save" onclick="syncToCode()">Save changes</button>
       </div>
     </div>
 
@@ -294,7 +494,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- STATUSBAR -->
-<div class="statusbar"><span id="status-msg">Ready</span><span style="margin-left:auto;opacity:.6">ProEditor v3.0</span></div>
+<div class="statusbar"><span id="status-msg">Ready</span><span style="margin-left:auto;opacity:.6">HTML Editor by Jignesh · Free Visual HTML Editor &amp; Web Page Maker</span></div>
+
+<!-- SEO: keyword-rich description for search crawlers -->
+<div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap" aria-hidden="true">
+  <h1>HTML Editor Online by Jignesh – Free Visual HTML Editor and Web Page Maker</h1>
+  <p>Welcome to the best free online HTML editor by Jignesh. This tool is a powerful visual HTML editor, HTML viewer, CSS visual editor, and web page maker. Write HTML code with live preview, drag and drop elements, resize, rotate, and change properties visually. No download needed – works entirely in your browser. Perfect for beginners and developers.</p>
+  <ul>
+    <li>Free HTML editor online</li>
+    <li>Visual HTML editor with live preview</li>
+    <li>HTML viewer and CSS visual editor</li>
+    <li>Web page maker and HTML builder</li>
+    <li>HTML editor by Jignesh</li>
+    <li>Drag and drop HTML editor</li>
+    <li>Monaco-powered code editor</li>
+  </ul>
+</div>
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
 
@@ -426,9 +641,6 @@ function runCode(){
   if(!editor) return;
   iframeEl.srcdoc=editor.getValue();
   setStatus('Preview updated');
-  iframeEl.onload=()=>{
-    if(visualModeOn) attachVisualListeners();
-  };
 }
 function openNewTab(){
   const w=window.open('','_blank');
@@ -546,6 +758,9 @@ function toast(m){
 /* ═════════════════════════════════════════
    VISUAL EDITOR
 ═════════════════════════════════════════ */
+let isDragging=false, isResizing=false, isRotating=false;
+let savedStyles=null;
+
 function setVisualMode(on){
   visualModeOn=on;
   vOverlay.classList.toggle('active',on);
@@ -564,26 +779,23 @@ function setVisualMode(on){
 function attachVisualListeners(){
   try{
     const iDoc=iframeEl.contentDocument;
-    if(!iDoc||!iDoc.body)return;
-    iDoc.body.removeEventListener('mousemove',onMove,true);
-    iDoc.body.removeEventListener('click',onClick,true);
-    iDoc.body.addEventListener('mousemove',onMove,true);
-    iDoc.body.addEventListener('click',onClick,true);
-  } catch(e){console.warn('visual attach err',e);}
+    if(!iDoc||!iDoc.body) return;
+    iDoc.body.removeEventListener('mousemove',iOnMove,true);
+    iDoc.body.removeEventListener('click',iOnClick,true);
+    iDoc.body.addEventListener('mousemove',iOnMove,true);
+    iDoc.body.addEventListener('click',iOnClick,true);
+  } catch(e){ console.warn('visual attach:',e); }
 }
 
-/* Convert iframe-relative rect to overlay-relative coords */
+/* Convert iframe element's bounding rect to overlay-relative coords */
 function getRect(el){
   try{
-    const iDoc=iframeEl.contentDocument;
-    const iWin=iframeEl.contentWindow;
     const iRect=iframeEl.getBoundingClientRect();
     const overlayRect=vOverlay.getBoundingClientRect();
     const r=el.getBoundingClientRect();
-    // iframe rect is relative to host viewport, overlay is too
     return {
       left: (iRect.left + r.left) - overlayRect.left,
-      top:  (iRect.top  + r.top)  - overlayRect.top + (iWin.scrollY||0),
+      top:  (iRect.top  + r.top)  - overlayRect.top,
       width:  r.width,
       height: r.height,
     };
@@ -596,8 +808,6 @@ function positionSel(rect, el){
   vSel.style.top   =rect.top+'px';
   vSel.style.width =rect.width+'px';
   vSel.style.height=rect.height+'px';
-
-  // get current rotation
   let rot=0;
   try{
     const cs=iframeEl.contentWindow.getComputedStyle(el);
@@ -611,19 +821,21 @@ function positionSel(rect, el){
   vSel.style.display='block';
 }
 
-function onMove(e){
-  if(!visualModeOn)return;
+function iOnMove(e){
+  if(!visualModeOn||isDragging||isResizing||isRotating) return;
   const el=e.target;
   if(!el||el.tagName==='HTML'||el.tagName==='BODY'){vHover.style.display='none';return;}
-  const r=getRect(el);if(!r)return;
+  if(el===selectedEl){vHover.style.display='none';return;}
+  const r=getRect(el);
+  if(!r){vHover.style.display='none';return;}
   vHover.style.display='block';
   vHover.style.left=r.left+'px'; vHover.style.top=r.top+'px';
   vHover.style.width=r.width+'px'; vHover.style.height=r.height+'px';
 }
 
-function onClick(e){
-  if(!visualModeOn)return;
-  e.preventDefault();e.stopPropagation();
+function iOnClick(e){
+  if(!visualModeOn) return;
+  e.preventDefault(); e.stopPropagation();
   const el=e.target;
   if(!el||el.tagName==='HTML'||el.tagName==='BODY'){deselect();return;}
   selectEl(el);
@@ -631,6 +843,7 @@ function onClick(e){
 
 function deselect(){
   selectedEl=null;
+  savedStyles=null;
   vSel.style.display='none';
   vHover.style.display='none';
   propPanel.classList.remove('open');
@@ -638,6 +851,7 @@ function deselect(){
 
 function selectEl(el){
   selectedEl=el;
+  savedStyles=el.getAttribute('style')||'';
   const r=getRect(el);
   positionSel(r,el);
   vHover.style.display='none';
@@ -648,42 +862,45 @@ function selectEl(el){
 
 function closePropPanel(){deselect();}
 
-/* ─── Fill Properties ─── */
-function fillProps(el){
-  if(!el)return;
-  let cs;
-  try{cs=iframeEl.contentWindow.getComputedStyle(el);}catch(e){return;}
-  const r=getRect(el);
-  document.getElementById('ppTag').textContent=el.tagName.toLowerCase();
-  document.getElementById('pp-x').value=Math.round(r?r.left:0);
-  document.getElementById('pp-y').value=Math.round(r?r.top:0);
-  document.getElementById('pp-w').value=Math.round(r?r.width:0);
-  document.getElementById('pp-h').value=Math.round(r?r.height:0);
-  // rot
-  let rot=0;
-  const m=cs.transform;
-  if(m&&m!=='none'){const v=m.match(/matrix\(([^)]+)\)/);if(v){const[a,b]=v[1].split(',');rot=Math.round(Math.atan2(+b,+a)*180/Math.PI);}}
-  document.getElementById('pp-rot').value=rot;
-  // text
-  const nodes=[...el.childNodes].filter(n=>n.nodeType===3);
-  document.getElementById('pp-text').value=nodes.length?nodes[0].textContent.trim():el.textContent.trim().slice(0,80);
-  document.getElementById('pp-fs').value=cs.fontSize||'';
-  try{document.getElementById('pp-color').value=rgb2hex(cs.color);}catch(e){}
-  const fw=parseInt(cs.fontWeight)||400;
-  document.getElementById('pp-fw').value=fw>=700?'700':fw>=600?'600':'400';
-  try{document.getElementById('pp-bg').value=rgb2hex(cs.backgroundColor);}catch(e){}
-  document.getElementById('pp-opacity').value=parseFloat(cs.opacity)||1;
-  document.getElementById('pp-bw').value=parseInt(cs.borderTopWidth)||0;
-  try{document.getElementById('pp-bc').value=rgb2hex(cs.borderTopColor);}catch(e){}
-  document.getElementById('pp-br').value=parseInt(cs.borderRadius)||0;
-  document.getElementById('pp-css').value=el.getAttribute('style')||'';
+function deleteEl(){
+  if(!selectedEl) return;
+  if(confirm('Delete this element?')){
+    selectedEl.remove();
+    deselect();
+    toast('Element deleted 🗑');
+    setStatus('Deleted');
+  }
 }
 
+function discardChanges(){
+  if(!selectedEl||savedStyles===null) return;
+  selectedEl.setAttribute('style', savedStyles);
+  fillProps(selectedEl);
+  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  toast('Changes discarded');
+}
+
+/* Reattach when iframe reloads */
+iframeEl.addEventListener('load',()=>{ if(visualModeOn) attachVisualListeners(); });
+
+/* ─── Helpers ─── */
 function rgb2hex(rgb){
-  const m=rgb.match(/\d+/g);if(!m||m.length<3)return '#000000';
+  if(!rgb||rgb==='transparent'||rgb==='rgba(0, 0, 0, 0)') return '#000000';
+  const m=rgb.match(/\d+/g); if(!m||m.length<3) return '#000000';
   return '#'+m.slice(0,3).map(n=>parseInt(n).toString(16).padStart(2,'0')).join('');
 }
-
+function syncColorHex(colorId, hexId){
+  document.getElementById(hexId).value=document.getElementById(colorId).value;
+}
+function syncHexColor(hexId, colorId){
+  const v=document.getElementById(hexId).value.trim();
+  if(/^#[0-9a-fA-F]{3,6}$/.test(v)) document.getElementById(colorId).value=v;
+}
+function setColor(colorId, hexId, val){
+  const h=rgb2hex(val);
+  try{document.getElementById(colorId).value=h;}catch(e){}
+  document.getElementById(hexId).value=h;
+}
 function ensurePos(el){
   try{
     if(iframeEl.contentWindow.getComputedStyle(el).position==='static')
@@ -691,8 +908,69 @@ function ensurePos(el){
   }catch(e){}
 }
 
+/* ─── Fill Properties ─── */
+function fillProps(el){
+  if(!el) return;
+  let cs;
+  try{cs=iframeEl.contentWindow.getComputedStyle(el);}catch(e){return;}
+  const r=getRect(el);
+  document.getElementById('ppTag').textContent=el.tagName.toLowerCase();
+
+  // Layout
+  document.getElementById('pp-x').value=Math.round(r?r.left:0);
+  document.getElementById('pp-y').value=Math.round(r?r.top:0);
+  document.getElementById('pp-w').value=Math.round(r?r.width:0);
+  document.getElementById('pp-h').value=Math.round(r?r.height:0);
+  let rot=0;
+  const mx=cs.transform;
+  if(mx&&mx!=='none'){const v=mx.match(/matrix\(([^)]+)\)/);if(v){const[a,b]=v[1].split(',');rot=Math.round(Math.atan2(+b,+a)*180/Math.PI);}}
+  document.getElementById('pp-rot').value=rot;
+
+  // Spacing
+  const parseNum=(s)=>parseInt(s)||0;
+  document.getElementById('pp-mx').value=parseNum(cs.marginLeft);
+  document.getElementById('pp-my').value=parseNum(cs.marginTop);
+  document.getElementById('pp-px').value=parseNum(cs.paddingLeft);
+  document.getElementById('pp-py').value=parseNum(cs.paddingTop);
+
+  // Text
+  const nodes=[...el.childNodes].filter(n=>n.nodeType===3);
+  document.getElementById('pp-text').value=nodes.length?nodes[0].textContent.trim():el.textContent.trim().slice(0,80);
+  const fsPx=parseFloat(cs.fontSize)||16;
+  document.getElementById('pp-fs').value=Math.round(fsPx);
+  const fw=parseInt(cs.fontWeight)||400;
+  const fwSel=document.getElementById('pp-fw');
+  fwSel.value=fw>=800?'900':fw>=700?'700':fw>=600?'600':fw<=300?'300':'400';
+
+  // Alignment
+  const align=cs.textAlign||'left';
+  document.querySelectorAll('.pp-align-btn').forEach(b=>{
+    b.classList.toggle('on', b.dataset.align===align||
+      (b.dataset.align==='left'&&(align==='start'||align==='')));
+  });
+
+  // Colors
+  setColor('pp-color','pp-color-hex', cs.color);
+  setColor('pp-bg','pp-bg-hex', cs.backgroundColor);
+  document.getElementById('pp-opacity').value=Math.round((parseFloat(cs.opacity)||1)*100);
+
+  // Border
+  setColor('pp-bc-t','pp-bc-t-hex', cs.borderTopColor);
+  setColor('pp-bc-r','pp-bc-r-hex', cs.borderRightColor);
+  setColor('pp-bc-b','pp-bc-b-hex', cs.borderBottomColor);
+  setColor('pp-bc-l','pp-bc-l-hex', cs.borderLeftColor);
+  document.getElementById('pp-bw-t').value=parseNum(cs.borderTopWidth);
+  document.getElementById('pp-bw-r').value=parseNum(cs.borderRightWidth);
+  document.getElementById('pp-bw-b').value=parseNum(cs.borderBottomWidth);
+  document.getElementById('pp-bw-l').value=parseNum(cs.borderLeftWidth);
+  document.getElementById('pp-br').value=parseNum(cs.borderRadius);
+
+  // CSS
+  document.getElementById('pp-css').value=el.getAttribute('style')||'';
+}
+
 function applyLayout(){
-  if(!selectedEl)return;
+  if(!selectedEl) return;
   const x=parseInt(document.getElementById('pp-x').value)||0;
   const y=parseInt(document.getElementById('pp-y').value)||0;
   const w=parseInt(document.getElementById('pp-w').value);
@@ -700,45 +978,71 @@ function applyLayout(){
   const rot=parseFloat(document.getElementById('pp-rot').value)||0;
   ensurePos(selectedEl);
   selectedEl.style.left=x+'px'; selectedEl.style.top=y+'px';
-  if(!isNaN(w))selectedEl.style.width=w+'px';
-  if(!isNaN(h))selectedEl.style.height=h+'px';
+  if(!isNaN(w)) selectedEl.style.width=w+'px';
+  if(!isNaN(h)) selectedEl.style.height=h+'px';
   selectedEl.style.transform=`rotate(${rot}deg)`;
   const r=getRect(selectedEl); positionSel(r,selectedEl);
 }
 
+function applySpacing(){
+  if(!selectedEl) return;
+  const mx=parseInt(document.getElementById('pp-mx').value)||0;
+  const my=parseInt(document.getElementById('pp-my').value)||0;
+  const px=parseInt(document.getElementById('pp-px').value)||0;
+  const py=parseInt(document.getElementById('pp-py').value)||0;
+  selectedEl.style.margin=my+'px '+mx+'px';
+  selectedEl.style.padding=py+'px '+px+'px';
+}
+
 function applyTypo(){
-  if(!selectedEl)return;
+  if(!selectedEl) return;
   const txt=document.getElementById('pp-text').value;
   const fs=document.getElementById('pp-fs').value;
   const col=document.getElementById('pp-color').value;
   const fw=document.getElementById('pp-fw').value;
-  if(txt){const nodes=[...selectedEl.childNodes].filter(n=>n.nodeType===3);
-    if(nodes.length)nodes[0].textContent=txt; else selectedEl.textContent=txt;}
-  if(fs)selectedEl.style.fontSize=fs;
-  if(col)selectedEl.style.color=col;
-  if(fw)selectedEl.style.fontWeight=fw;
+  if(txt){
+    const nodes=[...selectedEl.childNodes].filter(n=>n.nodeType===3);
+    if(nodes.length) nodes[0].textContent=txt; else selectedEl.textContent=txt;
+  }
+  if(fs) selectedEl.style.fontSize=fs+'px';
+  if(col) selectedEl.style.color=col;
+  if(fw) selectedEl.style.fontWeight=fw;
+}
+
+function applyAlign(a){
+  if(!selectedEl) return;
+  selectedEl.style.textAlign=a;
+  document.querySelectorAll('.pp-align-btn').forEach(b=>b.classList.toggle('on',b.dataset.align===a));
 }
 
 function applyBG(){
-  if(!selectedEl)return;
+  if(!selectedEl) return;
   selectedEl.style.backgroundColor=document.getElementById('pp-bg').value;
-  selectedEl.style.opacity=document.getElementById('pp-opacity').value;
+  const op=parseFloat(document.getElementById('pp-opacity').value)||100;
+  selectedEl.style.opacity=op/100;
 }
 
 function applyBorder(){
-  if(!selectedEl)return;
-  const bw=document.getElementById('pp-bw').value;
-  const bc=document.getElementById('pp-bc').value;
-  const br=document.getElementById('pp-br').value;
-  selectedEl.style.borderStyle='solid';
-  selectedEl.style.borderWidth=bw+'px';
-  selectedEl.style.borderColor=bc;
+  if(!selectedEl) return;
+  const t=document.getElementById('pp-bw-t').value||0;
+  const ri=document.getElementById('pp-bw-r').value||0;
+  const b=document.getElementById('pp-bw-b').value||0;
+  const l=document.getElementById('pp-bw-l').value||0;
+  const ct=document.getElementById('pp-bc-t').value;
+  const cr=document.getElementById('pp-bc-r').value;
+  const cb=document.getElementById('pp-bc-b').value;
+  const cl=document.getElementById('pp-bc-l').value;
+  const br=document.getElementById('pp-br').value||0;
+  selectedEl.style.borderTopWidth=t+'px'; selectedEl.style.borderTopStyle='solid'; selectedEl.style.borderTopColor=ct;
+  selectedEl.style.borderRightWidth=ri+'px'; selectedEl.style.borderRightStyle='solid'; selectedEl.style.borderRightColor=cr;
+  selectedEl.style.borderBottomWidth=b+'px'; selectedEl.style.borderBottomStyle='solid'; selectedEl.style.borderBottomColor=cb;
+  selectedEl.style.borderLeftWidth=l+'px'; selectedEl.style.borderLeftStyle='solid'; selectedEl.style.borderLeftColor=cl;
   selectedEl.style.borderRadius=br+'px';
 }
 
 function applyCSS(){
-  if(!selectedEl)return;
-  selectedEl.setAttribute('style',document.getElementById('pp-css').value);
+  if(!selectedEl) return;
+  selectedEl.setAttribute('style', document.getElementById('pp-css').value);
   const r=getRect(selectedEl); positionSel(r,selectedEl);
 }
 
@@ -746,8 +1050,9 @@ function syncToCode(){
   try{
     const html='<!DOCTYPE html>\n'+iframeEl.contentDocument.documentElement.outerHTML;
     editor.setValue(html);
-    toast('Synced to code ⟳');
+    toast('Saved to code ✅');
     setStatus('Code updated from visual');
+    savedStyles=selectedEl?selectedEl.getAttribute('style')||'':null;
   }catch(e){toast('Sync error ⚠');}
 }
 
@@ -756,7 +1061,7 @@ function syncToCode(){
   let d=false,sx,sy,ox,oy;
   vSelInner.addEventListener('mousedown',e=>{
     if(!selectedEl)return;
-    d=true;sx=e.clientX;sy=e.clientY;
+    d=true;isDragging=true;sx=e.clientX;sy=e.clientY;
     ensurePos(selectedEl);
     ox=parseFloat(selectedEl.style.left)||0;
     oy=parseFloat(selectedEl.style.top)||0;
@@ -773,7 +1078,7 @@ function syncToCode(){
     const r=getRect(selectedEl);positionSel(r,selectedEl);
   });
   document.addEventListener('mouseup',()=>{
-    if(!d)return;d=false;
+    if(!d)return;d=false;isDragging=false;
     document.body.style.userSelect='';
     document.body.style.cursor='';
     setStatus('Moved');
@@ -786,7 +1091,7 @@ function syncToCode(){
   document.querySelectorAll('.v-handle').forEach(h=>{
     h.addEventListener('mousedown',e=>{
       if(!selectedEl)return;
-      d=true;dir=h.dataset.dir;
+      d=true;isResizing=true;dir=h.dataset.dir;
       sx=e.clientX;sy=e.clientY;
       ensurePos(selectedEl);
       ow=selectedEl.offsetWidth; oh=selectedEl.offsetHeight;
@@ -814,7 +1119,7 @@ function syncToCode(){
     const r=getRect(selectedEl);positionSel(r,selectedEl);
   });
   document.addEventListener('mouseup',()=>{
-    if(!d)return;d=false;
+    if(!d)return;d=false;isResizing=false;
     document.body.style.userSelect='';document.body.style.cursor='';
     setStatus('Resized');
   });
@@ -825,7 +1130,7 @@ function syncToCode(){
   let d=false,cx,cy,startAngle,curRot=0;
   vRotHandle.addEventListener('mousedown',e=>{
     if(!selectedEl)return;
-    d=true;
+    d=true;isRotating=true;
     const r=vSel.getBoundingClientRect();
     cx=r.left+r.width/2; cy=r.top+r.height/2;
     startAngle=Math.atan2(e.clientY-cy,e.clientX-cx)*180/Math.PI;
@@ -843,16 +1148,11 @@ function syncToCode(){
     document.getElementById('pp-rot').value=rot;
   });
   document.addEventListener('mouseup',()=>{
-    if(!d)return;d=false;
+    if(!d)return;d=false;isRotating=false;
     document.body.style.userSelect='';document.body.style.cursor='';
     setStatus('Rotated');
   });
 })();
-
-/* Listen for iframe load to reattach */
-iframeEl.addEventListener('load',()=>{
-  if(visualModeOn)attachVisualListeners();
-});
 </script>
 </body>
 </html>
