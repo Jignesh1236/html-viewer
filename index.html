@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Pro HTML Editor (Monaco)</title>
+
+<!-- Monaco CDN -->
+<script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+
+<style>
+body {
+  margin: 0;
+  background: #1e1e1e;
+  color: white;
+  font-family: Arial;
+}
+
+/* Layout */
+.wrapper {
+  display: flex;
+  height: 100dvh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  min-width: 150px;
+  max-width: 400px;
+  background: #2c2c2c;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  resize: horizontal;
+  overflow: auto;
+}
+
+.sidebar button {
+  padding: 10px;
+  border: none;
+  background: #444;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 5px;
+  text-align: left;
+}
+
+.sidebar button:hover {
+  background: #666;
+}
+
+/* Editor */
+.main {
+  flex: 1;
+  display: flex;
+}
+
+#editor {
+  width: 50%;
+  height: 100%;
+}
+
+iframe {
+  width: 50%;
+  border: none;
+  background: #fff;
+}
+
+/* MOBILE */
+@media (max-width: 768px) {
+
+  .wrapper {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    resize: none;
+    overflow-x: auto;
+  }
+
+  .main {
+    flex-direction: column;
+  }
+
+  #editor, iframe {
+    width: 100%;
+    height: 50%;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="wrapper">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <button onclick="runCode()">👁 Preview</button>
+    <button onclick="formatCode()">🧹 Format</button>
+    <button onclick="clearCode()">🗑 Clear</button>
+    <button onclick="sample()">📄 Sample</button>
+    <button onclick="importFile()">📂 Import</button>
+    <button onclick="downloadHTML()">⬇ Export</button>
+    <button onclick="openNewTab()">🌐 Open</button>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div id="editor"></div>
+    <iframe id="preview"></iframe>
+  </div>
+
+</div>
+
+<input type="file" id="fileInput" hidden>
+
+<script>
+let editor;
+
+// Monaco load
+require.config({ paths: { vs: 'https://unpkg.com/monaco-editor@0.45.0/min/vs' }});
+require(['vs/editor/editor.main'], function () {
+
+  editor = monaco.editor.create(document.getElementById('editor'), {
+    value: `<!DOCTYPE html>
+<html>
+<head>
+<title>Demo</title>
+</head>
+<body>
+<h1>Hello Monaco 🚀</h1>
+</body>
+</html>`,
+    language: 'html',
+    theme: 'vs-dark',
+    automaticLayout: true
+  });
+
+  runCode();
+});
+
+// Functions
+function runCode() {
+  const code = editor.getValue();
+  document.getElementById("preview").srcdoc = code;
+}
+
+function openNewTab() {
+  const code = editor.getValue();
+  const win = window.open();
+  win.document.write(code);
+  win.document.close();
+}
+
+function downloadHTML() {
+  const blob = new Blob([editor.getValue()], {type:'text/html'});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "code.html";
+  a.click();
+}
+
+function clearCode() {
+  editor.setValue("");
+  runCode();
+}
+
+function sample() {
+  editor.setValue("<h1>Sample Loaded 🔥</h1>");
+  runCode();
+}
+
+function formatCode() {
+  let code = editor.getValue();
+  code = code.replace(/></g, ">\n<");
+  editor.setValue(code);
+}
+
+function importFile() {
+  document.getElementById("fileInput").click();
+}
+
+document.getElementById("fileInput").addEventListener("change", function(e) {
+  const file = e.target.files[0];
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    editor.setValue(event.target.result);
+    runCode();
+  };
+  reader.readAsText(file);
+});
+</script>
+
+</body>
+</html>
