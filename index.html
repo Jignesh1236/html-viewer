@@ -13,7 +13,13 @@
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
 <meta name="googlebot" content="index, follow">
 <meta name="theme-color" content="#6c63ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="HTML Editor">
 <link rel="canonical" href="https://html-viewer-gray-beta.vercel.app/">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon.svg">
 
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1826192920016393" crossorigin="anonymous"></script>
 
@@ -61,7 +67,9 @@
         "Monaco code editor",
         "Web page maker",
         "HTML viewer",
-        "Import and export HTML"
+        "Import and export HTML",
+        "Install as PWA",
+        "Ready-made HTML templates"
       ],
       "creator": {
         "@type": "Person",
@@ -127,9 +135,28 @@
   --topH:46px;
   --sbW:210px;
   --propW:240px;
+  --status-fg:rgba(255,255,255,.9);
+}
+
+html[data-theme="light"]{
+  --bg:#eef0f6;
+  --sb:#e4e6ef;
+  --panel:#ffffff;
+  --border:#c8cad8;
+  --text:#1c1b26;
+  --muted:#5c5a70;
+  --btn:#dfe2ec;
+  --btnhov:#d0d4e4;
+  --status-fg:rgba(255,255,255,.95);
 }
 
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif}
+
+.skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}
+.skip-link:focus{position:fixed;left:12px;top:calc(var(--topH) + 8px);width:auto;height:auto;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;outline:2px solid var(--accent2);outline-offset:2px}
+
+.tb-btn:focus-visible,.mode-tab:focus-visible,.sb-btn:focus-visible,.pp-icon-btn:focus-visible,.pp-align-btn:focus-visible,.pp-discard:focus-visible,.pp-save:focus-visible,.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pv-tools button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ── TOPBAR ── */
 .topbar{
@@ -155,6 +182,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .tb-btn{background:var(--btn);border:1px solid var(--border);color:var(--text);font-size:11px;padding:5px 11px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap}
 .tb-btn:hover{background:var(--btnhov);border-color:var(--accent)}
 .tb-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.1)}
+.tb-btn.icon-only{padding:5px 10px;min-width:36px}
 
 .mode-tabs{display:flex;background:var(--btn);border:1px solid var(--border);border-radius:8px;overflow:hidden}
 .mode-tab{padding:5px 13px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;border:none;background:transparent;color:var(--muted)}
@@ -162,6 +190,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
 .tb-stat{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.tb-font-group{display:flex;align-items:center;gap:4px}
 
 /* ── WORKSPACE ── */
 .workspace{display:flex;height:calc(100dvh - var(--topH));margin-top:var(--topH);overflow:hidden}
@@ -183,7 +212,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .panels{flex:1;display:flex;min-width:0;overflow:hidden;position:relative}
 
 .pane{display:flex;flex-direction:column;min-width:80px;overflow:hidden}
-.pane-header{height:32px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:7px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);flex-shrink:0}
+.pane-header{min-height:32px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;padding:6px 12px;gap:7px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);flex-shrink:0}
 .pane-dot{width:7px;height:7px;border-radius:50%}
 .pd-code{background:var(--accent)}.pd-preview{background:var(--accent2)}
 
@@ -194,10 +223,27 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 /* ── PREVIEW PANE ── */
 .preview-pane{display:flex;flex-direction:column;min-width:80px;position:relative}
-#preview{flex:1;border:none;background:#fff;display:block;width:100%}
+.preview-viewport-wrap{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;overflow:auto;background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 8px,var(--panel) 8px,var(--panel) 16px)}
+.preview-viewport-inner{position:relative;width:100%;max-width:var(--pv-max,100%);min-height:0;flex:1;display:flex;flex-direction:column;box-shadow:0 0 0 1px var(--border)}
+#preview{flex:1;min-height:0;border:none;background:#fff;display:block;width:100%}
+.pv-tools{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-left:8px}
+.pv-tools button{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:9px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s}
+.pv-tools button:hover{color:var(--text);border-color:var(--accent)}
+.pv-tools button.on{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.12)}
+.sb-select-wrap{width:100%;margin-bottom:2px}
+.sb-select{width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:600;cursor:pointer;outline:none}
+.sb-select:focus{border-color:var(--accent)}
+.modal-overlay{display:none;position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-box{background:var(--sb);border:1px solid var(--border);border-radius:14px;padding:20px 24px;max-width:420px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+.modal-box h3{font-size:15px;margin-bottom:12px;font-family:'Syne',sans-serif}
+.modal-box kbd{background:var(--btn);border:1px solid var(--border);padding:2px 7px;border-radius:5px;font-size:11px;font-family:'JetBrains Mono',monospace}
+.modal-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;font-family:'JetBrains Mono',monospace}
+.modal-row:last-child{border-bottom:none}
+.modal-close{margin-top:14px;width:100%;padding:9px;background:linear-gradient(135deg,var(--accent),#4a42cc);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;font-weight:700}
 
 /* ── VISUAL OVERLAY ── */
-.visual-overlay{position:absolute;top:32px;left:0;right:0;bottom:0;pointer-events:none;z-index:50;display:none}
+.visual-overlay{position:absolute;inset:0;pointer-events:none;z-index:50;display:none}
 .visual-overlay.active{display:block}
 
 .v-hover{position:absolute;border:2px dashed var(--accent2);border-radius:3px;pointer-events:none;display:none}
@@ -219,7 +265,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .v-rotate:active{cursor:grabbing}
 
 /* ── VISUAL INFO BAR ── */
-.visual-bar{display:none;position:absolute;top:32px;left:0;right:0;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:5px 14px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;pointer-events:none}
+.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:5px 14px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;pointer-events:none;flex-shrink:0}
 .visual-bar.show{display:block}
 
 /* ── PROPERTY PANEL ── */
@@ -270,7 +316,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .pp-save:hover{filter:brightness(1.2)}
 
 /* ── STATUSBAR ── */
-.statusbar{position:fixed;bottom:0;left:0;right:0;height:20px;background:var(--accent);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:rgba(255,255,255,.9);z-index:999}
+.statusbar{position:fixed;bottom:0;left:0;right:0;height:20px;background:var(--accent);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--status-fg);z-index:999}
 #status-msg{font-weight:700}
 
 /* ── TOAST ── */
@@ -279,6 +325,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </style>
 </head>
 <body>
+<a href="#workspace" class="skip-link">Skip to editor</a>
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -292,7 +339,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <div class="tb-div"></div>
   <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
   <button class="tb-btn on" id="liveBtn" onclick="toggleLive()">Auto ▶ ON</button>
+  <div class="tb-div"></div>
+  <div class="tb-font-group">
+    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size">A−</button>
+    <span class="tb-stat" id="fontSizeLabel" style="min-width:22px;text-align:center">13</span>
+    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size">A+</button>
+  </div>
+  <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme">Light</button>
   <div class="tb-right">
+    <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts">?</button>
     <span class="tb-stat" id="stat-chars">0 chars</span>
     <span class="tb-stat" style="color:var(--border)">|</span>
     <span class="tb-stat" id="stat-lines">0 lines</span>
@@ -317,7 +372,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- WORKSPACE -->
-<div class="workspace">
+<div class="workspace" id="workspace">
 
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
@@ -328,11 +383,27 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="sb-label">Edit</div>
     <button class="sb-btn" onclick="formatCode()"><span class="sb-icon">✨</span>Format</button>
     <button class="sb-btn" onclick="clearCode()"><span class="sb-icon">🗑</span>Clear</button>
-    <button class="sb-btn" onclick="loadSample()"><span class="sb-icon">📄</span>Load Sample</button>
+    <div class="sb-label" style="margin-top:6px">Templates</div>
+    <div class="sb-select-wrap">
+      <select class="sb-select" id="templateSelect" onchange="onTemplateSelect(this)" aria-label="Load HTML template">
+        <option value="">— Load template —</option>
+        <option value="hero">Hero / landing</option>
+        <option value="form">Contact form</option>
+        <option value="cards">Card grid</option>
+        <option value="minimal">Minimal blank</option>
+        <option value="sample">Simple sample</option>
+        <option value="blog">Blog article</option>
+        <option value="pricing">Pricing table</option>
+        <option value="dashboard">Dashboard shell</option>
+      </select>
+    </div>
     <div class="sb-sep"></div>
     <div class="sb-label">File</div>
+    <button class="sb-btn" onclick="copyHTML()"><span class="sb-icon">📋</span>Copy HTML</button>
+    <button class="sb-btn" onclick="copyShareLink()"><span class="sb-icon">🔗</span>Copy share link</button>
     <button class="sb-btn" onclick="importFile()"><span class="sb-icon">📂</span>Import</button>
     <button class="sb-btn" onclick="exportHTML()"><span class="sb-icon">⬇</span>Export HTML</button>
+    <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon">💾</span>Forget saved draft</button>
     <div class="sb-resizer" id="sbResizer"></div>
   </div>
 
@@ -353,9 +424,17 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="pane-header">
         <div class="pane-dot pd-preview"></div>
         <span>Live Preview</span>
+        <div class="pv-tools" id="viewportTools" title="Preview width">
+          <button type="button" data-pv="full" class="on" onclick="setViewport('full')">Full</button>
+          <button type="button" data-pv="390" onclick="setViewport('390')">Mobile</button>
+          <button type="button" data-pv="768" onclick="setViewport('768')">Tablet</button>
+          <button type="button" data-pv="1200" onclick="setViewport('1200')">Desktop</button>
+        </div>
         <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="previewHint"></span>
       </div>
       <div class="visual-bar" id="visualBar">🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</div>
+      <div class="preview-viewport-wrap" id="previewViewportWrap">
+        <div class="preview-viewport-inner" id="previewViewportInner">
       <iframe id="preview" title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
       <!-- OVERLAY -->
       <div class="visual-overlay" id="visualOverlay">
@@ -372,6 +451,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
           <div class="v-handle sw" data-dir="sw"></div>
           <div class="v-handle w"  data-dir="w"></div>
           <div class="v-sel-inner" id="vSelInner"></div>
+        </div>
+      </div>
         </div>
       </div>
     </div>
@@ -530,9 +611,23 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <li>Monaco-powered code editor</li>
   </ul>
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
 
+<div class="modal-overlay" id="shortcutsModal" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle" onclick="if(event.target===this)closeShortcutsModal()">
+  <div class="modal-box">
+    <h3 id="shortcutsTitle">Keyboard shortcuts</h3>
+    <div class="modal-row"><span>Run preview / save</span><span><kbd>Ctrl</kbd> + <kbd>S</kbd></span></div>
+    <div class="modal-row"><span>Format HTML</span><span><kbd>Ctrl</kbd> + <kbd>/</kbd></span></div>
+    <div class="modal-row"><span>Deselect (visual)</span><span><kbd>Esc</kbd></span></div>
+    <div class="modal-row"><span>This help</span><span><kbd>?</kbd> or <kbd>Shift</kbd> + <kbd>/</kbd></span></div>
+    <div class="modal-row"><span>Find / replace</span><span><kbd>Ctrl</kbd> + <kbd>F</kbd> / <kbd>H</kbd></span></div>
+    <div class="modal-row"><span>Share in URL</span><span>Sidebar: Copy share link</span></div>
+    <button type="button" class="modal-close" onclick="closeShortcutsModal()">Close</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 /* ─────────────────────────────────────────
@@ -542,22 +637,17 @@ let editor, liveOn=true, liveTimer;
 let currentMode='split';
 let visualModeOn=false;
 let selectedEl=null;
+let autosaveTimer;
+const DRAFT_KEY='html-editor-by-jignesh-draft';
+const THEME_KEY='html-editor-theme';
+const FONT_KEY='html-editor-font-size';
+const SHARE_MAX_PLAIN=150000;
+const SHARE_MAX_COMPRESSED=65000;
+let appTheme='dark';
+let editorFontSize=13;
 
-const iframeEl    = document.getElementById('preview');
-const vOverlay    = document.getElementById('visualOverlay');
-const vHover      = document.getElementById('vHover');
-const vSel        = document.getElementById('vSel');
-const vRotHandle  = document.getElementById('vRotate');
-const vSelInner   = document.getElementById('vSelInner');
-const propPanel   = document.getElementById('propPanel');
-
-/* ─────────────────────────────────────────
-   MONACO
-───────────────────────────────────────── */
-require.config({paths:{vs:'https://unpkg.com/monaco-editor@0.45.0/min/vs'}});
-require(['vs/editor/editor.main'], () => {
-  const defaultCode =
-`<!DOCTYPE html>
+const TEMPLATES={
+  hero:`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -581,17 +671,401 @@ require(['vs/editor/editor.main'], () => {
     <button class="btn" onclick="this.textContent='Clicked! ✅'">Get Started</button>
   </div>
 </body>
-</html>`;
+</html>`,
+  form:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Contact</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#f0f4ff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    form{background:#fff;padding:32px;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.08);max-width:400px;width:100%}
+    h1{font-size:1.5rem;margin-bottom:20px;color:#1e1b4b}
+    label{display:block;font-size:12px;color:#64748b;margin-bottom:6px}
+    input,textarea{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:16px;font-size:14px}
+    button{background:#6c63ff;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:600;cursor:pointer;width:100%}
+    button:hover{filter:brightness(1.05)}
+  </style>
+</head>
+<body>
+  <form onsubmit="event.preventDefault();alert('Thanks!');">
+    <h1>Contact us</h1>
+    <label for="n">Name</label>
+    <input id="n" name="name" placeholder="Your name">
+    <label for="e">Email</label>
+    <input id="e" type="email" name="email" placeholder="you@example.com">
+    <label for="m">Message</label>
+    <textarea id="m" name="msg" rows="4" placeholder="How can we help?"></textarea>
+    <button type="submit">Send</button>
+  </form>
+</body>
+</html>`,
+  cards:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Cards</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;padding:40px 20px}
+    h1{text-align:center;margin-bottom:32px;font-size:1.75rem}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;max-width:960px;margin:0 auto}
+    .card{background:#1e293b;border-radius:14px;padding:24px;border:1px solid #334155}
+    .card h2{font-size:1.1rem;margin-bottom:10px;color:#a78bfa}
+    .card p{font-size:14px;line-height:1.6;color:#94a3b8}
+  </style>
+</head>
+<body>
+  <h1>Card grid</h1>
+  <div class="grid">
+    <div class="card"><h2>Alpha</h2><p>First card content. Click in Visual mode to edit.</p></div>
+    <div class="card"><h2>Beta</h2><p>Second card with sample text.</p></div>
+    <div class="card"><h2>Gamma</h2><p>Third card — resize or restyle visually.</p></div>
+  </div>
+</body>
+</html>`,
+  minimal:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Blank</title>
+  <style>
+    body{font-family:sans-serif;padding:24px}
+  </style>
+</head>
+<body>
+  <p>Start editing in Code or Visual mode.</p>
+</body>
+</html>`,
+  sample:`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sample</title>
+<style>body{font-family:sans-serif;background:#f4f7ff;padding:40px;display:flex;justify-content:center}
+.box{background:#fff;padding:32px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:440px;width:100%}
+h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
+<body><div class="box"><h2>Sample 🔥</h2><p>Switch to Visual mode to edit elements visually!</p></div></body></html>`,
+  blog:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Blog Post</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Georgia,serif;background:#faf8f5;color:#1a1a1a;line-height:1.75;max-width:680px;margin:0 auto;padding:48px 24px 80px}
+    .article-meta{font-size:13px;color:#888;margin-bottom:8px;font-family:system-ui,sans-serif}
+    h1{font-size:2rem;margin-bottom:16px;font-family:system-ui,sans-serif;font-weight:800}
+    .lead{font-size:1.15rem;color:#444;margin-bottom:28px}
+    p{margin-bottom:1.1em}
+    hr{border:none;border-top:1px solid #e5e5e5;margin:32px 0}
+  </style>
+</head>
+<body>
+<article>
+  <p class="article-meta">March 15, 2026 · 5 min read</p>
+  <h1>Your headline goes here</h1>
+  <p class="lead">This is a short intro paragraph. Edit text in Code or Visual mode.</p>
+  <p>First body paragraph. Add more paragraphs below.</p>
+  <p>Second paragraph with <strong>bold</strong> and a <a href="#">link</a>.</p>
+  <hr>
+  <p>Thanks for reading.</p>
+</article>
+</body>
+</html>`,
+  pricing:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pricing</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);min-height:100vh;color:#e2e8f0;padding:48px 20px}
+    h1{text-align:center;font-size:1.75rem;margin-bottom:8px}
+    .sub{text-align:center;color:#94a3b8;font-size:14px;margin-bottom:40px}
+    .grid{display:flex;flex-wrap:wrap;justify-content:center;gap:20px;max-width:960px;margin:0 auto}
+    .plan{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px 24px;width:100%;max-width:280px;position:relative}
+    .plan.featured{border-color:#6c63ff;box-shadow:0 0 0 1px rgba(108,99,255,.33)}
+    .badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#6c63ff;color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;font-weight:700}
+    .plan h2{font-size:1.1rem;margin-bottom:8px}
+    .price{font-size:2rem;font-weight:800;color:#a78bfa;margin-bottom:4px}
+    .price span{font-size:14px;font-weight:500;color:#94a3b8}
+    ul{list-style:none;margin:20px 0 24px;font-size:14px;color:#cbd5e1}
+    li{padding:8px 0;border-bottom:1px solid #334155}
+    li:last-child{border-bottom:none}
+    .btn{display:block;width:100%;padding:12px;border-radius:10px;border:none;background:#6c63ff;color:#fff;font-weight:700;cursor:pointer;font-size:14px}
+    .btn.outline{background:transparent;border:2px solid #475569;color:#e2e8f0}
+    .btn:hover{filter:brightness(1.08)}
+  </style>
+</head>
+<body>
+<h1>Simple pricing</h1>
+<p class="sub">Pick a plan. Edit in Visual mode.</p>
+<div class="grid">
+  <div class="plan">
+    <h2>Starter</h2>
+    <div class="price">$0<span>/mo</span></div>
+    <ul>
+      <li>✓ 1 project</li>
+      <li>✓ Basic support</li>
+      <li>✓ Community</li>
+    </ul>
+    <button type="button" class="btn outline">Start</button>
+  </div>
+  <div class="plan featured">
+    <span class="badge">Popular</span>
+    <h2>Pro</h2>
+    <div class="price">$12<span>/mo</span></div>
+    <ul>
+      <li>✓ Unlimited projects</li>
+      <li>✓ Priority support</li>
+      <li>✓ Analytics</li>
+    </ul>
+    <button type="button" class="btn">Go Pro</button>
+  </div>
+  <div class="plan">
+    <h2>Team</h2>
+    <div class="price">$49<span>/mo</span></div>
+    <ul>
+      <li>✓ Everything in Pro</li>
+      <li>✓ SSO</li>
+      <li>✓ SLA</li>
+    </ul>
+    <button type="button" class="btn outline">Contact</button>
+  </div>
+</div>
+</body>
+</html>`,
+  dashboard:`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dashboard</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#0b0f14;color:#e6edf3;min-height:100vh;display:flex}
+    aside{width:220px;background:#111827;border-right:1px solid #1f2937;padding:20px 0;flex-shrink:0}
+    .dash-logo{padding:0 20px 20px;font-weight:800;font-size:14px;color:#a78bfa}
+    nav a{display:block;padding:10px 20px;color:#9ca3af;font-size:13px;text-decoration:none;border-left:3px solid transparent}
+    nav a:hover,nav a.on{background:#1f2937;color:#fff;border-left-color:#6c63ff}
+    main{flex:1;padding:24px 28px;overflow:auto}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+    h1{font-size:1.35rem;font-weight:700}
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:18px}
+    .card h3{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#6b7280;margin-bottom:8px}
+    .card .num{font-size:1.75rem;font-weight:800;color:#a78bfa}
+    .panel{margin-top:24px;background:#111827;border:1px solid #1f2937;border-radius:12px;padding:20px;min-height:160px}
+    .panel h2{font-size:14px;margin-bottom:12px}
+  </style>
+</head>
+<body>
+<aside>
+  <div class="dash-logo">◆ App</div>
+  <nav>
+    <a href="#" class="on">Overview</a>
+    <a href="#">Analytics</a>
+    <a href="#">Projects</a>
+    <a href="#">Settings</a>
+  </nav>
+</aside>
+<main>
+  <div class="top">
+    <h1>Overview</h1>
+    <span style="font-size:12px;color:#6b7280">Last login: today</span>
+  </div>
+  <div class="cards">
+    <div class="card"><h3>Users</h3><div class="num">1,248</div></div>
+    <div class="card"><h3>Revenue</h3><div class="num">$12.4k</div></div>
+    <div class="card"><h3>Tasks</h3><div class="num">86</div></div>
+  </div>
+  <div class="panel">
+    <h2>Activity</h2>
+    <p style="font-size:13px;color:#9ca3af;line-height:1.6">Sample content area. Edit in Visual mode or replace with charts.</p>
+  </div>
+</main>
+</body>
+</html>`
+};
+
+function scheduleAutosave(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer=setTimeout(()=>{
+    try{if(editor)localStorage.setItem(DRAFT_KEY,editor.getValue());}catch(err){}
+  },500);
+}
+
+function clearSavedDraft(){
+  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+  toast('Saved draft cleared 💾');
+}
+
+function copyHTML(){
+  if(!editor)return;
+  navigator.clipboard.writeText(editor.getValue()).then(()=>{
+    toast('Copied to clipboard 📋');
+  }).catch(()=>{toast('Copy failed — use Export or HTTPS');});
+}
+
+function setViewport(mode){
+  const inner=document.getElementById('previewViewportInner');
+  const map={full:'100%',390:'390px',768:'768px',1200:'1200px'};
+  inner.style.setProperty('--pv-max',map[mode]||'100%');
+  document.querySelectorAll('#viewportTools button').forEach(b=>{
+    b.classList.toggle('on',b.dataset.pv===mode);
+  });
+  if(editor)editor.layout();
+}
+
+function onTemplateSelect(sel){
+  const v=sel.value;
+  if(!v)return;
+  loadTemplate(v);
+  sel.value='';
+}
+
+function loadTemplate(id){
+  const html=TEMPLATES[id];
+  if(!html||!editor)return;
+  editor.setValue(html);
+  runCode();
+  scheduleAutosave();
+  toast('Template loaded 📄');
+}
+
+function openShortcutsModal(){
+  document.getElementById('shortcutsModal').classList.add('show');
+}
+function closeShortcutsModal(){
+  document.getElementById('shortcutsModal').classList.remove('show');
+}
+
+function tryGetSharedHtml(){
+  if(typeof LZString==='undefined') return null;
+  let enc='';
+  const h=location.hash;
+  if(h&&h.startsWith('#c=')) enc=h.slice(3);
+  else{
+    try{
+      enc=new URLSearchParams(location.search).get('c')||'';
+    }catch(e){}
+  }
+  if(!enc) return null;
+  const decoded=LZString.decompressFromEncodedURIComponent(enc);
+  if(!decoded||!decoded.length) return null;
+  return decoded;
+}
+
+function copyShareLink(){
+  if(!editor)return;
+  if(typeof LZString==='undefined'){toast('Share unavailable');return;}
+  const html=editor.getValue();
+  if(html.length>SHARE_MAX_PLAIN){
+    toast('HTML too large to share in URL');
+    return;
+  }
+  const enc=LZString.compressToEncodedURIComponent(html);
+  if(!enc||enc.length>SHARE_MAX_COMPRESSED){
+    toast('Compressed link too long');
+    return;
+  }
+  const u=new URL(location.href);
+  u.searchParams.delete('c');
+  u.hash='#c='+enc;
+  const url=u.toString();
+  if(url.length>2000000){
+    toast('URL too long for browser');
+    return;
+  }
+  try{history.replaceState(null,'',url);}catch(e){}
+  navigator.clipboard.writeText(url).then(()=>toast('Share link copied')).catch(()=>toast('Copy failed'));
+}
+
+function syncThemeButton(){
+  const btn=document.getElementById('themeToggleBtn');
+  if(btn){
+    btn.textContent=appTheme==='light'?'Dark':'Light';
+    btn.title=appTheme==='light'?'Switch to dark theme':'Switch to light theme';
+  }
+}
+
+function applyAppTheme(theme){
+  appTheme=theme;
+  document.documentElement.setAttribute('data-theme',theme==='light'?'light':'dark');
+  if(editor) editor.setTheme(theme==='light'?'vs':'vs-dark');
+  try{localStorage.setItem(THEME_KEY,theme);}catch(e){}
+  syncThemeButton();
+}
+
+function toggleAppTheme(){
+  applyAppTheme(appTheme==='dark'?'light':'dark');
+}
+
+function fontSizeStep(delta){
+  if(!editor)return;
+  editorFontSize=Math.min(22,Math.max(10,editorFontSize+delta));
+  editor.updateOptions({
+    fontSize:editorFontSize,
+    lineHeight:Math.round(editorFontSize*1.615)
+  });
+  try{localStorage.setItem(FONT_KEY,String(editorFontSize));}catch(e){}
+  const lab=document.getElementById('fontSizeLabel');
+  if(lab) lab.textContent=String(editorFontSize);
+}
+
+try{
+  if(localStorage.getItem(THEME_KEY)==='light'){
+    appTheme='light';
+    document.documentElement.setAttribute('data-theme','light');
+  }
+}catch(e){}
+try{
+  const f=parseInt(localStorage.getItem(FONT_KEY),10);
+  if(!isNaN(f)&&f>=10&&f<=22) editorFontSize=f;
+}catch(e){}
+syncThemeButton();
+(function(){
+  const fl=document.getElementById('fontSizeLabel');
+  if(fl) fl.textContent=String(editorFontSize);
+})();
+
+const iframeEl    = document.getElementById('preview');
+const vOverlay    = document.getElementById('visualOverlay');
+const vHover      = document.getElementById('vHover');
+const vSel        = document.getElementById('vSel');
+const vRotHandle  = document.getElementById('vRotate');
+const vSelInner   = document.getElementById('vSelInner');
+const propPanel   = document.getElementById('propPanel');
+
+/* ─────────────────────────────────────────
+   MONACO
+───────────────────────────────────────── */
+require.config({paths:{vs:'https://unpkg.com/monaco-editor@0.45.0/min/vs'}});
+require(['vs/editor/editor.main'], () => {
+  let initial=TEMPLATES.hero;
+  let shared=null;
+  try{ shared=tryGetSharedHtml(); }catch(e){}
+  if(shared){
+    initial=shared;
+  } else {
+    try{
+      const saved=localStorage.getItem(DRAFT_KEY);
+      if(saved&&saved.length)initial=saved;
+    }catch(e){}
+  }
 
   editor = monaco.editor.create(document.getElementById('editor'), {
-    value: defaultCode,
+    value: initial,
     language: 'html',
-    theme: 'vs-dark',
+    theme: appTheme==='light'?'vs':'vs-dark',
     automaticLayout: true,
-    fontSize: 13,
+    fontSize: editorFontSize,
     fontFamily:"'JetBrains Mono',monospace",
     fontLigatures: true,
-    lineHeight: 21,
+    lineHeight: Math.round(editorFontSize*1.615),
     minimap:{enabled:false},
     scrollBeyondLastLine:false,
     wordWrap:'on',
@@ -603,8 +1077,20 @@ require(['vs/editor/editor.main'], () => {
 
   editor.onDidChangeModelContent(()=>{
     updateStats();
+    scheduleAutosave();
     if(liveOn){clearTimeout(liveTimer);liveTimer=setTimeout(runCode,350);}
   });
+
+  editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>{
+    runCode();
+    toast('Preview updated ▶');
+  });
+  editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.Slash,()=>{formatCode();});
+
+  try{
+    if(shared) toast('Loaded from share link');
+    else if(initial!==TEMPLATES.hero&&initial.length) toast('Restored last draft 💾');
+  }catch(e){}
 
   setMode('split');
   runCode();
@@ -710,14 +1196,12 @@ function exportHTML(){
     toast('Exported ⬇');
   });
 }
-function clearCode(){if(confirm('Clear?')){editor.setValue('');runCode();toast('Cleared 🗑');}}
-function loadSample(){
-  editor.setValue(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sample</title>
-<style>body{font-family:sans-serif;background:#f4f7ff;padding:40px;display:flex;justify-content:center}
-.box{background:#fff;padding:32px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:440px;width:100%}
-h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
-<body><div class="box"><h2>Sample 🔥</h2><p>Switch to Visual mode to edit elements visually!</p></div></body></html>`);
-  runCode();toast('Sample loaded 📄');
+function clearCode(){
+  if(!confirm('Clear?'))return;
+  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+  editor.setValue('');
+  runCode();
+  toast('Cleared 🗑');
 }
 function formatCode(){
   editor.getAction('editor.action.formatDocument').run()
@@ -915,9 +1399,18 @@ function iOnClick(e){
 function lockIframe(){ vOverlay.style.pointerEvents='all'; }
 function unlockIframe(){ vOverlay.style.pointerEvents=''; }
 
-/* Escape key deselects */
-document.addEventListener('keydown', e=>{
-  if(e.key==='Escape' && visualModeOn && selectedEl) deselect();
+document.addEventListener('keydown',e=>{
+  const modal=document.getElementById('shortcutsModal');
+  if(modal.classList.contains('show')){
+    if(e.key==='Escape'){e.preventDefault();closeShortcutsModal();}
+    return;
+  }
+  if(e.key==='?' && !e.ctrlKey && !e.metaKey && !e.altKey){
+    const t=e.target;
+    const inMonaco=t.closest&&t.closest('#editor');
+    if(!inMonaco){e.preventDefault();openShortcutsModal();}
+  }
+  if(e.key==='Escape' && visualModeOn && selectedEl)deselect();
 });
 
 function deselect(){
@@ -1260,6 +1753,16 @@ function syncToCode(){
     setStatus('Rotated');
   });
 })();
+
+function registerServiceWorker(){
+  if(!('serviceWorker' in navigator))return;
+  var secure=location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1';
+  if(!secure)return;
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+registerServiceWorker();
 </script>
 </body>
 </html>
