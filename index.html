@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -298,15 +299,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </div>
 </div>
 
-<!-- AdSense unit -->
-<div style="width:100%;text-align:center;padding:12px;background:rgba(255,255,255,0.03);">
-  <ins class="adsbygoogle"
-       style="display:block;max-width:728px;margin:0 auto"
-       data-ad-client="ca-pub-1826192920016393"
-       data-ad-slot="1234567890"
-       data-ad-format="auto"
-       data-full-width-responsive="true"></ins>
-  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+<!-- AD MODAL -->
+<div id="adModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+  <div style="background:var(--sb);border:1px solid var(--border);border-radius:14px;padding:24px 28px;max-width:500px;width:90%;position:relative;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.6);">
+    <div style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-bottom:12px;letter-spacing:1px;">ADVERTISEMENT</div>
+    <ins class="adsbygoogle" id="adModalIns"
+         style="display:block;min-height:90px"
+         data-ad-client="ca-pub-1826192920016393"
+         data-ad-slot="1234567890"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <div style="margin-top:16px;">
+      <button id="adModalClose" onclick="closeAdModal()" style="background:linear-gradient(135deg,var(--accent),#4a42cc);border:none;color:#fff;padding:9px 28px;border-radius:8px;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;font-weight:700;display:none;">Continue ›</button>
+      <div id="adModalTimer" style="font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;margin-top:6px;"></div>
+    </div>
+  </div>
 </div>
 
 <!-- WORKSPACE -->
@@ -660,11 +667,48 @@ function openNewTab(){
   w.document.open();w.document.write(editor.getValue());w.document.close();
   toast('Opened in tab 🌐');
 }
+let _pendingAdAction=null;
+let _adModalPushed=false;
+
+function showAdModal(callback){
+  _pendingAdAction=callback;
+  const modal=document.getElementById('adModal');
+  modal.style.display='flex';
+  if(!_adModalPushed){
+    try{(adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){}
+    _adModalPushed=true;
+  }
+  let secs=5;
+  const timerEl=document.getElementById('adModalTimer');
+  const closeBtn=document.getElementById('adModalClose');
+  closeBtn.style.display='none';
+  timerEl.textContent='Please wait '+secs+'s...';
+  const iv=setInterval(()=>{
+    secs--;
+    if(secs>0){timerEl.textContent='Please wait '+secs+'s...';}
+    else{
+      clearInterval(iv);
+      timerEl.textContent='';
+      closeBtn.style.display='inline-block';
+    }
+  },1000);
+}
+
+function closeAdModal(){
+  document.getElementById('adModal').style.display='none';
+  if(typeof _pendingAdAction==='function'){
+    _pendingAdAction();
+    _pendingAdAction=null;
+  }
+}
+
 function exportHTML(){
-  const b=new Blob([editor.getValue()],{type:'text/html'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(b);a.download='code.html';a.click();
-  toast('Exported ⬇');
+  showAdModal(function(){
+    const b=new Blob([editor.getValue()],{type:'text/html'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(b);a.download='code.html';a.click();
+    toast('Exported ⬇');
+  });
 }
 function clearCode(){if(confirm('Clear?')){editor.setValue('');runCode();toast('Cleared 🗑');}}
 function loadSample(){
@@ -680,7 +724,11 @@ function formatCode(){
     .catch(()=>{editor.setValue(editor.getValue().replace(/></g,'>\n<'));});
   toast('Formatted ✨');
 }
-function importFile(){document.getElementById('fileInput').click();}
+function importFile(){
+  showAdModal(function(){
+    document.getElementById('fileInput').click();
+  });
+}
 document.getElementById('fileInput').addEventListener('change',function(e){
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
