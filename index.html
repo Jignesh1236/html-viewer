@@ -182,7 +182,7 @@
   --sbW:210px;
   --propW:240px;
   --status-fg:rgba(255,255,255,.9);
-  --seoFootH:56px;
+  --seoFootH:120px;
 }
 
 html[data-theme="light"]{
@@ -220,7 +220,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 /* Visible on-page summary (users + crawlers; sits above the status bar) */
 .seo-landing-summary{
   position:fixed;left:0;right:0;bottom:20px;z-index:998;
-  min-height:var(--seoFootH);max-height:30vh;overflow-y:auto;
+  min-height:var(--seoFootH);max-height:38vh;overflow-y:auto;
   padding:8px 12px 6px;
   background:var(--sb);
   border-top:1px solid var(--border);
@@ -228,12 +228,15 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   box-shadow:0 -2px 14px rgba(0,0,0,.12);
 }
 .seo-landing-summary h1{
-  font-size:11px;font-weight:800;letter-spacing:-0.02em;margin:0 0 4px;line-height:1.25;
+  font-size:12px;font-weight:800;letter-spacing:-0.02em;margin:0 0 5px;line-height:1.25;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
 }
-.seo-landing-summary p{margin:0 0 4px;max-width:72ch}
-.seo-landing-summary p:last-of-type{margin-bottom:0}
+.seo-landing-summary h2{
+  font-size:10px;font-weight:800;margin:6px 0 3px;line-height:1.25;color:var(--text);letter-spacing:0;
+}
+.seo-landing-summary p{margin:0 0 5px;max-width:85ch}
+.seo-landing-summary .seo-foot-links{margin-top:6px;margin-bottom:0}
 .seo-landing-summary a{color:var(--accent);font-weight:600;text-decoration:none}
 .seo-landing-summary a:hover{text-decoration:underline}
 
@@ -411,6 +414,21 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .pp-swatch input[type=color]{width:200%;height:200%;margin:-25%;cursor:pointer;border:none;outline:none;background:none}
 .pp-hex{flex:1;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s}
 .pp-hex:focus{border-color:var(--accent)}
+.pp-appearance-hdr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.pp-appearance-hdr .pp-sec-label{margin-bottom:0;flex:1}
+.pp-eyedropper-btn{flex-shrink:0;background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px 8px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:border .15s,color .15s}
+.pp-eyedropper-btn:hover{border-color:var(--accent);color:var(--accent)}
+.pp-recent-swatches{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px;min-height:8px}
+.pp-recent-swatch{width:22px;height:22px;border-radius:5px;border:1px solid var(--border);cursor:pointer;padding:0;flex-shrink:0;box-sizing:border-box}
+.pp-recent-swatch:hover{outline:2px solid var(--accent);outline-offset:1px}
+.outline-wrap{margin-top:2px}
+.outline-scroll{max-height:168px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--btn)}
+.outline-item{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;text-align:left;padding:5px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;border:none;border-bottom:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;box-sizing:border-box}
+.outline-item:last-child{border-bottom:none}
+.outline-item:hover{background:var(--btnhov)}
+.oi-tag{color:var(--accent)}
+.oi-line{color:var(--muted);flex-shrink:0}
+.outline-empty{padding:10px;font-size:10px;color:var(--muted);text-align:center;font-family:'JetBrains Mono',monospace}
 .pp-4grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:7px}
 .pp-4cell{display:flex;align-items:center;gap:4px;background:var(--btn);border:1px solid var(--border);border-radius:6px;padding:3px 6px;min-width:0}
 .pp-4cell .pp-swatch{width:18px;height:18px;flex-shrink:0}
@@ -563,6 +581,11 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
     <button class="sb-btn" onclick="clearCode()"><span class="sb-icon">🗑</span>Clear</button>
     <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon">🖼</span>Insert image</button>
     <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon">♿</span>Accessibility check</button>
+    <div class="sb-label" style="margin-top:6px">Outline</div>
+    <div class="outline-wrap">
+      <button type="button" class="sb-btn" onclick="refreshDomOutline();closeMobileSidebar();" aria-label="Refresh document outline"><span class="sb-icon">≡</span>Refresh outline</button>
+      <div class="outline-scroll" id="outlineList" role="navigation" aria-label="Document tag outline"><div class="outline-empty">Loading…</div></div>
+    </div>
     <div class="sb-label" style="margin-top:6px">Templates</div>
     <div class="sb-select-wrap">
       <select class="sb-select" id="templateSelect" onchange="onTemplateSelect(this)" aria-label="Load HTML template">
@@ -587,6 +610,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
     <button class="sb-btn" onclick="openDiffModal()" aria-label="Compare HTML sources"><span class="sb-icon">⇄</span>Snapshot diff…</button>
     <button class="sb-btn" onclick="importFile()"><span class="sb-icon">📂</span>Import</button>
     <button class="sb-btn" onclick="exportHTML()"><span class="sb-icon">⬇</span>Export HTML</button>
+    <button class="sb-btn" onclick="exportHTMLMinified()" title="Download a smaller one-line HTML (scripts may need testing)"><span class="sb-icon">⤓</span>Export minified</button>
     <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon">💾</span>Forget saved draft</button>
     <div class="sb-resizer" id="sbResizer"></div>
   </div>
@@ -698,16 +722,21 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 
       <!-- APPEARANCE -->
       <div class="pp-section">
-        <div class="pp-sec-label">Appearance</div>
+        <div class="pp-appearance-hdr">
+          <div class="pp-sec-label">Appearance</div>
+          <button type="button" class="pp-eyedropper-btn" id="ppEyeDropperBtn" onclick="propPanelEyeDropper()" title="Pick color from screen (Chrome, Edge, Opera)">Pick</button>
+        </div>
+        <div class="pp-field-label">Recent colors</div>
+        <div class="pp-recent-swatches" id="pp-recent-swatches"></div>
         <div class="pp-field-label">Text</div>
         <div class="pp-color-row" style="margin-bottom:7px">
-          <label class="pp-swatch"><input type="color" id="pp-color" oninput="syncColorHex('pp-color','pp-color-hex');applyTypo()"></label>
-          <input class="pp-hex" id="pp-color-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-color-hex','pp-color');applyTypo()">
+          <label class="pp-swatch"><input type="color" id="pp-color" oninput="syncColorHex('pp-color','pp-color-hex');applyTypo()" onchange="onPropColorPicked(this)"></label>
+          <input class="pp-hex" id="pp-color-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-color-hex','pp-color');applyTypo()" onblur="onPropHexBlur('pp-color-hex')">
         </div>
         <div class="pp-field-label">Background</div>
         <div class="pp-color-row" style="margin-bottom:7px">
-          <label class="pp-swatch"><input type="color" id="pp-bg" oninput="syncColorHex('pp-bg','pp-bg-hex');applyBG()"></label>
-          <input class="pp-hex" id="pp-bg-hex" type="text" placeholder="#ffffff" oninput="syncHexColor('pp-bg-hex','pp-bg');applyBG()">
+          <label class="pp-swatch"><input type="color" id="pp-bg" oninput="syncColorHex('pp-bg','pp-bg-hex');applyBG()" onchange="onPropColorPicked(this)"></label>
+          <input class="pp-hex" id="pp-bg-hex" type="text" placeholder="#ffffff" oninput="syncHexColor('pp-bg-hex','pp-bg');applyBG()" onblur="onPropHexBlur('pp-bg-hex')">
         </div>
         <div class="pp-field-label">Opacity</div>
         <div class="pp-unit-row">
@@ -721,20 +750,20 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
         <div class="pp-sec-label">Border color</div>
         <div class="pp-4grid">
           <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-t" oninput="syncColorHex('pp-bc-t','pp-bc-t-hex');applyBorder()"></label>
-            <input type="text" id="pp-bc-t-hex" placeholder="#000" oninput="syncHexColor('pp-bc-t-hex','pp-bc-t');applyBorder()">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-t" oninput="syncColorHex('pp-bc-t','pp-bc-t-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+            <input type="text" id="pp-bc-t-hex" placeholder="#000" oninput="syncHexColor('pp-bc-t-hex','pp-bc-t');applyBorder()" onblur="onPropHexBlur('pp-bc-t-hex')">
           </div>
           <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-r" oninput="syncColorHex('pp-bc-r','pp-bc-r-hex');applyBorder()"></label>
-            <input type="text" id="pp-bc-r-hex" placeholder="#000" oninput="syncHexColor('pp-bc-r-hex','pp-bc-r');applyBorder()">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-r" oninput="syncColorHex('pp-bc-r','pp-bc-r-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+            <input type="text" id="pp-bc-r-hex" placeholder="#000" oninput="syncHexColor('pp-bc-r-hex','pp-bc-r');applyBorder()" onblur="onPropHexBlur('pp-bc-r-hex')">
           </div>
           <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-b" oninput="syncColorHex('pp-bc-b','pp-bc-b-hex');applyBorder()"></label>
-            <input type="text" id="pp-bc-b-hex" placeholder="#000" oninput="syncHexColor('pp-bc-b-hex','pp-bc-b');applyBorder()">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-b" oninput="syncColorHex('pp-bc-b','pp-bc-b-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+            <input type="text" id="pp-bc-b-hex" placeholder="#000" oninput="syncHexColor('pp-bc-b-hex','pp-bc-b');applyBorder()" onblur="onPropHexBlur('pp-bc-b-hex')">
           </div>
           <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-l" oninput="syncColorHex('pp-bc-l','pp-bc-l-hex');applyBorder()"></label>
-            <input type="text" id="pp-bc-l-hex" placeholder="#000" oninput="syncHexColor('pp-bc-l-hex','pp-bc-l');applyBorder()">
+            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-l" oninput="syncColorHex('pp-bc-l','pp-bc-l-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+            <input type="text" id="pp-bc-l-hex" placeholder="#000" oninput="syncHexColor('pp-bc-l-hex','pp-bc-l');applyBorder()" onblur="onPropHexBlur('pp-bc-l-hex')">
           </div>
         </div>
         <div class="pp-sec-label">Border width</div>
@@ -808,12 +837,14 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true">🎨</span>Visual</button>
 </nav>
 
-<!-- On-page summary (visible above status bar; internal links for About / Privacy) -->
+<!-- On-page summary (visible above status bar; headings + copy for users and search) -->
 <div class="seo-landing-summary">
-  <h1>HTML Editor Online by Jignesh</h1>
-  <p>Free in-browser HTML editor with Monaco, live preview, templates, import and export, and share links. Visual mode lets you select elements, drag, resize, rotate, and edit styles; changes sync automatically into your HTML source.</p>
-  <p>Includes responsive preview widths, dark and light theme, optional PWA install, and keyboard shortcuts for format and run.</p>
-  <p><a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
+  <h1>Free HTML Editor Online</h1>
+  <p><strong>HTML Editor by Jignesh</strong> is a free tool that runs in your browser. You get a real code editor (Monaco, the same family as VS Code), a live preview of your page, and optional visual editing so you can move elements and tweak styles without fighting the markup all day. Nothing to install—open the page and start typing.</p>
+  <h2>Edit HTML, CSS &amp; JS with Live Preview</h2>
+  <p>Use the <strong>HTML</strong>, <strong>CSS</strong>, and <strong>JavaScript</strong> tabs to work on each part of your document. The preview updates as you go. In Visual mode, click to select, drag to move, resize with handles, and edit text and colors; changes can sync back into your source automatically.</p>
+  <p>Built-in templates, import and export, share links and QR codes, named snapshots, responsive preview widths, dark and light themes, optional PWA install, and keyboard shortcuts for format and run are all included.</p>
+  <p class="seo-foot-links"><a href="best-html-editor-online-free.html">Best free HTML editor</a> · <a href="how-to-edit-html-online-without-software.html">Edit HTML without software</a> · <a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
 </div>
 
 <!-- STATUSBAR -->
@@ -837,6 +868,8 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
     <div class="modal-row"><span>Fullscreen preview</span><span>Preview header: ⛶ Full · <kbd>Esc</kbd></span></div>
     <div class="modal-row"><span>Minimap</span><span>Top bar: Map</span></div>
     <div class="modal-row"><span>Snapshot diff</span><span>Sidebar: Snapshot diff…</span></div>
+    <div class="modal-row"><span>DOM outline</span><span>Sidebar: Refresh outline · click tag → jump to line</span></div>
+    <div class="modal-row"><span>Export minified</span><span>Sidebar: Export minified</span></div>
     <button type="button" class="modal-close" onclick="closeShortcutsModal()">Close</button>
   </div>
 </div>
@@ -910,6 +943,9 @@ const SNAPSHOTS_KEY='html-editor-snapshots-v1';
 const SNAPSHOTS_MAX=25;
 const SHARE_MAX_PLAIN=150000;
 const SHARE_MAX_COMPRESSED=65000;
+const RECENT_COLORS_KEY='html-editor-recent-colors-v1';
+const RECENT_COLORS_MAX=12;
+const OUTLINE_MAX_ITEMS=250;
 let appTheme='dark';
 let editorFontSize=13;
 let currentDocTab='html';
@@ -923,6 +959,8 @@ const FIRST_STYLE_RE=/<style([^>]*)>([\s\S]*?)<\/style>/i;
 const MINIMAP_KEY='html-editor-minimap';
 let minimapEnabled=false;
 let _jsEditTimer=null;
+let _outlineTimer=null;
+let _ppColorTarget={kind:'typo'};
 
 const TEMPLATES={
   hero:`<!DOCTYPE html>
@@ -1481,6 +1519,15 @@ const vSel        = document.getElementById('vSel');
 const vRotHandle  = document.getElementById('vRotate');
 const vSelInner   = document.getElementById('vSelInner');
 const propPanel   = document.getElementById('propPanel');
+propPanel.addEventListener('focusin',function(ev){
+  var id=ev.target.id;
+  if(id==='pp-color'||id==='pp-color-hex') _ppColorTarget={kind:'typo'};
+  else if(id==='pp-bg'||id==='pp-bg-hex') _ppColorTarget={kind:'bg'};
+  else if(id==='pp-bc-t'||id==='pp-bc-t-hex') _ppColorTarget={kind:'border',side:'t'};
+  else if(id==='pp-bc-r'||id==='pp-bc-r-hex') _ppColorTarget={kind:'border',side:'r'};
+  else if(id==='pp-bc-b'||id==='pp-bc-b-hex') _ppColorTarget={kind:'border',side:'b'};
+  else if(id==='pp-bc-l'||id==='pp-bc-l-hex') _ppColorTarget={kind:'border',side:'l'};
+});
 
 /* ─────────────────────────────────────────
    MONACO
@@ -1524,6 +1571,8 @@ require(['vs/editor/editor.main'], () => {
       clearTimeout(liveTimer);
       liveTimer=setTimeout(runCode,350);
     }
+    clearTimeout(_outlineTimer);
+    _outlineTimer=setTimeout(refreshDomOutline,500);
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>{
@@ -1542,6 +1591,11 @@ require(['vs/editor/editor.main'], () => {
   runCode();
   setStatus('Editor ready');
   syncMinimapButton();
+  try{
+    var edBtn=document.getElementById('ppEyeDropperBtn');
+    if(edBtn && !window.EyeDropper) edBtn.style.display='none';
+  }catch(e){}
+  refreshDomOutline();
 });
 
 /* ─────────────────────────────────────────
@@ -1725,6 +1779,30 @@ function exportHTML(){
     const a=document.createElement('a');
     a.href=URL.createObjectURL(b);a.download='code.html';a.click();
     toast('Exported ⬇');
+  });
+}
+function minifyHtmlLite(s){
+  const betweenTags=new RegExp('>\\s+<','g');
+  const htmlComment=new RegExp('<!--[\\s\\S]*?-->','g');
+  return String(s)
+    .replace(htmlComment,' ')
+    .replace(/\r\n/g,'\n')
+    .replace(/\s+/g,' ')
+    .replace(betweenTags,'><')
+    .trim();
+}
+function exportHTMLMinified(){
+  if(!editor) return;
+  showAdModal(function(){
+    const raw=minifyHtmlLite(editor.getValue());
+    const b=new Blob([raw],{type:'text/html'});
+    const a=document.createElement('a');
+    const url=URL.createObjectURL(b);
+    a.href=url;
+    a.download='code.min.html';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); },2500);
+    toast('Exported minified ⬇');
   });
 }
 function clearCode(){
@@ -2350,6 +2428,13 @@ function discardChanges(){
 iframeEl.addEventListener('load',()=>{ if(visualModeOn) attachVisualListeners(); });
 
 /* ─── Helpers ─── */
+function normalizeHex(str){
+  if(!str||typeof str!=='string') return '';
+  const v=str.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(v)) return '#'+v.slice(1).toLowerCase();
+  if(/^#[0-9a-fA-F]{3}$/.test(v)) return '#'+v[1]+v[1]+v[2]+v[2]+v[3]+v[3];
+  return '';
+}
 function rgb2hex(rgb){
   if(!rgb||rgb==='transparent'||rgb==='rgba(0, 0, 0, 0)') return '#000000';
   const m=rgb.match(/\d+/g); if(!m||m.length<3) return '#000000';
@@ -2363,9 +2448,155 @@ function syncHexColor(hexId, colorId){
   if(/^#[0-9a-fA-F]{3,6}$/.test(v)) document.getElementById(colorId).value=v;
 }
 function setColor(colorId, hexId, val){
-  const h=rgb2hex(val);
+  let h='';
+  if(typeof val==='string'){
+    const t=val.trim();
+    if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(t)) h=normalizeHex(t);
+  }
+  if(!h) h=rgb2hex(val);
   try{document.getElementById(colorId).value=h;}catch(e){}
   document.getElementById(hexId).value=h;
+}
+function loadRecentColors(){
+  try{
+    const j=localStorage.getItem(RECENT_COLORS_KEY);
+    const a=JSON.parse(j);
+    return Array.isArray(a)?a:[];
+  }catch(e){ return []; }
+}
+function saveRecentColors(arr){
+  try{
+    const out=arr.slice(0,RECENT_COLORS_MAX).filter(Boolean);
+    localStorage.setItem(RECENT_COLORS_KEY, JSON.stringify(out));
+  }catch(e){}
+}
+function pushRecentColor(hex){
+  const h=normalizeHex(hex)||(typeof hex==='string'&&/^#[0-9a-fA-F]{6}$/i.test(hex.trim())?hex.trim().toLowerCase():'');
+  if(!h) return;
+  const arr=loadRecentColors().filter(x=>String(x).toLowerCase()!==h.toLowerCase());
+  arr.unshift(h);
+  saveRecentColors(arr);
+  renderRecentColorSwatches();
+}
+function renderRecentColorSwatches(){
+  const host=document.getElementById('pp-recent-swatches');
+  if(!host) return;
+  host.innerHTML='';
+  loadRecentColors().forEach(hex=>{
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='pp-recent-swatch';
+    b.title=hex;
+    b.setAttribute('aria-label','Apply color '+hex);
+    b.style.background=hex;
+    b.onclick=function(){ applyRecentColorToTarget(hex); };
+    host.appendChild(b);
+  });
+}
+function onPropColorPicked(inp){
+  if(inp&&inp.value) pushRecentColor(inp.value);
+}
+function onPropHexBlur(hexId){
+  const el=document.getElementById(hexId);
+  if(!el) return;
+  const v=el.value.trim();
+  if(/^#[0-9a-fA-F]{3,6}$/.test(v)) pushRecentColor(normalizeHex(v)||v);
+}
+function applyRecentColorToTarget(h){
+  if(!selectedEl){
+    toast('Select an element in Visual mode to apply');
+    return;
+  }
+  const t=_ppColorTarget;
+  if(t.kind==='bg'){
+    setColor('pp-bg','pp-bg-hex', h);
+    applyBG();
+  } else if(t.kind==='border'&&t.side){
+    const bid='pp-bc-'+t.side;
+    setColor(bid,bid+'-hex', h);
+    applyBorder();
+  } else {
+    setColor('pp-color','pp-color-hex', h);
+    applyTypo();
+  }
+}
+function propPanelEyeDropper(){
+  if(!window.EyeDropper){
+    toast('EyeDropper needs Chrome, Edge, or Opera');
+    return;
+  }
+  new EyeDropper().open().then(res=>{
+    const hex=res&&res.sRGBHex?res.sRGBHex:'';
+    if(!hex) return;
+    pushRecentColor(hex);
+    if(!selectedEl){
+      toast('Saved to recent colors');
+      return;
+    }
+    applyRecentColorToTarget(hex);
+  }).catch(e=>{
+    if(e&&e.name!=='AbortError') toast('Color pick canceled');
+  });
+}
+function buildDomOutlineItems(html){
+  const voidTags={area:1,base:1,br:1,col:1,embed:1,hr:1,img:1,input:1,link:1,meta:1,param:1,source:1,track:1,wbr:1};
+  const re=/<(\/?)\s*([a-zA-Z][a-zA-Z0-9:-]*)[^>]*>/g;
+  const stack=[];
+  const items=[];
+  let m;
+  while((m=re.exec(html))){
+    const isClose=m[1]==='/';
+    const tag=m[2].toLowerCase();
+    const line=html.slice(0,m.index).split('\n').length;
+    if(tag.charAt(0)==='!') continue;
+    if(isClose){
+      while(stack.length&&stack[stack.length-1]!==tag) stack.pop();
+      if(stack.length&&stack[stack.length-1]===tag) stack.pop();
+    } else if(voidTags[tag]){
+      items.push({tag,line,depth:stack.length,voidEl:true});
+    } else {
+      items.push({tag,line,depth:stack.length});
+      stack.push(tag);
+    }
+    if(items.length>=OUTLINE_MAX_ITEMS) break;
+  }
+  return items;
+}
+function jumpToOutlineLine(lineNum){
+  if(!editor||lineNum<1) return;
+  closeMobileSidebar();
+  setDocTab('html');
+  editor.revealLineInCenter(lineNum);
+  editor.setPosition({lineNumber:lineNum,column:1});
+  editor.focus();
+  setStatus('Outline: line '+lineNum);
+}
+function refreshDomOutline(){
+  const list=document.getElementById('outlineList');
+  if(!list) return;
+  if(!editor||typeof editor.getValue!=='function'){
+    list.innerHTML='<div class="outline-empty">Loading…</div>';
+    return;
+  }
+  const html=editor.getValue();
+  const items=buildDomOutlineItems(html);
+  list.innerHTML='';
+  if(!items.length){
+    list.innerHTML='<div class="outline-empty">No tags yet</div>';
+    return;
+  }
+  items.forEach(it=>{
+    const row=document.createElement('button');
+    row.type='button';
+    row.className='outline-item';
+    row.style.paddingLeft=(6+Math.min(it.depth,16)*10)+'px';
+    const open='<'+it.tag+(it.voidEl?' /':'')+'>';
+    row.innerHTML='<span class="oi-tag"></span><span class="oi-line"></span>';
+    row.querySelector('.oi-tag').textContent=open;
+    row.querySelector('.oi-line').textContent='Ln '+it.line;
+    row.onclick=function(){ jumpToOutlineLine(it.line); };
+    list.appendChild(row);
+  });
 }
 function ensurePos(el){
   try{
@@ -2435,6 +2666,7 @@ function fillProps(el){
 
   // CSS
   document.getElementById('pp-css').value=el.getAttribute('style')||'';
+  renderRecentColorSwatches();
 }
 
 function clearProps(){
