@@ -587,7 +587,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <!-- ACTIONS -->
       <div class="pp-actions">
         <button class="pp-discard" onclick="discardChanges()">Discard</button>
-        <button class="pp-save" onclick="syncToCode()">Save changes</button>
+        <button class="pp-save" type="button" onclick="syncToCode()" title="Also syncs automatically while you edit">Save to code</button>
       </div>
     </div>
 
@@ -634,6 +634,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
    GLOBALS
 ───────────────────────────────────────── */
 let editor, liveOn=true, liveTimer;
+let _ignoreEditorChangeForLive=false;
+let _visualSyncTimer=null;
 let currentMode='split';
 let visualModeOn=false;
 let selectedEl=null;
@@ -1078,7 +1080,10 @@ require(['vs/editor/editor.main'], () => {
   editor.onDidChangeModelContent(()=>{
     updateStats();
     scheduleAutosave();
-    if(liveOn){clearTimeout(liveTimer);liveTimer=setTimeout(runCode,350);}
+    if(liveOn && !_ignoreEditorChangeForLive){
+      clearTimeout(liveTimer);
+      liveTimer=setTimeout(runCode,350);
+    }
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>{
@@ -1442,6 +1447,7 @@ function deleteEl(){
     deselect();
     toast('Element deleted 🗑');
     setStatus('Deleted');
+    pushVisualDomToEditor({silent:true});
   }
 }
 
@@ -1451,6 +1457,7 @@ function discardChanges(){
   fillProps(selectedEl);
   const r=getRect(selectedEl); positionSel(r,selectedEl);
   toast('Changes discarded');
+  scheduleSyncToCodeFromVisual();
 }
 
 /* Reattach when iframe reloads */
@@ -1576,6 +1583,7 @@ function applyLayout(){
   if(!isNaN(h)) selectedEl.style.height=h+'px';
   selectedEl.style.transform=`rotate(${rot}deg)`;
   const r=getRect(selectedEl); positionSel(r,selectedEl);
+  scheduleSyncToCodeFromVisual();
 }
 
 function applySpacing(){
@@ -1586,6 +1594,7 @@ function applySpacing(){
   const py=parseInt(document.getElementById('pp-py').value)||0;
   selectedEl.style.margin=my+'px '+mx+'px';
   selectedEl.style.padding=py+'px '+px+'px';
+  scheduleSyncToCodeFromVisual();
 }
 
 function applyTypo(){
@@ -1601,12 +1610,14 @@ function applyTypo(){
   if(fs) selectedEl.style.fontSize=fs+'px';
   if(col) selectedEl.style.color=col;
   if(fw) selectedEl.style.fontWeight=fw;
+  scheduleSyncToCodeFromVisual();
 }
 
 function applyAlign(a){
   if(!selectedEl) return;
   selectedEl.style.textAlign=a;
   document.querySelectorAll('.pp-align-btn').forEach(b=>b.classList.toggle('on',b.dataset.align===a));
+  scheduleSyncToCodeFromVisual();
 }
 
 function applyBG(){
@@ -1614,6 +1625,7 @@ function applyBG(){
   selectedEl.style.backgroundColor=document.getElementById('pp-bg').value;
   const op=parseFloat(document.getElementById('pp-opacity').value)||100;
   selectedEl.style.opacity=op/100;
+  scheduleSyncToCodeFromVisual();
 }
 
 function applyBorder(){
@@ -1632,22 +1644,57 @@ function applyBorder(){
   selectedEl.style.borderBottomWidth=b+'px'; selectedEl.style.borderBottomStyle='solid'; selectedEl.style.borderBottomColor=cb;
   selectedEl.style.borderLeftWidth=l+'px'; selectedEl.style.borderLeftStyle='solid'; selectedEl.style.borderLeftColor=cl;
   selectedEl.style.borderRadius=br+'px';
+  scheduleSyncToCodeFromVisual();
 }
 
 function applyCSS(){
   if(!selectedEl) return;
   selectedEl.setAttribute('style', document.getElementById('pp-css').value);
   const r=getRect(selectedEl); positionSel(r,selectedEl);
+  scheduleSyncToCodeFromVisual();
+}
+
+function scheduleSyncToCodeFromVisual(){
+  if(!visualModeOn||!editor) return;
+  clearTimeout(_visualSyncTimer);
+  _visualSyncTimer=setTimeout(()=>{
+    _visualSyncTimer=null;
+    pushVisualDomToEditor({silent:true});
+  },380);
+}
+
+function pushVisualDomToEditor(opts){
+  opts=opts||{};
+  try{
+    if(!editor) return;
+    const doc=iframeEl.contentDocument;
+    if(!doc||!doc.documentElement) return;
+    const html='<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+    if(editor.getValue()===html){
+      if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
+      return;
+    }
+    _ignoreEditorChangeForLive=true;
+    try{
+      editor.setValue(html);
+    } finally {
+      _ignoreEditorChangeForLive=false;
+    }
+    if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
+    if(opts.silent) setStatus('Code synced from visual');
+    else{
+      toast('Saved to code ✅');
+      setStatus('Code updated from visual');
+    }
+  }catch(e){
+    if(!opts.silent) toast('Sync error ⚠');
+  }
 }
 
 function syncToCode(){
-  try{
-    const html='<!DOCTYPE html>\n'+iframeEl.contentDocument.documentElement.outerHTML;
-    editor.setValue(html);
-    toast('Saved to code ✅');
-    setStatus('Code updated from visual');
-    savedStyles=selectedEl?selectedEl.getAttribute('style')||'':null;
-  }catch(e){toast('Sync error ⚠');}
+  clearTimeout(_visualSyncTimer);
+  _visualSyncTimer=null;
+  pushVisualDomToEditor({silent:false});
 }
 
 /* ─── DRAG MOVE ─── */
@@ -1678,6 +1725,7 @@ function syncToCode(){
     document.body.style.cursor='';
     unlockIframe();
     setStatus('Moved');
+    pushVisualDomToEditor({silent:true});
   });
 })();
 
@@ -1720,6 +1768,7 @@ function syncToCode(){
     document.body.style.userSelect='';document.body.style.cursor='';
     unlockIframe();
     setStatus('Resized');
+    pushVisualDomToEditor({silent:true});
   });
 })();
 
@@ -1751,6 +1800,7 @@ function syncToCode(){
     document.body.style.userSelect='';document.body.style.cursor='';
     unlockIframe();
     setStatus('Rotated');
+    pushVisualDomToEditor({silent:true});
   });
 })();
 
