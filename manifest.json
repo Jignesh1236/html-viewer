@@ -1,7 +1,7 @@
 {
   "name": "HTML Editor by Jignesh",
   "short_name": "HTML Editor",
-  "description": "Free visual HTML editor with live preview, drag and drop, and Monaco editor.",
+  "description": "Free online HTML editor with Monaco, live preview, visual editing (auto-sync to code), templates, import/export, and share links.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

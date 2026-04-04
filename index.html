@@ -7,7 +7,7 @@
 <meta name="google-site-verification" content="f4fUEvoriHXGuXUnmkINKMdvNM_3JXehqPnM79ZSySg" />
 <!-- ══ PRIMARY SEO ══ -->
 <title>HTML Editor Online by Jignesh – Free Visual HTML Editor & Web Page Maker</title>
-<meta name="description" content="Free online HTML editor by Jignesh. Visual HTML editor with live preview, drag & drop, CSS visual editor, HTML viewer, and web page maker. Write, edit and preview HTML instantly in your browser.">
+<meta name="description" content="Free online HTML editor by Jignesh: Monaco code editor, live preview, and visual editing with automatic sync back to your HTML source. Drag, resize, rotate elements; templates, import/export, share links. Runs in your browser.">
 <meta name="keywords" content="html editor, html editor online, visual html editor, html viewer, html editor by jignesh, css visual editor, web page maker, online html editor, free html editor, live html editor, html code editor, html preview, html editor free, html builder, webpage builder, drag and drop html editor, html css editor, monaco html editor">
 <meta name="author" content="Jignesh">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
@@ -27,14 +27,20 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="HTML Editor by Jignesh">
 <meta property="og:title" content="HTML Editor Online by Jignesh – Visual HTML Editor & Web Page Maker">
-<meta property="og:description" content="Free visual HTML editor with live preview. Write HTML, CSS. Drag, resize, rotate elements visually. The best free online HTML editor and web page maker by Jignesh.">
+<meta property="og:description" content="Free visual HTML editor with live preview and Monaco. Drag, resize, rotate elements; visual edits sync to your HTML. Templates, share links, import/export—by Jignesh.">
 <meta property="og:url" content="https://html-viewer-gray-beta.vercel.app/">
 <meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://html-viewer-gray-beta.vercel.app/icon.svg">
+<meta property="og:image:secure_url" content="https://html-viewer-gray-beta.vercel.app/icon.svg">
+<meta property="og:image:type" content="image/svg+xml">
+<meta property="og:image:alt" content="HTML Editor by Jignesh — code and live preview">
 
 <!-- ══ TWITTER CARD ══ -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="HTML Editor Online by Jignesh – Free Visual HTML Editor">
-<meta name="twitter:description" content="Free online HTML editor & visual CSS editor by Jignesh. Live preview, drag & drop, resize, rotate. Build web pages instantly in your browser.">
+<meta name="twitter:description" content="Free online HTML editor & visual CSS editor by Jignesh. Live preview, drag & drop, resize, rotate. Visual edits sync automatically to your HTML.">
+<meta name="twitter:image" content="https://html-viewer-gray-beta.vercel.app/icon.svg">
+<meta name="twitter:image:alt" content="HTML Editor by Jignesh">
 <meta name="twitter:creator" content="@jignesh">
 
 <!-- ══ SCHEMA.ORG STRUCTURED DATA ══ -->
@@ -47,8 +53,9 @@
       "@id": "https://html-viewer-gray-beta.vercel.app/#app",
       "name": "HTML Editor by Jignesh",
       "alternateName": ["HTML Editor Online", "Visual HTML Editor", "HTML Viewer", "CSS Visual Editor", "Web Page Maker"],
-      "description": "Free online visual HTML editor with live preview, drag and drop, CSS visual editor, and web page maker by Jignesh.",
+      "description": "Free online visual HTML editor with live preview, drag and drop, CSS visual editor, and web page maker by Jignesh. Visual changes sync automatically to the HTML source.",
       "url": "https://html-viewer-gray-beta.vercel.app/",
+      "image": "https://html-viewer-gray-beta.vercel.app/icon.svg",
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "HTMLEditor",
       "operatingSystem": "Any",
@@ -69,7 +76,8 @@
         "HTML viewer",
         "Import and export HTML",
         "Install as PWA",
-        "Ready-made HTML templates"
+        "Ready-made HTML templates",
+        "Automatic sync from visual edits to HTML source"
       ],
       "creator": {
         "@type": "Person",
@@ -85,28 +93,60 @@
       "publisher": {
         "@type": "Person",
         "name": "Jignesh"
-      },
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://html-viewer-gray-beta.vercel.app/?q={search_term_string}",
-        "query-input": "required name=search_term_string"
       }
     },
     {
-      "@type": "SoftwareApplication",
-      "name": "HTML Editor by Jignesh",
-      "operatingSystem": "Web Browser",
-      "applicationCategory": "WebApplication",
-      "aggregateRating": {
-        "@type": "AggregateRating",
-        "ratingValue": "4.9",
-        "ratingCount": "1250"
-      },
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      }
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is HTML Editor by Jignesh free?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. The editor runs in your browser and is offered at no charge. Editing and preview happen client-side; you can copy, export, or share your HTML without a paid account."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do visual edits update the HTML code automatically?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. When you use Visual mode, changes to elements (position, size, styles, text, and deletions) are written back to the Monaco HTML editor automatically after a short delay. You can also use Save to code for an immediate sync."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the difference between Code, Visual, and Split mode?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Code mode shows only the editor. Visual mode shows only the live preview with the visual selection overlay and properties panel. Split mode shows the editor and preview side by side; use Visual mode for click-to-edit in the preview."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I share my HTML with someone else?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Use Copy share link in the sidebar to generate a URL that embeds compressed HTML. The recipient opens the same app and your snippet loads. For very large documents, use Export or Copy HTML instead."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I install the HTML editor as an app?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Where supported, you can install the site as a Progressive Web App using the web app manifest. Icons and theme colors are defined in manifest.json."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which code editor does the tool use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The app uses the Monaco Editor—the same editor component family used in Visual Studio Code—for HTML syntax highlighting, formatting, and editing."
+          }
+        }
+      ]
     }
   ]
 }
@@ -154,6 +194,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}
 .skip-link:focus{position:fixed;left:12px;top:calc(var(--topH) + 8px);width:auto;height:auto;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;outline:2px solid var(--accent2);outline-offset:2px}
+
+/* Crawler-friendly summary: clipped, not display:none (keeps semantic value without cluttering UI) */
+.seo-landing-summary{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.seo-landing-summary h1{font-size:1px;margin:0}
+.seo-landing-summary p{font-size:1px;margin:0}
 
 .tb-btn:focus-visible,.mode-tab:focus-visible,.sb-btn:focus-visible,.pp-icon-btn:focus-visible,.pp-align-btn:focus-visible,.pp-discard:focus-visible,.pp-save:focus-visible,.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pv-tools button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -372,7 +417,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 </div>
 
 <!-- WORKSPACE -->
-<div class="workspace" id="workspace">
+<main class="workspace" id="workspace">
 
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
@@ -592,24 +637,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     </div>
 
   </div>
-</div>
+</main>
 
 <!-- STATUSBAR -->
 <div class="statusbar"><span id="status-msg">Ready</span><span style="margin-left:auto;opacity:.6">HTML Editor by Jignesh · Free Visual HTML Editor &amp; Web Page Maker</span></div>
 
-<!-- SEO: keyword-rich description for search crawlers -->
-<div style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap" aria-hidden="true">
-  <h1>HTML Editor Online by Jignesh – Free Visual HTML Editor and Web Page Maker</h1>
-  <p>Welcome to the best free online HTML editor by Jignesh. This tool is a powerful visual HTML editor, HTML viewer, CSS visual editor, and web page maker. Write HTML code with live preview, drag and drop elements, resize, rotate, and change properties visually. No download needed – works entirely in your browser. Perfect for beginners and developers.</p>
-  <ul>
-    <li>Free HTML editor online</li>
-    <li>Visual HTML editor with live preview</li>
-    <li>HTML viewer and CSS visual editor</li>
-    <li>Web page maker and HTML builder</li>
-    <li>HTML editor by Jignesh</li>
-    <li>Drag and drop HTML editor</li>
-    <li>Monaco-powered code editor</li>
-  </ul>
+<!-- SEO: concise on-page summary (visually clipped; avoid keyword stuffing) -->
+<div class="seo-landing-summary">
+  <h1>HTML Editor Online by Jignesh</h1>
+  <p>Free in-browser HTML editor with Monaco, live preview, templates, import and export, and share links. Visual mode lets you select elements, drag, resize, rotate, and edit styles; changes sync automatically into your HTML source.</p>
+  <p>Includes responsive preview widths, dark and light theme, optional PWA install, and keyboard shortcuts for format and run.</p>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
