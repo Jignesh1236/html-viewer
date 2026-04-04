@@ -30,16 +30,18 @@
 <meta property="og:description" content="Free visual HTML editor with live preview and Monaco. Drag, resize, rotate elements; visual edits sync to your HTML. Templates, share links, import/export—by Jignesh.">
 <meta property="og:url" content="https://html-viewer-gray-beta.vercel.app/">
 <meta property="og:locale" content="en_US">
-<meta property="og:image" content="https://html-viewer-gray-beta.vercel.app/icon.svg">
-<meta property="og:image:secure_url" content="https://html-viewer-gray-beta.vercel.app/icon.svg">
-<meta property="og:image:type" content="image/svg+xml">
+<meta property="og:image" content="https://html-viewer-gray-beta.vercel.app/og-image.png">
+<meta property="og:image:secure_url" content="https://html-viewer-gray-beta.vercel.app/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="HTML Editor by Jignesh — code and live preview">
 
 <!-- ══ TWITTER CARD ══ -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="HTML Editor Online by Jignesh – Free Visual HTML Editor">
 <meta name="twitter:description" content="Free online HTML editor & visual CSS editor by Jignesh. Live preview, drag & drop, resize, rotate. Visual edits sync automatically to your HTML.">
-<meta name="twitter:image" content="https://html-viewer-gray-beta.vercel.app/icon.svg">
+<meta name="twitter:image" content="https://html-viewer-gray-beta.vercel.app/og-image.png">
 <meta name="twitter:image:alt" content="HTML Editor by Jignesh">
 <meta name="twitter:creator" content="@jignesh">
 
@@ -55,7 +57,7 @@
       "alternateName": ["HTML Editor Online", "Visual HTML Editor", "HTML Viewer", "CSS Visual Editor", "Web Page Maker"],
       "description": "Free online visual HTML editor with live preview, drag and drop, CSS visual editor, and web page maker by Jignesh. Visual changes sync automatically to the HTML source.",
       "url": "https://html-viewer-gray-beta.vercel.app/",
-      "image": "https://html-viewer-gray-beta.vercel.app/icon.svg",
+      "image": "https://html-viewer-gray-beta.vercel.app/og-image.png",
       "applicationCategory": "DeveloperApplication",
       "applicationSubCategory": "HTMLEditor",
       "operatingSystem": "Any",
@@ -77,7 +79,11 @@
         "Import and export HTML",
         "Install as PWA",
         "Ready-made HTML templates",
-        "Automatic sync from visual edits to HTML source"
+        "Automatic sync from visual edits to HTML source",
+        "Inline JavaScript editor tab",
+        "Fullscreen live preview",
+        "Snapshot diff comparison",
+        "Optional Monaco minimap"
       ],
       "creator": {
         "@type": "Person",
@@ -191,6 +197,20 @@ html[data-theme="light"]{
 }
 
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif}
+body.pv-fs{overflow:hidden}
+body.pv-fs .topbar,
+body.pv-fs .statusbar{display:none!important}
+body.pv-fs .workspace{margin-top:0;height:100dvh}
+body.pv-fs .sidebar,
+body.pv-fs #codePane,
+body.pv-fs #paneResizer{display:none!important}
+body.pv-fs #panels{flex:1;height:100%;min-height:0}
+body.pv-fs #previewPane{flex:1!important;width:100%!important;max-width:none!important;min-width:0!important}
+body.pv-fs .tb-hamburger,
+body.pv-fs .mobile-bottom-nav,
+body.pv-fs .mobile-sidebar-backdrop{display:none!important}
+body.pv-fs .workspace{padding-bottom:0!important}
+body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;box-shadow:none!important}
 
 .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}
 .skip-link:focus{position:fixed;left:12px;top:calc(var(--topH) + 8px);width:auto;height:auto;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;outline:2px solid var(--accent2);outline-offset:2px}
@@ -200,7 +220,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .seo-landing-summary h1{font-size:1px;margin:0}
 .seo-landing-summary p{font-size:1px;margin:0}
 
-.tb-btn:focus-visible,.mode-tab:focus-visible,.sb-btn:focus-visible,.pp-icon-btn:focus-visible,.pp-align-btn:focus-visible,.pp-discard:focus-visible,.pp-save:focus-visible,.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tb-btn:focus-visible,.mode-tab:focus-visible,.sb-btn:focus-visible,.mobile-nav-btn:focus-visible,.pp-icon-btn:focus-visible,.pp-align-btn:focus-visible,.pp-discard:focus-visible,.pp-save:focus-visible,.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pv-tools button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* ── TOPBAR ── */
@@ -260,8 +280,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .pane-header{min-height:32px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;padding:6px 12px;gap:7px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);flex-shrink:0}
 .pane-dot{width:7px;height:7px;border-radius:50%}
 .pd-code{background:var(--accent)}.pd-preview{background:var(--accent2)}
+.code-pane-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.editor-doc-tabs{display:flex;gap:5px;margin-left:10px;align-items:center;flex-wrap:wrap}
+.editor-doc-tab{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px 11px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s}
+.editor-doc-tab:hover{color:var(--text)}
+.editor-doc-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.12)}
+.css-editor-ta{display:none;flex:1;min-width:0;width:100%;padding:12px 14px;background:var(--bg);color:var(--text);border:none;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.58;resize:none;outline:none;box-sizing:border-box}
+.css-editor-ta.show{display:block}
+.css-editor-ta:focus{box-shadow:inset 0 0 0 1px var(--accent)}
+.a11y-list{max-height:45vh;overflow-y:auto;margin:10px 0;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:11px;font-family:'JetBrains Mono',monospace}
+.a11y-issue{padding:6px 8px;border-radius:6px;margin-bottom:6px;line-height:1.4}
+.a11y-issue:last-child{margin-bottom:0}
+.a11y-error{background:rgba(255,95,135,.12);border-left:3px solid var(--accent2)}
+.a11y-warn{background:rgba(234,179,8,.12);border-left:3px solid #ca8a04}
+.a11y-ok{padding:12px;color:var(--muted);text-align:center}
 
-#editor{flex:1;overflow:hidden}
+#editor{flex:1;overflow:hidden;min-height:0}
 
 .panels-resizer{width:5px;background:var(--border);cursor:col-resize;flex-shrink:0;transition:background .2s}
 .panels-resizer:hover,.panels-resizer.active{background:var(--accent);opacity:.6}
@@ -286,6 +320,28 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .modal-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;font-family:'JetBrains Mono',monospace}
 .modal-row:last-child{border-bottom:none}
 .modal-close{margin-top:14px;width:100%;padding:9px;background:linear-gradient(135deg,var(--accent),#4a42cc);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:13px;font-family:'Syne',sans-serif;font-weight:700}
+.modal-box.modal-wide{max-width:480px}
+.modal-box.modal-xwide{max-width:720px}
+.diff-output{font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.45;max-height:52vh;overflow:auto;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:10px;text-align:left}
+.diff-output .diff-line-add{color:var(--green);background:rgba(61,220,132,.1);padding:1px 0}
+.diff-output .diff-line-rem{color:var(--accent2);background:rgba(255,95,135,.08);padding:1px 0}
+.diff-output .diff-line-ctx{color:var(--muted)}
+.diff-row{padding:1px 4px;border-radius:3px;margin:1px 0;white-space:pre-wrap;word-break:break-word}
+#qrCodeHost{display:inline-block;padding:12px;background:#fff;border-radius:10px;margin:8px auto}
+.snapshot-list{max-height:50vh;overflow-y:auto;margin:8px 0;border:1px solid var(--border);border-radius:8px}
+.snapshot-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:11px;font-family:'JetBrains Mono',monospace}
+.snapshot-row:last-child{border-bottom:none}
+.snapshot-meta{flex:1;min-width:0}
+.snapshot-name{font-weight:600;color:var(--text);word-break:break-word}
+.snapshot-date{font-size:10px;color:var(--muted);margin-top:2px}
+.snapshot-actions{display:flex;gap:6px;flex-shrink:0}
+.snapshot-actions button{background:var(--btn);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:10px;font-family:'Syne',sans-serif;font-weight:600}
+.snapshot-actions button:hover{border-color:var(--accent);color:var(--accent)}
+.pp-layer-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+.pp-layer-row .pp-inp{flex:1;max-width:72px}
+.pp-layer-row .pp-layer-btns{display:flex;gap:4px;flex:1}
+.pp-layer-row .pp-layer-btns button{flex:1;background:var(--btn);border:1px solid var(--border);color:var(--muted);padding:5px 4px;border-radius:6px;cursor:pointer;font-size:9px;font-family:'JetBrains Mono',monospace;transition:all .15s}
+.pp-layer-row .pp-layer-btns button:hover{color:var(--accent);border-color:var(--accent)}
 
 /* ── VISUAL OVERLAY ── */
 .visual-overlay{position:absolute;inset:0;pointer-events:none;z-index:50;display:none}
@@ -367,6 +423,63 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 /* ── TOAST ── */
 .toast{position:fixed;bottom:28px;right:18px;background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:10px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:9999}
 .toast.show{opacity:1;transform:translateY(0)}
+
+.tb-hamburger{display:none}
+.mobile-sidebar-backdrop{display:none}
+.mobile-bottom-nav{display:none}
+
+/* ── NARROW VIEWPORTS (phones / small tablets) ── */
+@media (max-width:900px){
+  :root{--mobileNavH:54px}
+  .tb-hamburger{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  .mode-tabs{display:none!important}
+  .mobile-bottom-nav{
+    display:flex;position:fixed;left:0;right:0;bottom:20px;height:var(--mobileNavH);
+    padding:4px 8px max(4px,env(safe-area-inset-bottom)) 8px;box-sizing:border-box;
+    align-items:stretch;justify-content:stretch;gap:6px;
+    background:var(--sb);border-top:1px solid var(--border);z-index:10050;
+    box-shadow:0 -4px 24px rgba(0,0,0,.12);
+  }
+  .mobile-nav-btn{
+    flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;
+    padding:4px 2px;border:none;border-radius:10px;background:transparent;color:var(--muted);
+    font-size:9px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;transition:background .15s,color .15s;
+  }
+  .mobile-nav-btn .mn-icon{font-size:17px;line-height:1}
+  .mobile-nav-btn.active{color:var(--accent);background:rgba(108,99,255,.14)}
+  .mobile-sidebar-backdrop{
+    display:none;position:fixed;top:var(--topH);left:0;right:0;bottom:0;
+    background:rgba(0,0,0,.48);z-index:10001;
+  }
+  body.mobile-sidebar-open .mobile-sidebar-backdrop{display:block}
+  .topbar{flex-wrap:wrap;height:auto;min-height:var(--topH);padding:6px 10px;gap:6px;row-gap:4px}
+  .logo{font-size:13px;max-width:100%}
+  .tb-right{margin-left:0;width:100%;justify-content:flex-end;flex-wrap:wrap}
+  html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
+  .workspace{
+    flex-direction:column;
+    min-height:calc(100dvh - var(--topH) - var(--mobileNavH) - 20px - env(safe-area-inset-bottom,0px));
+    padding-bottom:calc(var(--mobileNavH) + 20px + env(safe-area-inset-bottom,0px));
+    overflow:visible;
+  }
+  .sidebar{
+    position:fixed!important;top:var(--topH);
+    bottom:calc(20px + var(--mobileNavH) + env(safe-area-inset-bottom,0px));
+    left:0;width:min(88vw,300px)!important;min-width:0!important;max-width:none!important;max-height:none!important;
+    z-index:10002;border-right:1px solid var(--border);border-bottom:none;
+    transform:translateX(-100%);transition:transform .22s ease,box-shadow .22s ease;
+    box-shadow:none;
+  }
+  body.mobile-sidebar-open .sidebar{transform:translateX(0);box-shadow:8px 0 28px rgba(0,0,0,.22)}
+  .sb-resizer{display:none}
+  .panels{flex-direction:column;flex:1 1 auto;width:100%;min-width:0;overflow:visible}
+  .panels-resizer{display:none;width:0;height:0;overflow:hidden;pointer-events:none}
+  #codePane,#previewPane{width:100%!important;min-width:0!important;min-height:200px;flex:1 1 auto!important}
+  .prop-panel{width:100%!important;max-width:none;min-width:0;border-left:none;border-top:1px solid var(--border);max-height:55vh}
+  .preview-viewport-wrap{min-height:200px}
+  #preview{min-height:180px}
+  .toast{bottom:calc(28px + var(--mobileNavH) + 20px + env(safe-area-inset-bottom,0px))}
+}
 </style>
 </head>
 <body>
@@ -374,6 +487,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
 <!-- TOPBAR -->
 <div class="topbar">
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">☰</button>
   <span class="logo">&#x3C;/&#x3E; HTML Editor by Jignesh</span>
   <div class="tb-div"></div>
   <div class="mode-tabs">
@@ -391,6 +505,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size">A+</button>
   </div>
   <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme">Light</button>
+  <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap">Map</button>
   <div class="tb-right">
     <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts">?</button>
     <span class="tb-stat" id="stat-chars">0 chars</span>
@@ -428,6 +543,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="sb-label">Edit</div>
     <button class="sb-btn" onclick="formatCode()"><span class="sb-icon">✨</span>Format</button>
     <button class="sb-btn" onclick="clearCode()"><span class="sb-icon">🗑</span>Clear</button>
+    <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon">🖼</span>Insert image</button>
+    <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon">♿</span>Accessibility check</button>
     <div class="sb-label" style="margin-top:6px">Templates</div>
     <div class="sb-select-wrap">
       <select class="sb-select" id="templateSelect" onchange="onTemplateSelect(this)" aria-label="Load HTML template">
@@ -446,6 +563,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="sb-label">File</div>
     <button class="sb-btn" onclick="copyHTML()"><span class="sb-icon">📋</span>Copy HTML</button>
     <button class="sb-btn" onclick="copyShareLink()"><span class="sb-icon">🔗</span>Copy share link</button>
+    <button class="sb-btn" onclick="openQrShareModal()" aria-label="Show QR code for share link"><span class="sb-icon">▣</span>QR for share link</button>
+    <button class="sb-btn" onclick="saveNamedSnapshot()" aria-label="Save named snapshot"><span class="sb-icon">📸</span>Save snapshot</button>
+    <button class="sb-btn" onclick="openSnapshotsModal()" aria-label="View saved snapshots"><span class="sb-icon">🗂</span>Snapshots…</button>
+    <button class="sb-btn" onclick="openDiffModal()" aria-label="Compare HTML sources"><span class="sb-icon">⇄</span>Snapshot diff…</button>
     <button class="sb-btn" onclick="importFile()"><span class="sb-icon">📂</span>Import</button>
     <button class="sb-btn" onclick="exportHTML()"><span class="sb-icon">⬇</span>Export HTML</button>
     <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon">💾</span>Forget saved draft</button>
@@ -457,8 +578,20 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 
     <!-- CODE PANE -->
     <div class="pane" id="codePane" style="flex:1">
-      <div class="pane-header"><div class="pane-dot pd-code"></div>index.html</div>
-      <div id="editor"></div>
+      <div class="pane-header">
+        <div class="pane-dot pd-code"></div>
+        <span>Document</span>
+        <div class="editor-doc-tabs" role="tablist" aria-label="Editor document">
+          <button type="button" class="editor-doc-tab active" id="tabDocHtml" role="tab" aria-selected="true" onclick="setDocTab('html')">HTML</button>
+          <button type="button" class="editor-doc-tab" id="tabDocCss" role="tab" aria-selected="false" onclick="setDocTab('css')">CSS</button>
+          <button type="button" class="editor-doc-tab" id="tabDocJs" role="tab" aria-selected="false" onclick="setDocTab('js')">JS</button>
+        </div>
+      </div>
+      <div class="code-pane-body" id="codePaneBody">
+        <div id="editor"></div>
+        <textarea id="cssEditorArea" class="css-editor-ta" spellcheck="false" aria-label="Stylesheet from first style block" placeholder="/* First &lt;style&gt; block — edits sync into HTML */" oninput="onCssEditorInput()"></textarea>
+        <textarea id="jsEditorArea" class="css-editor-ta" spellcheck="false" aria-label="First inline script block" placeholder="// First inline &lt;script&gt; (no src) — edits sync into HTML" oninput="onJsEditorInput()"></textarea>
+      </div>
     </div>
 
     <!-- DIVIDER -->
@@ -474,6 +607,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
           <button type="button" data-pv="390" onclick="setViewport('390')">Mobile</button>
           <button type="button" data-pv="768" onclick="setViewport('768')">Tablet</button>
           <button type="button" data-pv="1200" onclick="setViewport('1200')">Desktop</button>
+          <button type="button" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)">⛶ Full</button>
         </div>
         <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="previewHint"></span>
       </div>
@@ -507,6 +641,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <div class="pp-header">
         <span class="pp-tag" id="ppTag">div</span>
         <span class="pp-hdr-spacer"></span>
+        <button class="pp-icon-btn" title="Duplicate element" onclick="duplicateEl()" aria-label="Duplicate element">⎘</button>
         <button class="pp-icon-btn pp-del-btn" title="Delete element" onclick="deleteEl()">🗑</button>
         <button class="pp-icon-btn" onclick="closePropPanel()">✕</button>
       </div>
@@ -611,6 +746,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
           <input class="pp-inp" id="pp-rot" type="number" value="0" oninput="applyLayout()">
           <span class="pp-unit">°</span>
         </div>
+        <div class="pp-field-label" style="margin-top:6px">Z-index</div>
+        <div class="pp-layer-row">
+          <input class="pp-inp" id="pp-z" type="number" placeholder="auto" oninput="applyZIndex()" title="Stacking order (works best with position other than static)">
+          <div class="pp-layer-btns">
+            <button type="button" onclick="layerForward()" title="Increase z-index">Front +</button>
+            <button type="button" onclick="layerBack()" title="Decrease z-index">Back −</button>
+          </div>
+        </div>
         <div class="pp-field-label" style="margin-top:6px">Margin</div>
         <div class="pp-2col" style="margin-bottom:7px">
           <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-mx" placeholder="0" oninput="applySpacing()"></div>
@@ -639,6 +782,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   </div>
 </main>
 
+<div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
+
+<nav class="mobile-bottom-nav" id="mobileBottomNav" role="tablist" aria-label="Editor view">
+  <button type="button" class="mobile-nav-btn" id="mnavCode" role="tab" data-mnav="code" aria-selected="false" onclick="setMode('code');closeMobileSidebar();" aria-label="Code editor"><span class="mn-icon" aria-hidden="true">⌨</span>Code</button>
+  <button type="button" class="mobile-nav-btn" id="mnavPreview" role="tab" data-mnav="preview" aria-selected="false" onclick="setMode('preview');closeMobileSidebar();" aria-label="Live preview"><span class="mn-icon" aria-hidden="true">▶</span>Preview</button>
+  <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true">🎨</span>Visual</button>
+</nav>
+
 <!-- STATUSBAR -->
 <div class="statusbar"><span id="status-msg">Ready</span><span style="margin-left:auto;opacity:.6">HTML Editor by Jignesh · Free Visual HTML Editor &amp; Web Page Maker</span></div>
 
@@ -647,9 +798,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
   <h1>HTML Editor Online by Jignesh</h1>
   <p>Free in-browser HTML editor with Monaco, live preview, templates, import and export, and share links. Visual mode lets you select elements, drag, resize, rotate, and edit styles; changes sync automatically into your HTML source.</p>
   <p>Includes responsive preview widths, dark and light theme, optional PWA install, and keyboard shortcuts for format and run.</p>
+  <p><a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
+<input type="file" id="imageInput" accept="image/*" hidden>
 
 <div class="modal-overlay" id="shortcutsModal" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle" onclick="if(event.target===this)closeShortcutsModal()">
   <div class="modal-box">
@@ -660,11 +813,66 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="modal-row"><span>This help</span><span><kbd>?</kbd> or <kbd>Shift</kbd> + <kbd>/</kbd></span></div>
     <div class="modal-row"><span>Find / replace</span><span><kbd>Ctrl</kbd> + <kbd>F</kbd> / <kbd>H</kbd></span></div>
     <div class="modal-row"><span>Share in URL</span><span>Sidebar: Copy share link</span></div>
+    <div class="modal-row"><span>QR / snapshots</span><span>Sidebar: QR, Save snapshot, Snapshots…</span></div>
+    <div class="modal-row"><span>Visual undo / redo</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></span></div>
+    <div class="modal-row"><span>HTML / CSS / JS tabs</span><span>Code pane tabs (sync into document)</span></div>
+    <div class="modal-row"><span>Fullscreen preview</span><span>Preview header: ⛶ Full · <kbd>Esc</kbd></span></div>
+    <div class="modal-row"><span>Minimap</span><span>Top bar: Map</span></div>
+    <div class="modal-row"><span>Snapshot diff</span><span>Sidebar: Snapshot diff…</span></div>
     <button type="button" class="modal-close" onclick="closeShortcutsModal()">Close</button>
   </div>
 </div>
 
+<div class="modal-overlay" id="qrModal" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" onclick="if(event.target===this)closeQrShareModal()">
+  <div class="modal-box modal-wide" style="text-align:center">
+    <h3 id="qrModalTitle">Share link QR</h3>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:4px;font-family:'JetBrains Mono',monospace">Scan to open this page with your HTML embedded in the URL.</p>
+    <div id="qrCodeHost" aria-live="polite"></div>
+    <button type="button" class="modal-close" onclick="closeQrShareModal()">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="snapshotsModal" role="dialog" aria-modal="true" aria-labelledby="snapshotsModalTitle" onclick="if(event.target===this)closeSnapshotsModal()">
+  <div class="modal-box modal-wide">
+    <h3 id="snapshotsModalTitle">Saved snapshots</h3>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 8px;font-family:'JetBrains Mono',monospace">Stored in this browser only (localStorage). Max 25.</p>
+    <div class="snapshot-list" id="snapshotList"></div>
+    <button type="button" class="modal-close" onclick="closeSnapshotsModal()">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="diffModal" role="dialog" aria-modal="true" aria-labelledby="diffModalTitle" onclick="if(event.target===this)closeDiffModal()">
+  <div class="modal-box modal-xwide">
+    <h3 id="diffModalTitle">Snapshot diff</h3>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 10px;font-family:'JetBrains Mono',monospace">Line-by-line comparison (left vs right). Uses saved snapshots or the current editor buffer.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+      <div>
+        <div class="pp-field-label" style="margin-bottom:4px">Left</div>
+        <select class="pp-inp pp-sel" id="diffLeftSel" style="width:100%;cursor:pointer" aria-label="Diff left source"></select>
+      </div>
+      <div>
+        <div class="pp-field-label" style="margin-bottom:4px">Right</div>
+        <select class="pp-inp pp-sel" id="diffRightSel" style="width:100%;cursor:pointer" aria-label="Diff right source"></select>
+      </div>
+    </div>
+    <button type="button" class="modal-close" style="margin-top:0;margin-bottom:10px" onclick="runSnapshotDiff()">Compare</button>
+    <div class="diff-output" id="diffOutput" aria-live="polite">Pick two sources and click Compare.</div>
+    <button type="button" class="modal-close" onclick="closeDiffModal()">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="a11yModal" role="dialog" aria-modal="true" aria-labelledby="a11yModalTitle" onclick="if(event.target===this)closeA11yModal()">
+  <div class="modal-box modal-wide">
+    <h3 id="a11yModalTitle">Accessibility check</h3>
+    <p style="font-size:11px;color:var(--muted);margin:0 0 4px;font-family:'JetBrains Mono',monospace">Quick static checks on your HTML (not a full audit).</p>
+    <div class="a11y-list" id="a11yList"></div>
+    <button type="button" class="modal-close" onclick="closeA11yModal()">Close</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 /* ─────────────────────────────────────────
@@ -680,10 +888,38 @@ let autosaveTimer;
 const DRAFT_KEY='html-editor-by-jignesh-draft';
 const THEME_KEY='html-editor-theme';
 const FONT_KEY='html-editor-font-size';
+const SNAPSHOTS_KEY='html-editor-snapshots-v1';
+const SNAPSHOTS_MAX=25;
 const SHARE_MAX_PLAIN=150000;
 const SHARE_MAX_COMPRESSED=65000;
 let appTheme='dark';
 let editorFontSize=13;
+let currentDocTab='html';
+let _cssEditTimer=null;
+const VISUAL_UNDO_CAP=40;
+let visualUndoStack=[];
+let visualRedoStack=[];
+let _visualUndoGroup=false;
+let _visualUndoGroupT=null;
+const FIRST_STYLE_RE=/<style([^>]*)>([\s\S]*?)<\/style>/i;
+const MINIMAP_KEY='html-editor-minimap';
+let minimapEnabled=false;
+let _jsEditTimer=null;
+// #region agent log
+function agentDbgLog(location,message,data,hypothesisId){
+  fetch('http://127.0.0.1:7796/ingest/fcb7affa-dca6-4baf-a35a-ebf50241f2f1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'36efe2'},body:JSON.stringify({sessionId:'36efe2',location,message,data:data||{},timestamp:Date.now(),hypothesisId:hypothesisId||'?'})}).catch(function(){});
+}
+(function(){
+  var _rz;
+  window.addEventListener('resize',function(){
+    clearTimeout(_rz);
+    _rz=setTimeout(function(){
+      var w=document.getElementById('workspace');
+      agentDbgLog('window:resize','layout',{innerWidth:window.innerWidth,innerHeight:window.innerHeight,wsScrollW:w?w.scrollWidth:0,wsClientW:w?w.clientWidth:0,wsClipped:w&&w.scrollWidth>w.clientWidth},'H1');
+    },350);
+  });
+})();
+// #endregion
 
 const TEMPLATES={
   hero:`<!DOCTYPE html>
@@ -971,8 +1207,10 @@ function loadTemplate(id){
   if(!html||!editor)return;
   editor.setValue(html);
   runCode();
+  syncActiveAuxPanel();
   scheduleAutosave();
   toast('Template loaded 📄');
+  closeMobileSidebar();
 }
 
 function openShortcutsModal(){
@@ -998,29 +1236,160 @@ function tryGetSharedHtml(){
   return decoded;
 }
 
-function copyShareLink(){
-  if(!editor)return;
-  if(typeof LZString==='undefined'){toast('Share unavailable');return;}
+function computeShareUrl(){
+  if(!editor) return {error:'noEditor'};
+  if(typeof LZString==='undefined') return {error:'noLib'};
   const html=editor.getValue();
-  if(html.length>SHARE_MAX_PLAIN){
-    toast('HTML too large to share in URL');
-    return;
-  }
+  if(html.length>SHARE_MAX_PLAIN) return {error:'plain'};
   const enc=LZString.compressToEncodedURIComponent(html);
-  if(!enc||enc.length>SHARE_MAX_COMPRESSED){
-    toast('Compressed link too long');
-    return;
-  }
+  if(!enc||enc.length>SHARE_MAX_COMPRESSED) return {error:'comp'};
   const u=new URL(location.href);
   u.searchParams.delete('c');
   u.hash='#c='+enc;
   const url=u.toString();
-  if(url.length>2000000){
-    toast('URL too long for browser');
+  if(url.length>2000000) return {error:'long'};
+  return {url};
+}
+function shareUrlErrorToast(code){
+  const map={noEditor:'No editor',noLib:'Share unavailable',plain:'HTML too large to share in URL',comp:'Compressed link too long',long:'URL too long for browser'};
+  toast(map[code]||'Share failed');
+}
+function copyShareLink(){
+  const r=computeShareUrl();
+  if(r.error){shareUrlErrorToast(r.error);return;}
+  try{history.replaceState(null,'',r.url);}catch(e){}
+  navigator.clipboard.writeText(r.url).then(()=>toast('Share link copied')).catch(()=>toast('Copy failed'));
+}
+function openQrShareModal(){
+  const r=computeShareUrl();
+  if(r.error){shareUrlErrorToast(r.error);return;}
+  try{history.replaceState(null,'',r.url);}catch(e){}
+  const host=document.getElementById('qrCodeHost');
+  host.innerHTML='';
+  if(typeof QRCode==='undefined'){toast('QR library not loaded');return;}
+  try{
+    new QRCode(host,{text:r.url,width:200,height:200,colorDark:'#1a1a2e',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  }catch(err){toast('Could not build QR');return;}
+  document.getElementById('qrModal').classList.add('show');
+}
+function closeQrShareModal(){
+  document.getElementById('qrModal').classList.remove('show');
+}
+function getSnapshots(){
+  try{return JSON.parse(localStorage.getItem(SNAPSHOTS_KEY)||'[]');}catch(e){return[];}
+}
+function setSnapshots(arr){
+  try{localStorage.setItem(SNAPSHOTS_KEY,JSON.stringify(arr));}catch(e){}
+}
+function saveNamedSnapshot(){
+  if(!editor)return;
+  const name=prompt('Snapshot name:','Draft '+new Date().toLocaleString());
+  if(name===null)return;
+  const trimmed=name.trim();
+  if(!trimmed){toast('Name required');return;}
+  let list=getSnapshots();
+  list.unshift({name:trimmed,ts:Date.now(),html:editor.getValue()});
+  if(list.length>SNAPSHOTS_MAX)list=list.slice(0,SNAPSHOTS_MAX);
+  setSnapshots(list);
+  toast('Snapshot saved 📸');
+}
+function renderSnapshotsList(){
+  const box=document.getElementById('snapshotList');
+  const list=getSnapshots();
+  if(!list.length){
+    box.innerHTML='<div class="snapshot-row" style="justify-content:center;color:var(--muted)">No snapshots yet — use <strong style="margin:0 4px">Save snapshot</strong> in the sidebar.</div>';
     return;
   }
-  try{history.replaceState(null,'',url);}catch(e){}
-  navigator.clipboard.writeText(url).then(()=>toast('Share link copied')).catch(()=>toast('Copy failed'));
+  box.innerHTML=list.map((s,i)=>{
+    const d=new Date(s.ts);
+    const ds=isNaN(d.getTime())?'':d.toLocaleString();
+    const safeName=String(s.name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    return '<div class="snapshot-row"><div class="snapshot-meta"><div class="snapshot-name">'+safeName+'</div><div class="snapshot-date">'+ds+' · '+(s.html?s.html.length:0)+' chars</div></div><div class="snapshot-actions"><button type="button" onclick="restoreSnapshot('+i+')">Restore</button><button type="button" onclick="deleteSnapshot('+i+')">Delete</button></div></div>';
+  }).join('');
+}
+function openSnapshotsModal(){
+  renderSnapshotsList();
+  document.getElementById('snapshotsModal').classList.add('show');
+}
+function closeSnapshotsModal(){
+  document.getElementById('snapshotsModal').classList.remove('show');
+}
+function openDiffModal(){
+  const left=document.getElementById('diffLeftSel');
+  const right=document.getElementById('diffRightSel');
+  const snaps=getSnapshots();
+  const opts='<option value="current">Current editor</option>'+snaps.map(function(s,i){
+    const name=String(s.name).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    return '<option value="'+i+'">'+name+'</option>';
+  }).join('');
+  left.innerHTML=opts;
+  right.innerHTML=opts;
+  left.value='current';
+  if(snaps.length){
+    right.value=snaps.length>1?'1':'0';
+    if(right.value===left.value && snaps.length>1) right.value='0';
+  } else {
+    right.value='current';
+  }
+  document.getElementById('diffOutput').innerHTML='Pick two sources and click Compare.';
+  document.getElementById('diffModal').classList.add('show');
+}
+function closeDiffModal(){
+  document.getElementById('diffModal').classList.remove('show');
+}
+function sourceHtmlForDiff(val){
+  if(val==='current'||val==='') return editor?editor.getValue():'';
+  const i=parseInt(val,10);
+  const list=getSnapshots();
+  if(!isNaN(i)&&list[i]) return list[i].html||'';
+  return '';
+}
+function runSnapshotDiff(){
+  const out=document.getElementById('diffOutput');
+  const L=sourceHtmlForDiff(document.getElementById('diffLeftSel').value);
+  const R=sourceHtmlForDiff(document.getElementById('diffRightSel').value);
+  if(typeof Diff==='undefined'||typeof Diff.diffLines!=='function'){
+    out.textContent='Diff library failed to load. Check your network connection.';
+    return;
+  }
+  let parts;
+  try{ parts=Diff.diffLines(L,R); }
+  catch(err){
+    out.textContent='Diff error: '+String(err&&err.message?err.message:err);
+    return;
+  }
+  let html='';
+  parts.forEach(function(part){
+    const lines=part.value.replace(/\r\n/g,'\n').split('\n');
+    if(lines.length && lines[lines.length-1]==='') lines.pop();
+    lines.forEach(function(line){
+      const esc=line.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      if(part.added) html+='<div class="diff-row diff-line-add">+ '+esc+'</div>';
+      else if(part.removed) html+='<div class="diff-row diff-line-rem">− '+esc+'</div>';
+      else html+='<div class="diff-row diff-line-ctx">  '+esc+'</div>';
+    });
+  });
+  out.innerHTML=html||'<div class="diff-line-ctx">No differences.</div>';
+  toast('Diff updated');
+}
+function restoreSnapshot(i){
+  const list=getSnapshots();
+  if(!list[i]||!editor)return;
+  if(!confirm('Replace editor with this snapshot?'))return;
+  editor.setValue(list[i].html);
+  runCode();
+  syncActiveAuxPanel();
+  scheduleAutosave();
+  closeSnapshotsModal();
+  toast('Snapshot restored');
+}
+function deleteSnapshot(i){
+  let list=getSnapshots();
+  if(!list[i])return;
+  list.splice(i,1);
+  setSnapshots(list);
+  renderSnapshotsList();
+  toast('Snapshot removed');
 }
 
 function syncThemeButton(){
@@ -1054,6 +1423,34 @@ function fontSizeStep(delta){
   const lab=document.getElementById('fontSizeLabel');
   if(lab) lab.textContent=String(editorFontSize);
 }
+function syncMinimapButton(){
+  const b=document.getElementById('minimapToggleBtn');
+  if(b){
+    b.classList.toggle('on',minimapEnabled);
+    b.title=minimapEnabled?'Hide code minimap':'Show code minimap';
+  }
+}
+function toggleMinimap(){
+  if(!editor)return;
+  minimapEnabled=!minimapEnabled;
+  editor.updateOptions({minimap:{enabled:minimapEnabled}});
+  try{localStorage.setItem(MINIMAP_KEY,minimapEnabled?'1':'0');}catch(e){}
+  syncMinimapButton();
+  toast(minimapEnabled?'Minimap on':'Minimap off');
+}
+function togglePreviewFullscreen(){
+  const body=document.body;
+  const on=!body.classList.contains('pv-fs');
+  body.classList.toggle('pv-fs',on);
+  if(on) closeMobileSidebar();
+  const btn=document.getElementById('previewFsBtn');
+  if(btn){
+    btn.classList.toggle('on',on);
+    btn.textContent=on?'✕ Exit':'⛶ Full';
+    btn.title=on?'Exit fullscreen preview (Esc)':'Fullscreen preview (Esc to exit)';
+  }
+  setTimeout(function(){if(editor)editor.layout();},80);
+}
 
 try{
   if(localStorage.getItem(THEME_KEY)==='light'){
@@ -1064,6 +1461,9 @@ try{
 try{
   const f=parseInt(localStorage.getItem(FONT_KEY),10);
   if(!isNaN(f)&&f>=10&&f<=22) editorFontSize=f;
+}catch(e){}
+try{
+  minimapEnabled=localStorage.getItem(MINIMAP_KEY)==='1';
 }catch(e){}
 syncThemeButton();
 (function(){
@@ -1105,7 +1505,7 @@ require(['vs/editor/editor.main'], () => {
     fontFamily:"'JetBrains Mono',monospace",
     fontLigatures: true,
     lineHeight: Math.round(editorFontSize*1.615),
-    minimap:{enabled:false},
+    minimap:{enabled:minimapEnabled},
     scrollBeyondLastLine:false,
     wordWrap:'on',
     padding:{top:10},
@@ -1134,21 +1534,67 @@ require(['vs/editor/editor.main'], () => {
     else if(initial!==TEMPLATES.hero&&initial.length) toast('Restored last draft 💾');
   }catch(e){}
 
-  setMode('split');
+  if(window.matchMedia('(max-width:900px)').matches) setMode('preview');
+  else setMode('split');
   runCode();
   setStatus('Editor ready');
+  syncMinimapButton();
+  // #region agent log
+  setTimeout(function(){
+    var w=document.getElementById('workspace');
+    var pv=document.getElementById('previewPane');
+    var iframe=document.getElementById('preview');
+    agentDbgLog('editor:ready','layoutSnapshot',{innerWidth:window.innerWidth,innerHeight:window.innerHeight,wsScrollW:w?w.scrollWidth:0,wsClientW:w?w.clientWidth:0,previewIframeH:iframe?iframe.offsetHeight:0,previewPaneH:pv?pv.offsetHeight:0},'H2');
+    agentDbgLog('editor:ready','overflowCheck',{horizontalClip:w&&w.scrollWidth>w.clientWidth},'H1');
+  },600);
+  // #endregion
 });
 
 /* ─────────────────────────────────────────
    MODE SWITCHING
 ───────────────────────────────────────── */
+function isMobileLayout(){
+  try{return window.matchMedia('(max-width:900px)').matches;}catch(e){return window.innerWidth<=900;}
+}
+function syncMobileMenuAria(){
+  var open=document.body.classList.contains('mobile-sidebar-open');
+  var btn=document.getElementById('mobileMenuBtn');
+  if(btn) btn.setAttribute('aria-expanded',open?'true':'false');
+  var bd=document.getElementById('mobileSidebarBackdrop');
+  if(bd) bd.setAttribute('aria-hidden',open?'false':'true');
+}
+function toggleMobileSidebar(){
+  if(!isMobileLayout()) return;
+  document.body.classList.toggle('mobile-sidebar-open');
+  syncMobileMenuAria();
+}
+function closeMobileSidebar(){
+  document.body.classList.remove('mobile-sidebar-open');
+  syncMobileMenuAria();
+}
+/** Bottom bar: split maps to Preview (live page focus). */
+function syncMobileBottomNav(){
+  var nav=document.getElementById('mobileBottomNav');
+  if(!nav) return;
+  var m=currentMode;
+  var key='preview';
+  if(m==='code') key='code';
+  else if(m==='visual') key='visual';
+  else if(m==='preview'||m==='split') key='preview';
+  nav.querySelectorAll('.mobile-nav-btn').forEach(function(b){
+    var id=b.getAttribute('data-mnav');
+    var on=id===key;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-selected',on?'true':'false');
+  });
+}
 function setMode(mode){
+  if(document.body.classList.contains('pv-fs')) togglePreviewFullscreen();
   currentMode=mode;
   const cp=document.getElementById('codePane');
   const pr=document.getElementById('paneResizer');
   const pp=document.getElementById('previewPane');
 
-  // Reset styles
   cp.style.cssText=''; pr.style.cssText=''; pp.style.cssText='';
 
   if(mode==='code'){
@@ -1158,18 +1604,37 @@ function setMode(mode){
   } else if(mode==='visual'){
     cp.style.display='none'; pr.style.display='none';
     pp.style.flex='1';
-    setTimeout(()=>setVisualMode(true),80);
+    setTimeout(function(){setVisualMode(true);},80);
+  } else if(mode==='preview'){
+    cp.style.display='none'; pr.style.display='none';
+    pp.style.flex='1';
+    setVisualMode(false);
   } else {
     cp.style.flex='1'; pp.style.flex='1';
     setVisualMode(false);
   }
 
-  ['code','visual','split'].forEach(t=>{
-    document.getElementById('tab-'+t).classList.toggle('active',t===mode);
+  ['code','visual','split'].forEach(function(t){
+    var el=document.getElementById('tab-'+t);
+    if(el) el.classList.toggle('active',t===mode);
   });
   if(editor) editor.layout();
   setStatus('Mode: '+mode);
+  syncMobileBottomNav();
 }
+(function(){
+  try{
+    var mq=window.matchMedia('(max-width:900px)');
+    function onMq(e){
+      if(!e.matches){
+        closeMobileSidebar();
+        if(currentMode==='preview') setMode('split');
+      }
+    }
+    if(mq.addEventListener) mq.addEventListener('change',onMq);
+    else if(mq.addListener) mq.addListener(onMq);
+  }catch(err){}
+})();
 
 /* ─────────────────────────────────────────
    LIVE TOGGLE
@@ -1187,7 +1652,14 @@ function toggleLive(){
 ───────────────────────────────────────── */
 function runCode(){
   if(!editor) return;
-  iframeEl.srcdoc=editor.getValue();
+  var v=editor.getValue();
+  try{
+    iframeEl.srcdoc=v;
+  }catch(err){
+    // #region agent log
+    agentDbgLog('runCode:catch','srcdocAssignFailed',{err:String(err&&err.message?err.message:err),htmlLen:v.length},'H4');
+    // #endregion
+  }
   setStatus('Preview updated');
 }
 function openNewTab(){
@@ -1243,6 +1715,7 @@ function clearCode(){
   try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
   editor.setValue('');
   runCode();
+  syncActiveAuxPanel();
   toast('Cleared 🗑');
 }
 function formatCode(){
@@ -1258,8 +1731,77 @@ function importFile(){
 document.getElementById('fileInput').addEventListener('change',function(e){
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();
-  r.onload=ev=>{editor.setValue(ev.target.result);runCode();toast('Imported 📂');setStatus('Loaded: '+f.name);};
+  r.onload=ev=>{editor.setValue(ev.target.result);runCode();toast('Imported 📂');setStatus('Loaded: '+f.name);syncActiveAuxPanel();};
   r.readAsText(f);this.value='';
+});
+document.getElementById('imageInput').addEventListener('change',function(e){
+  const f=e.target.files[0];
+  if(!f||!editor){this.value='';return;}
+  if(!f.type||f.type.indexOf('image')!==0){toast('Pick an image file');this.value='';return;}
+  const input=this;
+  const r=new FileReader();
+  r.onload=function(){
+    const dataUrl=r.result;
+    function escImgSrc(s){
+      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    }
+    function commitInsert(url){
+      // #region agent log
+      agentDbgLog('image:commit','beforeInsert',{dataUrlLen:typeof url==='string'?url.length:0,hasAmp:typeof url==='string'&&url.indexOf('&')>=0,hasLt:typeof url==='string'&&url.indexOf('<')>=0,monacoOk:typeof monaco!=='undefined',runId:'post-fix'},'H5');
+      // #endregion
+      const esc=escImgSrc(url);
+      const imgTag='<img src="'+esc+'" alt="" style="max-width:100%;height:auto">\n';
+      var editsOk=true,editsErr='';
+      if(typeof monaco!=='undefined'){
+        const sel=editor.getSelection();
+        const pos=sel.getStartPosition();
+        try{
+          editor.executeEdits('img-insert',[{range:new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column),text:imgTag}]);
+        }catch(err){
+          editsOk=false;
+          editsErr=String(err&&err.message?err.message:err);
+        }
+      } else {
+        editor.setValue(editor.getValue()+imgTag);
+      }
+      // #region agent log
+      var htmlAfter=editor.getValue();
+      agentDbgLog('image:afterEdits','executeEditsResult',{editsOk:editsOk,editsErr:editsErr,htmlLen:htmlAfter.length,imgTagLen:imgTag.length,runId:'post-fix'},'H3');
+      agentDbgLog('image:afterEdits','sizeCheck',{htmlLenOver2M:htmlAfter.length>2e6,runId:'post-fix'},'H4');
+      // #endregion
+      editor.focus();
+      if(editor.layout) editor.layout();
+      toast('Image inserted 🖼');
+      scheduleAutosave();
+      if(liveOn) runCode();
+      input.value='';
+    }
+    if(f.type==='image/svg+xml'||(typeof dataUrl==='string'&&/^data:image\/svg\+xml/i.test(dataUrl))){
+      commitInsert(dataUrl);
+      return;
+    }
+    const im=new Image();
+    im.onload=function(){
+      const w=im.naturalWidth,h=im.naturalHeight;
+      const MAX=1280;
+      if(!w||!h){commitInsert(dataUrl);return;}
+      const sc=Math.min(1,MAX/Math.max(w,h));
+      const nw=Math.max(1,Math.round(w*sc)),nh=Math.max(1,Math.round(h*sc));
+      const cv=document.createElement('canvas');
+      cv.width=nw;cv.height=nh;
+      cv.getContext('2d').drawImage(im,0,0,nw,nh);
+      var out=dataUrl;
+      try{
+        const usePng=f.type==='image/png'||f.type==='image/gif';
+        out=usePng?cv.toDataURL('image/png'):cv.toDataURL('image/jpeg',0.88);
+      }catch(err){}
+      commitInsert(out);
+    };
+    im.onerror=function(){commitInsert(dataUrl);};
+    im.src=dataUrl;
+  };
+  r.onerror=function(){toast('Read failed');input.value='';};
+  r.readAsDataURL(f);
 });
 
 function updateStats(){
@@ -1269,6 +1811,232 @@ function updateStats(){
   document.getElementById('stat-lines').textContent=v.split('\n').length+' lines';
 }
 function setStatus(m){document.getElementById('status-msg').textContent=m;}
+
+function mergeFirstStyleIntoHtml(html,newCss){
+  const m=html.match(FIRST_STYLE_RE);
+  const attrs=m?m[1]:'';
+  const inner=newCss.replace(/\r\n/g,'\n').trim();
+  const block='<style'+attrs+'>\n'+inner+'\n</style>';
+  if(m) return html.slice(0,m.index)+block+html.slice(m.index+m[0].length);
+  const headEnd=html.search(/<\/head>/i);
+  if(headEnd>=0) return html.slice(0,headEnd)+'\n'+block+'\n'+html.slice(headEnd);
+  const bodyM=html.match(/<body[^>]*>/i);
+  if(bodyM){
+    const ins=html.indexOf(bodyM[0])+bodyM[0].length;
+    return html.slice(0,ins)+'\n'+block+'\n'+html.slice(ins);
+  }
+  return html.trim()+'\n'+block;
+}
+function syncCssFromHtml(){
+  if(!editor)return;
+  const html=editor.getValue();
+  const m=html.match(FIRST_STYLE_RE);
+  document.getElementById('cssEditorArea').value=m?m[2]:'/* Rules here — a <style> block will be added to your HTML */\n';
+}
+function findFirstInlineScript(html){
+  const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;
+  let m;
+  while((m=re.exec(html))!==null){
+    const open=m[1];
+    if(/\bsrc\s*=/i.test(open)) continue;
+    const tm=open.match(/\btype\s*=\s*["']([^"']*)["']/i);
+    const tp=tm?tm[1].toLowerCase().trim():'';
+    if(tp==='application/ld+json'||tp==='application/json'||tp==='importmap') continue;
+    return {openAttrs:open,body:m[2],start:m.index,len:m[0].length};
+  }
+  return null;
+}
+function mergeFirstScriptIntoHtml(html,newJs){
+  const info=findFirstInlineScript(html);
+  const inner=newJs.replace(/\r\n/g,'\n').trim();
+  const attrs=info?info.openAttrs:'';
+  const block='<script'+attrs+'>\n'+inner+'\n<\/script>';
+  if(info) return html.slice(0,info.start)+block+html.slice(info.start+info.len);
+  const bodyClose=html.search(/<\/body>/i);
+  if(bodyClose>=0) return html.slice(0,bodyClose)+'\n'+block+'\n'+html.slice(bodyClose);
+  return html.trim()+'\n'+block;
+}
+function syncJsFromHtml(){
+  if(!editor)return;
+  const info=findFirstInlineScript(editor.getValue());
+  document.getElementById('jsEditorArea').value=info?info.body:'// Add JavaScript here — an inline <script> will be inserted before </body>\n';
+}
+function applyJsFromPanel(){
+  if(!editor)return;
+  const ta=document.getElementById('jsEditorArea');
+  const merged=mergeFirstScriptIntoHtml(editor.getValue(),ta.value);
+  if(merged!==editor.getValue()){
+    _ignoreEditorChangeForLive=true;
+    try{editor.setValue(merged);}finally{_ignoreEditorChangeForLive=false;}
+    scheduleAutosave();
+    if(liveOn) runCode();
+  }
+}
+function onJsEditorInput(){
+  clearTimeout(_jsEditTimer);
+  _jsEditTimer=setTimeout(function(){
+    if(currentDocTab!=='js'||!editor)return;
+    applyJsFromPanel();
+  },400);
+}
+function syncActiveAuxPanel(){
+  if(currentDocTab==='css') syncCssFromHtml();
+  else if(currentDocTab==='js') syncJsFromHtml();
+}
+function setDocTab(which){
+  if(!editor||which===currentDocTab)return;
+  if(currentDocTab==='css') applyCssFromPanel();
+  else if(currentDocTab==='js') applyJsFromPanel();
+  if(which==='css') syncCssFromHtml();
+  else if(which==='js') syncJsFromHtml();
+  const ed=document.getElementById('editor');
+  const ta=document.getElementById('cssEditorArea');
+  const jta=document.getElementById('jsEditorArea');
+  const hBtn=document.getElementById('tabDocHtml');
+  const cBtn=document.getElementById('tabDocCss');
+  const jBtn=document.getElementById('tabDocJs');
+  ta.classList.remove('show');
+  jta.classList.remove('show');
+  ed.style.display='none';
+  hBtn.classList.remove('active'); cBtn.classList.remove('active'); jBtn.classList.remove('active');
+  hBtn.setAttribute('aria-selected','false');
+  cBtn.setAttribute('aria-selected','false');
+  jBtn.setAttribute('aria-selected','false');
+  if(which==='html'){
+    ed.style.display='';
+    hBtn.classList.add('active');
+    hBtn.setAttribute('aria-selected','true');
+    setTimeout(function(){if(editor)editor.layout();},60);
+  } else if(which==='css'){
+    ta.classList.add('show');
+    cBtn.classList.add('active');
+    cBtn.setAttribute('aria-selected','true');
+  } else if(which==='js'){
+    jta.classList.add('show');
+    jBtn.classList.add('active');
+    jBtn.setAttribute('aria-selected','true');
+  }
+  currentDocTab=which;
+}
+function applyCssFromPanel(){
+  if(!editor)return;
+  const ta=document.getElementById('cssEditorArea');
+  const merged=mergeFirstStyleIntoHtml(editor.getValue(),ta.value);
+  if(merged!==editor.getValue()){
+    _ignoreEditorChangeForLive=true;
+    try{editor.setValue(merged);}finally{_ignoreEditorChangeForLive=false;}
+    scheduleAutosave();
+    if(liveOn) runCode();
+  }
+}
+function onCssEditorInput(){
+  clearTimeout(_cssEditTimer);
+  _cssEditTimer=setTimeout(function(){
+    if(currentDocTab!=='css'||!editor)return;
+    applyCssFromPanel();
+  },400);
+}
+function markVisualUndoBeforeReplace(){
+  if(!editor||!visualModeOn)return;
+  clearTimeout(_visualUndoGroupT);
+  if(!_visualUndoGroup){
+    visualUndoStack.push(editor.getValue());
+    if(visualUndoStack.length>VISUAL_UNDO_CAP) visualUndoStack.shift();
+    visualRedoStack.length=0;
+    _visualUndoGroup=true;
+  }
+  _visualUndoGroupT=setTimeout(function(){_visualUndoGroup=false;},650);
+}
+function resetVisualUndoGroup(){
+  clearTimeout(_visualUndoGroupT);
+  _visualUndoGroup=false;
+}
+function visualUndoAction(){
+  if(!editor||!visualUndoStack.length)return false;
+  resetVisualUndoGroup();
+  const cur=editor.getValue();
+  const prev=visualUndoStack.pop();
+  visualRedoStack.push(cur);
+  _ignoreEditorChangeForLive=true;
+  try{editor.setValue(prev);}finally{_ignoreEditorChangeForLive=false;}
+  syncActiveAuxPanel();
+  runCode();
+  if(visualModeOn){
+    setTimeout(function(){attachVisualListeners();},0);
+    deselect();
+  }
+  toast('Visual undo');
+  return true;
+}
+function visualRedoAction(){
+  if(!editor||!visualRedoStack.length)return false;
+  resetVisualUndoGroup();
+  const cur=editor.getValue();
+  const next=visualRedoStack.pop();
+  visualUndoStack.push(cur);
+  _ignoreEditorChangeForLive=true;
+  try{editor.setValue(next);}finally{_ignoreEditorChangeForLive=false;}
+  syncActiveAuxPanel();
+  runCode();
+  if(visualModeOn){
+    setTimeout(function(){attachVisualListeners();},0);
+    deselect();
+  }
+  toast('Visual redo');
+  return true;
+}
+function insertImageAtCursor(){
+  if(!editor){toast('Editor not ready');return;}
+  document.getElementById('imageInput').click();
+}
+function openA11yModal(){
+  const list=document.getElementById('a11yList');
+  list.innerHTML='';
+  if(!editor){
+    list.innerHTML='<div class="a11y-ok">No editor</div>';
+    document.getElementById('a11yModal').classList.add('show');
+    return;
+  }
+  let doc;
+  try{
+    doc=new DOMParser().parseFromString(editor.getValue(),'text/html');
+  }catch(err){
+    list.innerHTML='<div class="a11y-issue a11y-error">Could not parse HTML.</div>';
+    document.getElementById('a11yModal').classList.add('show');
+    return;
+  }
+  const issues=[];
+  const root=doc.documentElement;
+  if(root && !root.getAttribute('lang')){
+    issues.push({type:'warn',msg:'<html> has no lang attribute (e.g. lang="en").'});
+  }
+  doc.querySelectorAll('img').forEach(function(img){
+    if(!img.hasAttribute('alt')) issues.push({type:'error',msg:'<img> missing alt'});
+    else if(!String(img.getAttribute('alt')).trim() && img.getAttribute('role')!=='presentation' && img.getAttribute('role')!=='none'){
+      issues.push({type:'warn',msg:'<img> has empty alt — use alt="" with role="presentation" if decorative.'});
+    }
+  });
+  doc.querySelectorAll('button').forEach(function(btn){
+    const t=(btn.textContent||'').replace(/\s+/g,' ').trim();
+    if(!t && !btn.getAttribute('aria-label')) issues.push({type:'error',msg:'<button> with no text and no aria-label'});
+  });
+  doc.querySelectorAll('a').forEach(function(a){
+    const t=(a.textContent||'').replace(/\s+/g,' ').trim();
+    if(!t && !a.getAttribute('aria-label') && !a.getAttribute('title')) issues.push({type:'warn',msg:'<a> with no visible text, aria-label, or title'});
+  });
+  if(!issues.length){
+    list.innerHTML='<div class="a11y-ok">No common issues found (basic checks only).</div>';
+  } else {
+    list.innerHTML=issues.map(function(x){
+      const esc=String(x.msg).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+      return '<div class="a11y-issue a11y-'+x.type+'">'+esc+'</div>';
+    }).join('');
+  }
+  document.getElementById('a11yModal').classList.add('show');
+}
+function closeA11yModal(){
+  document.getElementById('a11yModal').classList.remove('show');
+}
 
 let toastT;
 function toast(m){
@@ -1301,6 +2069,14 @@ function toast(m){
     document.body.style.userSelect='';
     document.body.style.cursor='';
     if(editor)editor.layout();
+  });
+})();
+(function(){
+  const sb=document.getElementById('sidebar');
+  if(!sb) return;
+  sb.addEventListener('click',function(e){
+    if(!isMobileLayout()) return;
+    if(e.target.closest('.sb-btn')) closeMobileSidebar();
   });
 })();
 
@@ -1442,15 +2218,69 @@ function lockIframe(){ vOverlay.style.pointerEvents='all'; }
 function unlockIframe(){ vOverlay.style.pointerEvents=''; }
 
 document.addEventListener('keydown',e=>{
+  const a11yModalEl=document.getElementById('a11yModal');
+  if(a11yModalEl.classList.contains('show')){
+    if(e.key==='Escape'){e.preventDefault();closeA11yModal();}
+    return;
+  }
   const modal=document.getElementById('shortcutsModal');
   if(modal.classList.contains('show')){
     if(e.key==='Escape'){e.preventDefault();closeShortcutsModal();}
     return;
   }
+  const qrM=document.getElementById('qrModal');
+  if(qrM.classList.contains('show')){
+    if(e.key==='Escape'){e.preventDefault();closeQrShareModal();}
+    return;
+  }
+  const snapM=document.getElementById('snapshotsModal');
+  if(snapM.classList.contains('show')){
+    if(e.key==='Escape'){e.preventDefault();closeSnapshotsModal();}
+    return;
+  }
+  const diffM=document.getElementById('diffModal');
+  if(diffM.classList.contains('show')){
+    if(e.key==='Escape'){e.preventDefault();closeDiffModal();}
+    return;
+  }
+  if(document.body.classList.contains('mobile-sidebar-open') && e.key==='Escape'){
+    e.preventDefault();
+    closeMobileSidebar();
+    return;
+  }
+  if(document.body.classList.contains('pv-fs') && e.key==='Escape'){
+    e.preventDefault();
+    togglePreviewFullscreen();
+    return;
+  }
+  if(visualModeOn && (e.ctrlKey||e.metaKey)){
+    const t=e.target;
+    const inMonaco=t.closest&&t.closest('.monaco-editor');
+    const inCssTa=t.id==='cssEditorArea'||(t.closest&&t.closest('#cssEditorArea'));
+    const inJsTa=t.id==='jsEditorArea'||(t.closest&&t.closest('#jsEditorArea'));
+    const inProp=t.closest&&t.closest('#propPanel');
+    if(!inMonaco && !inCssTa && !inJsTa && !inProp){
+      if(e.key==='z'||e.key==='Z'){
+        if(e.shiftKey){
+          if(visualRedoStack.length){ e.preventDefault(); visualRedoAction(); }
+        } else if(visualUndoStack.length){
+          e.preventDefault();
+          visualUndoAction();
+        }
+        return;
+      }
+      if((e.key==='y'||e.key==='Y') && visualRedoStack.length){
+        e.preventDefault();
+        visualRedoAction();
+        return;
+      }
+    }
+  }
   if(e.key==='?' && !e.ctrlKey && !e.metaKey && !e.altKey){
     const t=e.target;
     const inMonaco=t.closest&&t.closest('#editor');
-    if(!inMonaco){e.preventDefault();openShortcutsModal();}
+    const inAuxTa=t.id==='cssEditorArea'||t.id==='jsEditorArea';
+    if(!inMonaco && !inAuxTa){e.preventDefault();openShortcutsModal();}
   }
   if(e.key==='Escape' && visualModeOn && selectedEl)deselect();
 });
@@ -1486,6 +2316,16 @@ function deleteEl(){
     setStatus('Deleted');
     pushVisualDomToEditor({silent:true});
   }
+}
+function duplicateEl(){
+  if(!selectedEl) return;
+  const el=selectedEl;
+  const clone=el.cloneNode(true);
+  el.parentNode.insertBefore(clone,el.nextSibling);
+  selectEl(clone);
+  toast('Duplicated ⎘');
+  setStatus('Duplicated');
+  scheduleSyncToCodeFromVisual();
 }
 
 function discardChanges(){
@@ -1542,6 +2382,8 @@ function fillProps(el){
   const mx=cs.transform;
   if(mx&&mx!=='none'){const v=mx.match(/matrix\(([^)]+)\)/);if(v){const[a,b]=v[1].split(',');rot=Math.round(Math.atan2(+b,+a)*180/Math.PI);}}
   document.getElementById('pp-rot').value=rot;
+  const zi=cs.zIndex;
+  document.getElementById('pp-z').value=(zi==='auto'||zi==='')?'':zi;
 
   // Spacing
   const parseNum=(s)=>parseInt(s)||0;
@@ -1588,7 +2430,7 @@ function fillProps(el){
 
 function clearProps(){
   document.getElementById('ppTag').textContent='—';
-  ['pp-x','pp-y','pp-w','pp-h','pp-rot',
+  ['pp-x','pp-y','pp-w','pp-h','pp-rot','pp-z',
    'pp-mx','pp-my','pp-px','pp-py',
    'pp-text','pp-fs','pp-opacity',
    'pp-bw-t','pp-bw-r','pp-bw-b','pp-bw-l','pp-br',
@@ -1619,6 +2461,35 @@ function applyLayout(){
   if(!isNaN(w)) selectedEl.style.width=w+'px';
   if(!isNaN(h)) selectedEl.style.height=h+'px';
   selectedEl.style.transform=`rotate(${rot}deg)`;
+  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  scheduleSyncToCodeFromVisual();
+}
+function applyZIndex(){
+  if(!selectedEl) return;
+  const raw=document.getElementById('pp-z').value.trim();
+  if(raw==='') selectedEl.style.removeProperty('z-index');
+  else{
+    const n=parseInt(raw,10);
+    if(!isNaN(n)) selectedEl.style.zIndex=String(n);
+  }
+  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  scheduleSyncToCodeFromVisual();
+}
+function layerForward(){
+  if(!selectedEl) return;
+  const z=parseInt(selectedEl.style.zIndex,10);
+  const n=(isNaN(z)?0:z)+1;
+  selectedEl.style.zIndex=String(n);
+  document.getElementById('pp-z').value=String(n);
+  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  scheduleSyncToCodeFromVisual();
+}
+function layerBack(){
+  if(!selectedEl) return;
+  const z=parseInt(selectedEl.style.zIndex,10);
+  const n=(isNaN(z)?0:z)-1;
+  selectedEl.style.zIndex=String(n);
+  document.getElementById('pp-z').value=String(n);
   const r=getRect(selectedEl); positionSel(r,selectedEl);
   scheduleSyncToCodeFromVisual();
 }
@@ -1711,12 +2582,14 @@ function pushVisualDomToEditor(opts){
       if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
       return;
     }
+    if(visualModeOn) markVisualUndoBeforeReplace();
     _ignoreEditorChangeForLive=true;
     try{
       editor.setValue(html);
     } finally {
       _ignoreEditorChangeForLive=false;
     }
+    syncActiveAuxPanel();
     if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
     if(opts.silent) setStatus('Code synced from visual');
     else{

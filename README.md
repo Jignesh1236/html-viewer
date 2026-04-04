@@ -32,23 +32,24 @@ A **free, browser-based HTML editor** that combines a **Monaco** code editor (th
 
 | Area | What you get |
 |------|----------------|
-| **Code** | Full HTML editing with syntax highlighting, word wrap, find/replace (Monaco). |
-| **Preview** | Live iframe preview of your document (`srcdoc`). |
-| **Visual** | Select elements in the preview, move, resize, rotate, and edit typography, colors, spacing, borders, and raw inline `style`. |
+| **Code** | Full HTML editing with syntax highlighting, word wrap, find/replace (Monaco), optional **minimap** (**Map** in the top bar). **HTML / CSS / JS** tabs: CSS edits the first `<style>` block; **JS** edits the first inline `<script>` without `src` (skips `application/ld+json` and similar). |
+| **Preview** | Live iframe preview of your document (`srcdoc`). **⛶ Full** fills the window with the preview; press **Esc** to exit. |
+| **Visual** | Select elements in the preview, move, resize, rotate, **duplicate**, adjust **z-index** (stacking), and edit typography, colors, spacing, borders, and raw inline `style`. |
 | **Sync** | Changes made in visual mode are **written back to the HTML in the code editor automatically** (debounced). You can still use **Save to code** for an immediate sync with confirmation. |
 | **Templates** | Built-in starter pages (hero, form, cards, blog, pricing, dashboard, etc.). |
 | **Viewport** | Preview at full width or fixed widths (mobile / tablet / desktop presets). |
 | **Export** | Copy HTML, download as `.html`, import from file. |
-| **Share** | Compressed share links (URL hash / query) so others can open your snippet. |
+| **Share** | Compressed share links (URL **hash** or **query**); **QR code** modal for the same link (client-side QR library). |
+| **Snapshots** | Named **Save snapshot** entries in **localStorage** (up to 25); restore or delete from **Snapshots**. **Snapshot diff…** opens a line-by-line comparison (current buffer or any two snapshots) using the **diff** library from a CDN. |
 | **UX** | Dark/light theme, adjustable code font size, resizable sidebar and panes, optional service worker. |
 
 ---
 
 ## Interface overview
 
-- **Top bar** — App branding, **Code / Visual / Split** mode tabs, **Auto** (live run) toggle, font size, theme, character/line stats, shortcuts (**?**).
-- **Left sidebar** — Preview actions (open in tab, run), edit actions (format, clear), **template** picker, file actions (copy, share link, import, export, forget draft).
-- **Center** — Code editor and/or preview depending on mode.
+- **Top bar** — App branding, **Code / Visual / Split** mode tabs, **Auto** (live run) toggle, font size, **Map** (minimap), theme, character/line stats, shortcuts (**?**).
+- **Left sidebar** — Preview actions (open in tab, run), edit actions (format, clear, insert image, accessibility check), **template** picker, file actions (copy HTML, **copy share link**, **QR for share link**, **save snapshot**, **snapshots** list, **snapshot diff**, import, export, forget draft).
+- **Center** — Code editor (Monaco or **CSS** / **JS** auxiliary tabs) and/or preview depending on mode.
 - **Right (visual mode)** — **Properties** panel for the selected element.
 - **Bottom** — Status line for messages (e.g. sync, selection).
 
@@ -77,7 +78,8 @@ Code editor and preview **side by side**. The visual overlay is **not** active i
 3. **Drag** the selection box to change `left` / `top` (uses `position: relative` when needed).
 4. **Resize** with corner/side handles; **rotate** with the rotate control.
 5. Use the **properties** panel for:
-   - Layout (x, y, width, height, rotation)
+   - Header actions: **Duplicate** (clone after selection), **Delete**, close panel
+   - Layout (x, y, width, height, rotation, **z-index** with quick **Front +** / **Back −**)
    - Margin / padding
    - Text content, font size, weight, color, alignment
    - Background and opacity
@@ -119,7 +121,9 @@ Use **Templates → Load template** in the sidebar. Loading a template **replace
 
 ## Sharing
 
-**Copy share link** builds a URL that embeds compressed HTML (using **LZ-String**). Recipients open the same app URL with the payload in the query string; the app decompresses and loads it into the editor.
+**Copy share link** builds a URL that embeds compressed HTML (using **LZ-String**). The payload is placed in the URL **hash** (`#c=…`); the app also accepts the same payload via the `c` **query** parameter when opening a link. Recipients open your deployment; the app decompresses and loads the HTML into the editor.
+
+**QR for share link** opens a modal with a scannable QR code for that same URL (built with **qrcodejs** from a CDN). URL limits and validation match **Copy share link** (`computeShareUrl` in the script).
 
 Limits are defined in code as `SHARE_MAX_PLAIN` and `SHARE_MAX_COMPRESSED`; very large documents may exceed practical URL length—use **Export** or **Copy HTML** for big projects.
 
@@ -132,16 +136,21 @@ Limits are defined in code as `SHARE_MAX_PLAIN` and `SHARE_MAX_COMPRESSED`; very
 | Run preview / save | **Ctrl/Cmd + S** |
 | Format HTML | **Ctrl/Cmd + /** |
 | Deselect (visual) | **Esc** |
-| Shortcuts help | **?** (when not typing in Monaco) |
+| Exit fullscreen preview | **Esc** (when preview is full screen) |
+| Close modals | **Esc** (shortcuts, QR, snapshots, snapshot diff, accessibility) |
+| Shortcuts help | **?** (when not typing in Monaco or CSS/JS tab) |
 | Find / replace in editor | **Ctrl/Cmd + F** / **H** |
+| QR / snapshots / diff | Sidebar: **QR for share link**, **Save snapshot**, **Snapshots…**, **Snapshot diff…** |
 
 ---
 
 ## Drafts, theme, and settings
 
 - **Local draft** — The editor content may be saved automatically to `localStorage` (see `DRAFT_KEY` in the script). **Forget saved draft** clears it.
+- **Named snapshots** — **Save snapshot** prompts for a name and stores the current HTML under `SNAPSHOTS_KEY` (up to **25** entries). Open **Snapshots…** to **Restore** (replaces editor, runs preview) or **Delete** an entry. Snapshots are browser-local only.
 - **Theme** — Dark/light stored under `THEME_KEY`.
 - **Font size** — Editor font size stored under `FONT_KEY`.
+- **Minimap** — On/off state for the Monaco minimap stored under `MINIMAP_KEY` (toggle **Map** in the top bar).
 
 ---
 
@@ -154,7 +163,9 @@ Limits are defined in code as `SHARE_MAX_PLAIN` and `SHARE_MAX_COMPRESSED`; very
 ## Technical stack
 
 - **Monaco Editor** (HTML language) via CDN
+- **diff** (CDN) for snapshot line comparisons
 - **LZ-String** for share links
+- **qrcodejs** (CDN) for share-link QR codes in the modal
 - **Google Fonts** (Syne, JetBrains Mono)
 - Single-page **`index.html`** with embedded CSS and application logic
 - Optional **Google AdSense** and **service worker** registration (see source)
@@ -215,7 +226,9 @@ Avoid **fake** structured data (for example, invented review counts); search eng
 | `manifest.json` | PWA manifest |
 | `sw.js` | Service worker |
 | `icon.svg` | Favicon / PWA icon |
-| `sitemap.xml` | Sitemap for crawlers |
+| `sitemap.xml` | Sitemap for crawlers (home, about, privacy) |
+| `about.html` | Short about page (static) |
+| `privacy.html` | Privacy notes (static) |
 | `robots.txt` | Crawler directives |
 | `ads.txt` | Ad network verification (if applicable) |
 | `README.md` | This documentation |
@@ -230,4 +243,4 @@ For issues or improvements, track them in your own repo’s issue tracker.
 
 ---
 
-*Last updated: documentation reflects features including automatic visual-to-code synchronization.*
+*Last updated: documentation reflects HTML/CSS/JS code tabs, fullscreen preview, minimap toggle, snapshot diff, and extra static pages in the sitemap.*

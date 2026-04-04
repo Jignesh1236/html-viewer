@@ -1,10 +1,10 @@
-const CACHE_NAME = 'html-editor-v1';
+const CACHE_NAME = 'html-editor-v2';
 
 function scopeUrl(path) {
   return new URL(path, self.registration.scope).href;
 }
 
-const PRECACHE = ['index.html', 'manifest.json', 'icon.svg'].map(scopeUrl);
+const PRECACHE = ['index.html', 'manifest.json', 'icon.svg', 'og-image.png'].map(scopeUrl);
 
 self.addEventListener('install', function (e) {
   e.waitUntil(

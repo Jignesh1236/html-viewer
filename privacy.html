@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy — HTML Editor by Jignesh</title>
+<meta name="description" content="Privacy notes for HTML Editor by Jignesh: local editing, optional ads, and what stays in your browser.">
+<link rel="canonical" href="https://html-viewer-gray-beta.vercel.app/privacy.html">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<style>
+  :root{--bg:#0d0d12;--text:#ddd8f0;--accent:#6c63ff;--muted:#5a5770;--border:#252530}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;padding:48px 20px}
+  .wrap{max-width:640px;margin:0 auto}
+  h1{font-size:1.75rem;margin-bottom:12px;background:linear-gradient(135deg,var(--accent),#ff5f87);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  p,li{margin-bottom:12px;color:var(--muted)}
+  ul{padding-left:1.25rem;margin-bottom:16px}
+  a{color:var(--accent);text-decoration:none;font-weight:600}
+  a:hover{text-decoration:underline}
+  .back{display:inline-block;margin-top:24px;padding:10px 18px;border:1px solid var(--border);border-radius:10px;color:var(--text)}
+  .back:hover{border-color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Privacy</h1>
+    <p>This page describes how <strong>HTML Editor by Jignesh</strong> handles data in typical use.</p>
+    <ul>
+      <li><strong>Your HTML</strong> is edited in your browser. Drafts and named snapshots are stored in <code style="color:var(--text)">localStorage</code> on your device unless you clear them.</li>
+      <li><strong>Share links</strong> embed compressed HTML in the URL (hash or query). Anyone with the link can decode the payload when they open the app.</li>
+      <li><strong>Third-party scripts</strong> may include Monaco Editor, fonts, optional ads, and CDNs used by the deployed site. Review network requests in your browser’s developer tools for the full list.</li>
+    </ul>
+    <p>For questions about a specific deployment, contact the site operator.</p>
+    <a class="back" href="/">← Back to editor</a>
+  </div>
+</body>
+</html>
