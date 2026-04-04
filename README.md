@@ -216,6 +216,8 @@ Remove or replace **Google site verification** meta if it is not yours.
 
 Avoid **fake** structured data (for example, invented review counts); search engines may ignore or penalize misleading schema.
 
+**Google Search Console (after deploy):** Add the property for your production URL, confirm ownership (or keep the existing `google-site-verification` meta in `index.html` if it matches your property), submit `https://your-domain/sitemap.xml`, then monitor **Coverage**, **Page experience**, and **Mobile usability** for issues.
+
 ---
 
 ## Project files
@@ -230,6 +232,7 @@ Avoid **fake** structured data (for example, invented review counts); search eng
 | `about.html` | Short about page (static) |
 | `privacy.html` | Privacy notes (static) |
 | `robots.txt` | Crawler directives |
+| `vercel.json` | Optional security headers on Vercel (`X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) |
 | `ads.txt` | Ad network verification (if applicable) |
 | `README.md` | This documentation |
 

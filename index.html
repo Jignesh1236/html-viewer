@@ -21,8 +21,6 @@
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="icon.svg">
 
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1826192920016393" crossorigin="anonymous"></script>
-
 <!-- ══ OPEN GRAPH (Facebook / LinkedIn) ══ -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="HTML Editor by Jignesh">
@@ -160,8 +158,10 @@
 
 <!-- ══ PERFORMANCE ══ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;800&display=swap" rel="stylesheet"></noscript>
 
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -182,6 +182,7 @@
   --sbW:210px;
   --propW:240px;
   --status-fg:rgba(255,255,255,.9);
+  --seoFootH:56px;
 }
 
 html[data-theme="light"]{
@@ -199,7 +200,8 @@ html[data-theme="light"]{
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif}
 body.pv-fs{overflow:hidden}
 body.pv-fs .topbar,
-body.pv-fs .statusbar{display:none!important}
+body.pv-fs .statusbar,
+body.pv-fs .seo-landing-summary{display:none!important}
 body.pv-fs .workspace{margin-top:0;height:100dvh}
 body.pv-fs .sidebar,
 body.pv-fs #codePane,
@@ -215,10 +217,25 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}
 .skip-link:focus{position:fixed;left:12px;top:calc(var(--topH) + 8px);width:auto;height:auto;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;outline:2px solid var(--accent2);outline-offset:2px}
 
-/* Crawler-friendly summary: clipped, not display:none (keeps semantic value without cluttering UI) */
-.seo-landing-summary{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.seo-landing-summary h1{font-size:1px;margin:0}
-.seo-landing-summary p{font-size:1px;margin:0}
+/* Visible on-page summary (users + crawlers; sits above the status bar) */
+.seo-landing-summary{
+  position:fixed;left:0;right:0;bottom:20px;z-index:998;
+  min-height:var(--seoFootH);max-height:30vh;overflow-y:auto;
+  padding:8px 12px 6px;
+  background:var(--sb);
+  border-top:1px solid var(--border);
+  font-size:10px;line-height:1.45;font-family:'Syne',sans-serif;color:var(--muted);
+  box-shadow:0 -2px 14px rgba(0,0,0,.12);
+}
+.seo-landing-summary h1{
+  font-size:11px;font-weight:800;letter-spacing:-0.02em;margin:0 0 4px;line-height:1.25;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.seo-landing-summary p{margin:0 0 4px;max-width:72ch}
+.seo-landing-summary p:last-of-type{margin-bottom:0}
+.seo-landing-summary a{color:var(--accent);font-weight:600;text-decoration:none}
+.seo-landing-summary a:hover{text-decoration:underline}
 
 .tb-btn:focus-visible,.mode-tab:focus-visible,.sb-btn:focus-visible,.mobile-nav-btn:focus-visible,.pp-icon-btn:focus-visible,.pp-align-btn:focus-visible,.pp-discard:focus-visible,.pp-save:focus-visible,.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pv-tools button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -258,7 +275,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .tb-font-group{display:flex;align-items:center;gap:4px}
 
 /* ── WORKSPACE ── */
-.workspace{display:flex;height:calc(100dvh - var(--topH));margin-top:var(--topH);overflow:hidden}
+.workspace{display:flex;height:calc(100dvh - var(--topH));margin-top:var(--topH);overflow:hidden;padding-bottom:calc(20px + var(--seoFootH))}
 
 /* ── SIDEBAR ── */
 .sidebar{width:var(--sbW);min-width:140px;max-width:340px;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px;gap:3px;flex-shrink:0;overflow-y:auto;position:relative;user-select:none}
@@ -421,7 +438,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 #status-msg{font-weight:700}
 
 /* ── TOAST ── */
-.toast{position:fixed;bottom:28px;right:18px;background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:10px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:9999}
+.toast{position:fixed;bottom:calc(28px + 20px + var(--seoFootH));right:18px;background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:10px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:9999}
 .toast.show{opacity:1;transform:translateY(0)}
 
 .tb-hamburger{display:none}
@@ -456,15 +473,16 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   .logo{font-size:13px;max-width:100%}
   .tb-right{margin-left:0;width:100%;justify-content:flex-end;flex-wrap:wrap}
   html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
+  .seo-landing-summary{bottom:calc(20px + var(--mobileNavH) + env(safe-area-inset-bottom,0px))}
   .workspace{
     flex-direction:column;
-    min-height:calc(100dvh - var(--topH) - var(--mobileNavH) - 20px - env(safe-area-inset-bottom,0px));
-    padding-bottom:calc(var(--mobileNavH) + 20px + env(safe-area-inset-bottom,0px));
+    min-height:calc(100dvh - var(--topH) - var(--mobileNavH) - 20px - var(--seoFootH) - env(safe-area-inset-bottom,0px));
+    padding-bottom:calc(var(--mobileNavH) + 20px + var(--seoFootH) + env(safe-area-inset-bottom,0px));
     overflow:visible;
   }
   .sidebar{
     position:fixed!important;top:var(--topH);
-    bottom:calc(20px + var(--mobileNavH) + env(safe-area-inset-bottom,0px));
+    bottom:calc(20px + var(--mobileNavH) + var(--seoFootH) + env(safe-area-inset-bottom,0px));
     left:0;width:min(88vw,300px)!important;min-width:0!important;max-width:none!important;max-height:none!important;
     z-index:10002;border-right:1px solid var(--border);border-bottom:none;
     transform:translateX(-100%);transition:transform .22s ease,box-shadow .22s ease;
@@ -478,7 +496,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   .prop-panel{width:100%!important;max-width:none;min-width:0;border-left:none;border-top:1px solid var(--border);max-height:55vh}
   .preview-viewport-wrap{min-height:200px}
   #preview{min-height:180px}
-  .toast{bottom:calc(28px + var(--mobileNavH) + 20px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(28px + var(--mobileNavH) + 20px + var(--seoFootH) + env(safe-area-inset-bottom,0px))}
 }
 </style>
 </head>
@@ -790,16 +808,16 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true">🎨</span>Visual</button>
 </nav>
 
-<!-- STATUSBAR -->
-<div class="statusbar"><span id="status-msg">Ready</span><span style="margin-left:auto;opacity:.6">HTML Editor by Jignesh · Free Visual HTML Editor &amp; Web Page Maker</span></div>
-
-<!-- SEO: concise on-page summary (visually clipped; avoid keyword stuffing) -->
+<!-- On-page summary (visible above status bar; internal links for About / Privacy) -->
 <div class="seo-landing-summary">
   <h1>HTML Editor Online by Jignesh</h1>
   <p>Free in-browser HTML editor with Monaco, live preview, templates, import and export, and share links. Visual mode lets you select elements, drag, resize, rotate, and edit styles; changes sync automatically into your HTML source.</p>
   <p>Includes responsive preview widths, dark and light theme, optional PWA install, and keyboard shortcuts for format and run.</p>
   <p><a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
 </div>
+
+<!-- STATUSBAR -->
+<div class="statusbar"><span id="status-msg">Ready</span><span style="margin-left:auto;opacity:.6">HTML Editor by Jignesh · Free Visual HTML Editor &amp; Web Page Maker</span></div>
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
@@ -905,21 +923,6 @@ const FIRST_STYLE_RE=/<style([^>]*)>([\s\S]*?)<\/style>/i;
 const MINIMAP_KEY='html-editor-minimap';
 let minimapEnabled=false;
 let _jsEditTimer=null;
-// #region agent log
-function agentDbgLog(location,message,data,hypothesisId){
-  fetch('http://127.0.0.1:7796/ingest/fcb7affa-dca6-4baf-a35a-ebf50241f2f1',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'36efe2'},body:JSON.stringify({sessionId:'36efe2',location,message,data:data||{},timestamp:Date.now(),hypothesisId:hypothesisId||'?'})}).catch(function(){});
-}
-(function(){
-  var _rz;
-  window.addEventListener('resize',function(){
-    clearTimeout(_rz);
-    _rz=setTimeout(function(){
-      var w=document.getElementById('workspace');
-      agentDbgLog('window:resize','layout',{innerWidth:window.innerWidth,innerHeight:window.innerHeight,wsScrollW:w?w.scrollWidth:0,wsClientW:w?w.clientWidth:0,wsClipped:w&&w.scrollWidth>w.clientWidth},'H1');
-    },350);
-  });
-})();
-// #endregion
 
 const TEMPLATES={
   hero:`<!DOCTYPE html>
@@ -1539,15 +1542,6 @@ require(['vs/editor/editor.main'], () => {
   runCode();
   setStatus('Editor ready');
   syncMinimapButton();
-  // #region agent log
-  setTimeout(function(){
-    var w=document.getElementById('workspace');
-    var pv=document.getElementById('previewPane');
-    var iframe=document.getElementById('preview');
-    agentDbgLog('editor:ready','layoutSnapshot',{innerWidth:window.innerWidth,innerHeight:window.innerHeight,wsScrollW:w?w.scrollWidth:0,wsClientW:w?w.clientWidth:0,previewIframeH:iframe?iframe.offsetHeight:0,previewPaneH:pv?pv.offsetHeight:0},'H2');
-    agentDbgLog('editor:ready','overflowCheck',{horizontalClip:w&&w.scrollWidth>w.clientWidth},'H1');
-  },600);
-  // #endregion
 });
 
 /* ─────────────────────────────────────────
@@ -1655,11 +1649,7 @@ function runCode(){
   var v=editor.getValue();
   try{
     iframeEl.srcdoc=v;
-  }catch(err){
-    // #region agent log
-    agentDbgLog('runCode:catch','srcdocAssignFailed',{err:String(err&&err.message?err.message:err),htmlLen:v.length},'H4');
-    // #endregion
-  }
+  }catch(err){}
   setStatus('Preview updated');
 }
 function openNewTab(){
@@ -1669,15 +1659,42 @@ function openNewTab(){
 }
 let _pendingAdAction=null;
 let _adModalPushed=false;
+let _adsLoadPromise=null;
+
+function loadAdsScript(onReady){
+  var cb=function(){if(typeof onReady==='function')onReady();};
+  if(typeof window.adsbygoogle!=='undefined'){cb();return;}
+  if(!_adsLoadPromise){
+    _adsLoadPromise=new Promise(function(resolve){
+      var ex=document.querySelector('script[data-ads-loader="1"]');
+      if(ex){
+        ex.addEventListener('load',resolve,{once:true});
+        ex.addEventListener('error',resolve,{once:true});
+        return;
+      }
+      var s=document.createElement('script');
+      s.async=true;
+      s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1826192920016393';
+      s.crossOrigin='anonymous';
+      s.setAttribute('data-ads-loader','1');
+      s.addEventListener('load',resolve,{once:true});
+      s.addEventListener('error',resolve,{once:true});
+      document.head.appendChild(s);
+    });
+  }
+  _adsLoadPromise.then(cb);
+}
 
 function showAdModal(callback){
   _pendingAdAction=callback;
   const modal=document.getElementById('adModal');
   modal.style.display='flex';
-  if(!_adModalPushed){
-    try{(adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){}
-    _adModalPushed=true;
-  }
+  loadAdsScript(function(){
+    if(!_adModalPushed){
+      try{(adsbygoogle=window.adsbygoogle||[]).push({});}catch(e){}
+      _adModalPushed=true;
+    }
+  });
   let secs=5;
   const timerEl=document.getElementById('adModalTimer');
   const closeBtn=document.getElementById('adModalClose');
@@ -1746,9 +1763,6 @@ document.getElementById('imageInput').addEventListener('change',function(e){
       return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
     }
     function commitInsert(url){
-      // #region agent log
-      agentDbgLog('image:commit','beforeInsert',{dataUrlLen:typeof url==='string'?url.length:0,hasAmp:typeof url==='string'&&url.indexOf('&')>=0,hasLt:typeof url==='string'&&url.indexOf('<')>=0,monacoOk:typeof monaco!=='undefined',runId:'post-fix'},'H5');
-      // #endregion
       const esc=escImgSrc(url);
       const imgTag='<img src="'+esc+'" alt="" style="max-width:100%;height:auto">\n';
       var editsOk=true,editsErr='';
@@ -1764,11 +1778,6 @@ document.getElementById('imageInput').addEventListener('change',function(e){
       } else {
         editor.setValue(editor.getValue()+imgTag);
       }
-      // #region agent log
-      var htmlAfter=editor.getValue();
-      agentDbgLog('image:afterEdits','executeEditsResult',{editsOk:editsOk,editsErr:editsErr,htmlLen:htmlAfter.length,imgTagLen:imgTag.length,runId:'post-fix'},'H3');
-      agentDbgLog('image:afterEdits','sizeCheck',{htmlLenOver2M:htmlAfter.length>2e6,runId:'post-fix'},'H4');
-      // #endregion
       editor.focus();
       if(editor.layout) editor.layout();
       toast('Image inserted 🖼');
