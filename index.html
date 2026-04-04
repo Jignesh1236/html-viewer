@@ -182,7 +182,7 @@
   --sbW:210px;
   --propW:240px;
   --status-fg:rgba(255,255,255,.9);
-  --seoFootH:120px;
+  --seoFootH:64px;
 }
 
 html[data-theme="light"]{
@@ -217,26 +217,42 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}
 .skip-link:focus{position:fixed;left:12px;top:calc(var(--topH) + 8px);width:auto;height:auto;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;outline:2px solid var(--accent2);outline-offset:2px}
 
-/* Visible on-page summary (users + crawlers; sits above the status bar) */
+/* Slim footer above status bar; full SEO copy inside collapsed <details> */
 .seo-landing-summary{
   position:fixed;left:0;right:0;bottom:20px;z-index:998;
-  min-height:var(--seoFootH);max-height:38vh;overflow-y:auto;
-  padding:8px 12px 6px;
+  min-height:var(--seoFootH);max-height:min(42vh,320px);
+  padding:5px 12px 5px;
   background:var(--sb);
   border-top:1px solid var(--border);
-  font-size:10px;line-height:1.45;font-family:'Syne',sans-serif;color:var(--muted);
-  box-shadow:0 -2px 14px rgba(0,0,0,.12);
+  font-size:10px;line-height:1.4;font-family:'Syne',sans-serif;color:var(--muted);
+  box-shadow:0 -1px 10px rgba(0,0,0,.08);
+  display:flex;flex-direction:column;gap:4px;overflow:hidden;
 }
-.seo-landing-summary h1{
-  font-size:12px;font-weight:800;letter-spacing:-0.02em;margin:0 0 5px;line-height:1.25;
+.seo-landing-summary details.seo-details{flex-shrink:0;min-width:0}
+.seo-landing-summary details.seo-details[open]{flex:1;min-height:0;display:flex;flex-direction:column}
+.seo-landing-summary summary.seo-summary-row{
+  list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;
+  padding:2px 0;user-select:none;-webkit-tap-highlight-color:transparent;
+}
+.seo-landing-summary summary.seo-summary-row::-webkit-details-marker{display:none}
+.seo-landing-summary summary.seo-summary-row::marker{content:''}
+.seo-summary-h1{
+  font-size:11px;font-weight:800;letter-spacing:-0.02em;margin:0;line-height:1.2;display:inline;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
 }
-.seo-landing-summary h2{
-  font-size:10px;font-weight:800;margin:6px 0 3px;line-height:1.25;color:var(--text);letter-spacing:0;
+.seo-summary-meta{font-size:10px;color:var(--muted);line-height:1.3}
+.seo-more-hint{opacity:.75;font-style:normal}
+.seo-details-body{
+  margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
+  overflow-y:auto;flex:1;min-height:0;max-height:min(28vh,220px);
+  -webkit-overflow-scrolling:touch;
 }
-.seo-landing-summary p{margin:0 0 5px;max-width:85ch}
-.seo-landing-summary .seo-foot-links{margin-top:6px;margin-bottom:0}
+.seo-details-body h2{
+  font-size:10px;font-weight:800;margin:8px 0 3px;line-height:1.25;color:var(--text);letter-spacing:0;
+}
+.seo-details-body p{margin:0 0 5px;max-width:85ch}
+.seo-landing-summary .seo-foot-links{margin:0;line-height:1.35}
 .seo-landing-summary a{color:var(--accent);font-weight:600;text-decoration:none}
 .seo-landing-summary a:hover{text-decoration:underline}
 
@@ -837,13 +853,20 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true">🎨</span>Visual</button>
 </nav>
 
-<!-- On-page summary (visible above status bar; headings + copy for users and search) -->
+<!-- Footer: compact by default; full copy stays in DOM inside <details> for SEO -->
 <div class="seo-landing-summary">
-  <h1>Free HTML Editor Online</h1>
-  <p><strong>HTML Editor by Jignesh</strong> is a free tool that runs in your browser. You get a real code editor (Monaco, the same family as VS Code), a live preview of your page, and optional visual editing so you can move elements and tweak styles without fighting the markup all day. Nothing to install—open the page and start typing.</p>
-  <h2>Edit HTML, CSS &amp; JS with Live Preview</h2>
-  <p>Use the <strong>HTML</strong>, <strong>CSS</strong>, and <strong>JavaScript</strong> tabs to work on each part of your document. The preview updates as you go. In Visual mode, click to select, drag to move, resize with handles, and edit text and colors; changes can sync back into your source automatically.</p>
-  <p>Built-in templates, import and export, share links and QR codes, named snapshots, responsive preview widths, dark and light themes, optional PWA install, and keyboard shortcuts for format and run are all included.</p>
+  <details class="seo-details">
+    <summary class="seo-summary-row">
+      <h1 class="seo-summary-h1">Free HTML Editor Online</h1>
+      <span class="seo-summary-meta">Monaco, live preview, visual mode <span class="seo-more-hint">· more</span></span>
+    </summary>
+    <div class="seo-details-body">
+      <p><strong>HTML Editor by Jignesh</strong> is a free tool that runs in your browser. You get a real code editor (Monaco, the same family as VS Code), a live preview of your page, and optional visual editing so you can move elements and tweak styles without fighting the markup all day. Nothing to install—open the page and start typing.</p>
+      <h2>Edit HTML, CSS &amp; JS with Live Preview</h2>
+      <p>Use the <strong>HTML</strong>, <strong>CSS</strong>, and <strong>JavaScript</strong> tabs to work on each part of your document. The preview updates as you go. In Visual mode, click to select, drag to move, resize with handles, and edit text and colors; changes can sync back into your source automatically.</p>
+      <p>Built-in templates, import and export, share links and QR codes, named snapshots, responsive preview widths, dark and light themes, optional PWA install, and keyboard shortcuts for format and run are all included.</p>
+    </div>
+  </details>
   <p class="seo-foot-links"><a href="best-html-editor-online-free.html">Best free HTML editor</a> · <a href="how-to-edit-html-online-without-software.html">Edit HTML without software</a> · <a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
 </div>
 
