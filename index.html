@@ -155,6 +155,8 @@
   ]
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <!-- ══ PERFORMANCE ══ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -182,7 +184,7 @@
   --sbW:210px;
   --propW:240px;
   --status-fg:rgba(255,255,255,.9);
-  --seoFootH:64px;
+  --seoFootH:30px;
 }
 
 html[data-theme="light"]{
@@ -221,38 +223,38 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .seo-landing-summary{
   position:fixed;left:0;right:0;bottom:20px;z-index:998;
   min-height:var(--seoFootH);max-height:min(42vh,320px);
-  padding:5px 12px 5px;
+  padding:2px 12px;
   background:var(--sb);
   border-top:1px solid var(--border);
-  font-size:10px;line-height:1.4;font-family:'Syne',sans-serif;color:var(--muted);
+  font-size:8px;line-height:1.2;font-family:'Syne',sans-serif;color:var(--muted);
   box-shadow:0 -1px 10px rgba(0,0,0,.08);
-  display:flex;flex-direction:column;gap:4px;overflow:hidden;
+  display:flex;flex-direction:column;gap:1px;overflow:hidden;
 }
 .seo-landing-summary details.seo-details{flex-shrink:0;min-width:0}
 .seo-landing-summary details.seo-details[open]{flex:1;min-height:0;display:flex;flex-direction:column}
 .seo-landing-summary summary.seo-summary-row{
-  list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;
-  padding:2px 0;user-select:none;-webkit-tap-highlight-color:transparent;
+  list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;
+  padding:0;user-select:none;-webkit-tap-highlight-color:transparent;
 }
 .seo-landing-summary summary.seo-summary-row::-webkit-details-marker{display:none}
 .seo-landing-summary summary.seo-summary-row::marker{content:''}
 .seo-summary-h1{
-  font-size:11px;font-weight:800;letter-spacing:-0.02em;margin:0;line-height:1.2;display:inline;
+  font-size:9px;font-weight:800;letter-spacing:-0.02em;margin:0;line-height:1.2;display:inline;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
 }
-.seo-summary-meta{font-size:10px;color:var(--muted);line-height:1.3}
+.seo-summary-meta{font-size:8px;color:var(--muted);line-height:1.2}
 .seo-more-hint{opacity:.75;font-style:normal}
 .seo-details-body{
-  margin-top:6px;padding-top:6px;border-top:1px solid var(--border);
+  margin-top:4px;padding-top:4px;border-top:1px solid var(--border);
   overflow-y:auto;flex:1;min-height:0;max-height:min(28vh,220px);
   -webkit-overflow-scrolling:touch;
 }
 .seo-details-body h2{
-  font-size:10px;font-weight:800;margin:8px 0 3px;line-height:1.25;color:var(--text);letter-spacing:0;
+  font-size:9px;font-weight:800;margin:6px 0 2px;line-height:1.2;color:var(--text);letter-spacing:0;
 }
-.seo-details-body p{margin:0 0 5px;max-width:85ch}
-.seo-landing-summary .seo-foot-links{margin:0;line-height:1.35}
+.seo-details-body p{margin:0 0 3px;max-width:85ch}
+.seo-landing-summary .seo-foot-links{margin:0;line-height:1.1;font-size:8px}
 .seo-landing-summary a{color:var(--accent);font-weight:600;text-decoration:none}
 .seo-landing-summary a:hover{text-decoration:underline}
 
@@ -406,8 +408,68 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .visual-bar.show{display:block}
 
 /* ── PROPERTY PANEL ── */
-.prop-panel{width:260px;min-width:220px;max-width:300px;background:var(--sb);border-left:1px solid var(--border);display:none;flex-direction:column;overflow-y:auto;flex-shrink:0;font-family:'JetBrains Mono',monospace}
+.prop-panel{width:260px;min-width:220px;max-width:300px;background:var(--sb);border-left:1px solid var(--border);display:none;flex-direction:column;overflow-y:auto;flex-shrink:0;font-family:'JetBrains Mono',monospace;position:relative}
 .prop-panel.open{display:flex}
+.pp-resizer{position:absolute;left:0;top:0;bottom:0;width:4px;cursor:col-resize;z-index:10}
+.pp-resizer:hover{background:var(--accent);opacity:0.5}
+
+/* Floating panels */
+.floating{
+  position:fixed!important;
+  z-index:10005!important;
+  box-shadow:0 12px 48px rgba(0,0,0,0.5)!important;
+  border:1px solid var(--border)!important;
+  border-radius:12px!important;
+  max-height:85vh!important;
+  resize:both;
+  overflow:auto!important;
+  min-width:200px;
+  min-height:200px;
+  background:var(--sb);
+}
+.floating .sb-header, .floating .pp-header{
+  cursor:move;
+  user-select:none;
+  background:var(--panel)!important;
+}
+.floating-content{
+  overflow-y:auto;
+  height:calc(100% - 40px);
+}
+
+/* Template Gallery Grid */
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+}
+.tmpl-card {
+  background: var(--btn);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tmpl-card:hover {
+  border-color: var(--accent);
+  background: var(--btnhov);
+  transform: translateY(-2px);
+}
+.tmpl-thumb {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+.tmpl-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+}
 .pp-header{padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:6px;position:sticky;top:0;background:var(--sb);z-index:5}
 .pp-tag{background:var(--btn);border:1px solid var(--border);border-radius:5px;padding:3px 9px;font-size:11px;color:var(--text);font-family:'JetBrains Mono',monospace}
 .pp-hdr-spacer{flex:1}
@@ -504,9 +566,36 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   }
   body.mobile-sidebar-open .mobile-sidebar-backdrop{display:block}
   .topbar{flex-wrap:wrap;height:auto;min-height:var(--topH);padding:6px 10px;gap:6px;row-gap:4px}
-  .logo{font-size:13px;max-width:100%}
-  .tb-right{margin-left:0;width:100%;justify-content:flex-end;flex-wrap:wrap}
-  html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
+  .logo{font-size:11px;max-width:100%}
+  .tb-right{margin-left:0;width:100%;justify-content:flex-end;flex-wrap:wrap; gap: 4px;}
+  .tb-right .tb-stat:not(#stat-chars){display:none} /* Hide extra stats on small mobile */
+  .tb-badge, .tb-font-group, #minimapToggleBtn, .tb-div { display: none !important; }
+  #liveBtn, #themeToggleBtn { font-size: 9px; padding: 4px 8px; }
+
+  .pane-header{padding:4px 8px; font-size: 9px; min-height: 38px; position: sticky; top: 0; z-index: 5;}
+  .pane-header span:first-of-type { display: none; } /* Hide "Document" text */
+  .editor-doc-tabs{margin-left:0; gap: 3px;}
+  .editor-doc-tab{padding: 4px 6px; font-size: 9px;}
+  
+  .workspace { height: auto !important; display: block; overflow-y: auto; }
+  .pane { min-height: 300px; height: auto !important; }
+  #codePane { border-bottom: 1px solid var(--border); }
+  
+  .seo-landing-summary { display: none !important; }
+  .visual-bar { font-size: 10px; padding: 8px; line-height: 1.3; }
+  .modal-box { padding: 15px; border-radius: 10px; width: 95%; max-height: 90vh; }
+  .modal-box h3 { font-size: 14px; margin-bottom: 8px; }
+  
+  .pp-section { padding: 8px 10px; }
+  .pp-sec-label { font-size: 9px; margin-bottom: 4px; }
+  .pp-inp { padding: 6px; font-size: 11px; }
+  .tb-btn { font-size: 10px; padding: 6px 10px; }
+
+  #viewportTools button:not(#previewFsBtn) { display: none; } /* Hide viewport controls */
+   .prop-panel { max-height: 50vh; overflow-y: auto; }
+   .toast { bottom: calc(var(--mobileNavH) + 30px) !important; }
+
+   html,body{height:auto;min-height:100%;overflow-x:hidden;overflow-y:auto}
   .seo-landing-summary{bottom:calc(20px + var(--mobileNavH) + env(safe-area-inset-bottom,0px))}
   .workspace{
     flex-direction:column;
@@ -532,6 +621,35 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   #preview{min-height:180px}
   .toast{bottom:calc(28px + var(--mobileNavH) + 20px + var(--seoFootH) + env(safe-area-inset-bottom,0px))}
 }
+
+/* ── NEW FEATURES STYLES ── */
+#consolePanel { border-radius: 8px 8px 0 0; }
+.console-log { padding: 4px 8px; border-bottom: 1px solid var(--border); border-left: 3px solid transparent; }
+.console-log-info { border-left-color: var(--accent); }
+.console-log-warn { border-left-color: #eab308; background: rgba(234,179,8,0.05); }
+.console-log-error { border-left-color: var(--accent2); background: rgba(255,95,135,0.05); color: var(--accent2); }
+.console-time { color: var(--muted); margin-right: 8px; font-size: 9px; }
+
+.seo-preview-card { background: #fff; color: #1c1e21; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin-top: 10px; }
+.seo-preview-img { width: 100%; height: 150px; background: #f0f2f5; display: flex; align-items: center; justify-content: center; color: #8a8d91; font-size: 24px; }
+.seo-preview-content { padding: 12px; }
+.seo-preview-url { font-size: 12px; color: #65676b; text-transform: uppercase; margin-bottom: 4px; }
+.seo-preview-title { font-size: 16px; font-weight: 600; line-height: 1.2; margin-bottom: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.seo-preview-desc { font-size: 14px; color: #65676b; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.pp-grid-controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
+.pp-grid-btn { background: var(--btn); border: 1px solid var(--border); color: var(--muted); padding: 4px; border-radius: 4px; cursor: pointer; font-size: 10px; transition: all 0.1s; }
+.pp-grid-btn:hover, .pp-grid-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(108,99,255,0.1); }
+
+.gradient-stop { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.gradient-preview { height: 30px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px; }
+
+.comp-lib-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.comp-item { background: var(--btn); border: 1px solid var(--border); border-radius: 8px; padding: 10px; cursor: pointer; transition: all 0.2s; position: relative; }
+.comp-item:hover { border-color: var(--accent); transform: translateY(-2px); }
+.comp-name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+.comp-desc { font-size: 10px; color: var(--muted); }
+.comp-preview { height: 40px; background: var(--panel); border-radius: 4px; margin-top: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 </style>
 </head>
 <body>
@@ -588,38 +706,31 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
+    <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
+      <div class="sb-label" style="padding:0">Sidebar</div>
+      <button class="pp-icon-btn" title="Float sidebar" onclick="toggleFloat('sidebar')">⛶</button>
+    </div>
+    <div class="sb-sep"></div>
     <div class="sb-label">Preview</div>
     <button class="sb-btn primary" onclick="openNewTab()"><span class="sb-icon">🌐</span>Open in Tab</button>
     <button class="sb-btn" onclick="runCode()"><span class="sb-icon">▶</span>Run Preview</button>
     <div class="sb-sep"></div>
     <div class="sb-label">Edit</div>
+    <button class="sb-btn" onclick="openTemplatesModal()"><span class="sb-icon">🎨</span>Templates</button>
+    <button class="sb-btn" onclick="openComponentLibrary()"><span class="sb-icon">🧩</span>UI Blocks</button>
+    <button class="sb-btn" onclick="toggleLayersPanel()"><span class="sb-icon">📑</span>Layers</button>
     <button class="sb-btn" onclick="formatCode()"><span class="sb-icon">✨</span>Format</button>
     <button class="sb-btn" onclick="clearCode()"><span class="sb-icon">🗑</span>Clear</button>
     <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon">🖼</span>Insert image</button>
-    <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon">♿</span>Accessibility check</button>
-    <div class="sb-label" style="margin-top:6px">Outline</div>
-    <div class="outline-wrap">
-      <button type="button" class="sb-btn" onclick="refreshDomOutline();closeMobileSidebar();" aria-label="Refresh document outline"><span class="sb-icon">≡</span>Refresh outline</button>
-      <div class="outline-scroll" id="outlineList" role="navigation" aria-label="Document tag outline"><div class="outline-empty">Loading…</div></div>
-    </div>
-    <div class="sb-label" style="margin-top:6px">Templates</div>
-    <div class="sb-select-wrap">
-      <select class="sb-select" id="templateSelect" onchange="onTemplateSelect(this)" aria-label="Load HTML template">
-        <option value="">— Load template —</option>
-        <option value="hero">Hero / landing</option>
-        <option value="form">Contact form</option>
-        <option value="cards">Card grid</option>
-        <option value="minimal">Minimal blank</option>
-        <option value="sample">Simple sample</option>
-        <option value="blog">Blog article</option>
-        <option value="pricing">Pricing table</option>
-        <option value="dashboard">Dashboard shell</option>
-      </select>
-    </div>
+    <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon">♿</span>A11y check</button>
+    <div class="sb-sep"></div>
+    <div class="sb-label">Tools</div>
+    <button class="sb-btn" onclick="openSeoModal()"><span class="sb-icon">🔍</span>SEO & Social</button>
+    <button class="sb-btn" onclick="exportAsImage()"><span class="sb-icon">🖼️</span>Export as Image</button>
+    <button class="sb-btn" onclick="exportAsPDF()"><span class="sb-icon">📄</span>Export as PDF</button>
+    <button class="sb-btn" onclick="openDeployModal()"><span class="sb-icon">🚀</span>Deploy to Web</button>
     <div class="sb-sep"></div>
     <div class="sb-label">File</div>
-    <button class="sb-btn" onclick="copyHTML()"><span class="sb-icon">📋</span>Copy HTML</button>
-    <button class="sb-btn" onclick="copyShareLink()"><span class="sb-icon">🔗</span>Copy share link</button>
     <button class="sb-btn" onclick="openQrShareModal()" aria-label="Show QR code for share link"><span class="sb-icon">▣</span>QR for share link</button>
     <button class="sb-btn" onclick="saveNamedSnapshot()" aria-label="Save named snapshot"><span class="sb-icon">📸</span>Save snapshot</button>
     <button class="sb-btn" onclick="openSnapshotsModal()" aria-label="View saved snapshots"><span class="sb-icon">🗂</span>Snapshots…</button>
@@ -644,11 +755,17 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
           <button type="button" class="editor-doc-tab" id="tabDocCss" role="tab" aria-selected="false" onclick="setDocTab('css')">CSS</button>
           <button type="button" class="editor-doc-tab" id="tabDocJs" role="tab" aria-selected="false" onclick="setDocTab('js')">JS</button>
         </div>
+        <div style="margin-left:auto; display:flex; gap:6px;">
+          <button class="tb-btn" onclick="copyHTML()" title="Copy HTML" style="padding: 3px 8px; font-size: 10px;">📋 Copy</button>
+          <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px;">🔗 Link</button>
+        </div>
       </div>
       <div class="code-pane-body" id="codePaneBody">
         <div id="editor"></div>
-        <textarea id="cssEditorArea" class="css-editor-ta" spellcheck="false" aria-label="Stylesheet from first style block" placeholder="/* First &lt;style&gt; block — edits sync into HTML */" oninput="onCssEditorInput()"></textarea>
-        <textarea id="jsEditorArea" class="css-editor-ta" spellcheck="false" aria-label="First inline script block" placeholder="// First inline &lt;script&gt; (no src) — edits sync into HTML" oninput="onJsEditorInput()"></textarea>
+        <div id="cssEditor" style="display:none; flex:1;"></div>
+        <div id="jsEditor" style="display:none; flex:1;"></div>
+        <textarea id="cssEditorArea" style="display:none;"></textarea>
+        <textarea id="jsEditorArea" style="display:none;"></textarea>
       </div>
     </div>
 
@@ -668,6 +785,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
           <button type="button" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)">⛶ Full</button>
         </div>
         <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="previewHint"></span>
+        <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="margin-left:8px">📟</button>
       </div>
       <div class="visual-bar" id="visualBar">🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</div>
       <div class="preview-viewport-wrap" id="previewViewportWrap">
@@ -692,15 +810,26 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
       </div>
         </div>
       </div>
+      <!-- CONSOLE -->
+      <div id="consolePanel" style="display:none; position:absolute; bottom:0; left:0; right:0; height:150px; background:var(--sb); border-top:1px solid var(--border); z-index:100; flex-direction:column;">
+        <div class="pane-header" style="padding:4px 12px; min-height:28px;">
+          <span>Console</span>
+          <button class="pp-icon-btn" onclick="clearConsole()" style="margin-left:auto;">🗑</button>
+          <button class="pp-icon-btn" onclick="toggleConsole()">✕</button>
+        </div>
+        <div id="consoleLogs" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:11px; white-space:pre-wrap;"></div>
+      </div>
     </div>
 
     <!-- PROPERTY PANEL -->
     <div class="prop-panel" id="propPanel">
+      <div class="pp-resizer" id="ppResizer"></div>
       <div class="pp-header">
         <span class="pp-tag" id="ppTag">div</span>
         <span class="pp-hdr-spacer"></span>
         <button class="pp-icon-btn" title="Duplicate element" onclick="duplicateEl()" aria-label="Duplicate element">⎘</button>
         <button class="pp-icon-btn pp-del-btn" title="Delete element" onclick="deleteEl()">🗑</button>
+        <button class="pp-icon-btn" title="Float panel" onclick="toggleFloat('propPanel')">⛶</button>
         <button class="pp-icon-btn" onclick="closePropPanel()">✕</button>
       </div>
 
@@ -749,12 +878,92 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
           <label class="pp-swatch"><input type="color" id="pp-color" oninput="syncColorHex('pp-color','pp-color-hex');applyTypo()" onchange="onPropColorPicked(this)"></label>
           <input class="pp-hex" id="pp-color-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-color-hex','pp-color');applyTypo()" onblur="onPropHexBlur('pp-color-hex')">
         </div>
-        <div class="pp-field-label">Background</div>
+      <!-- SHADOWS -->
+      <div class="pp-section">
+        <div class="pp-sec-label">Shadows</div>
+        <div class="pp-field-label">Box Shadow</div>
+        <div class="pp-4grid">
+          <div class="pp-4cell-num"><span>X</span><input type="number" id="pp-bs-x" placeholder="0" oninput="applyShadows()"></div>
+          <div class="pp-4cell-num"><span>Y</span><input type="number" id="pp-bs-y" placeholder="0" oninput="applyShadows()"></div>
+          <div class="pp-4cell-num"><span>B</span><input type="number" id="pp-bs-b" min="0" placeholder="0" oninput="applyShadows()"></div>
+          <div class="pp-4cell-num"><span>S</span><input type="number" id="pp-bs-s" placeholder="0" oninput="applyShadows()"></div>
+        </div>
         <div class="pp-color-row" style="margin-bottom:7px">
+          <label class="pp-swatch"><input type="color" id="pp-bs-c" oninput="syncColorHex('pp-bs-c','pp-bs-c-hex');applyShadows()" value="#000000"></label>
+          <input class="pp-hex" id="pp-bs-c-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-bs-c-hex','pp-bs-c');applyShadows()">
+        </div>
+        <div class="pp-field-label">Text Shadow</div>
+        <div class="pp-4grid">
+          <div class="pp-4cell-num"><span>X</span><input type="number" id="pp-ts-x" placeholder="0" oninput="applyShadows()"></div>
+          <div class="pp-4cell-num"><span>Y</span><input type="number" id="pp-ts-y" placeholder="0" oninput="applyShadows()"></div>
+          <div class="pp-4cell-num"><span>B</span><input type="number" id="pp-ts-b" min="0" placeholder="0" oninput="applyShadows()"></div>
+        </div>
+        <div class="pp-color-row">
+          <label class="pp-swatch"><input type="color" id="pp-ts-c" oninput="syncColorHex('pp-ts-c','pp-ts-c-hex');applyShadows()" value="#000000"></label>
+          <input class="pp-hex" id="pp-ts-c-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-ts-c-hex','pp-ts-c');applyShadows()">
+        </div>
+      </div>
+
+      <!-- FLEX & GRID -->
+      <div class="pp-section">
+        <div class="pp-sec-label">Layout Mode (Flex/Grid)</div>
+        <div class="pp-field-label">Display</div>
+        <select class="pp-inp pp-sel" id="pp-display" onchange="applyFlexGrid()">
+          <option value="block">Block</option>
+          <option value="flex">Flex</option>
+          <option value="grid">Grid</option>
+          <option value="inline-block">Inline Block</option>
+          <option value="none">None</option>
+        </select>
+        <div id="pp-flex-grid-tools" style="display:none; margin-top:8px">
+          <div class="pp-field-label">Direction</div>
+          <div class="pp-grid-controls">
+            <button class="pp-grid-btn" data-prop="flexDirection" data-val="row" onclick="setFlexProp('flexDirection','row')">Row</button>
+            <button class="pp-grid-btn" data-prop="flexDirection" data-val="column" onclick="setFlexProp('flexDirection','column')">Col</button>
+          </div>
+          <div class="pp-field-label" style="margin-top:6px">Justify Content</div>
+          <div class="pp-grid-controls">
+            <button class="pp-grid-btn" data-prop="justifyContent" data-val="flex-start" onclick="setFlexProp('justifyContent','flex-start')">Start</button>
+            <button class="pp-grid-btn" data-prop="justifyContent" data-val="center" onclick="setFlexProp('justifyContent','center')">Center</button>
+            <button class="pp-grid-btn" data-prop="justifyContent" data-val="flex-end" onclick="setFlexProp('justifyContent','flex-end')">End</button>
+            <button class="pp-grid-btn" data-prop="justifyContent" data-val="space-between" onclick="setFlexProp('justifyContent','space-between')">Between</button>
+          </div>
+          <div class="pp-field-label" style="margin-top:6px">Align Items</div>
+          <div class="pp-grid-controls">
+            <button class="pp-grid-btn" data-prop="alignItems" data-val="flex-start" onclick="setFlexProp('alignItems','flex-start')">Start</button>
+            <button class="pp-grid-btn" data-prop="alignItems" data-val="center" onclick="setFlexProp('alignItems','center')">Center</button>
+            <button class="pp-grid-btn" data-prop="alignItems" data-val="flex-end" onclick="setFlexProp('alignItems','flex-end')">End</button>
+            <button class="pp-grid-btn" data-prop="alignItems" data-val="stretch" onclick="setFlexProp('alignItems','stretch')">Stretch</button>
+          </div>
+          <div class="pp-field-label" style="margin-top:6px">Gap (px)</div>
+          <input class="pp-inp" id="pp-gap" type="number" min="0" placeholder="0" oninput="applyFlexGrid()">
+        </div>
+      </div>
+
+      <!-- BACKGROUND & GRADIENT -->
+      <div class="pp-section">
+        <div class="pp-sec-label">Background</div>
+        <div class="pp-field-label">Color</div>
+        <div class="pp-color-row">
           <label class="pp-swatch"><input type="color" id="pp-bg" oninput="syncColorHex('pp-bg','pp-bg-hex');applyBG()" onchange="onPropColorPicked(this)"></label>
           <input class="pp-hex" id="pp-bg-hex" type="text" placeholder="#ffffff" oninput="syncHexColor('pp-bg-hex','pp-bg');applyBG()" onblur="onPropHexBlur('pp-bg-hex')">
         </div>
-        <div class="pp-field-label">Opacity</div>
+        <div class="pp-field-label" style="margin-top:6px">Gradient Builder</div>
+        <div class="gradient-preview" id="pp-gradient-preview"></div>
+        <div id="pp-gradient-controls">
+          <select class="pp-inp pp-sel" id="pp-grad-type" onchange="applyBG()" style="margin-bottom:6px">
+            <option value="none">No Gradient</option>
+            <option value="linear-gradient">Linear</option>
+            <option value="radial-gradient">Radial</option>
+          </select>
+          <div id="pp-grad-tools" style="display:none">
+            <div class="pp-field-label">Angle (deg)</div>
+            <input class="pp-inp" id="pp-grad-angle" type="number" value="180" oninput="applyBG()" style="margin-bottom:6px">
+            <div id="pp-grad-stops"></div>
+            <button class="pp-grid-btn" onclick="addGradientStop()" style="width:100%; margin-top:4px">+ Add Stop</button>
+          </div>
+        </div>
+        <div class="pp-field-label" style="margin-top:8px">Opacity</div>
         <div class="pp-unit-row">
           <input class="pp-inp" id="pp-opacity" type="number" min="0" max="100" value="100" oninput="applyBG()">
           <span class="pp-unit">%</span>
@@ -876,6 +1085,153 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
 
+<!-- TEMPLATES MODAL -->
+<div class="modal-overlay" id="templatesModal" role="dialog" aria-modal="true" aria-labelledby="templatesTitle" onclick="if(event.target===this)closeTemplatesModal()">
+  <div class="modal-box modal-xwide">
+    <h3 id="templatesTitle">Templates Gallery</h3>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:16px;font-family:'JetBrains Mono',monospace">Choose a template to start with. This will replace your current code.</p>
+    <div class="templates-grid" id="templatesGrid">
+      <div class="tmpl-card" onclick="loadTemplate('hero');closeTemplatesModal();">
+        <div class="tmpl-thumb">🚀</div>
+        <div class="tmpl-name">Hero / Landing</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('form');closeTemplatesModal();">
+        <div class="tmpl-thumb">📝</div>
+        <div class="tmpl-name">Contact Form</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('cards');closeTemplatesModal();">
+        <div class="tmpl-thumb">🎴</div>
+        <div class="tmpl-name">Card Grid</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('blog');closeTemplatesModal();">
+        <div class="tmpl-thumb">📰</div>
+        <div class="tmpl-name">Blog Article</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('pricing');closeTemplatesModal();">
+        <div class="tmpl-thumb">💰</div>
+        <div class="tmpl-name">Pricing Table</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('dashboard');closeTemplatesModal();">
+        <div class="tmpl-thumb">📊</div>
+        <div class="tmpl-name">Dashboard Shell</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('minimal');closeTemplatesModal();">
+        <div class="tmpl-thumb">📄</div>
+        <div class="tmpl-name">Minimal Blank</div>
+      </div>
+      <div class="tmpl-card" onclick="loadTemplate('sample');closeTemplatesModal();">
+        <div class="tmpl-thumb">💡</div>
+        <div class="tmpl-name">Simple Sample</div>
+      </div>
+    </div>
+    <button type="button" class="modal-close" onclick="closeTemplatesModal()">Close</button>
+  </div>
+</div>
+
+<!-- LAYERS FLOATING PANEL -->
+<div class="prop-panel floating" id="layersPanel" style="display:none; width:260px; height:400px; left:20px; top:80px;">
+  <div class="pp-header">
+    <span class="pp-tag">Layers</span>
+    <span class="pp-hdr-spacer"></span>
+    <button class="pp-icon-btn" onclick="refreshLayersList()" title="Refresh Layers">↻</button>
+    <button class="pp-icon-btn" onclick="toggleLayersPanel()">✕</button>
+  </div>
+  <div class="floating-content">
+    <div class="outline-wrap" style="padding:10px">
+      <div class="outline-scroll" id="layersList" style="max-height:none; border:none; background:transparent">
+        <div class="outline-empty">Loading layers…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEO & SOCIAL MODAL -->
+<div class="modal-overlay" id="seoModal" role="dialog" aria-modal="true" aria-labelledby="seoTitle" onclick="if(event.target===this)closeSeoModal()">
+  <div class="modal-box modal-wide">
+    <h3 id="seoTitle">SEO & Social Meta Tools</h3>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="pp-field">
+        <div class="pp-field-label">Page Title</div>
+        <input class="pp-inp" id="seo-title" type="text" placeholder="Meta Title" oninput="updateSeoPreview()">
+      </div>
+      <div class="pp-field">
+        <div class="pp-field-label">Meta Description</div>
+        <textarea class="pp-textarea" id="seo-desc" placeholder="Meta Description" oninput="updateSeoPreview()"></textarea>
+      </div>
+      <div class="pp-field">
+        <div class="pp-field-label">Keywords (comma separated)</div>
+        <input class="pp-inp" id="seo-keywords" type="text" placeholder="Keywords">
+      </div>
+      <div class="pp-field">
+        <div class="pp-field-label">OG Image URL</div>
+        <input class="pp-inp" id="seo-og-image" type="text" placeholder="https://example.com/image.png" oninput="updateSeoPreview()">
+      </div>
+      
+      <div class="pp-sec-label" style="margin-top:10px">Social Preview</div>
+      <div class="seo-preview-card">
+        <div class="seo-preview-img" id="seo-prev-img">📷 Preview Image</div>
+        <div class="seo-preview-content">
+          <div class="seo-preview-url" id="seo-prev-url">example.com</div>
+          <div class="seo-preview-title" id="seo-prev-title">Page Title Preview</div>
+          <div class="seo-preview-desc" id="seo-prev-desc">Your page description will appear here on social media platforms like Facebook and Twitter.</div>
+        </div>
+      </div>
+      
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="pp-save" onclick="applySeoTags()">Apply Tags to HTML</button>
+      </div>
+    </div>
+    <button type="button" class="modal-close" onclick="closeSeoModal()">Close</button>
+  </div>
+</div>
+
+<!-- COMPONENT LIBRARY MODAL -->
+<div class="modal-overlay" id="compLibModal" role="dialog" aria-modal="true" aria-labelledby="compLibTitle" onclick="if(event.target===this)closeComponentLibrary()">
+  <div class="modal-box modal-wide">
+    <h3 id="compLibTitle">UI Component Blocks</h3>
+    <div class="comp-lib-grid">
+      <div class="comp-item" onclick="insertComponent('navbar')">
+        <div class="comp-name">Navigation Bar</div>
+        <div class="comp-desc">Responsive navbar with logo and links</div>
+        <div class="comp-preview">🔗</div>
+      </div>
+      <div class="comp-item" onclick="insertComponent('hero')">
+        <div class="comp-name">Hero Section</div>
+        <div class="comp-desc">Large header with CTA button</div>
+        <div class="comp-preview">🚀</div>
+      </div>
+      <div class="comp-item" onclick="insertComponent('features')">
+        <div class="comp-name">Features Grid</div>
+        <div class="comp-desc">3-column grid for services/features</div>
+        <div class="comp-preview">⚡</div>
+      </div>
+      <div class="comp-item" onclick="insertComponent('footer')">
+        <div class="comp-name">Simple Footer</div>
+        <div class="comp-desc">Copyright and social links</div>
+        <div class="comp-preview">🦶</div>
+      </div>
+    </div>
+    <button type="button" class="modal-close" onclick="closeComponentLibrary()">Close</button>
+  </div>
+</div>
+
+<!-- DEPLOY MODAL -->
+<div class="modal-overlay" id="deployModal" role="dialog" aria-modal="true" aria-labelledby="deployTitle" onclick="if(event.target===this)closeDeployModal()">
+  <div class="modal-box">
+    <h3 id="deployTitle">Deploy to Web</h3>
+    <p style="font-size:12px; color:var(--muted); margin-bottom:16px;">Instantly publish your page to the web using these services.</p>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="sb-btn" onclick="deployToCodePen()" style="justify-content:center; background:#ffdd40; color:#000;">Deploy to CodePen (Best for Instant View)</button>
+      <button class="sb-btn" onclick="deployToVercel()" style="justify-content:center; background:#000; color:#fff;">Deploy to Vercel (Small Projects Only)</button>
+      <button class="sb-btn" onclick="deployToNetlify()" style="justify-content:center; background:#20c6b7; color:#fff;">Deploy to Netlify (Drag & Drop)</button>
+      <div style="font-size:10px; color:var(--muted); text-align:center; margin-top:10px;">
+        Note: This will open the respective service's "Deploy from URL" tool.
+      </div>
+    </div>
+    <button type="button" class="modal-close" onclick="closeDeployModal()">Close</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="shortcutsModal" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle" onclick="if(event.target===this)closeShortcutsModal()">
   <div class="modal-box">
     <h3 id="shortcutsTitle">Keyboard shortcuts</h3>
@@ -981,6 +1337,7 @@ let _visualUndoGroupT=null;
 const FIRST_STYLE_RE=/<style([^>]*)>([\s\S]*?)<\/style>/i;
 const MINIMAP_KEY='html-editor-minimap';
 let minimapEnabled=false;
+let consoleOpen = false;
 let _jsEditTimer=null;
 let _outlineTimer=null;
 let _ppColorTarget={kind:'typo'};
@@ -1259,13 +1616,6 @@ function setViewport(mode){
   if(editor)editor.layout();
 }
 
-function onTemplateSelect(sel){
-  const v=sel.value;
-  if(!v)return;
-  loadTemplate(v);
-  sel.value='';
-}
-
 function loadTemplate(id){
   const html=TEMPLATES[id];
   if(!html||!editor)return;
@@ -1467,7 +1817,9 @@ function syncThemeButton(){
 function applyAppTheme(theme){
   appTheme=theme;
   document.documentElement.setAttribute('data-theme',theme==='light'?'light':'dark');
-  if(editor) editor.setTheme(theme==='light'?'vs':'vs-dark');
+  if(typeof monaco !== 'undefined') {
+    monaco.editor.setTheme(theme==='light'?'vs':'vs-dark');
+  }
   try{localStorage.setItem(THEME_KEY,theme);}catch(e){}
   syncThemeButton();
 }
@@ -1476,13 +1828,25 @@ function toggleAppTheme(){
   applyAppTheme(appTheme==='dark'?'light':'dark');
 }
 
+function updateAuxEditorOptions(){
+  const opts = {
+    fontSize: editorFontSize,
+    lineHeight: Math.round(editorFontSize*1.615),
+    minimap: {enabled: minimapEnabled}
+  };
+  if(cssEditor) cssEditor.updateOptions(opts);
+  if(jsEditor) jsEditor.updateOptions(opts);
+}
+
 function fontSizeStep(delta){
   if(!editor)return;
   editorFontSize=Math.min(22,Math.max(10,editorFontSize+delta));
-  editor.updateOptions({
+  const opts = {
     fontSize:editorFontSize,
     lineHeight:Math.round(editorFontSize*1.615)
-  });
+  };
+  editor.updateOptions(opts);
+  updateAuxEditorOptions();
   try{localStorage.setItem(FONT_KEY,String(editorFontSize));}catch(e){}
   const lab=document.getElementById('fontSizeLabel');
   if(lab) lab.textContent=String(editorFontSize);
@@ -1498,6 +1862,7 @@ function toggleMinimap(){
   if(!editor)return;
   minimapEnabled=!minimapEnabled;
   editor.updateOptions({minimap:{enabled:minimapEnabled}});
+  updateAuxEditorOptions();
   try{localStorage.setItem(MINIMAP_KEY,minimapEnabled?'1':'0');}catch(e){}
   syncMinimapButton();
   toast(minimapEnabled?'Minimap on':'Minimap off');
@@ -1517,10 +1882,22 @@ function togglePreviewFullscreen(){
 }
 
 try{
-  if(localStorage.getItem(THEME_KEY)==='light'){
-    appTheme='light';
-    document.documentElement.setAttribute('data-theme','light');
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if(savedTheme){
+    appTheme = savedTheme;
+  } else {
+    // Default to system preference if no manual choice yet
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    appTheme = systemDark ? 'dark' : 'light';
   }
+  document.documentElement.setAttribute('data-theme', appTheme);
+  
+  // Also listen for system theme changes if no manual choice has been made
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+    if(!localStorage.getItem(THEME_KEY)) {
+      applyAppTheme(e.matches ? 'dark' : 'light');
+    }
+  });
 }catch(e){}
 try{
   const f=parseInt(localStorage.getItem(FONT_KEY),10);
@@ -1557,6 +1934,7 @@ propPanel.addEventListener('focusin',function(ev){
 ───────────────────────────────────────── */
 require.config({paths:{vs:'https://unpkg.com/monaco-editor@0.45.0/min/vs'}});
 require(['vs/editor/editor.main'], () => {
+  monaco.editor.setTheme(appTheme==='light'?'vs':'vs-dark');
   let initial=TEMPLATES.hero;
   let shared=null;
   try{ shared=tryGetSharedHtml(); }catch(e){}
@@ -1572,7 +1950,6 @@ require(['vs/editor/editor.main'], () => {
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: initial,
     language: 'html',
-    theme: appTheme==='light'?'vs':'vs-dark',
     automaticLayout: true,
     fontSize: editorFontSize,
     fontFamily:"'JetBrains Mono',monospace",
@@ -1587,6 +1964,40 @@ require(['vs/editor/editor.main'], () => {
     cursorSmoothCaretAnimation:'on',
   });
 
+  const auxOptions = {
+    automaticLayout: true,
+    fontSize: editorFontSize,
+    fontFamily:"'JetBrains Mono',monospace",
+    lineHeight: Math.round(editorFontSize*1.615),
+    minimap:{enabled:minimapEnabled},
+    scrollBeyondLastLine:false,
+    wordWrap:'on',
+    padding:{top:10},
+    smoothScrolling:true,
+  };
+
+  cssEditor = monaco.editor.create(document.getElementById('cssEditor'), {
+    ...auxOptions,
+    value: '',
+    language: 'css',
+  });
+
+  jsEditor = monaco.editor.create(document.getElementById('jsEditor'), {
+    ...auxOptions,
+    value: '',
+    language: 'javascript',
+  });
+
+  cssEditor.onDidChangeModelContent(()=>{
+    if(currentDocTab!=='css') return;
+    onCssEditorInput();
+  });
+
+  jsEditor.onDidChangeModelContent(()=>{
+    if(currentDocTab!=='js') return;
+    onJsEditorInput();
+  });
+
   editor.onDidChangeModelContent(()=>{
     updateStats();
     scheduleAutosave();
@@ -1595,7 +2006,9 @@ require(['vs/editor/editor.main'], () => {
       liveTimer=setTimeout(runCode,350);
     }
     clearTimeout(_outlineTimer);
-    _outlineTimer=setTimeout(refreshDomOutline,500);
+    _outlineTimer=setTimeout(() => {
+      if(document.getElementById('layersPanel').style.display !== 'none') refreshLayersList();
+    }, 500);
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>{
@@ -1618,7 +2031,6 @@ require(['vs/editor/editor.main'], () => {
     var edBtn=document.getElementById('ppEyeDropperBtn');
     if(edBtn && !window.EyeDropper) edBtn.style.display='none';
   }catch(e){}
-  refreshDomOutline();
 });
 
 /* ─────────────────────────────────────────
@@ -1724,6 +2136,43 @@ function toggleLive(){
 function runCode(){
   if(!editor) return;
   var v=editor.getValue();
+  
+  // Inject Console Proxy Script if console is open
+  if(consoleOpen) {
+    const consoleProxyScript = `
+      <script>
+        (function() {
+          const originalLog = console.log;
+          const originalError = console.error;
+          const originalWarn = console.warn;
+          const sendToParent = (type, args) => {
+            window.parent.postMessage({
+              type: 'console',
+              logType: type,
+              args: args.map(arg => {
+                try {
+                  return typeof arg === 'object' ? JSON.parse(JSON.stringify(arg)) : arg;
+                } catch(e) {
+                  return String(arg);
+                }
+              })
+            }, '*');
+          };
+          console.log = (...args) => { originalLog.apply(console, args); sendToParent('info', args); };
+          console.error = (...args) => { originalError.apply(console, args); sendToParent('error', args); };
+          console.warn = (...args) => { originalWarn.apply(console, args); sendToParent('warn', args); };
+          window.onerror = (msg, url, line, col, error) => {
+            sendToParent('error', [msg + ' (line ' + line + ')']);
+            return false;
+          };
+        })();
+      <\/script>
+    `;
+    // Insert before </head> or at start
+    if(v.includes('</head>')) v = v.replace('</head>', consoleProxyScript + '</head>');
+    else v = consoleProxyScript + v;
+  }
+
   try{
     iframeEl.srcdoc=v;
   }catch(err){}
@@ -1772,7 +2221,7 @@ function showAdModal(callback){
       _adModalPushed=true;
     }
   });
-  let secs=5;
+  let secs=2;
   const timerEl=document.getElementById('adModalTimer');
   const closeBtn=document.getElementById('adModalClose');
   closeBtn.style.display='none';
@@ -1800,7 +2249,11 @@ function exportHTML(){
   showAdModal(function(){
     const b=new Blob([editor.getValue()],{type:'text/html'});
     const a=document.createElement('a');
-    a.href=URL.createObjectURL(b);a.download='code.html';a.click();
+    const url=URL.createObjectURL(b);
+    a.href=url;
+    a.download='code.html';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); },2500);
     toast('Exported ⬇');
   });
 }
@@ -1938,10 +2391,15 @@ function mergeFirstStyleIntoHtml(html,newCss){
   return html.trim()+'\n'+block;
 }
 function syncCssFromHtml(){
-  if(!editor)return;
+  if(!editor || !cssEditor)return;
   const html=editor.getValue();
   const m=html.match(FIRST_STYLE_RE);
-  document.getElementById('cssEditorArea').value=m?m[2]:'/* Rules here — a <style> block will be added to your HTML */\n';
+  const val = m?m[2]:'/* Rules here — a <style> block will be added to your HTML */\n';
+  if(cssEditor.getValue() !== val) {
+    _ignoreEditorChangeForLive = true;
+    cssEditor.setValue(val);
+    _ignoreEditorChangeForLive = false;
+  }
 }
 function findFirstInlineScript(html){
   const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;
@@ -1967,14 +2425,18 @@ function mergeFirstScriptIntoHtml(html,newJs){
   return html.trim()+'\n'+block;
 }
 function syncJsFromHtml(){
-  if(!editor)return;
+  if(!editor || !jsEditor)return;
   const info=findFirstInlineScript(editor.getValue());
-  document.getElementById('jsEditorArea').value=info?info.body:'// Add JavaScript here — an inline <script> will be inserted before </body>\n';
+  const val = info?info.body:'// Add JavaScript here — an inline <script> will be inserted before </body>\n';
+  if(jsEditor.getValue() !== val) {
+    _ignoreEditorChangeForLive = true;
+    jsEditor.setValue(val);
+    _ignoreEditorChangeForLive = false;
+  }
 }
 function applyJsFromPanel(){
-  if(!editor)return;
-  const ta=document.getElementById('jsEditorArea');
-  const merged=mergeFirstScriptIntoHtml(editor.getValue(),ta.value);
+  if(!editor || !jsEditor)return;
+  const merged=mergeFirstScriptIntoHtml(editor.getValue(),jsEditor.getValue());
   if(merged!==editor.getValue()){
     _ignoreEditorChangeForLive=true;
     try{editor.setValue(merged);}finally{_ignoreEditorChangeForLive=false;}
@@ -1999,39 +2461,45 @@ function setDocTab(which){
   else if(currentDocTab==='js') applyJsFromPanel();
   if(which==='css') syncCssFromHtml();
   else if(which==='js') syncJsFromHtml();
+  
   const ed=document.getElementById('editor');
-  const ta=document.getElementById('cssEditorArea');
-  const jta=document.getElementById('jsEditorArea');
+  const ced=document.getElementById('cssEditor');
+  const jed=document.getElementById('jsEditor');
+  
   const hBtn=document.getElementById('tabDocHtml');
   const cBtn=document.getElementById('tabDocCss');
   const jBtn=document.getElementById('tabDocJs');
-  ta.classList.remove('show');
-  jta.classList.remove('show');
+  
   ed.style.display='none';
+  ced.style.display='none';
+  jed.style.display='none';
+  
   hBtn.classList.remove('active'); cBtn.classList.remove('active'); jBtn.classList.remove('active');
   hBtn.setAttribute('aria-selected','false');
   cBtn.setAttribute('aria-selected','false');
   jBtn.setAttribute('aria-selected','false');
+  
   if(which==='html'){
     ed.style.display='';
     hBtn.classList.add('active');
     hBtn.setAttribute('aria-selected','true');
     setTimeout(function(){if(editor)editor.layout();},60);
   } else if(which==='css'){
-    ta.classList.add('show');
+    ced.style.display='';
     cBtn.classList.add('active');
     cBtn.setAttribute('aria-selected','true');
+    setTimeout(function(){if(cssEditor)cssEditor.layout();},60);
   } else if(which==='js'){
-    jta.classList.add('show');
+    jed.style.display='';
     jBtn.classList.add('active');
     jBtn.setAttribute('aria-selected','true');
+    setTimeout(function(){if(jsEditor)jsEditor.layout();},60);
   }
   currentDocTab=which;
 }
 function applyCssFromPanel(){
-  if(!editor)return;
-  const ta=document.getElementById('cssEditorArea');
-  const merged=mergeFirstStyleIntoHtml(editor.getValue(),ta.value);
+  if(!editor || !cssEditor)return;
+  const merged=mergeFirstStyleIntoHtml(editor.getValue(),cssEditor.getValue());
   if(merged!==editor.getValue()){
     _ignoreEditorChangeForLive=true;
     try{editor.setValue(merged);}finally{_ignoreEditorChangeForLive=false;}
@@ -2155,9 +2623,91 @@ function toast(m){
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2200);
 }
 
-/* ─────────────────────────────────────────
-   SIDEBAR RESIZE
-───────────────────────────────────────── */
+/* ─── UI Toggles ─── */
+function openTemplatesModal(){
+  document.getElementById('templatesModal').classList.add('show');
+}
+function closeTemplatesModal(){
+  document.getElementById('templatesModal').classList.remove('show');
+}
+function toggleLayersPanel(){
+  const lp = document.getElementById('layersPanel');
+  if(lp.style.display === 'none'){
+    lp.style.display = 'flex';
+    lp.classList.add('floating');
+    makeDraggable(lp, lp.querySelector('.pp-header'));
+    refreshLayersList();
+  } else {
+    lp.style.display = 'none';
+  }
+}
+
+/* ─── Floating & Draggable Windows ─── */
+function toggleFloat(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const isFloating = el.classList.toggle('floating');
+  if(isFloating){
+    el.style.width = '280px';
+    el.style.height = '500px';
+    el.style.top = '100px';
+    el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - 400) + 'px';
+    makeDraggable(el, el.querySelector(id === 'sidebar' ? '.sb-header' : '.pp-header'));
+  } else {
+    el.style.cssText = '';
+    // Restore sidebar width if needed
+    if(id === 'sidebar') el.style.width = 'var(--sbW)';
+  }
+  if(editor) editor.layout();
+}
+
+function makeDraggable(el, handle){
+  let d = false, sx, sy, ox, oy;
+  handle.onmousedown = (e) => {
+    if(!el.classList.contains('floating')) return;
+    d = true; sx = e.clientX; sy = e.clientY;
+    ox = el.offsetLeft; oy = el.offsetTop;
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  };
+  document.addEventListener('mousemove', (e) => {
+    if(!d) return;
+    el.style.left = (ox + (e.clientX - sx)) + 'px';
+    el.style.top = (oy + (e.clientY - sy)) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if(!d) return; d = false;
+    document.body.style.userSelect = '';
+  });
+}
+
+/* ─── Property Panel Resize ─── */
+(function(){
+  const pp = document.getElementById('propPanel');
+  const h = document.getElementById('ppResizer');
+  if(!h) return;
+  let d = false, sx, sw;
+  h.addEventListener('mousedown', e => {
+    if(pp.classList.contains('floating')) return;
+    d = true; sx = e.clientX; sw = pp.offsetWidth;
+    h.classList.add('active');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if(!d) return;
+    pp.style.width = Math.min(400, Math.max(220, sw - (e.clientX - sx))) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if(!d) return; d = false;
+    h.classList.remove('active');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    if(editor) editor.layout();
+  });
+})();
+
 (function(){
   const sb=document.getElementById('sidebar');
   const h=document.getElementById('sbResizer');
@@ -2237,7 +2787,11 @@ let savedStyles=null;
 function setVisualMode(on){
   visualModeOn=on;
   vOverlay.classList.toggle('active',on);
-  document.getElementById('visualBar').classList.toggle('show',on);
+  const visualBar = document.getElementById('visualBar');
+  visualBar.classList.toggle('show',on);
+  if(on) {
+    visualBar.textContent = isMobileLayout() ? '🎨 Visual: Tap to select · Drag to move' : '🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate';
+  }
   document.getElementById('previewHint').textContent=on?'🎨 Visual':'';
   if(on){
     attachVisualListeners();
@@ -2448,7 +3002,9 @@ function discardChanges(){
 }
 
 /* Reattach when iframe reloads */
-iframeEl.addEventListener('load',()=>{ if(visualModeOn) attachVisualListeners(); });
+iframeEl.addEventListener('load',()=>{ 
+  if(visualModeOn) attachVisualListeners(); 
+});
 
 /* ─── Helpers ─── */
 function normalizeHex(str){
@@ -2594,33 +3150,111 @@ function jumpToOutlineLine(lineNum){
   editor.focus();
   setStatus('Outline: line '+lineNum);
 }
-function refreshDomOutline(){
-  const list=document.getElementById('outlineList');
+/* ─── Layers & Reordering ─── */
+let draggedLayerEl = null;
+
+function refreshLayersList(){
+  const list = document.getElementById('layersList');
   if(!list) return;
-  if(!editor||typeof editor.getValue!=='function'){
-    list.innerHTML='<div class="outline-empty">Loading…</div>';
+  const iDoc = iframeEl.contentDocument;
+  if(!iDoc || !iDoc.body){
+    list.innerHTML = '<div class="outline-empty">No preview body</div>';
     return;
   }
-  const html=editor.getValue();
-  const items=buildDomOutlineItems(html);
-  list.innerHTML='';
+
+  const items = [];
+  function traverse(el, depth){
+    if(el.nodeType !== 1) return;
+    if(['SCRIPT','STYLE','NOSCRIPT','LINK','META','TITLE','HEAD'].includes(el.tagName)) return;
+    
+    // Add a unique ID for identification
+    if(!el.hasAttribute('data-v-id')) el.setAttribute('data-v-id', Math.random().toString(36).substr(2, 9));
+    
+    items.push({
+      tag: el.tagName.toLowerCase(),
+      id: el.id,
+      cls: el.className,
+      depth: depth,
+      vId: el.getAttribute('data-v-id')
+    });
+    
+    for(let child of el.children) traverse(child, depth + 1);
+  }
+  
+  traverse(iDoc.body, 0);
+  
+  list.innerHTML = '';
   if(!items.length){
-    list.innerHTML='<div class="outline-empty">No tags yet</div>';
+    list.innerHTML = '<div class="outline-empty">No layers</div>';
     return;
   }
-  items.forEach(it=>{
-    const row=document.createElement('button');
-    row.type='button';
-    row.className='outline-item';
-    row.style.paddingLeft=(6+Math.min(it.depth,16)*10)+'px';
-    const open='<'+it.tag+(it.voidEl?' /':'')+'>';
-    row.innerHTML='<span class="oi-tag"></span><span class="oi-line"></span>';
-    row.querySelector('.oi-tag').textContent=open;
-    row.querySelector('.oi-line').textContent='Ln '+it.line;
-    row.onclick=function(){ jumpToOutlineLine(it.line); };
+  
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'outline-item layer-item';
+    row.draggable = true;
+    row.style.paddingLeft = (8 + it.depth * 12) + 'px';
+    row.dataset.vId = it.vId;
+    
+    let label = it.tag;
+    if(it.id) label += '#' + it.id;
+    else if(it.cls && typeof it.cls === 'string') label += '.' + it.cls.split(' ')[0];
+    
+    row.innerHTML = `<span class="oi-tag" style="user-select:none;pointer-events:none">${label}</span>`;
+    
+    row.onclick = (e) => {
+      const el = iDoc.querySelector(`[data-v-id="${it.vId}"]`);
+      if(el){
+        setMode('visual');
+        setTimeout(() => selectEl(el), 50);
+      }
+    };
+    
+    row.addEventListener('dragstart', (e) => {
+      draggedLayerEl = iDoc.querySelector(`[data-v-id="${it.vId}"]`);
+      e.dataTransfer.setData('text/plain', it.vId);
+      e.dataTransfer.effectAllowed = 'move';
+      row.style.opacity = '0.4';
+    });
+    
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      document.querySelectorAll('.layer-item').forEach(r => r.style.background = '');
+    });
+    
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.style.background = 'rgba(108,99,255,0.1)';
+    });
+    
+    row.addEventListener('dragleave', () => {
+      row.style.background = '';
+    });
+    
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.style.background = '';
+      const vId = e.dataTransfer.getData('text/plain');
+      const targetEl = iDoc.querySelector(`[data-v-id="${it.vId}"]`);
+      if(draggedLayerEl && targetEl && draggedLayerEl !== targetEl){
+        // Move element logic
+        if(e.clientY < row.getBoundingClientRect().top + row.offsetHeight / 2){
+          targetEl.parentNode.insertBefore(draggedLayerEl, targetEl);
+        } else {
+          targetEl.parentNode.insertBefore(draggedLayerEl, targetEl.nextSibling);
+        }
+        refreshLayersList();
+        pushVisualDomToEditor({silent: true});
+        toast('Layer reordered');
+      }
+    });
+    
     list.appendChild(row);
   });
 }
+
+
 function ensurePos(el){
   try{
     if(iframeEl.contentWindow.getComputedStyle(el).position==='static')
@@ -2687,6 +3321,56 @@ function fillProps(el){
   document.getElementById('pp-bw-l').value=parseNum(cs.borderLeftWidth);
   document.getElementById('pp-br').value=parseNum(cs.borderRadius);
 
+  // Shadows
+  const bs = cs.boxShadow;
+  if(bs && bs !== 'none') {
+    const parts = bs.match(/(-?\d+px)\s+(-?\d+px)\s+(\d+px)\s+(\d+px)\s+(.+)/);
+    if(parts) {
+      document.getElementById('pp-bs-x').value = parseInt(parts[1]);
+      document.getElementById('pp-bs-y').value = parseInt(parts[2]);
+      document.getElementById('pp-bs-b').value = parseInt(parts[3]);
+      document.getElementById('pp-bs-s').value = parseInt(parts[4]);
+      setColor('pp-bs-c','pp-bs-c-hex', parts[5]);
+    }
+  }
+  const ts = cs.textShadow;
+  if(ts && ts !== 'none') {
+    const parts = ts.match(/(-?\d+px)\s+(-?\d+px)\s+(\d+px)\s+(.+)/);
+    if(parts) {
+      document.getElementById('pp-ts-x').value = parseInt(parts[1]);
+      document.getElementById('pp-ts-y').value = parseInt(parts[2]);
+      document.getElementById('pp-ts-b').value = parseInt(parts[3]);
+      setColor('pp-ts-c','pp-ts-c-hex', parts[4]);
+    }
+  }
+
+  // Flex/Grid
+  const disp = cs.display;
+  document.getElementById('pp-display').value = disp;
+  const fgTools = document.getElementById('pp-flex-grid-tools');
+  if(disp === 'flex' || disp === 'grid') {
+    fgTools.style.display = 'block';
+    document.getElementById('pp-gap').value = parseNum(cs.gap);
+    document.querySelectorAll('.pp-grid-btn').forEach(btn => {
+      const prop = btn.dataset.prop;
+      const val = btn.dataset.val;
+      btn.classList.toggle('active', cs[prop] === val);
+    });
+  } else {
+    fgTools.style.display = 'none';
+  }
+
+  // Background Gradient
+  const bgImg = cs.backgroundImage;
+  if(bgImg && bgImg.includes('-gradient')) {
+    const type = bgImg.includes('linear') ? 'linear-gradient' : 'radial-gradient';
+    document.getElementById('pp-grad-type').value = type;
+    document.getElementById('pp-grad-tools').style.display = 'block';
+  } else {
+    document.getElementById('pp-grad-type').value = 'none';
+    document.getElementById('pp-grad-tools').style.display = 'none';
+  }
+
   // CSS
   document.getElementById('pp-css').value=el.getAttribute('style')||'';
   renderRecentColorSwatches();
@@ -2698,19 +3382,26 @@ function clearProps(){
    'pp-mx','pp-my','pp-px','pp-py',
    'pp-text','pp-fs','pp-opacity',
    'pp-bw-t','pp-bw-r','pp-bw-b','pp-bw-l','pp-br',
+   'pp-bs-x','pp-bs-y','pp-bs-b','pp-bs-s',
+   'pp-ts-x','pp-ts-y','pp-ts-b',
+   'pp-gap', 'pp-grad-angle',
    'pp-css'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.value='';
   });
-  ['pp-color','pp-bg','pp-bc-t','pp-bc-r','pp-bc-b','pp-bc-l'].forEach(id=>{
+  ['pp-color','pp-bg','pp-bc-t','pp-bc-r','pp-bc-b','pp-bc-l', 'pp-bs-c', 'pp-ts-c'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.value='#000000';
   });
-  ['pp-color-hex','pp-bg-hex','pp-bc-t-hex','pp-bc-r-hex','pp-bc-b-hex','pp-bc-l-hex'].forEach(id=>{
+  ['pp-color-hex','pp-bg-hex','pp-bc-t-hex','pp-bc-r-hex','pp-bc-b-hex','pp-bc-l-hex', 'pp-bs-c-hex', 'pp-ts-c-hex'].forEach(id=>{
     const el=document.getElementById(id);
     if(el) el.value='';
   });
   document.querySelectorAll('.pp-align-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('pp-display').value = 'block';
+  document.getElementById('pp-flex-grid-tools').style.display = 'none';
+  document.getElementById('pp-grad-type').value = 'none';
+  document.getElementById('pp-grad-tools').style.display = 'none';
 }
 
 function applyLayout(){
@@ -2794,8 +3485,39 @@ function applyAlign(a){
 
 function applyBG(){
   if(!selectedEl) return;
-  selectedEl.style.backgroundColor=document.getElementById('pp-bg').value;
+  const bgCol = document.getElementById('pp-bg').value;
+  const gradType = document.getElementById('pp-grad-type').value;
   const op=parseFloat(document.getElementById('pp-opacity').value)||100;
+  
+  if(gradType === 'none') {
+    selectedEl.style.backgroundImage = 'none';
+    selectedEl.style.backgroundColor = bgCol;
+    document.getElementById('pp-grad-tools').style.display = 'none';
+  } else {
+    document.getElementById('pp-grad-tools').style.display = 'block';
+    const angle = document.getElementById('pp-grad-angle').value || 180;
+    let stopsList = [...document.querySelectorAll('.gradient-stop')];
+    
+    if(stopsList.length === 0) {
+      addGradientStop(); // add white
+      addGradientStop(); // add black
+      stopsList = [...document.querySelectorAll('.gradient-stop')];
+    }
+    
+    const stops = stopsList.map(s => {
+      const c = s.querySelector('input[type="color"]').value;
+      const p = s.querySelector('input[type="number"]').value;
+      return `${c} ${p}%`;
+    }).join(', ');
+    
+    let gradStr = '';
+    if(gradType === 'linear-gradient') gradStr = `linear-gradient(${angle}deg, ${stops || '#ffffff 0%, #000000 100%'})`;
+    else gradStr = `radial-gradient(circle, ${stops || '#ffffff 0%, #000000 100%'})`;
+    
+    selectedEl.style.backgroundImage = gradStr;
+    document.getElementById('pp-gradient-preview').style.background = gradStr;
+  }
+  
   selectedEl.style.opacity=op/100;
   scheduleSyncToCodeFromVisual();
 }
@@ -2841,7 +3563,12 @@ function pushVisualDomToEditor(opts){
     if(!editor) return;
     const doc=iframeEl.contentDocument;
     if(!doc||!doc.documentElement) return;
-    const html='<!DOCTYPE html>\n'+doc.documentElement.outerHTML;
+    
+    // Clean up temporary attributes before syncing
+    const cleanDoc = doc.documentElement.cloneNode(true);
+    cleanDoc.querySelectorAll('[data-v-id]').forEach(el => el.removeAttribute('data-v-id'));
+    
+    const html='<!DOCTYPE html>\n'+cleanDoc.outerHTML;
     if(editor.getValue()===html){
       if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
       return;
@@ -2977,6 +3704,362 @@ function syncToCode(){
     pushVisualDomToEditor({silent:true});
   });
 })();
+
+/* ─── NEW FEATURES LOGIC ─── */
+
+/* SEO & Social */
+function openSeoModal() {
+  const html = editor.getValue();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  
+  document.getElementById('seo-title').value = doc.title || '';
+  const desc = doc.querySelector('meta[name="description"]');
+  document.getElementById('seo-desc').value = desc ? desc.content : '';
+  const keywords = doc.querySelector('meta[name="keywords"]');
+  document.getElementById('seo-keywords').value = keywords ? keywords.content : '';
+  const ogImg = doc.querySelector('meta[property="og:image"]');
+  document.getElementById('seo-og-image').value = ogImg ? ogImg.content : '';
+  
+  updateSeoPreview();
+  const modal = document.getElementById('seoModal');
+  if(modal) modal.classList.add('show');
+}
+
+function closeSeoModal() {
+  const modal = document.getElementById('seoModal');
+  if(modal) modal.classList.remove('show');
+}
+
+function updateSeoPreview() {
+  const title = document.getElementById('seo-title').value || 'Page Title Preview';
+  const desc = document.getElementById('seo-desc').value || 'Your page description will appear here on social media platforms like Facebook and Twitter.';
+  const img = document.getElementById('seo-og-image').value;
+  
+  const pTitle = document.getElementById('seo-prev-title');
+  const pDesc = document.getElementById('seo-prev-desc');
+  const pImg = document.getElementById('seo-prev-img');
+  
+  if(pTitle) pTitle.textContent = title;
+  if(pDesc) pDesc.textContent = desc;
+  if(pImg) {
+    if(img) {
+      pImg.innerHTML = `<img src="${img}" style="width:100%; height:100%; object-fit:cover;">`;
+    } else {
+      pImg.innerHTML = '📷 Preview Image';
+    }
+  }
+}
+
+function applySeoTags() {
+  const title = document.getElementById('seo-title').value;
+  const desc = document.getElementById('seo-desc').value;
+  const keywords = document.getElementById('seo-keywords').value;
+  const ogImg = document.getElementById('seo-og-image').value;
+  
+  let html = editor.getValue();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  
+  if(title) doc.title = title;
+  
+  const updateMeta = (name, content, isProp = false) => {
+    if(!content) return;
+    let el = isProp ? doc.querySelector(`meta[property="${name}"]`) : doc.querySelector(`meta[name="${name}"]`);
+    if(!el) {
+      el = doc.createElement('meta');
+      if(isProp) el.setAttribute('property', name);
+      else el.setAttribute('name', name);
+      const head = doc.head || doc.createElement('head');
+      if(!doc.head) doc.documentElement.insertBefore(head, doc.body);
+      head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  };
+  
+  updateMeta('description', desc);
+  updateMeta('keywords', keywords);
+  updateMeta('og:title', title, true);
+  updateMeta('og:description', desc, true);
+  updateMeta('og:image', ogImg, true);
+  updateMeta('twitter:card', 'summary_large_image');
+  
+  // Try to preserve DOCTYPE
+  let newHtml = doc.documentElement.outerHTML;
+  if(!html.toLowerCase().includes('<!doctype')) {
+    newHtml = '<!DOCTYPE html>\n' + newHtml;
+  } else {
+    const dt = html.match(/<!doctype[^>]*>/i);
+    if(dt) newHtml = dt[0] + '\n' + newHtml;
+  }
+  
+  editor.setValue(newHtml);
+  toast('SEO tags applied! ✅');
+  closeSeoModal();
+  runCode();
+}
+
+/* Export as Image/PDF */
+async function exportAsImage() {
+  const iframe = document.getElementById('preview');
+  const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+  try {
+    toast('Generating image...');
+    const canvas = await html2canvas(iDoc.body, {
+      useCORS: true,
+      scale: 2,
+      backgroundColor: iDoc.body.style.backgroundColor || '#ffffff'
+    });
+    const link = document.createElement('a');
+    link.download = 'webpage-screenshot.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    toast('Image downloaded! 🖼️');
+  } catch(e) {
+    console.error(e);
+    toast('Export failed ⚠');
+  }
+}
+
+async function exportAsPDF() {
+  const iframe = document.getElementById('preview');
+  const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+  const { jsPDF } = window.jspdf;
+  try {
+    toast('Generating PDF...');
+    const canvas = await html2canvas(iDoc.body, { useCORS: true, scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    pdf.save('webpage.pdf');
+    toast('PDF downloaded! 📄');
+  } catch(e) {
+    console.error(e);
+    toast('Export failed ⚠');
+  }
+}
+
+/* Console */
+function toggleConsole() {
+  const panel = document.getElementById('consolePanel');
+  consoleOpen = !consoleOpen;
+  panel.style.display = consoleOpen ? 'flex' : 'none';
+  if(consoleOpen) {
+    runCode(); // re-run to inject proxy script
+  }
+}
+
+function clearConsole() {
+  document.getElementById('consoleLogs').innerHTML = '';
+}
+
+function addLogToPanel(type, args) {
+  const logContainer = document.getElementById('consoleLogs');
+  if(!logContainer) return;
+  const logEntry = document.createElement('div');
+  logEntry.className = `console-log console-log-${type}`;
+  const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const msg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+  logEntry.innerHTML = `<span class="console-time">${time}</span>${msg}`;
+  logContainer.appendChild(logEntry);
+  logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// Global listener for console messages from iframe
+window.addEventListener('message', (e) => {
+  if(e.data && e.data.type === 'console') {
+    addLogToPanel(e.data.logType, e.data.args);
+  }
+});
+
+function setupIframeConsole() {
+  // Legacy function no longer needed but kept for compatibility if called elsewhere
+}
+
+/* Component Library */
+function openComponentLibrary() {
+  document.getElementById('compLibModal').classList.add('show');
+}
+function closeComponentLibrary() {
+  document.getElementById('compLibModal').classList.remove('show');
+}
+
+const COMPONENTS = {
+  navbar: `<nav style="display:flex; justify-content:space-between; align-items:center; padding:1rem 2rem; background:#333; color:#fff; font-family:sans-serif;">
+  <div style="font-weight:bold; font-size:1.5rem;">LOGO</div>
+  <ul style="display:flex; gap:1.5rem; list-style:none; margin:0; padding:0;">
+    <li><a href="#" style="color:#fff; text-decoration:none;">Home</a></li>
+    <li><a href="#" style="color:#fff; text-decoration:none;">About</a></li>
+    <li><a href="#" style="color:#fff; text-decoration:none;">Contact</a></li>
+  </ul>
+</nav>`,
+  hero: `<section style="padding:4rem 2rem; text-align:center; background:#f4f4f4; font-family:sans-serif;">
+  <h1 style="font-size:3rem; margin-bottom:1rem;">Welcome to Our Site</h1>
+  <p style="font-size:1.2rem; color:#666; margin-bottom:2rem;">The best place to build your amazing projects.</p>
+  <button style="padding:0.8rem 2rem; font-size:1rem; background:#6c63ff; color:#fff; border:none; border-radius:5px; cursor:pointer;">Get Started</button>
+</section>`,
+  features: `<section style="padding:4rem 2rem; display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:2rem; font-family:sans-serif;">
+  <div style="text-align:center; padding:2rem; border:1px solid #ddd; border-radius:8px;">
+    <div style="font-size:2rem; margin-bottom:1rem;">⚡</div>
+    <h3>Fast</h3>
+    <p>Optimized for speed and performance.</p>
+  </div>
+  <div style="text-align:center; padding:2rem; border:1px solid #ddd; border-radius:8px;">
+    <div style="font-size:2rem; margin-bottom:1rem;">🛡️</div>
+    <h3>Secure</h3>
+    <p>Your data is safe with us.</p>
+  </div>
+  <div style="text-align:center; padding:2rem; border:1px solid #ddd; border-radius:8px;">
+    <div style="font-size:2rem; margin-bottom:1rem;">📱</div>
+    <h3>Responsive</h3>
+    <p>Works on all devices and screens.</p>
+  </div>
+</section>`,
+  footer: `<footer style="padding:2rem; text-align:center; background:#222; color:#888; font-family:sans-serif; margin-top:2rem;">
+  <p>&copy; 2024 Your Company. All rights reserved.</p>
+  <div style="margin-top:1rem; display:flex; justify-content:center; gap:1rem;">
+    <a href="#" style="color:#888;">Twitter</a>
+    <a href="#" style="color:#888;">GitHub</a>
+    <a href="#" style="color:#888;">LinkedIn</a>
+  </div>
+</footer>`
+};
+
+function insertComponent(id) {
+  const html = COMPONENTS[id];
+  if(!html) return;
+  const pos = editor.getPosition();
+  editor.executeEdits('', [{
+    range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
+    text: html + '\n'
+  }]);
+  toast(`Component ${id} inserted!`);
+  closeComponentLibrary();
+  runCode();
+}
+
+/* Advanced Visual Controls */
+function applyShadows() {
+  if(!selectedEl) return;
+  const bsX = document.getElementById('pp-bs-x').value || 0;
+  const bsY = document.getElementById('pp-bs-y').value || 0;
+  const bsB = document.getElementById('pp-bs-b').value || 0;
+  const bsS = document.getElementById('pp-bs-s').value || 0;
+  const bsC = document.getElementById('pp-bs-c').value || '#000000';
+  
+  const tsX = document.getElementById('pp-ts-x').value || 0;
+  const tsY = document.getElementById('pp-ts-y').value || 0;
+  const tsB = document.getElementById('pp-ts-b').value || 0;
+  const tsC = document.getElementById('pp-ts-c').value || '#000000';
+  
+  selectedEl.style.boxShadow = `${bsX}px ${bsY}px ${bsB}px ${bsS}px ${bsC}`;
+  selectedEl.style.textShadow = `${tsX}px ${tsY}px ${tsB}px ${tsC}`;
+  scheduleSyncToCodeFromVisual();
+}
+
+function applyFlexGrid() {
+  if(!selectedEl) return;
+  const disp = document.getElementById('pp-display').value;
+  selectedEl.style.display = disp;
+  
+  const fgTools = document.getElementById('pp-flex-grid-tools');
+  if(disp === 'flex' || disp === 'grid') {
+    fgTools.style.display = 'block';
+    const gap = document.getElementById('pp-gap').value || 0;
+    selectedEl.style.gap = gap + 'px';
+  } else {
+    fgTools.style.display = 'none';
+  }
+  scheduleSyncToCodeFromVisual();
+}
+
+function setFlexProp(prop, val) {
+  if(!selectedEl) return;
+  selectedEl.style[prop] = val;
+  document.querySelectorAll(`.pp-grid-btn[data-prop="${prop}"]`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.val === val);
+  });
+  scheduleSyncToCodeFromVisual();
+}
+
+function addGradientStop() {
+  const container = document.getElementById('pp-grad-stops');
+  const stop = document.createElement('div');
+  stop.className = 'gradient-stop';
+  const count = container.children.length;
+  const defaultPos = count === 0 ? 0 : 100;
+  const defaultCol = count === 0 ? '#ffffff' : '#000000';
+  
+  stop.innerHTML = `
+    <input type="color" value="${defaultCol}" oninput="applyBG()" style="width:24px; height:24px; border:none; padding:0; background:none;">
+    <input type="number" value="${defaultPos}" min="0" max="100" oninput="applyBG()" class="pp-inp" style="width:50px;">
+    <span style="font-size:10px">%</span>
+    <button onclick="this.parentElement.remove(); applyBG();" style="background:none; border:none; color:var(--accent2); cursor:pointer;">✕</button>
+  `;
+  container.appendChild(stop);
+  applyBG();
+}
+
+/* Deploy */
+function openDeployModal() { 
+  const modal = document.getElementById('deployModal');
+  if(modal) modal.classList.add('show'); 
+}
+function closeDeployModal() { 
+  const modal = document.getElementById('deployModal');
+  if(modal) modal.classList.remove('show'); 
+}
+
+function getUTF8Base64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+function deployToCodePen() {
+  const html = editor.getValue();
+  const data = {
+    html: html,
+    title: "Project from HTML Editor"
+  };
+  const JSONstring = JSON.stringify(data).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+  
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = 'https://codepen.io/pen/define';
+  form.target = '_blank';
+  
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'data';
+  input.value = JSONstring;
+  
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+  toast('Opening CodePen... 🖊️');
+  closeDeployModal();
+}
+
+function deployToVercel() {
+  const html = editor.getValue();
+  const base64 = getUTF8Base64(html);
+  // Vercel doesn't support direct base64 anymore, but we can try to use a data URL for very small templates
+  // For most cases, we'll suggest downloading and using Vercel CLI or Git
+  if(html.length > 5000) {
+    toast('Code too large for direct Vercel link. Download & upload to GitHub first.');
+    return;
+  }
+  const url = `https://vercel.com/import/project?template=${encodeURIComponent('data:text/html;base64,' + base64)}`;
+  window.open(url, '_blank');
+}
+
+function deployToNetlify() {
+  toast('Netlify requires a GitHub repo or Drag & Drop. Use Export button then drop on Netlify.');
+  window.open('https://app.netlify.com/drop', '_blank');
+}
 
 function registerServiceWorker(){
   if(!('serviceWorker' in navigator))return;
