@@ -1,6 +1,6 @@
 # HTML Editor by Jignesh
 
-A **free, browser-based HTML editor** that combines a **Monaco** code editor (the same engine as VS Code) with a **live preview**, **visual (WYSIWYG-style) editing**, templates, import/export, and optional **PWA** installation. Everything runs client-side in your browser—no server is required to edit or preview your pages.
+A **free, AI-powered browser-based HTML editor** that combines a **Monaco** code editor (the same engine as VS Code) with an **AI Chat Site Builder**, **live preview**, **visual (WYSIWYG-style) editing**, templates, and optional **PWA** installation. Everything runs client-side in your browser—no server is required to edit or preview your pages.
 
 **Live demo (example deployment):** [html-viewer-gray-beta.vercel.app](https://html-viewer-gray-beta.vercel.app/)
 
@@ -8,23 +8,36 @@ A **free, browser-based HTML editor** that combines a **Monaco** code editor (th
 
 ## Table of contents
 
-1. [Features](#features)
-2. [Interface overview](#interface-overview)
-3. [Editor modes](#editor-modes)
-4. [Visual editor](#visual-editor)
-5. [Live preview and Auto](#live-preview-and-auto)
-6. [Templates](#templates)
-7. [File operations](#file-operations)
-8. [Sharing](#sharing)
-9. [Keyboard shortcuts](#keyboard-shortcuts)
-10. [Drafts, theme, and settings](#drafts-theme-and-settings)
-11. [PWA (install as app)](#pwa-install-as-app)
-12. [Technical stack](#technical-stack)
-13. [Running locally](#running-locally)
-14. [Deploying](#deploying)
-15. [SEO and production checklist](#seo-and-production-checklist)
-16. [Project files](#project-files)
-17. [License and credits](#license-and-credits)
+1. [AI Chat Site Builder](#ai-chat-site-builder)
+2. [Features](#features)
+3. [Interface overview](#interface-overview)
+4. [Editor modes](#editor-modes)
+5. [Visual editor](#visual-editor)
+6. [Live preview and Auto](#live-preview-and-auto)
+7. [Templates](#templates)
+8. [File operations](#file-operations)
+9. [Sharing](#sharing)
+10. [Keyboard shortcuts](#keyboard-shortcuts)
+11. [Drafts, theme, and settings](#drafts-theme-and-settings)
+12. [PWA (install as app)](#pwa-install-as-app)
+13. [Technical stack](#technical-stack)
+14. [Running locally](#running-locally)
+15. [Deploying](#deploying)
+16. [SEO and production checklist](#seo-and-production-checklist)
+17. [Project files](#project-files)
+18. [License and credits](#license-and-credits)
+
+---
+
+## AI Chat Site Builder
+
+The **AI Chat Site Builder** is a powerful feature that allows you to generate and edit code using natural language.
+
+- **Multi-Model Support**: Choose between OpenAI, Gemini, Mistral, and Llama models.
+- **Auto-Apply**: AI responses are automatically applied to the editor for instant feedback.
+- **Keep/Undo**: Review AI changes and choose to "Keep" them or "Undo" to revert to your previous code.
+- **Context-Aware**: The AI sees your current HTML, CSS, and JS code (including line numbers and selections) to provide precise edits.
+- **OpenRouter Support**: Uses Pollinations.AI with a fallback to OpenRouter (requires `OPENROUTER_API_KEY` in `.env`).
 
 ---
 
@@ -32,16 +45,16 @@ A **free, browser-based HTML editor** that combines a **Monaco** code editor (th
 
 | Area | What you get |
 |------|----------------|
-| **Code** | Full HTML editing with syntax highlighting, word wrap, find/replace (Monaco), optional **minimap** (**Map** in the top bar). **HTML / CSS / JS** tabs: CSS edits the first `<style>` block; **JS** edits the first inline `<script>` without `src` (skips `application/ld+json` and similar). |
-| **Preview** | Live iframe preview of your document (`srcdoc`). **⛶ Full** fills the window with the preview; press **Esc** to exit. |
-| **Visual** | Select elements in the preview, move, resize, rotate, **duplicate**, adjust **z-index** (stacking), and edit typography, colors, spacing, borders, and raw inline `style`. |
-| **Sync** | Changes made in visual mode are **written back to the HTML in the code editor automatically** (debounced). You can still use **Save to code** for an immediate sync with confirmation. |
+| **AI Builder** | Chat with AI to generate sections, fix bugs, or build entire pages. Auto-applies code with undo support. |
+| **Code** | Full HTML editing with syntax highlighting, word wrap, find/replace (Monaco), optional **minimap**. |
+| **Visual** | Select elements, move (relative/absolute), resize, rotate, and edit properties like **Display** (flex/grid) and **Position**. |
+| **Sync** | Visual changes sync back to HTML automatically. AI changes sync to all relevant tabs. |
 | **Templates** | Built-in starter pages (hero, form, cards, blog, pricing, dashboard, etc.). |
 | **Viewport** | Preview at full width or fixed widths (mobile / tablet / desktop presets). |
 | **Export** | Copy HTML, download as `.html`, import from file. |
-| **Share** | Compressed share links (URL **hash** or **query**); **QR code** modal for the same link (client-side QR library). |
-| **Snapshots** | Named **Save snapshot** entries in **localStorage** (up to 25); restore or delete from **Snapshots**. **Snapshot diff…** opens a line-by-line comparison (current buffer or any two snapshots) using the **diff** library from a CDN. |
-| **UX** | Dark/light theme, adjustable code font size, resizable sidebar and panes, optional service worker. |
+| **Share** | Compressed share links; **QR code** modal for the same link. |
+| **Snapshots** | Named snapshots in **localStorage** with line-by-line **Diff** support. |
+| **UX** | Dark/light theme, floating/resizable AI chat, draggable property panels. |
 
 ---
 
@@ -74,20 +87,20 @@ Code editor and preview **side by side**. The visual overlay is **not** active i
 ## Visual editor
 
 1. Switch to **Visual** mode.
-2. **Click** an element in the preview to select it (click empty body area or **Esc** to deselect).
-3. **Drag** the selection box to change `left` / `top` (uses `position: relative` when needed).
-4. **Resize** with corner/side handles; **rotate** with the rotate control.
+2. **Click** an element in the preview to select it.
+3. **Drag** to change `left` / `top` (supports both `absolute` and `relative` positions).
+4. **Resize** with handles; **rotate** with the top control.
 5. Use the **properties** panel for:
-   - Header actions: **Duplicate** (clone after selection), **Delete**, close panel
-   - Layout (x, y, width, height, rotation, **z-index** with quick **Front +** / **Back −**)
-   - Margin / padding
-   - Text content, font size, weight, color, alignment
-   - Background and opacity
-   - Per-side borders and radius
-   - Raw **CSS** (`style` attribute) textarea
-6. **Discard** reverts `style` to the state when the element was selected.
-7. **Delete** removes the element from the DOM (and syncs to code).
-8. **Save to code** forces an immediate push of the preview document into the editor (normally automatic).
+   - **Layout**: Change **Display** (flex, grid, block, etc.) and **Position** (static, relative, absolute, fixed, sticky).
+   - **Dimensions**: Precise width and height inputs.
+   - **Z-index**: Quick **Front +** / **Back −** buttons.
+   - **Spacing**: Margin and padding controls.
+   - **Typography**: Text content, size, weight, color, alignment.
+   - **Decoration**: Background colors/gradients, opacity, borders, and radius.
+   - **Custom CSS**: Edit raw inline `style` attribute.
+6. **Keep/Undo**: (For AI changes) Confirm or revert automated edits.
+7. **Discard**: Reverts manual visual changes to the state when selected.
+8. **Delete/Duplicate**: Manage elements directly from the sidebar.
 
 **Note:** The synced HTML is generated from the preview DOM (`documentElement.outerHTML`), so attribute order and formatting may differ slightly from hand-written source, which is normal for DOM serialization.
 

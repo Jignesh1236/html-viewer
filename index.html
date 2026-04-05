@@ -6,9 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="f4fUEvoriHXGuXUnmkINKMdvNM_3JXehqPnM79ZSySg" />
 <!-- ══ PRIMARY SEO ══ -->
-<title>HTML Editor Online by Jignesh – Free Visual HTML Editor & Web Page Maker</title>
-<meta name="description" content="Free online HTML editor by Jignesh: Monaco code editor, live preview, and visual editing with automatic sync back to your HTML source. Drag, resize, rotate elements; templates, import/export, share links. Runs in your browser.">
-<meta name="keywords" content="html editor, html editor online, visual html editor, html viewer, html editor by jignesh, css visual editor, web page maker, online html editor, free html editor, live html editor, html code editor, html preview, html editor free, html builder, webpage builder, drag and drop html editor, html css editor, monaco html editor">
+<title>HTML Editor Online by Jignesh – Free AI Chat Builder & Visual HTML Editor</title>
+<meta name="description" content="Free online HTML editor by Jignesh: AI Chat Site Builder, Monaco code editor, live preview, and visual editing with automatic sync. Drag, resize, rotate elements; change display & position; templates, import/export, share links. Powered by AI.">
+<meta name="keywords" content="ai html editor, ai site builder, html editor, html editor online, visual html editor, html viewer, html editor by jignesh, css visual editor, web page maker, online html editor, free html editor, live html editor, html code editor, html preview, html builder, webpage builder, drag and drop html editor, monaco html editor, openrouter ai builder">
 <meta name="author" content="Jignesh">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
 <meta name="googlebot" content="index, follow">
@@ -634,6 +634,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
     display:none;position:fixed;inset:0;
     background:rgba(0,0,0,.5);backdrop-filter:blur(2px);z-index:100099;
   }
+}
 
 /* ── NEW FEATURES STYLES ── */
 #consolePanel { border-radius: 8px 8px 0 0; }
@@ -663,6 +664,243 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 .comp-name { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
 .comp-desc { font-size: 10px; color: var(--muted); }
 .comp-preview { height: 40px; background: var(--panel); border-radius: 4px; margin-top: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+
+/* AI CHAT SIDEBAR */
+.ai-chat-panel {
+  width: 380px;
+  min-width: 300px;
+  max-width: 650px;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: none;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1000;
+  height: 100%;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ai-chat-panel.minimized .ai-chat-messages,
+.ai-chat-panel.minimized .ai-chat-input-area {
+  display: none !important;
+}
+.ai-chat-panel.floating {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2000;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+  height: 600px;
+  max-height: 85vh;
+}
+.ai-chat-panel.open { display: flex; animation: slideIn 0.3s ease-out; }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.ai-chat-header {
+  padding: 12px 16px;
+  background: var(--sb);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.ai-chat-header-left { display: flex; align-items: center; gap: 8px; }
+.ai-chat-header-right { display: flex; align-items: center; gap: 6px; }
+.ai-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--bg);
+  scroll-behavior: smooth;
+}
+.ai-msg {
+  padding: 14px 18px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 85%;
+  word-wrap: break-word;
+  position: relative;
+  transition: transform 0.2s;
+}
+.ai-msg:hover { transform: translateY(-1px); }
+.ai-msg-user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, var(--accent), #4a42cc);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+.ai-msg-bot {
+  align-self: flex-start;
+  background: var(--panel);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+.ai-msg-code-change {
+  margin: 12px 0;
+  background: #0d1117;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: 'JetBrains Mono', monospace;
+  width: 100%;
+}
+.ai-msg-code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+}
+.ai-chat-input-area {
+  padding: 20px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ai-chat-input-wrapper {
+  position: relative;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ai-chat-input-wrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+.ai-chat-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  height: 80px;
+  outline: none;
+  display: block;
+}
+.ai-chat-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ai-chat-send {
+  background: linear-gradient(135deg, var(--accent), #4a42cc);
+  border: none;
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-chat-send:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
+.ai-chat-send:active { transform: translateY(0); }
+.ai-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ai-model-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  outline: none;
+}
+
+.ai-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ai-clear-btn:hover { color: var(--text); border-color: var(--muted); }
+
+.ai-apply-btn {
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.ai-apply-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+
+.ai-diff-container {
+  font-size: 12px;
+  max-height: 300px;
+  overflow: auto;
+  background: #000;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.diff-row { padding: 2px 6px; border-radius: 3px; }
+.diff-line-add { background: rgba(46, 160, 67, 0.15); color: #7ee787; border-left: 3px solid #2ea043; }
+.diff-line-rem { background: rgba(248, 81, 73, 0.15); color: #ffa198; border-left: 3px solid #f85149; }
+.diff-line-ctx { color: #8b949e; }
+
+/* THINKING STATE */
+.ai-thinking {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+  align-self: flex-start;
+  margin-right: 20px;
+  font-size: 14px;
+  color: var(--muted);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.ai-thinking.active { display: flex; }
+.ai-thinking-dots { display: flex; gap: 5px; }
+.ai-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: ai-bounce 1.4s infinite ease-in-out both;
+}
+.ai-dot:nth-child(1) { animation-delay: -0.32s; }
+.ai-dot:nth-child(2) { animation-delay: -0.16s; }
+@keyframes ai-bounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -681,6 +919,8 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   <div class="tb-div"></div>
   <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
   <button class="tb-btn on" id="liveBtn" onclick="toggleLive()">Auto ▶ ON</button>
+  <div class="tb-div"></div>
+  <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder">✨ AI Chat</button>
   <div class="tb-div"></div>
   <div class="tb-font-group">
     <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size">A−</button>
@@ -731,14 +971,17 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
     <div class="sb-label">Edit</div>
     <button class="sb-btn" onclick="openTemplatesModal()"><span class="sb-icon">🎨</span>Templates</button>
     <button class="sb-btn" onclick="openComponentLibrary()"><span class="sb-icon">🧩</span>UI Blocks</button>
+    <button class="sb-btn" onclick="toggleAiChat()"><span class="sb-icon">✨</span>AI Chat Builder</button>
+    <div class="sb-sep"></div>
+    <div class="sb-label">Tools</div>
     <button class="sb-btn" onclick="toggleLayersPanel()"><span class="sb-icon">📑</span>Layers</button>
     <button class="sb-btn" onclick="formatCode()"><span class="sb-icon">✨</span>Format</button>
     <button class="sb-btn" onclick="clearCode()"><span class="sb-icon">🗑</span>Clear</button>
     <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon">🖼</span>Insert image</button>
     <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon">♿</span>A11y check</button>
     <div class="sb-sep"></div>
-    <div class="sb-label">Tools</div>
-    <button class="sb-btn" onclick="openSeoModal()"><span class="sb-icon">🔍</span>SEO & Social</button>
+    <div class="sb-label">SEO & Social</div>
+    <button class="sb-btn" onclick="openSeoModal()"><span class="sb-icon">🔍</span>SEO Tools</button>
     <button class="sb-btn" onclick="exportAsImage()"><span class="sb-icon">🖼️</span>Export as Image</button>
     <button class="sb-btn" onclick="exportAsPDF()"><span class="sb-icon">📄</span>Export as PDF</button>
     <button class="sb-btn" onclick="openDeployModal()"><span class="sb-icon">🚀</span>Deploy to Web</button>
@@ -834,236 +1077,307 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
       </div>
     </div>
 
-    <!-- PROPERTY PANEL -->
-    <div class="prop-panel" id="propPanel">
-      <div class="pp-resizer" id="ppResizer"></div>
-      <div class="pp-header">
-        <span class="pp-tag" id="ppTag">div</span>
-        <span class="pp-hdr-spacer"></span>
-        <button class="pp-icon-btn" title="Duplicate element" onclick="duplicateEl()" aria-label="Duplicate element">⎘</button>
-        <button class="pp-icon-btn pp-del-btn" title="Delete element" onclick="deleteEl()">🗑</button>
-        <button class="pp-icon-btn" title="Float panel" onclick="toggleFloat('propPanel')">⛶</button>
-        <button class="pp-icon-btn" onclick="closePropPanel()">✕</button>
-      </div>
+    </div>
+  </div>
 
-      <!-- TEXT -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Text</div>
-        <div class="pp-field">
-          <div class="pp-field-label">Content</div>
-          <input class="pp-inp" id="pp-text" type="text" oninput="applyTypo()">
-        </div>
-        <div class="pp-row2">
-          <div>
-            <div class="pp-field-label">Font size</div>
-            <input class="pp-inp" id="pp-fs" type="number" placeholder="16" oninput="applyTypo()">
-          </div>
-          <div>
-            <div class="pp-field-label">Font weight</div>
-            <select class="pp-inp pp-sel" id="pp-fw" onchange="applyTypo()">
-              <option value="300">Light</option>
-              <option value="400">Regular</option>
-              <option value="600">Semi Bold</option>
-              <option value="700">Bold</option>
-              <option value="900">Black</option>
-            </select>
-          </div>
-        </div>
-        <div class="pp-field-label">Alignment</div>
-        <div class="pp-align-row">
-          <button class="pp-align-btn" data-align="left" onclick="applyAlign('left')" title="Left">&#8676;</button>
-          <button class="pp-align-btn" data-align="center" onclick="applyAlign('center')" title="Center">&#8660;</button>
-          <button class="pp-align-btn" data-align="right" onclick="applyAlign('right')" title="Right">&#8677;</button>
-          <button class="pp-align-btn" data-align="justify" onclick="applyAlign('justify')" title="Justify">&#8644;</button>
-        </div>
-      </div>
+  <!-- PROPERTY PANEL (Right Sidebar) -->
+  <div class="prop-panel" id="propPanel">
+    <div class="pp-resizer" id="ppResizer"></div>
+    <div class="pp-header">
+      <span class="pp-tag" id="ppTag">div</span>
+      <span class="pp-hdr-spacer"></span>
+      <button class="pp-icon-btn" title="Duplicate element" onclick="duplicateEl()" aria-label="Duplicate element">⎘</button>
+      <button class="pp-icon-btn pp-del-btn" title="Delete element" onclick="deleteEl()">🗑</button>
+      <button class="pp-icon-btn" title="Float panel" onclick="toggleFloat('propPanel')">⛶</button>
+      <button class="pp-icon-btn" onclick="closePropPanel()">✕</button>
+    </div>
 
-      <!-- APPEARANCE -->
-      <div class="pp-section">
-        <div class="pp-appearance-hdr">
-          <div class="pp-sec-label">Appearance</div>
-          <button type="button" class="pp-eyedropper-btn" id="ppEyeDropperBtn" onclick="propPanelEyeDropper()" title="Pick color from screen (Chrome, Edge, Opera)">Pick</button>
-        </div>
-        <div class="pp-field-label">Recent colors</div>
-        <div class="pp-recent-swatches" id="pp-recent-swatches"></div>
-        <div class="pp-field-label">Text</div>
-        <div class="pp-color-row" style="margin-bottom:7px">
-          <label class="pp-swatch"><input type="color" id="pp-color" oninput="syncColorHex('pp-color','pp-color-hex');applyTypo()" onchange="onPropColorPicked(this)"></label>
-          <input class="pp-hex" id="pp-color-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-color-hex','pp-color');applyTypo()" onblur="onPropHexBlur('pp-color-hex')">
-        </div>
-      <!-- SHADOWS -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Shadows</div>
-        <div class="pp-field-label">Box Shadow</div>
-        <div class="pp-4grid">
-          <div class="pp-4cell-num"><span>X</span><input type="number" id="pp-bs-x" placeholder="0" oninput="applyShadows()"></div>
-          <div class="pp-4cell-num"><span>Y</span><input type="number" id="pp-bs-y" placeholder="0" oninput="applyShadows()"></div>
-          <div class="pp-4cell-num"><span>B</span><input type="number" id="pp-bs-b" min="0" placeholder="0" oninput="applyShadows()"></div>
-          <div class="pp-4cell-num"><span>S</span><input type="number" id="pp-bs-s" placeholder="0" oninput="applyShadows()"></div>
-        </div>
-        <div class="pp-color-row" style="margin-bottom:7px">
-          <label class="pp-swatch"><input type="color" id="pp-bs-c" oninput="syncColorHex('pp-bs-c','pp-bs-c-hex');applyShadows()" value="#000000"></label>
-          <input class="pp-hex" id="pp-bs-c-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-bs-c-hex','pp-bs-c');applyShadows()">
-        </div>
-        <div class="pp-field-label">Text Shadow</div>
-        <div class="pp-4grid">
-          <div class="pp-4cell-num"><span>X</span><input type="number" id="pp-ts-x" placeholder="0" oninput="applyShadows()"></div>
-          <div class="pp-4cell-num"><span>Y</span><input type="number" id="pp-ts-y" placeholder="0" oninput="applyShadows()"></div>
-          <div class="pp-4cell-num"><span>B</span><input type="number" id="pp-ts-b" min="0" placeholder="0" oninput="applyShadows()"></div>
-        </div>
-        <div class="pp-color-row">
-          <label class="pp-swatch"><input type="color" id="pp-ts-c" oninput="syncColorHex('pp-ts-c','pp-ts-c-hex');applyShadows()" value="#000000"></label>
-          <input class="pp-hex" id="pp-ts-c-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-ts-c-hex','pp-ts-c');applyShadows()">
-        </div>
+    <!-- TEXT -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Text</div>
+      <div class="pp-field">
+        <div class="pp-field-label">Content</div>
+        <input class="pp-inp" id="pp-text" type="text" oninput="applyTypo()">
       </div>
-
-      <!-- FLEX & GRID -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Layout Mode (Flex/Grid)</div>
-        <div class="pp-field-label">Display</div>
-        <select class="pp-inp pp-sel" id="pp-display" onchange="applyFlexGrid()">
-          <option value="block">Block</option>
-          <option value="flex">Flex</option>
-          <option value="grid">Grid</option>
-          <option value="inline-block">Inline Block</option>
-          <option value="none">None</option>
-        </select>
-        <div id="pp-flex-grid-tools" style="display:none; margin-top:8px">
-          <div class="pp-field-label">Direction</div>
-          <div class="pp-grid-controls">
-            <button class="pp-grid-btn" data-prop="flexDirection" data-val="row" onclick="setFlexProp('flexDirection','row')">Row</button>
-            <button class="pp-grid-btn" data-prop="flexDirection" data-val="column" onclick="setFlexProp('flexDirection','column')">Col</button>
-          </div>
-          <div class="pp-field-label" style="margin-top:6px">Justify Content</div>
-          <div class="pp-grid-controls">
-            <button class="pp-grid-btn" data-prop="justifyContent" data-val="flex-start" onclick="setFlexProp('justifyContent','flex-start')">Start</button>
-            <button class="pp-grid-btn" data-prop="justifyContent" data-val="center" onclick="setFlexProp('justifyContent','center')">Center</button>
-            <button class="pp-grid-btn" data-prop="justifyContent" data-val="flex-end" onclick="setFlexProp('justifyContent','flex-end')">End</button>
-            <button class="pp-grid-btn" data-prop="justifyContent" data-val="space-between" onclick="setFlexProp('justifyContent','space-between')">Between</button>
-          </div>
-          <div class="pp-field-label" style="margin-top:6px">Align Items</div>
-          <div class="pp-grid-controls">
-            <button class="pp-grid-btn" data-prop="alignItems" data-val="flex-start" onclick="setFlexProp('alignItems','flex-start')">Start</button>
-            <button class="pp-grid-btn" data-prop="alignItems" data-val="center" onclick="setFlexProp('alignItems','center')">Center</button>
-            <button class="pp-grid-btn" data-prop="alignItems" data-val="flex-end" onclick="setFlexProp('alignItems','flex-end')">End</button>
-            <button class="pp-grid-btn" data-prop="alignItems" data-val="stretch" onclick="setFlexProp('alignItems','stretch')">Stretch</button>
-          </div>
-          <div class="pp-field-label" style="margin-top:6px">Gap (px)</div>
-          <input class="pp-inp" id="pp-gap" type="number" min="0" placeholder="0" oninput="applyFlexGrid()">
+      <div class="pp-row2">
+        <div>
+          <div class="pp-field-label">Font size</div>
+          <input class="pp-inp" id="pp-fs" type="number" placeholder="16" oninput="applyTypo()">
         </div>
-      </div>
-
-      <!-- BACKGROUND & GRADIENT -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Background</div>
-        <div class="pp-field-label">Color</div>
-        <div class="pp-color-row">
-          <label class="pp-swatch"><input type="color" id="pp-bg" oninput="syncColorHex('pp-bg','pp-bg-hex');applyBG()" onchange="onPropColorPicked(this)"></label>
-          <input class="pp-hex" id="pp-bg-hex" type="text" placeholder="#ffffff" oninput="syncHexColor('pp-bg-hex','pp-bg');applyBG()" onblur="onPropHexBlur('pp-bg-hex')">
-        </div>
-        <div class="pp-field-label" style="margin-top:6px">Gradient Builder</div>
-        <div class="gradient-preview" id="pp-gradient-preview"></div>
-        <div id="pp-gradient-controls">
-          <select class="pp-inp pp-sel" id="pp-grad-type" onchange="applyBG()" style="margin-bottom:6px">
-            <option value="none">No Gradient</option>
-            <option value="linear-gradient">Linear</option>
-            <option value="radial-gradient">Radial</option>
+        <div>
+          <div class="pp-field-label">Font weight</div>
+          <select class="pp-inp pp-sel" id="pp-fw" onchange="applyTypo()">
+            <option value="300">Light</option>
+            <option value="400">Regular</option>
+            <option value="600">Semi Bold</option>
+            <option value="700">Bold</option>
+            <option value="900">Black</option>
           </select>
-          <div id="pp-grad-tools" style="display:none">
-            <div class="pp-field-label">Angle (deg)</div>
-            <input class="pp-inp" id="pp-grad-angle" type="number" value="180" oninput="applyBG()" style="margin-bottom:6px">
-            <div id="pp-grad-stops"></div>
-            <button class="pp-grid-btn" onclick="addGradientStop()" style="width:100%; margin-top:4px">+ Add Stop</button>
-          </div>
-        </div>
-        <div class="pp-field-label" style="margin-top:8px">Opacity</div>
-        <div class="pp-unit-row">
-          <input class="pp-inp" id="pp-opacity" type="number" min="0" max="100" value="100" oninput="applyBG()">
-          <span class="pp-unit">%</span>
         </div>
       </div>
-
-      <!-- BORDER -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Border color</div>
-        <div class="pp-4grid">
-          <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-t" oninput="syncColorHex('pp-bc-t','pp-bc-t-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
-            <input type="text" id="pp-bc-t-hex" placeholder="#000" oninput="syncHexColor('pp-bc-t-hex','pp-bc-t');applyBorder()" onblur="onPropHexBlur('pp-bc-t-hex')">
-          </div>
-          <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-r" oninput="syncColorHex('pp-bc-r','pp-bc-r-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
-            <input type="text" id="pp-bc-r-hex" placeholder="#000" oninput="syncHexColor('pp-bc-r-hex','pp-bc-r');applyBorder()" onblur="onPropHexBlur('pp-bc-r-hex')">
-          </div>
-          <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-b" oninput="syncColorHex('pp-bc-b','pp-bc-b-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
-            <input type="text" id="pp-bc-b-hex" placeholder="#000" oninput="syncHexColor('pp-bc-b-hex','pp-bc-b');applyBorder()" onblur="onPropHexBlur('pp-bc-b-hex')">
-          </div>
-          <div class="pp-4cell">
-            <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-l" oninput="syncColorHex('pp-bc-l','pp-bc-l-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
-            <input type="text" id="pp-bc-l-hex" placeholder="#000" oninput="syncHexColor('pp-bc-l-hex','pp-bc-l');applyBorder()" onblur="onPropHexBlur('pp-bc-l-hex')">
-          </div>
-        </div>
-        <div class="pp-sec-label">Border width</div>
-        <div class="pp-4grid">
-          <div class="pp-4cell-num"><span>⬆</span><input type="number" id="pp-bw-t" min="0" placeholder="0" oninput="applyBorder()"></div>
-          <div class="pp-4cell-num"><span>➡</span><input type="number" id="pp-bw-r" min="0" placeholder="0" oninput="applyBorder()"></div>
-          <div class="pp-4cell-num"><span>⬇</span><input type="number" id="pp-bw-b" min="0" placeholder="0" oninput="applyBorder()"></div>
-          <div class="pp-4cell-num"><span>⬅</span><input type="number" id="pp-bw-l" min="0" placeholder="0" oninput="applyBorder()"></div>
-        </div>
-        <div class="pp-field-label">Border radius</div>
-        <input class="pp-inp" id="pp-br" type="number" min="0" placeholder="0" oninput="applyBorder()">
-      </div>
-
-      <!-- LAYOUT -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Layout</div>
-        <div class="pp-row2" style="margin-bottom:4px">
-          <div><div class="pp-field-label">X</div><input class="pp-inp" id="pp-x" type="number" oninput="applyLayout()"></div>
-          <div><div class="pp-field-label">Y</div><input class="pp-inp" id="pp-y" type="number" oninput="applyLayout()"></div>
-        </div>
-        <div class="pp-row2" style="margin-bottom:4px">
-          <div><div class="pp-field-label">Width</div><input class="pp-inp" id="pp-w" type="number" oninput="applyLayout()"></div>
-          <div><div class="pp-field-label">Height</div><input class="pp-inp" id="pp-h" type="number" oninput="applyLayout()"></div>
-        </div>
-        <div class="pp-field-label">Rotate</div>
-        <div class="pp-unit-row">
-          <input class="pp-inp" id="pp-rot" type="number" value="0" oninput="applyLayout()">
-          <span class="pp-unit">°</span>
-        </div>
-        <div class="pp-field-label" style="margin-top:6px">Z-index</div>
-        <div class="pp-layer-row">
-          <input class="pp-inp" id="pp-z" type="number" placeholder="auto" oninput="applyZIndex()" title="Stacking order (works best with position other than static)">
-          <div class="pp-layer-btns">
-            <button type="button" onclick="layerForward()" title="Increase z-index">Front +</button>
-            <button type="button" onclick="layerBack()" title="Decrease z-index">Back −</button>
-          </div>
-        </div>
-        <div class="pp-field-label" style="margin-top:6px">Margin</div>
-        <div class="pp-2col" style="margin-bottom:7px">
-          <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-mx" placeholder="0" oninput="applySpacing()"></div>
-          <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-my" placeholder="0" oninput="applySpacing()"></div>
-        </div>
-        <div class="pp-field-label">Padding</div>
-        <div class="pp-2col">
-          <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-px" placeholder="0" oninput="applySpacing()"></div>
-          <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-py" placeholder="0" oninput="applySpacing()"></div>
-        </div>
-      </div>
-
-      <!-- CUSTOM CSS -->
-      <div class="pp-section">
-        <div class="pp-sec-label">Custom CSS</div>
-        <textarea class="pp-textarea" id="pp-css" placeholder="color: red; padding: 10px;" oninput="applyCSS()"></textarea>
-      </div>
-
-      <!-- ACTIONS -->
-      <div class="pp-actions">
-        <button class="pp-discard" onclick="discardChanges()">Discard</button>
-        <button class="pp-save" type="button" onclick="syncToCode()" title="Also syncs automatically while you edit">Save to code</button>
+      <div class="pp-field-label">Alignment</div>
+      <div class="pp-align-row">
+        <button class="pp-align-btn" data-align="left" onclick="applyAlign('left')" title="Left">&#8676;</button>
+        <button class="pp-align-btn" data-align="center" onclick="applyAlign('center')" title="Center">&#8660;</button>
+        <button class="pp-align-btn" data-align="right" onclick="applyAlign('right')" title="Right">&#8677;</button>
+        <button class="pp-align-btn" data-align="justify" onclick="applyAlign('justify')" title="Justify">&#8644;</button>
       </div>
     </div>
 
+    <!-- APPEARANCE -->
+    <div class="pp-section">
+      <div class="pp-appearance-hdr">
+        <div class="pp-sec-label">Appearance</div>
+        <button type="button" class="pp-eyedropper-btn" id="ppEyeDropperBtn" onclick="propPanelEyeDropper()" title="Pick color from screen (Chrome, Edge, Opera)">Pick</button>
+      </div>
+      <div class="pp-field-label">Recent colors</div>
+      <div class="pp-recent-swatches" id="pp-recent-swatches"></div>
+      <div class="pp-field-label">Text</div>
+      <div class="pp-color-row" style="margin-bottom:7px">
+        <label class="pp-swatch"><input type="color" id="pp-color" oninput="syncColorHex('pp-color','pp-color-hex');applyTypo()" onchange="onPropColorPicked(this)"></label>
+        <input class="pp-hex" id="pp-color-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-color-hex','pp-color');applyTypo()" onblur="onPropHexBlur('pp-color-hex')">
+      </div>
+    </div>
+
+    <!-- SHADOWS -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Shadows</div>
+      <div class="pp-field-label">Box Shadow</div>
+      <div class="pp-4grid">
+        <div class="pp-4cell-num"><span>X</span><input type="number" id="pp-bs-x" placeholder="0" oninput="applyShadows()"></div>
+        <div class="pp-4cell-num"><span>Y</span><input type="number" id="pp-bs-y" placeholder="0" oninput="applyShadows()"></div>
+        <div class="pp-4cell-num"><span>B</span><input type="number" id="pp-bs-b" min="0" placeholder="0" oninput="applyShadows()"></div>
+        <div class="pp-4cell-num"><span>S</span><input type="number" id="pp-bs-s" placeholder="0" oninput="applyShadows()"></div>
+      </div>
+      <div class="pp-color-row" style="margin-bottom:7px">
+        <label class="pp-swatch"><input type="color" id="pp-bs-c" oninput="syncColorHex('pp-bs-c','pp-bs-c-hex');applyShadows()" value="#000000"></label>
+        <input class="pp-hex" id="pp-bs-c-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-bs-c-hex','pp-bs-c');applyShadows()">
+      </div>
+      <div class="pp-field-label">Text Shadow</div>
+      <div class="pp-4grid">
+        <div class="pp-4cell-num"><span>X</span><input type="number" id="pp-ts-x" placeholder="0" oninput="applyShadows()"></div>
+        <div class="pp-4cell-num"><span>Y</span><input type="number" id="pp-ts-y" placeholder="0" oninput="applyShadows()"></div>
+        <div class="pp-4cell-num"><span>B</span><input type="number" id="pp-ts-b" min="0" placeholder="0" oninput="applyShadows()"></div>
+      </div>
+      <div class="pp-color-row">
+        <label class="pp-swatch"><input type="color" id="pp-ts-c" oninput="syncColorHex('pp-ts-c','pp-ts-c-hex');applyShadows()" value="#000000"></label>
+        <input class="pp-hex" id="pp-ts-c-hex" type="text" placeholder="#000000" oninput="syncHexColor('pp-ts-c-hex','pp-ts-c');applyShadows()">
+      </div>
+    </div>
+
+    <!-- FLEX & GRID -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Layout Mode (Flex/Grid)</div>
+      <div class="pp-field-label">Display</div>
+      <select class="pp-inp pp-sel" id="pp-display" onchange="applyFlexGrid()">
+        <option value="block">Block</option>
+        <option value="flex">Flex</option>
+        <option value="grid">Grid</option>
+        <option value="inline-block">Inline Block</option>
+        <option value="none">None</option>
+      </select>
+      <div id="pp-flex-grid-tools" style="display:none; margin-top:8px">
+        <div class="pp-field-label">Direction</div>
+        <div class="pp-grid-controls">
+          <button class="pp-grid-btn" data-prop="flexDirection" data-val="row" onclick="setFlexProp('flexDirection','row')">Row</button>
+          <button class="pp-grid-btn" data-prop="flexDirection" data-val="column" onclick="setFlexProp('flexDirection','column')">Col</button>
+        </div>
+        <div class="pp-field-label" style="margin-top:6px">Justify Content</div>
+        <div class="pp-grid-controls">
+          <button class="pp-grid-btn" data-prop="justifyContent" data-val="flex-start" onclick="setFlexProp('justifyContent','flex-start')">Start</button>
+          <button class="pp-grid-btn" data-prop="justifyContent" data-val="center" onclick="setFlexProp('justifyContent','center')">Center</button>
+          <button class="pp-grid-btn" data-prop="justifyContent" data-val="flex-end" onclick="setFlexProp('justifyContent','flex-end')">End</button>
+          <button class="pp-grid-btn" data-prop="justifyContent" data-val="space-between" onclick="setFlexProp('justifyContent','space-between')">Between</button>
+        </div>
+        <div class="pp-field-label" style="margin-top:6px">Align Items</div>
+        <div class="pp-grid-controls">
+          <button class="pp-grid-btn" data-prop="alignItems" data-val="flex-start" onclick="setFlexProp('alignItems','flex-start')">Start</button>
+          <button class="pp-grid-btn" data-prop="alignItems" data-val="center" onclick="setFlexProp('alignItems','center')">Center</button>
+          <button class="pp-grid-btn" data-prop="alignItems" data-val="flex-end" onclick="setFlexProp('alignItems','flex-end')">End</button>
+          <button class="pp-grid-btn" data-prop="alignItems" data-val="stretch" onclick="setFlexProp('alignItems','stretch')">Stretch</button>
+        </div>
+        <div class="pp-field-label" style="margin-top:6px">Gap (px)</div>
+        <input class="pp-inp" id="pp-gap" type="number" min="0" placeholder="0" oninput="applyFlexGrid()">
+      </div>
+    </div>
+
+    <!-- BACKGROUND & GRADIENT -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Background</div>
+      <div class="pp-field-label">Color</div>
+      <div class="pp-color-row">
+        <label class="pp-swatch"><input type="color" id="pp-bg" oninput="syncColorHex('pp-bg','pp-bg-hex');applyBG()" onchange="onPropColorPicked(this)"></label>
+        <input class="pp-hex" id="pp-bg-hex" type="text" placeholder="#ffffff" oninput="syncHexColor('pp-bg-hex','pp-bg');applyBG()" onblur="onPropHexBlur('pp-bg-hex')">
+      </div>
+      <div class="pp-field-label" style="margin-top:6px">Gradient Builder</div>
+      <div class="gradient-preview" id="pp-gradient-preview"></div>
+      <div id="pp-gradient-controls">
+        <select class="pp-inp pp-sel" id="pp-grad-type" onchange="applyBG()" style="margin-bottom:6px">
+          <option value="none">No Gradient</option>
+          <option value="linear-gradient">Linear</option>
+          <option value="radial-gradient">Radial</option>
+        </select>
+        <div id="pp-grad-tools" style="display:none">
+          <div class="pp-field-label">Angle (deg)</div>
+          <input class="pp-inp" id="pp-grad-angle" type="number" value="180" oninput="applyBG()" style="margin-bottom:6px">
+          <div id="pp-grad-stops"></div>
+          <button class="pp-grid-btn" onclick="addGradientStop()" style="width:100%; margin-top:4px">+ Add Stop</button>
+        </div>
+      </div>
+      <div class="pp-field-label" style="margin-top:8px">Opacity</div>
+      <div class="pp-unit-row">
+        <input class="pp-inp" id="pp-opacity" type="number" min="0" max="100" value="100" oninput="applyBG()">
+        <span class="pp-unit">%</span>
+      </div>
+    </div>
+
+    <!-- BORDER -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Border color</div>
+      <div class="pp-4grid">
+        <div class="pp-4cell">
+          <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-t" oninput="syncColorHex('pp-bc-t','pp-bc-t-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+          <input type="text" id="pp-bc-t-hex" placeholder="#000" oninput="syncHexColor('pp-bc-t-hex','pp-bc-t');applyBorder()" onblur="onPropHexBlur('pp-bc-t-hex')">
+        </div>
+        <div class="pp-4cell">
+          <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-r" oninput="syncColorHex('pp-bc-r','pp-bc-r-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+          <input type="text" id="pp-bc-r-hex" placeholder="#000" oninput="syncHexColor('pp-bc-r-hex','pp-bc-r');applyBorder()" onblur="onPropHexBlur('pp-bc-r-hex')">
+        </div>
+        <div class="pp-4cell">
+          <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-b" oninput="syncColorHex('pp-bc-b','pp-bc-b-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+          <input type="text" id="pp-bc-b-hex" placeholder="#000" oninput="syncHexColor('pp-bc-b-hex','pp-bc-b');applyBorder()" onblur="onPropHexBlur('pp-bc-b-hex')">
+        </div>
+        <div class="pp-4cell">
+          <label class="pp-swatch" style="width:18px;height:18px"><input type="color" id="pp-bc-l" oninput="syncColorHex('pp-bc-l','pp-bc-l-hex');applyBorder()" onchange="onPropColorPicked(this)"></label>
+          <input type="text" id="pp-bc-l-hex" placeholder="#000" oninput="syncHexColor('pp-bc-l-hex','pp-bc-l');applyBorder()" onblur="onPropHexBlur('pp-bc-l-hex')">
+        </div>
+      </div>
+      <div class="pp-sec-label">Border width</div>
+      <div class="pp-4grid">
+        <div class="pp-4cell-num"><span>⬆</span><input type="number" id="pp-bw-t" min="0" placeholder="0" oninput="applyBorder()"></div>
+        <div class="pp-4cell-num"><span>➡</span><input type="number" id="pp-bw-r" min="0" placeholder="0" oninput="applyBorder()"></div>
+        <div class="pp-4cell-num"><span>⬇</span><input type="number" id="pp-bw-b" min="0" placeholder="0" oninput="applyBorder()"></div>
+        <div class="pp-4cell-num"><span>⬅</span><input type="number" id="pp-bw-l" min="0" placeholder="0" oninput="applyBorder()"></div>
+      </div>
+      <div class="pp-field-label">Border radius</div>
+      <input class="pp-inp" id="pp-br" type="number" min="0" placeholder="0" oninput="applyBorder()">
+    </div>
+
+    <!-- LAYOUT -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Layout</div>
+      <div class="pp-row2" style="margin-bottom:8px">
+        <div>
+          <div class="pp-field-label">Display</div>
+          <select class="pp-inp" id="pp-display" oninput="applyLayout()">
+            <option value="block">block</option>
+            <option value="inline-block">inline-block</option>
+            <option value="flex">flex</option>
+            <option value="grid">grid</option>
+            <option value="inline">inline</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+        <div>
+          <div class="pp-field-label">Position</div>
+          <select class="pp-inp" id="pp-pos" oninput="applyLayout()">
+            <option value="static">static</option>
+            <option value="relative">relative</option>
+            <option value="absolute">absolute</option>
+            <option value="fixed">fixed</option>
+            <option value="sticky">sticky</option>
+          </select>
+        </div>
+      </div>
+      <div class="pp-row2" style="margin-bottom:4px">
+        <div><div class="pp-field-label">X (Left)</div><input class="pp-inp" id="pp-x" type="number" oninput="applyLayout()"></div>
+        <div><div class="pp-field-label">Y (Top)</div><input class="pp-inp" id="pp-y" type="number" oninput="applyLayout()"></div>
+      </div>
+      <div class="pp-row2" style="margin-bottom:4px">
+        <div><div class="pp-field-label">Width</div><input class="pp-inp" id="pp-w" type="number" oninput="applyLayout()"></div>
+        <div><div class="pp-field-label">Height</div><input class="pp-inp" id="pp-h" type="number" oninput="applyLayout()"></div>
+      </div>
+      <div class="pp-field-label">Rotate</div>
+      <div class="pp-unit-row">
+        <input class="pp-inp" id="pp-rot" type="number" value="0" oninput="applyLayout()">
+        <span class="pp-unit">°</span>
+      </div>
+      <div class="pp-field-label" style="margin-top:6px">Z-index</div>
+      <div class="pp-layer-row">
+        <input class="pp-inp" id="pp-z" type="number" placeholder="auto" oninput="applyZIndex()" title="Stacking order (works best with position other than static)">
+        <div class="pp-layer-btns">
+          <button type="button" onclick="layerForward()" title="Increase z-index">Front +</button>
+          <button type="button" onclick="layerBack()" title="Decrease z-index">Back −</button>
+        </div>
+      </div>
+      <div class="pp-field-label" style="margin-top:6px">Margin</div>
+      <div class="pp-2col" style="margin-bottom:7px">
+        <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-mx" placeholder="0" oninput="applySpacing()"></div>
+        <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-my" placeholder="0" oninput="applySpacing()"></div>
+      </div>
+      <div class="pp-field-label">Padding</div>
+      <div class="pp-2col">
+        <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-px" placeholder="0" oninput="applySpacing()"></div>
+        <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-py" placeholder="0" oninput="applySpacing()"></div>
+      </div>
+    </div>
+
+    <!-- CUSTOM CSS -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Custom CSS</div>
+      <textarea class="pp-textarea" id="pp-css" placeholder="color: red; padding: 10px;" oninput="applyCSS()"></textarea>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="pp-actions">
+      <button class="pp-discard" onclick="discardChanges()">Discard</button>
+      <button class="pp-save" type="button" onclick="syncToCode()" title="Also syncs automatically while you edit">Save to code</button>
+    </div>
+  </div>
+
+  <!-- AI CHAT SIDEBAR (Right) -->
+  <div class="ai-chat-panel" id="aiChatPanel">
+    <div class="pp-resizer" id="aiResizer"></div>
+    <div class="ai-chat-header">
+      <div class="ai-chat-header-left">
+        <span class="pp-tag">AI Builder</span>
+        <select class="ai-model-select" id="aiModelSelect" title="Change AI Model">
+          <option value="openai">OpenAI (Default)</option>
+          <option value="mistral">Mistral</option>
+          <option value="llama">Llama</option>
+          <option value="gemini">Gemini</option>
+        </select>
+      </div>
+      <div class="ai-chat-header-right">
+        <button class="pp-icon-btn" id="aiMinimizeBtn" onclick="toggleAiMinimize()" title="Minimize/Expand" style="display:none">_</button>
+        <button class="ai-clear-btn" onclick="clearAiChat()" title="Clear Chat History">Clear</button>
+        <button class="pp-icon-btn" onclick="toggleFloat('aiChatPanel')" title="Float AI Chat">⛶</button>
+        <button class="pp-icon-btn" onclick="toggleAiChat()" title="Close Chat">✕</button>
+      </div>
+    </div>
+
+    <div class="ai-chat-messages" id="aiChatMessages">
+      <div class="ai-msg ai-msg-bot">Hello! I'm your AI site builder. Tell me what you want to create or edit, and I'll help you with the code.</div>
+      <div class="ai-thinking" id="aiThinking">
+        <div class="ai-thinking-dots">
+          <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+        </div>
+        <span>Thinking...</span>
+      </div>
+    </div>
+
+    <div class="ai-chat-input-area">
+      <div class="ai-chat-input-wrapper">
+        <textarea class="ai-chat-input" id="aiChatInput" placeholder="Ask AI to build or edit something..." onkeydown="handleAiChatKey(event)"></textarea>
+      </div>
+      <div class="ai-chat-footer">
+        <span style="font-size:10px; color:var(--muted)">Shift+Enter for new line</span>
+        <button class="ai-chat-send" id="aiChatSend" onclick="sendAiChatMessage()">
+          <span>Send</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -1083,10 +1397,12 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
       <span class="seo-summary-meta">Monaco, live preview, visual mode <span class="seo-more-hint">· more</span></span>
     </summary>
     <div class="seo-details-body">
-      <p><strong>HTML Editor by Jignesh</strong> is a free tool that runs in your browser. You get a real code editor (Monaco, the same family as VS Code), a live preview of your page, and optional visual editing so you can move elements and tweak styles without fighting the markup all day. Nothing to install—open the page and start typing.</p>
-      <h2>Edit HTML, CSS &amp; JS with Live Preview</h2>
-      <p>Use the <strong>HTML</strong>, <strong>CSS</strong>, and <strong>JavaScript</strong> tabs to work on each part of your document. The preview updates as you go. In Visual mode, click to select, drag to move, resize with handles, and edit text and colors; changes can sync back into your source automatically.</p>
-      <p>Built-in templates, import and export, share links and QR codes, named snapshots, responsive preview widths, dark and light themes, optional PWA install, and keyboard shortcuts for format and run are all included.</p>
+      <p><strong>HTML Editor by Jignesh</strong> is a free AI-powered tool that runs in your browser. You get a professional <strong>AI Chat Site Builder</strong> to generate code instantly, a real code editor (Monaco), a live preview, and advanced <strong>visual editing</strong>. Move elements with drag-and-drop, resize with handles, and tweak styles without touching the markup.</p>
+      <h2>AI-Powered Web Development</h2>
+      <p>Ask our built-in AI to create entire sections or fix bugs. The AI Chat supports multiple models including OpenAI, Gemini, and Mistral, and automatically applies code changes with a one-click "Undo" option. It's the ultimate <strong>AI HTML Editor</strong> for rapid prototyping.</p>
+      <h2>Visual CSS & Layout Editor</h2>
+      <p>Switch to Visual mode to select any element. Control <strong>Display</strong> (flex, grid, block), <strong>Position</strong> (relative, absolute, fixed), and precise coordinates. Changes sync back to your HTML source automatically.</p>
+      <p>Built-in templates, import/export, OpenRouter support, responsive previews, and dark themes make this the most versatile free web maker available.</p>
     </div>
   </details>
   <p class="seo-foot-links"><a href="best-html-editor-online-free.html">Best free HTML editor</a> · <a href="how-to-edit-html-online-without-software.html">Edit HTML without software</a> · <a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
@@ -2656,18 +2972,49 @@ function toggleLayersPanel(){
 }
 
 /* ─── Floating & Draggable Windows ─── */
+function toggleAiMinimize() {
+  const el = document.getElementById('aiChatPanel');
+  const btn = document.getElementById('aiMinimizeBtn');
+  if(!el.classList.contains('floating')) return;
+  
+  el.classList.toggle('minimized');
+  if(el.classList.contains('minimized')) {
+    el.style.height = '48px';
+    btn.innerText = '□';
+    btn.title = 'Expand AI Chat';
+  } else {
+    el.style.height = '600px';
+    btn.innerText = '_';
+    btn.title = 'Minimize AI Chat';
+  }
+}
+
 function toggleFloat(id){
   const el = document.getElementById(id);
   if(!el) return;
   const isFloating = el.classList.toggle('floating');
   if(isFloating){
-    el.style.width = '280px';
-    el.style.height = '500px';
+    el.style.width = '380px';
+    el.style.height = '600px';
     el.style.top = '100px';
-    el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - 400) + 'px';
-    makeDraggable(el, el.querySelector(id === 'sidebar' ? '.sb-header' : '.pp-header'));
+    
+    if(id === 'aiChatPanel') {
+      document.getElementById('aiMinimizeBtn').style.display = 'inline-flex';
+    }
+    
+    let handle;
+    if(id === 'sidebar') handle = el.querySelector('.sb-header');
+    else if(id === 'aiChatPanel') handle = el.querySelector('.ai-chat-header');
+    else handle = el.querySelector('.pp-header');
+    
+    el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
+    makeDraggable(el, handle);
   } else {
     el.style.cssText = '';
+    if(id === 'aiChatPanel') {
+      document.getElementById('aiMinimizeBtn').style.display = 'none';
+      el.classList.remove('minimized');
+    }
     // Restore sidebar width if needed
     if(id === 'sidebar') el.style.width = 'var(--sbW)';
   }
@@ -2675,6 +3022,7 @@ function toggleFloat(id){
 }
 
 function makeDraggable(el, handle){
+  if(!handle) return;
   let d = false, sx, sy, ox, oy;
   handle.onmousedown = (e) => {
     if(!el.classList.contains('floating')) return;
@@ -3284,6 +3632,8 @@ function fillProps(el){
   document.getElementById('ppTag').textContent=el.tagName.toLowerCase();
 
   // Layout
+  document.getElementById('pp-display').value=cs.display;
+  document.getElementById('pp-pos').value=cs.position;
   document.getElementById('pp-x').value=Math.round(r?r.left:0);
   document.getElementById('pp-y').value=Math.round(r?r.top:0);
   document.getElementById('pp-w').value=Math.round(r?r.width:0);
@@ -3391,7 +3741,7 @@ function fillProps(el){
 
 function clearProps(){
   document.getElementById('ppTag').textContent='—';
-  ['pp-x','pp-y','pp-w','pp-h','pp-rot','pp-z',
+  ['pp-display', 'pp-pos', 'pp-x','pp-y','pp-w','pp-h','pp-rot','pp-z',
    'pp-mx','pp-my','pp-px','pp-py',
    'pp-text','pp-fs','pp-opacity',
    'pp-bw-t','pp-bw-r','pp-bw-b','pp-bw-l','pp-br',
@@ -3419,13 +3769,19 @@ function clearProps(){
 
 function applyLayout(){
   if(!selectedEl) return;
+  const disp=document.getElementById('pp-display').value;
+  const pos=document.getElementById('pp-pos').value;
   const x=parseInt(document.getElementById('pp-x').value)||0;
   const y=parseInt(document.getElementById('pp-y').value)||0;
   const w=parseInt(document.getElementById('pp-w').value);
   const h=parseInt(document.getElementById('pp-h').value);
   const rot=parseFloat(document.getElementById('pp-rot').value)||0;
-  ensurePos(selectedEl);
-  selectedEl.style.left=x+'px'; selectedEl.style.top=y+'px';
+  
+  selectedEl.style.display=disp;
+  selectedEl.style.position=pos;
+  if(pos!=='static'){
+    selectedEl.style.left=x+'px'; selectedEl.style.top=y+'px';
+  }
   if(!isNaN(w)) selectedEl.style.width=w+'px';
   if(!isNaN(h)) selectedEl.style.height=h+'px';
   selectedEl.style.transform=`rotate(${rot}deg)`;
@@ -4072,6 +4428,449 @@ function deployToVercel() {
 function deployToNetlify() {
   toast('Netlify requires a GitHub repo or Drag & Drop. Use Export button then drop on Netlify.');
   window.open('https://app.netlify.com/drop', '_blank');
+}
+
+/* ─── AI Chat Panel Resize ─── */
+(function(){
+  const ap = document.getElementById('aiChatPanel');
+  const h = document.getElementById('aiResizer');
+  if(!h) return;
+  let d = false, sx, sw;
+  h.addEventListener('mousedown', e => {
+    d = true; sx = e.clientX; sw = ap.offsetWidth;
+    h.classList.add('active');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if(!d) return;
+    const dx = sx - e.clientX;
+    const nw = Math.min(500, Math.max(260, sw + dx));
+    ap.style.width = nw + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if(!d) return; d = false;
+    h.classList.remove('active');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+  });
+})();
+
+/* AI Chat Site Builder */
+let aiChatHistory = [];
+let lastCodeState = null; // Store for undo functionality
+
+// Auto-resize textarea
+document.addEventListener('input', function (e) {
+  if (e.target.id === 'aiChatInput') {
+    e.target.style.height = 'auto';
+    e.target.style.height = (e.target.scrollHeight) + 'px';
+    if (e.target.scrollHeight > 200) {
+      e.target.style.overflowY = 'auto';
+      e.target.style.height = '200px';
+    } else {
+      e.target.style.overflowY = 'hidden';
+    }
+  }
+});
+
+function toggleAiChat() {
+  const panel = document.getElementById('aiChatPanel');
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')) {
+    document.getElementById('aiChatInput').focus();
+    if (editor) editor.layout();
+  }
+}
+
+function clearAiChat() {
+  aiChatHistory = [];
+  const container = document.getElementById('aiChatMessages');
+  container.innerHTML = '<div class="ai-msg ai-msg-bot">Hello! I\'m your AI site builder. Tell me what you want to create or edit, and I\'ll help you with the code.</div>';
+}
+
+function handleAiChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendAiChatMessage();
+  }
+}
+
+async function sendAiChatMessage() {
+  const input = document.getElementById('aiChatInput');
+  const sendBtn = document.getElementById('aiChatSend');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const model = document.getElementById('aiModelSelect').value;
+
+  // Add user message to UI
+  addAiChatMessage(message, 'user');
+  input.value = '';
+  input.style.height = '80px'; // Reset height
+  
+  // Disable input and send button while thinking
+  input.disabled = true;
+  sendBtn.disabled = true;
+
+  // Show thinking state
+  const thinking = document.getElementById('aiThinking');
+  if (thinking) {
+    thinking.classList.add('active');
+    // Scroll thinking into view
+    thinking.parentElement.scrollTop = thinking.parentElement.scrollHeight;
+  }
+
+  // Prepare context with line numbers
+  const getCodeWithLines = (ed) => ed.getValue().split('\n').map((l, i) => `${i + 1}: ${l}`).join('\n');
+  
+  const htmlCode = getCodeWithLines(editor);
+  const cssCode = getCodeWithLines(cssEditor);
+  const jsCode = getCodeWithLines(jsEditor);
+  
+  // Get selected code/lines if any
+  const selection = editor.getSelection();
+  let selectedInfo = "";
+  if (selection && !selection.isEmpty()) {
+    const text = editor.getModel().getValueInRange(selection);
+    selectedInfo = `The user has selected lines ${selection.startLineNumber} to ${selection.endLineNumber}:\n${text}`;
+  }
+
+  const systemPrompt = `You are an expert web developer AI Site Builder. 
+The user is working in a live editor. You can see their code with line numbers below.
+
+Current HTML:
+${htmlCode}
+
+Current CSS:
+${cssCode}
+
+Current JS:
+${jsCode}
+
+${selectedInfo}
+
+RESPONSE RULES (follow strictly):
+1. Reply ONLY with helpful, clean text or code.
+2. Provide a SINGLE markdown code block with language "html".
+3. Inside this block, include ALL HTML, CSS (in <style> tags), and JS (in <script> tags).
+4. Do NOT use separate blocks for css or javascript.
+5. NEVER output JSON, raw API response, or internal reasoning.
+6. Do NOT explain your thought process unless the user asks.
+7. If a request is broad, provide a complete starter template immediately.
+8. Keep explanations brief and AFTER the code block.
+
+BEHAVIOR:
+- Be direct and helpful.
+- Assume the user wants working code, not theory.
+- ALWAYS provide the FULL updated code for the entire project in that single HTML block.`;
+
+  aiChatHistory.push({ role: "user", content: message });
+  if (aiChatHistory.length > 20) aiChatHistory.shift(); // Keep history manageable
+  
+  try {
+    const response = await fetch('https://text.pollinations.ai/openai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...aiChatHistory
+        ],
+        model: model,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const data = result.choices[0].message.content;
+    
+    // Hide thinking state
+    if (thinking) thinking.classList.remove('active');
+    
+    processAiResponse(data);
+    aiChatHistory.push({ role: "assistant", content: data });
+
+  } catch (error) {
+    console.error("AI Chat Error:", error);
+    
+    // Fallback 1: Simple GET to Pollinations
+    try {
+      const fallbackUrl = `https://text.pollinations.ai/${encodeURIComponent(message)}?model=${model}&system=${encodeURIComponent(systemPrompt)}`;
+      const fallbackResponse = await fetch(fallbackUrl);
+      if (!fallbackResponse.ok) throw new Error("Pollinations fallback failed");
+      const fallbackData = await fallbackResponse.text();
+      
+      if (thinking) thinking.classList.remove('active');
+      processAiResponse(fallbackData);
+      aiChatHistory.push({ role: "assistant", content: fallbackData });
+    } catch (fallbackError) {
+      console.error("AI Chat Fallback Error:", fallbackError);
+      
+      // Fallback 2: OpenRouter (if API key provided)
+      const openRouterKey = typeof OPENROUTER_API_KEY !== 'undefined' ? OPENROUTER_API_KEY : null;
+      if (openRouterKey) {
+        try {
+          const orResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${openRouterKey}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              "model": "openrouter/free",
+              "messages": [
+                { "role": "system", "content": systemPrompt },
+                ...aiChatHistory
+              ]
+            })
+          });
+          
+          if (orResponse.ok) {
+            const orData = await orResponse.json();
+            const orContent = orData.choices[0].message.content;
+            if (thinking) thinking.classList.remove('active');
+            processAiResponse(orContent);
+            aiChatHistory.push({ role: "assistant", content: orContent });
+            return;
+          }
+        } catch (orErr) {
+          console.error("OpenRouter Error:", orErr);
+        }
+      }
+
+      if (thinking) thinking.classList.remove('active');
+      addAiChatMessage("Error: All AI providers failed. Please check your network or API keys.", "bot");
+    }
+  } finally {
+    input.disabled = false;
+    sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+function addAiChatMessage(content, type, id = null) {
+  const container = document.getElementById('aiChatMessages');
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `ai-msg ai-msg-${type}`;
+  if (id) msgDiv.id = id;
+  
+  if (content.includes('✅ Applied') || content.includes('❌ Error')) {
+    const isOk = content.includes('✅');
+    const msg = content.replace(/[✅❌]\s*/, '');
+    msgDiv.innerHTML = `<div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:18px">${isOk ? '✅' : '❌'}</span>
+      <span style="font-weight:600">${msg}</span>
+    </div>`;
+  } else {
+    // Basic formatting for user messages too
+    msgDiv.innerText = content;
+  }
+  
+  container.appendChild(msgDiv);
+  // Smooth scroll to bottom
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  return msgDiv;
+}
+
+function processAiResponse(text) {
+  const container = document.getElementById('aiChatMessages');
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'ai-msg ai-msg-bot';
+  
+  const formatText = (t) => {
+    return t.trim()
+      .replace(/\n/g, '<br>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  };
+
+  const parts = text.split(/```/);
+  let autoApplied = false;
+
+  parts.forEach((part, index) => {
+    if (index % 2 === 0) {
+      const textSpan = document.createElement('div');
+      textSpan.innerHTML = formatText(part);
+      if(textSpan.innerText.trim() || textSpan.innerHTML.includes('<br>')) msgDiv.appendChild(textSpan);
+    } else {
+      const lines = part.split('\n');
+      const lang = lines[0].trim().toLowerCase() || 'code';
+      const code = lines.slice(1).join('\n').trim();
+      
+      // Auto-apply only the first HTML code block found
+      if (!autoApplied && lang === 'html') {
+        applyAiCode(lang, code, true); // true for auto-apply
+        autoApplied = true;
+      }
+
+      const codeContainer = document.createElement('div');
+      codeContainer.className = 'ai-msg-code-change';
+      
+      const header = document.createElement('div');
+      header.className = 'ai-msg-code-header';
+      header.innerHTML = `<span>${lang.toUpperCase()} ${autoApplied ? '(Auto-Applied)' : ''}</span>`;
+      
+      const btnGroup = document.createElement('div');
+      btnGroup.style.display = 'flex';
+      btnGroup.style.gap = '8px';
+
+      const diffBtn = document.createElement('button');
+      diffBtn.className = 'ai-clear-btn';
+      diffBtn.style.padding = '4px 10px';
+      diffBtn.innerText = 'Show Diff';
+      diffBtn.onclick = () => {
+        const diffArea = codeContainer.querySelector('.ai-diff-container');
+        if(diffArea.style.display === 'none') {
+          diffArea.innerHTML = getAiDiff(lang, code);
+          diffArea.style.display = 'block';
+          diffBtn.innerText = 'Hide Diff';
+        } else {
+          diffArea.style.display = 'none';
+          diffBtn.innerText = 'Show Diff';
+        }
+      };
+
+      const applyBtn = document.createElement('button');
+      applyBtn.className = 'ai-apply-btn';
+      applyBtn.innerText = autoApplied ? 'Re-Apply' : 'Apply Changes';
+      applyBtn.onclick = () => applyAiCode(lang, code);
+      
+      btnGroup.appendChild(diffBtn);
+      btnGroup.appendChild(applyBtn);
+      header.appendChild(btnGroup);
+      codeContainer.appendChild(header);
+      
+      const diffContainer = document.createElement('div');
+      diffContainer.className = 'ai-diff-container';
+      diffContainer.style.display = 'none';
+      codeContainer.appendChild(diffContainer);
+
+      const codePre = document.createElement('pre');
+      codePre.style.fontSize = '11px';
+      codePre.style.overflowX = 'auto';
+      codePre.style.margin = '0';
+      codePre.style.padding = '12px';
+      codePre.style.background = 'transparent';
+      codePre.style.whiteSpace = 'pre-wrap';
+      codePre.style.wordBreak = 'break-all';
+      codePre.innerText = code.length > 500 ? code.substring(0, 500) + '\n\n... (code truncated)' : code;
+      codeContainer.appendChild(codePre);
+      
+      msgDiv.appendChild(codeContainer);
+    }
+  });
+
+  // If auto-applied, add confirmation buttons
+  if (autoApplied) {
+    const confirmDiv = document.createElement('div');
+    confirmDiv.style.display = 'flex';
+    confirmDiv.style.gap = '10px';
+    confirmDiv.style.marginTop = '15px';
+    confirmDiv.style.justifyContent = 'center';
+    
+    confirmDiv.innerHTML = `
+      <button onclick="keepChanges(this)" class="ai-apply-btn" style="background:var(--green); color:#000; padding:8px 25px; border-radius:20px;">Keep</button>
+      <button onclick="undoChanges(this)" class="ai-clear-btn" style="padding:8px 25px; border-radius:20px; border-color:var(--red); color:var(--red)">Undo</button>
+    `;
+    msgDiv.appendChild(confirmDiv);
+  }
+  
+  container.appendChild(msgDiv);
+  container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+}
+
+function keepChanges(btn) {
+  lastCodeState = null;
+  btn.parentElement.innerHTML = '<span style="color:var(--green); font-weight:bold; font-size:12px;">✓ Changes Kept</span>';
+  toast('Changes finalized!');
+}
+
+function undoChanges(btn) {
+  if (lastCodeState) {
+    editor.setValue(lastCodeState.html);
+    cssEditor.setValue(lastCodeState.css);
+    jsEditor.setValue(lastCodeState.js);
+    runCode();
+    lastCodeState = null;
+    btn.parentElement.innerHTML = '<span style="color:var(--red); font-weight:bold; font-size:12px;">↺ Changes Undone</span>';
+    toast('Changes reverted');
+  }
+}
+
+function applyAiCode(lang, code, isAuto = false) {
+  try {
+    // Save state for undo BEFORE applying
+    if (isAuto) {
+      lastCodeState = {
+        html: editor.getValue(),
+        css: cssEditor.getValue(),
+        js: jsEditor.getValue()
+      };
+    }
+
+    const oldVal = (lang === 'html' ? editor.getValue() : (lang === 'css' ? cssEditor.getValue() : jsEditor.getValue()));
+    
+    if (lang === 'html') {
+      // If it's HTML, we should check if it contains style/script tags and strip them if necessary
+      // BUT the user wants them in one file, so we just set it to the main editor
+      editor.setValue(code);
+      // Optional: Clear CSS and JS editors if AI provides everything in HTML
+      if (isAuto && (code.includes('<style>') || code.includes('<script>'))) {
+        cssEditor.setValue('/* Styles moved to HTML <style> tag */');
+        jsEditor.setValue('// Scripts moved to HTML <script> tag');
+      }
+    }
+    else if (lang === 'css') cssEditor.setValue(code);
+    else if (lang === 'javascript' || lang === 'js') jsEditor.setValue(code);
+    
+    if (!isAuto) {
+      // Log manual changes
+      const diff = Diff.diffLines(oldVal, code);
+      let added = 0, removed = 0;
+      diff.forEach(part => {
+        if(part.added) added += part.count;
+        if(part.removed) removed += part.count;
+      });
+      addAiChatMessage(`✅ Applied ${lang.toUpperCase()} changes: ${added} lines added, ${removed} lines removed.`, 'bot');
+      toast(`${lang.toUpperCase()} changes applied!`);
+    } else {
+      toast('AI changes auto-applied!');
+    }
+    
+    runCode();
+  } catch (e) {
+    toast('Failed to apply changes');
+    console.error(e);
+  }
+}
+
+function getAiDiff(lang, newCode) {
+  let oldCode = "";
+  if (lang === 'html') oldCode = editor.getValue();
+  else if (lang === 'css') oldCode = cssEditor.getValue();
+  else if (lang === 'javascript' || lang === 'js') oldCode = jsEditor.getValue();
+
+  if (typeof Diff === 'undefined') return "Diff library not loaded";
+
+  const parts = Diff.diffLines(oldCode, newCode);
+  let html = '';
+  parts.forEach(part => {
+    const lines = part.value.split('\n');
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    lines.forEach(line => {
+      const esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      if (part.added) html += `<div class="diff-row diff-line-add">+ ${esc}</div>`;
+      else if (part.removed) html += `<div class="diff-row diff-line-rem">− ${esc}</div>`;
+      else if (parts.length < 20) html += `<div class="diff-row diff-line-ctx">  ${esc}</div>`; // Only show context if diff is small
+    });
+  });
+  return html || "No changes detected.";
 }
 
 function registerServiceWorker(){
