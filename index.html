@@ -15,11 +15,15 @@
 <meta name="theme-color" content="#6c63ff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="HTML Editor">
+<meta name="apple-mobile-web-app-title" content="HTML Editor by Jignesh">
+<meta name="application-name" content="HTML Editor by Jignesh">
 <link rel="canonical" href="https://html-viewer-gray-beta.vercel.app/">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="shortcut icon" href="favicon.ico">
 
 <!-- ══ OPEN GRAPH (Facebook / LinkedIn) ══ -->
 <meta property="og:type" content="website">
@@ -49,6 +53,30 @@
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "Organization",
+      "@id": "https://html-viewer-gray-beta.vercel.app/#organization",
+      "name": "HTML Editor by Jignesh",
+      "url": "https://html-viewer-gray-beta.vercel.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://html-viewer-gray-beta.vercel.app/logo-512x512.png",
+        "width": 512,
+        "height": 512
+      },
+      "sameAs": [
+        "https://github.com/jignesh1236"
+      ]
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://html-viewer-gray-beta.vercel.app/#website",
+      "url": "https://html-viewer-gray-beta.vercel.app/",
+      "name": "HTML Editor by Jignesh",
+      "alternateName": "HTML Editor Online",
+      "description": "Free online HTML editor and visual web page maker by Jignesh",
+      "publisher": { "@id": "https://html-viewer-gray-beta.vercel.app/#organization" }
+    },
+    {
       "@type": "WebApplication",
       "@id": "https://html-viewer-gray-beta.vercel.app/#app",
       "name": "HTML Editor by Jignesh",
@@ -60,6 +88,7 @@
       "applicationSubCategory": "HTMLEditor",
       "operatingSystem": "Any",
       "browserRequirements": "Requires JavaScript",
+      "author": { "@id": "https://html-viewer-gray-beta.vercel.app/#organization" },
       "offers": {
         "@type": "Offer",
         "price": "0",
@@ -82,22 +111,7 @@
         "Fullscreen live preview",
         "Snapshot diff comparison",
         "Optional Monaco minimap"
-      ],
-      "creator": {
-        "@type": "Person",
-        "name": "Jignesh"
-      }
-    },
-    {
-      "@type": "WebSite",
-      "@id": "https://html-viewer-gray-beta.vercel.app/#website",
-      "url": "https://html-viewer-gray-beta.vercel.app/",
-      "name": "HTML Editor by Jignesh",
-      "description": "Free online HTML editor and visual web page maker by Jignesh",
-      "publisher": {
-        "@type": "Person",
-        "name": "Jignesh"
-      }
+      ]
     },
     {
       "@type": "FAQPage",
