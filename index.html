@@ -20,10 +20,7 @@
 <link rel="canonical" href="https://html-viewer-gray-beta.vercel.app/">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-<link rel="shortcut icon" href="favicon.ico">
+<link rel="shortcut icon" type="image/svg+xml" href="icon.svg">
 
 <!-- ══ OPEN GRAPH (Facebook / LinkedIn) ══ -->
 <meta property="og:type" content="website">
@@ -229,6 +226,19 @@ body.pv-fs .mobile-bottom-nav,
 body.pv-fs .mobile-sidebar-backdrop{display:none!important}
 body.pv-fs .workspace{padding-bottom:0!important}
 body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;box-shadow:none!important}
+
+body.shared-preview-only .topbar,
+body.shared-preview-only .statusbar,
+body.shared-preview-only .seo-landing-summary{display:none!important}
+body.shared-preview-only .workspace{margin-top:0;height:100dvh;padding-bottom:0!important}
+body.shared-preview-only .sidebar,
+body.shared-preview-only #codePane,
+body.shared-preview-only #paneResizer{display:none!important}
+body.shared-preview-only #panels{flex:1;height:100%;min-height:0}
+body.shared-preview-only #previewPane{flex:1!important;width:100%!important;max-width:none!important;min-width:0!important}
+body.shared-preview-only .tb-hamburger,
+body.shared-preview-only .mobile-bottom-nav,
+body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 .skip-link{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;z-index:10001}
 .skip-link:focus{position:fixed;left:12px;top:calc(var(--topH) + 8px);width:auto;height:auto;padding:8px 14px;background:var(--accent);color:#fff;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:700;text-decoration:none;outline:2px solid var(--accent2);outline-offset:2px}
@@ -580,7 +590,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   .logo{font-size:13px;max-width:100%}
   .tb-right{margin-left:0;width:100%;justify-content:flex-end;flex-wrap:wrap; gap: 6px;}
   .tb-right .tb-stat:not(#stat-chars){display:none}
-  .tb-badge, .tb-font-group, #minimapToggleBtn, .tb-div { display: none !important; }
+  .tb-badge, .tb-font-group, .topbar #minimapToggleBtn, .tb-div { display: none !important; }
   #liveBtn, #themeToggleBtn { font-size: 10px; padding: 6px 12px; border-radius: 12px; }
 
   .pane-header{padding:6px 10px; font-size: 10px; min-height: 40px; position: sticky; top: 0; z-index: 5;}
@@ -908,7 +918,6 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">☰</button>
   <span class="logo">&#x3C;/&#x3E; HTML Editor by Jignesh</span>
   <div class="tb-div"></div>
   <div class="mode-tabs">
@@ -920,20 +929,14 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
   <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
   <button class="tb-btn on" id="liveBtn" onclick="toggleLive()">Auto ▶ ON</button>
   <div class="tb-div"></div>
-  <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder">✨ AI Chat</button>
-  <div class="tb-div"></div>
   <div class="tb-font-group">
     <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size">A−</button>
     <span class="tb-stat" id="fontSizeLabel" style="min-width:22px;text-align:center">13</span>
     <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size">A+</button>
   </div>
   <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme">Light</button>
-  <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap">Map</button>
   <div class="tb-right">
-    <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts">?</button>
-    <span class="tb-stat" id="stat-chars">0 chars</span>
-    <span class="tb-stat" style="color:var(--border)">|</span>
-    <span class="tb-stat" id="stat-lines">0 lines</span>
+    <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder">✨ AI Chat</button>
   </div>
 </div>
 
@@ -1012,6 +1015,7 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
           <button type="button" class="editor-doc-tab" id="tabDocJs" role="tab" aria-selected="false" onclick="setDocTab('js')">JS</button>
         </div>
         <div style="margin-left:auto; display:flex; gap:6px;">
+          <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap" style="padding: 3px 8px; font-size: 10px;">Map</button>
           <button class="tb-btn" onclick="copyHTML()" title="Copy HTML" style="padding: 3px 8px; font-size: 10px;">📋 Copy</button>
           <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px;">🔗 Link</button>
         </div>
@@ -1409,7 +1413,16 @@ body.pv-fs.mobile-sidebar-open .sidebar{transform:translateX(-100%)!important;bo
 </div>
 
 <!-- STATUSBAR -->
-<div class="statusbar"><span id="status-msg">Ready</span></div>
+<div class="statusbar">
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:28px">☰</button>
+  <span id="status-msg">Ready</span>
+  <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
+    <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts" style="padding:2px 8px;min-width:28px">?</button>
+    <span class="tb-stat" id="stat-chars">0 chars</span>
+    <span class="tb-stat" style="color:var(--border)">|</span>
+    <span class="tb-stat" id="stat-lines">0 lines</span>
+  </span>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
@@ -1641,6 +1654,8 @@ let editor, liveOn=true, liveTimer;
 let _ignoreEditorChangeForLive=false;
 let _visualSyncTimer=null;
 let currentMode='split';
+let sharedPreviewOnly=false;
+let _sharedPreviewUiApplied=false;
 let visualModeOn=false;
 let selectedEl=null;
 let autosaveTimer;
@@ -1979,6 +1994,14 @@ function tryGetSharedHtml(){
   return decoded;
 }
 
+function isSharedPreviewOnlyLink(){
+  try{
+    return new URLSearchParams(location.search).get('view')==='preview';
+  }catch(e){
+    return false;
+  }
+}
+
 function computeShareUrl(){
   if(!editor) return {error:'noEditor'};
   if(typeof LZString==='undefined') return {error:'noLib'};
@@ -1988,6 +2011,8 @@ function computeShareUrl(){
   if(!enc||enc.length>SHARE_MAX_COMPRESSED) return {error:'comp'};
   const u=new URL(location.href);
   u.searchParams.delete('c');
+  // Shared preview links should open in read-only preview mode.
+  u.searchParams.set('view','preview');
   u.hash='#c='+enc;
   const url=u.toString();
   if(url.length>2000000) return {error:'long'};
@@ -2267,6 +2292,10 @@ require(['vs/editor/editor.main'], () => {
   let initial=TEMPLATES.hero;
   let shared=null;
   try{ shared=tryGetSharedHtml(); }catch(e){}
+  sharedPreviewOnly = !!shared && isSharedPreviewOnlyLink();
+  if(sharedPreviewOnly){
+    try{ document.body.classList.add('shared-preview-only'); }catch(e){}
+  }
   if(shared){
     initial=shared;
   } else {
@@ -2280,6 +2309,7 @@ require(['vs/editor/editor.main'], () => {
     value: initial,
     language: 'html',
     automaticLayout: true,
+    readOnly: sharedPreviewOnly,
     fontSize: editorFontSize,
     fontFamily:"'JetBrains Mono',monospace",
     fontLigatures: true,
@@ -2344,14 +2374,18 @@ require(['vs/editor/editor.main'], () => {
     runCode();
     toast('Preview updated ▶');
   });
-  editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.Slash,()=>{formatCode();});
+  editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.Slash,()=>{
+    if(sharedPreviewOnly){ toast('Read-only shared preview'); return; }
+    formatCode();
+  });
 
   try{
     if(shared) toast('Loaded from share link');
     else if(initial!==TEMPLATES.hero&&initial.length) toast('Restored last draft 💾');
   }catch(e){}
 
-  if(window.matchMedia('(max-width:900px)').matches) setMode('preview');
+  if(sharedPreviewOnly) setMode('preview');
+  else if(window.matchMedia('(max-width:900px)').matches) setMode('preview');
   else setMode('split');
   runCode();
   setStatus('Editor ready');
@@ -2402,12 +2436,49 @@ function syncMobileBottomNav(){
 }
 function setMode(mode){
   if(document.body.classList.contains('pv-fs')) togglePreviewFullscreen();
+  if(sharedPreviewOnly && mode!=='preview') mode='preview';
   currentMode=mode;
   const cp=document.getElementById('codePane');
   const pr=document.getElementById('paneResizer');
   const pp=document.getElementById('previewPane');
 
   cp.style.cssText=''; pr.style.cssText=''; pp.style.cssText='';
+
+  if(sharedPreviewOnly && !_sharedPreviewUiApplied){
+    _sharedPreviewUiApplied=true;
+
+    // Hide editing mode tabs (Code/Visual) in topbar.
+    ['tab-code','tab-visual'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(el) el.style.display='none';
+    });
+
+    // Hide editing buttons in mobile bottom bar.
+    var mnavCode=document.getElementById('mnavCode');
+    if(mnavCode) mnavCode.style.display='none';
+    var mnavVisual=document.getElementById('mnavVisual');
+    if(mnavVisual) mnavVisual.style.display='none';
+
+    // Disable sidebar actions that could modify the editor.
+    var sb=document.getElementById('sidebar');
+    if(sb){
+      sb.querySelectorAll('.sb-btn').forEach(function(btn){
+        var oc=btn.getAttribute('onclick')||'';
+        var allowed = oc.includes('openNewTab') || oc.includes('runCode') || oc.includes('openQrShareModal');
+        if(!allowed){
+          btn.disabled=true;
+          btn.style.pointerEvents='none';
+          btn.style.opacity='0.55';
+        }
+      });
+    }
+
+    // Disable AI Chat button in topbar (it can generate/replace code).
+    try{
+      var aiBtn=document.querySelector('button[onclick="toggleAiChat()"]');
+      if(aiBtn){ aiBtn.disabled=true; aiBtn.style.pointerEvents='none'; aiBtn.style.opacity='0.55'; }
+    }catch(e){}
+  }
 
   if(mode==='code'){
     pp.style.display='none'; pr.style.display='none';
@@ -2426,9 +2497,10 @@ function setMode(mode){
     setVisualMode(false);
   }
 
+  var tabMode=(mode==='preview')?'split':mode;
   ['code','visual','split'].forEach(function(t){
     var el=document.getElementById('tab-'+t);
-    if(el) el.classList.toggle('active',t===mode);
+    if(el) el.classList.toggle('active',t===tabMode);
   });
   if(editor) editor.layout();
   setStatus('Mode: '+mode);
