@@ -211,6 +211,14 @@ html[data-theme="light"]{
 }
 
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif}
+
+/* Custom scrollbars */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;transition:background .2s}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+::-webkit-scrollbar-corner{background:transparent}
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 body.pv-fs{overflow:hidden}
 body.pv-fs .topbar,
 body.pv-fs .statusbar,
