@@ -428,8 +428,16 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .v-rotate:active{cursor:grabbing}
 
 /* ── VISUAL INFO BAR ── */
-.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:5px 14px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;pointer-events:none;flex-shrink:0}
-.visual-bar.show{display:block}
+.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:4px 10px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;flex-shrink:0;align-items:center;gap:8px}
+.visual-bar.show{display:flex}
+.vbar-btn{background:rgba(108,99,255,.15);border:1px solid var(--accent);color:var(--accent);font-size:10px;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0;pointer-events:all}
+.vbar-btn:hover{background:rgba(108,99,255,.28)}
+.vbar-btn.on{background:rgba(108,99,255,.35);border-color:var(--accent)}
+.ai-pick-btn{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:5px 11px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.ai-pick-btn:hover{background:var(--btnhov);border-color:var(--accent);color:var(--text)}
+.ai-pick-btn.active{border-color:var(--accent2);color:var(--accent2);background:rgba(255,95,135,.12);animation:pickPulse 1s infinite}
+.ai-pick-btn.picked{border-color:var(--green);color:var(--green);background:rgba(61,220,132,.12)}
+@keyframes pickPulse{0%,100%{opacity:1}50%{opacity:.65}}
 
 /* ── PROPERTY PANEL ── */
 .prop-panel{width:260px;min-width:220px;max-width:300px;background:var(--sb);border-left:1px solid var(--border);display:none;flex-direction:column;overflow-y:auto;flex-shrink:0;font-family:'JetBrains Mono',monospace;position:relative}
@@ -1047,7 +1055,10 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
         <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="previewHint"></span>
         <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="margin-left:8px">📟</button>
       </div>
-      <div class="visual-bar" id="visualBar">🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</div>
+      <div class="visual-bar" id="visualBar">
+        <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
+        <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure">↕ DOM Reorder: <span id="domReorderStatus">OFF</span></button>
+      </div>
       <div class="preview-viewport-wrap" id="previewViewportWrap">
         <div class="preview-viewport-inner" id="previewViewportInner">
       <iframe id="preview" title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
@@ -1375,7 +1386,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
         <textarea class="ai-chat-input" id="aiChatInput" placeholder="Ask AI to build or edit something..." onkeydown="handleAiChatKey(event)"></textarea>
       </div>
       <div class="ai-chat-footer">
-        <span style="font-size:10px; color:var(--muted)">Shift+Enter for new line</span>
+        <button class="ai-pick-btn" id="aiPickBtn" onclick="toggleAiPickMode()" title="Click an element in the preview to target it for AI editing">🎯 Pick Element</button>
         <button class="ai-chat-send" id="aiChatSend" onclick="sendAiChatMessage()">
           <span>Send</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -1658,6 +1669,9 @@ let sharedPreviewOnly=false;
 let _sharedPreviewUiApplied=false;
 let visualModeOn=false;
 let selectedEl=null;
+let domReorderMode=false;
+let aiPickedEl=null;
+let aiPickMode=false;
 let autosaveTimer;
 const DRAFT_KEY='html-editor-by-jignesh-draft';
 const THEME_KEY='html-editor-theme';
@@ -3223,7 +3237,8 @@ function setVisualMode(on){
   const visualBar = document.getElementById('visualBar');
   visualBar.classList.toggle('show',on);
   if(on) {
-    visualBar.textContent = isMobileLayout() ? '🎨 Visual: Tap to select · Drag to move' : '🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate';
+    const vbt=document.getElementById('visualBarText');
+    if(vbt) vbt.textContent=isMobileLayout()?'🎨 Visual: Tap to select · Drag to move':'🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate';
   }
   document.getElementById('previewHint').textContent=on?'🎨 Visual':'';
   if(on){
@@ -3284,6 +3299,7 @@ function positionSel(rect, el){
 }
 
 function iOnMove(e){
+  if(aiPickMode) return;
   if(!visualModeOn||isDragging||isResizing||isRotating) return;
   /* Show hover only when nothing is selected */
   if(selectedEl!==null){vHover.style.display='none';return;}
@@ -3297,6 +3313,7 @@ function iOnMove(e){
 }
 
 function iOnClick(e){
+  if(aiPickMode) return;
   if(!visualModeOn) return;
   /* Ignore clicks that fire right after a drag/resize/rotate ends */
   if(isDragging||isResizing||isRotating) return;
@@ -4039,34 +4056,185 @@ function syncToCode(){
   pushVisualDomToEditor({silent:false});
 }
 
+/* ─── DOM REORDER TOGGLE ─── */
+function toggleDomReorder(){
+  domReorderMode=!domReorderMode;
+  const btn=document.getElementById('domReorderBtnBar');
+  const status=document.getElementById('domReorderStatus');
+  if(btn) btn.classList.toggle('on',domReorderMode);
+  if(status) status.textContent=domReorderMode?'ON':'OFF';
+  toast('DOM Reorder: '+(domReorderMode?'ON ↕':'OFF'));
+}
+
+/* ─── AI PICK ELEMENT MODE ─── */
+function syncAiPickBtn(){
+  const btn=document.getElementById('aiPickBtn');
+  if(!btn) return;
+  if(aiPickedEl){
+    btn.textContent='✓ <'+aiPickedEl.tagName.toLowerCase()+'> · Clear';
+    btn.className='ai-pick-btn picked';
+  } else if(aiPickMode){
+    btn.textContent='🎯 Click any element...';
+    btn.className='ai-pick-btn active';
+  } else {
+    btn.textContent='🎯 Pick Element';
+    btn.className='ai-pick-btn';
+  }
+}
+function _aiPickClickHandler(e){
+  e.preventDefault();e.stopPropagation();
+  const el=e.target;
+  if(!el||el.tagName==='HTML'||el.tagName==='BODY') return;
+  aiPickedEl=el;
+  aiPickMode=false;
+  disableAiPickListener();
+  syncAiPickBtn();
+  toast('Element picked: <'+el.tagName.toLowerCase()+'> 🎯');
+}
+function enableAiPickListener(){
+  try{
+    const iDoc=iframeEl.contentDocument;
+    if(!iDoc||!iDoc.body) return;
+    iDoc.body.addEventListener('click',_aiPickClickHandler,{capture:true,once:false});
+    iDoc.body.style.cursor='crosshair';
+  }catch(e){}
+}
+function disableAiPickListener(){
+  try{
+    const iDoc=iframeEl.contentDocument;
+    if(!iDoc||!iDoc.body) return;
+    iDoc.body.removeEventListener('click',_aiPickClickHandler,true);
+    iDoc.body.style.cursor='';
+  }catch(e){}
+}
+function toggleAiPickMode(){
+  if(aiPickedEl){
+    aiPickedEl=null;
+    syncAiPickBtn();
+    toast('Element selection cleared');
+    return;
+  }
+  aiPickMode=!aiPickMode;
+  syncAiPickBtn();
+  if(aiPickMode){
+    toast('Click any element in the preview to pick it 🎯');
+    enableAiPickListener();
+  } else {
+    disableAiPickListener();
+  }
+}
+
 /* ─── DRAG MOVE ─── */
 (function(){
   let d=false,sx,sy,ox,oy;
+  let dropIndicator=null,dropTarget=null,dropBefore=true;
+
+  function getOrCreateDropIndicator(){
+    try{
+      const iDoc=iframeEl.contentDocument;
+      if(!dropIndicator||!iDoc.contains(dropIndicator)){
+        dropIndicator=iDoc.createElement('div');
+        dropIndicator.id='__v_drop_indicator__';
+        dropIndicator.style.cssText='position:fixed;left:4px;right:4px;height:3px;background:#6c63ff;z-index:2147483647;pointer-events:none;border-radius:2px;box-shadow:0 0 8px rgba(108,99,255,0.9);';
+        iDoc.body.appendChild(dropIndicator);
+      }
+      return dropIndicator;
+    }catch(e){return null;}
+  }
+
+  function removeDropIndicator(){
+    try{
+      if(dropIndicator&&dropIndicator.parentNode) dropIndicator.parentNode.removeChild(dropIndicator);
+    }catch(e){}
+    dropIndicator=null;
+  }
+
+  function getDropInfo(e){
+    try{
+      const iRect=iframeEl.getBoundingClientRect();
+      const ix=e.clientX-iRect.left;
+      const iy=e.clientY-iRect.top;
+      const iDoc=iframeEl.contentDocument;
+      const els=iDoc.elementsFromPoint(ix,iy);
+      let target=null;
+      for(const el of els){
+        if(el===selectedEl||selectedEl.contains(el)) continue;
+        if(el===iDoc.body||el===iDoc.documentElement) continue;
+        if(el.id==='__v_drop_indicator__') continue;
+        target=el;
+        break;
+      }
+      if(!target) return null;
+      const r=target.getBoundingClientRect();
+      const mid=r.top+r.height/2;
+      const before=iy<mid;
+      return{target,before,r,iy};
+    }catch(e){return null;}
+  }
+
   vSelInner.addEventListener('mousedown',e=>{
     if(!selectedEl)return;
     d=true;isDragging=true;sx=e.clientX;sy=e.clientY;
-    ensurePos(selectedEl);
-    ox=parseFloat(selectedEl.style.left)||0;
-    oy=parseFloat(selectedEl.style.top)||0;
+    if(!domReorderMode){
+      ensurePos(selectedEl);
+      ox=parseFloat(selectedEl.style.left)||0;
+      oy=parseFloat(selectedEl.style.top)||0;
+    }
     document.body.style.userSelect='none';
     document.body.style.cursor='move';
     lockIframe();
     e.preventDefault();e.stopPropagation();
   });
+
   document.addEventListener('mousemove',e=>{
     if(!d||!selectedEl)return;
-    selectedEl.style.left=(ox+(e.clientX-sx))+'px';
-    selectedEl.style.top =(oy+(e.clientY-sy))+'px';
-    document.getElementById('pp-x').value=Math.round(ox+(e.clientX-sx));
-    document.getElementById('pp-y').value=Math.round(oy+(e.clientY-sy));
-    const r=getRect(selectedEl);positionSel(r,selectedEl);
+    if(domReorderMode){
+      const info=getDropInfo(e);
+      if(info){
+        dropTarget=info.target;
+        dropBefore=info.before;
+        const ind=getOrCreateDropIndicator();
+        if(ind){
+          const y=dropBefore?info.r.top:info.r.bottom;
+          ind.style.top=(y-1)+'px';
+        }
+      }
+    } else {
+      selectedEl.style.left=(ox+(e.clientX-sx))+'px';
+      selectedEl.style.top =(oy+(e.clientY-sy))+'px';
+      document.getElementById('pp-x').value=Math.round(ox+(e.clientX-sx));
+      document.getElementById('pp-y').value=Math.round(oy+(e.clientY-sy));
+      const r=getRect(selectedEl);positionSel(r,selectedEl);
+    }
   });
+
   document.addEventListener('mouseup',()=>{
     if(!d)return;d=false;isDragging=false;
     document.body.style.userSelect='';
     document.body.style.cursor='';
     unlockIframe();
-    setStatus('Moved');
+    if(domReorderMode){
+      removeDropIndicator();
+      if(dropTarget&&dropTarget!==selectedEl&&!selectedEl.contains(dropTarget)){
+        try{
+          const parent=dropTarget.parentNode;
+          if(parent){
+            if(dropBefore){
+              parent.insertBefore(selectedEl,dropTarget);
+            } else {
+              const next=dropTarget.nextSibling;
+              if(next) parent.insertBefore(selectedEl,next);
+              else parent.appendChild(selectedEl);
+            }
+            setStatus('Element moved in DOM');
+            toast('Element moved in DOM ↕');
+          }
+        }catch(err){}
+        dropTarget=null;
+      }
+    } else {
+      setStatus('Moved');
+    }
     pushVisualDomToEditor({silent:true});
   });
 })();
@@ -4609,6 +4777,16 @@ async function sendAiChatMessage() {
     selectedInfo = `The user has selected lines ${selection.startLineNumber} to ${selection.endLineNumber}:\n${text}`;
   }
 
+  // Get AI-picked element context
+  let pickedElInfo = "";
+  if (aiPickedEl) {
+    try {
+      const tag = aiPickedEl.tagName.toLowerCase();
+      const outerHTML = aiPickedEl.outerHTML.slice(0, 3000);
+      pickedElInfo = `\n\nIMPORTANT — The user has specifically selected this element for editing:\nTag: <${tag}>\nHTML: ${outerHTML}\nFocus your changes on this specific element. Modify only this element and keep everything else the same unless the user says otherwise.`;
+    } catch(e) {}
+  }
+
   const systemPrompt = `You are an expert web developer AI Site Builder. 
 The user is working in a live editor. You can see their code with line numbers below.
 
@@ -4622,6 +4800,7 @@ Current JS:
 ${jsCode}
 
 ${selectedInfo}
+${pickedElInfo}
 
 RESPONSE RULES (follow strictly):
 1. Reply ONLY with helpful, clean text or code.
@@ -4637,6 +4816,9 @@ BEHAVIOR:
 - Be direct and helpful.
 - Assume the user wants working code, not theory.
 - ALWAYS provide the FULL updated code for the entire project in that single HTML block.`;
+
+  // Clear picked element after use (will be stale after iframe reload)
+  if(aiPickedEl){ aiPickedEl=null; syncAiPickBtn(); }
 
   aiChatHistory.push({ role: "user", content: message });
   if (aiChatHistory.length > 20) aiChatHistory.shift(); // Keep history manageable
