@@ -3,27 +3,37 @@
 
   <url>
     <loc>https://html-viewer-gray-beta.vercel.app/</loc>
-    <lastmod>2026-04-04T12:00:00+00:00</lastmod>
-  </url>
-
-  <url>
-    <loc>https://html-viewer-gray-beta.vercel.app/about.html</loc>
-    <lastmod>2026-04-04T12:00:00+00:00</lastmod>
-  </url>
-
-  <url>
-    <loc>https://html-viewer-gray-beta.vercel.app/privacy.html</loc>
-    <lastmod>2026-04-04T12:00:00+00:00</lastmod>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+    <priority>1.0</priority>
+    <changefreq>weekly</changefreq>
   </url>
 
   <url>
     <loc>https://html-viewer-gray-beta.vercel.app/best-html-editor-online-free.html</loc>
-    <lastmod>2026-04-04T18:00:00+00:00</lastmod>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
 
   <url>
     <loc>https://html-viewer-gray-beta.vercel.app/how-to-edit-html-online-without-software.html</loc>
-    <lastmod>2026-04-04T18:00:00+00:00</lastmod>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://html-viewer-gray-beta.vercel.app/about.html</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+    <priority>0.5</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <url>
+    <loc>https://html-viewer-gray-beta.vercel.app/privacy.html</loc>
+    <lastmod>2026-04-07T00:00:00+00:00</lastmod>
+    <priority>0.3</priority>
+    <changefreq>yearly</changefreq>
   </url>
 
 </urlset>

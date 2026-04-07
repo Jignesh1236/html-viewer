@@ -4,7 +4,7 @@ function scopeUrl(path) {
   return new URL(path, self.registration.scope).href;
 }
 
-const PRECACHE = ['index.html', 'manifest.json', 'icon.svg', 'og-image.png'].map(scopeUrl);
+const PRECACHE = ['index.html', 'manifest.json', 'icon.svg', 'og-image.png', 'apple-touch-icon.png', 'logo-512x512.png'].map(scopeUrl);
 
 self.addEventListener('install', function (e) {
   e.waitUntil(

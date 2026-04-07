@@ -1,6 +1,4 @@
-# https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
 
-# Replace with your production origin when you deploy elsewhere
 Sitemap: https://html-viewer-gray-beta.vercel.app/sitemap.xml
