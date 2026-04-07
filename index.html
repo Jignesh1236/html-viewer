@@ -603,12 +603,12 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
   .mobile-nav-btn.active{color:var(--accent);background:rgba(108,99,255,.12)}
   body.mobile-sidebar-open .mobile-sidebar-backdrop{display:block}
   html,body{height:100%;overflow:hidden;display:flex;flex-direction:column}
-  .topbar{flex-wrap:wrap;height:auto;min-height:var(--topH);padding:8px 12px;gap:8px;row-gap:6px;position:relative;flex-shrink:0}
-  .logo{font-size:13px;max-width:100%}
-  .tb-right{margin-left:0;width:100%;justify-content:flex-end;flex-wrap:wrap; gap: 6px;}
-  .tb-right .tb-stat:not(#stat-chars){display:none}
-  .tb-badge, .tb-font-group, .topbar #minimapToggleBtn, .tb-div { display: none !important; }
-  #liveBtn, #themeToggleBtn { font-size: 10px; padding: 6px 12px; border-radius: 12px; }
+  .topbar{flex-wrap:nowrap;height:var(--topH);min-height:var(--topH);padding:0 10px;gap:6px;position:fixed;top:0;left:0;right:0;overflow:hidden}
+  .logo{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;flex-shrink:1}
+  .tb-right{margin-left:auto;width:auto;flex-shrink:0;gap:5px}
+  .tb-badge, .tb-font-group, .topbar #minimapToggleBtn, .tb-div, #liveBtn { display: none !important; }
+  #themeToggleBtn { font-size: 10px; padding: 5px 10px; border-radius: 10px; }
+  .tb-right .tb-btn { font-size: 10px; padding: 5px 10px; border-radius: 10px; }
 
   .pane-header{padding:6px 10px; font-size: 10px; min-height: 40px; position: sticky; top: 0; z-index: 5;}
   .pane-header span:first-of-type { display: none; }
@@ -618,7 +618,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
   .workspace { 
     flex: 1 !important;
     height: auto !important;
-    margin-top: 0 !important;
+    margin-top: var(--topH) !important;
     display: flex; 
     flex-direction: column;
     overflow: hidden;
@@ -935,6 +935,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 <!-- TOPBAR -->
 <div class="topbar">
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:32px;font-size:16px">☰</button>
   <span class="logo">&#x3C;/&#x3E; HTML Editor by Jignesh</span>
   <div class="tb-div"></div>
   <div class="mode-tabs">
@@ -1434,7 +1435,6 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 <!-- STATUSBAR -->
 <div class="statusbar">
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:28px">☰</button>
   <span id="status-msg">Ready</span>
   <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
     <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts" style="padding:2px 8px;min-width:28px">?</button>
