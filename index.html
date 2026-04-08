@@ -4230,7 +4230,21 @@ function toggleTerminal() {
   if (btn) btn.classList.toggle('active', terminalOpen);
   if (terminalOpen) {
     document.getElementById('terminalInput').focus();
-    // No automatic boot here - let the user run commands first
+    
+    // Show a quick loading simulation if services aren't ready
+    if ((!webcontainerInstance && !webcontainerBooting) || (!pyodideInstance && !pyodideLoading)) {
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += Math.floor(Math.random() * 15) + 5;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+          termLog('✅ Terminal system ready.', '#00ff00', 'term-init');
+        } else {
+          termProgressBar(progress, 'Terminal is loading...', 'term-init');
+        }
+      }, 150);
+    }
   }
 }
 
@@ -4320,10 +4334,17 @@ async function handleTerminalCommand(cmdLine) {
 
     // Sync files to WebContainer before running
     if (cmd === 'node' || cmd === 'npm') {
-      termLog('Syncing project files...', '#94a3b8');
-      for (const [path, content] of virtualFS.entries()) {
+      const files = Array.from(virtualFS.entries());
+      const total = files.length;
+      termLog(`Syncing ${total} files...`, '#94a3b8');
+      
+      for (let i = 0; i < total; i++) {
+        const [path, content] = files[i];
+        const progress = Math.round(((i + 1) / total) * 100);
+        termProgressBar(progress, 'Syncing files...', 'file-sync');
         await writeToWebContainer(path, content);
       }
+      termLog('✅ Sync complete.', '#00ff00', 'file-sync');
     }
 
     try {
@@ -4383,13 +4404,31 @@ document.getElementById('terminalInput').addEventListener('keydown', (e) => {
   }
 });
 
-function termLog(msg, color = '#00ff00') {
+function termLog(msg, color = '#00ff00', id = null) {
   const out = document.getElementById('terminalOutput');
-  const span = document.createElement('div');
+  let span;
+  if (id) {
+    span = document.getElementById(`term-log-${id}`);
+  }
+  
+  if (!span) {
+    span = document.createElement('div');
+    if (id) span.id = `term-log-${id}`;
+    out.appendChild(span);
+  }
+  
   span.style.color = color;
   span.textContent = msg;
-  out.appendChild(span);
   out.scrollTop = out.scrollHeight;
+  return span;
+}
+
+function termProgressBar(percent, label = 'Progress', id = 'progress') {
+  const width = 40;
+  const filled = Math.round((percent / 100) * width);
+  const empty = width - filled;
+  const bar = `[${'#'.repeat(filled)}${'-'.repeat(empty)}] ${percent}%`;
+  termLog(`${label} ${bar}`, '#facc15', id);
 }
 
 function clearTerminal() {
