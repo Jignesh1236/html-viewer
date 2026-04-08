@@ -327,79 +327,90 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
   background:var(--sb);
   border-bottom:1px solid var(--border);
   display:flex;align-items:center;
-  padding:0 14px;gap:10px;
+  padding:0 12px;gap:8px;
   z-index:1000;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 .logo{
-  font-size:15px;font-weight:800;letter-spacing:-0.5px;
+  font-size:16px;font-weight:800;letter-spacing:-0.5px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
   white-space:nowrap;
+  margin-right: 4px;
 }
-.tb-div{width:1px;height:22px;background:var(--border)}
-.tb-badge{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-family:'JetBrains Mono',monospace;font-weight:600}
-.tb-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.tb-div{width:1px;height:20px;background:var(--border);margin:0 4px}
+.tb-badge{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--green);font-family:'JetBrains Mono',monospace;font-weight:700;letter-spacing:0.5px}
+.tb-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
 
-.tb-btn{background:var(--btn);border:1px solid var(--border);color:var(--text);font-size:11px;padding:5px 11px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap}
-.tb-btn:hover{background:var(--btnhov);border-color:var(--accent)}
-.tb-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.1)}
-.tb-btn.icon-only{padding:5px 10px;min-width:36px}
+.tb-btn{background:var(--btn);border:1px solid var(--border);color:var(--text);font-size:11px;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap;display:flex;align-items:center;gap:6px;font-weight:600}
+.tb-btn:hover{background:var(--btnhov);border-color:var(--accent);transform:translateY(-1px)}
+.tb-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.08)}
+.tb-btn.icon-only{padding:6px;min-width:32px;justify-content:center}
 
-.mode-tabs{display:flex;background:var(--btn);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-.mode-tab{padding:5px 13px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;border:none;background:transparent;color:var(--muted)}
-.mode-tab.active{background:var(--accent);color:#fff}
+.mode-tabs{display:flex;background:var(--btn);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
+.mode-tab{padding:5px 14px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 0.2s;border:none;background:transparent;color:var(--muted);border-radius:7px;font-weight:600;display:flex;align-items:center;gap:6px}
+.mode-tab:hover{color:var(--text)}
+.mode-tab.active{background:var(--panel);color:var(--accent);box-shadow: 0 2px 6px rgba(0,0,0,0.2)}
 
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
 .tb-stat{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
 .tb-font-group{display:flex;align-items:center;gap:4px}
 
 /* ── WORKSPACE ── */
-.workspace{display:flex;height:calc(100dvh - var(--topH));margin-top:var(--topH);overflow:hidden;padding-bottom:calc(20px + var(--seoFootH))}
+.workspace{display:flex;height:calc(100dvh - var(--topH) - 24px);margin-top:var(--topH);overflow:hidden;padding-bottom:0;background:var(--bg)}
 
 /* ── SIDEBAR ── */
-.sidebar{width:var(--sbW);min-width:140px;max-width:340px;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px;gap:3px;flex-shrink:0;overflow-y:auto;position:relative;user-select:none;transition: transform 0.3s ease, width 0.3s ease;}
+.sidebar{width:var(--sbW);min-width:140px;max-width:340px;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px;gap:3px;flex-shrink:0;overflow-y:auto;position:relative;user-select:none;transition: transform 0.3s ease, width 0.3s ease;scrollbar-width:none}
+.sidebar::-webkit-scrollbar{display:none}
 #fileSidebar { border-right: 1px solid var(--border); z-index: 100; }
 .sidebar-hidden #sidebar { display: none !important; }
 .sidebar-hidden #fileSidebar { display: none !important; }
 
-.file-tree { flex: 1; overflow-y: auto; margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
-.file-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
-.file-row:hover { background: var(--btnhov); }
-.file-ic { font-size: 14px; width: 18px; text-align: center; }
-.file-children { margin-left: 16px; border-left: 1px solid var(--border); display: none; }
+.file-tree { flex: 1; overflow-y: auto; margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; scrollbar-width: none}
+.file-tree::-webkit-scrollbar{display:none}
+.file-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; border-radius: 6px; transition: all 0.2s; color: var(--text); opacity: 0.85; }
+.file-row:hover { background: var(--btnhov); opacity: 1; transform: translateX(2px); }
+.file-row.active { background: rgba(108, 99, 255, 0.1); color: var(--accent); opacity: 1; border-left: 2px solid var(--accent); }
+.file-ic { font-size: 14px; width: 18px; text-align: center; display: flex; align-items: center; justify-content: center; }
+.file-children { margin-left: 14px; border-left: 1px solid var(--border); display: none; padding-left: 4px; }
 
-.sb-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:6px 8px 2px;font-family:'JetBrains Mono',monospace}
-.sb-sep{height:1px;background:var(--border);margin:5px 0}
-.sb-btn{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:600;transition:all .15s;width:100%;text-align:left}
-.sb-btn:hover{background:var(--btnhov);border-color:var(--border)}
-.sb-btn.primary{background:linear-gradient(135deg,var(--accent),#4a42cc);color:#fff;border-color:transparent}
-.sb-btn.primary:hover{filter:brightness(1.15)}
-.sb-icon{font-size:14px;flex-shrink:0}
+.sb-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);padding:12px 10px 6px;font-family:'JetBrains Mono',monospace;font-weight:700}
+.sb-sep{height:1px;background:var(--border);margin:8px 8px}
+.sb-btn{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:600;transition:all 0.15s;width:100%;text-align:left;opacity:0.9}
+.sb-btn:hover{background:var(--btnhov);border-color:var(--border);opacity:1;transform:translateX(2px)}
+.sb-btn.primary{background:linear-gradient(135deg,var(--accent),#4a42cc);color:#fff;border-color:transparent;box-shadow: 0 4px 12px rgba(108, 99, 255, 0.2);opacity:1}
+.sb-btn.primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.sb-icon{font-size:16px;flex-shrink:0;opacity:0.8}
 
-.sb-toolbar{display:flex;align-items:center;gap:6px;padding:6px 8px}
-.sb-icbtn{background:var(--btn);border:1px solid var(--border);color:var(--muted);padding:6px;border-radius:6px;font-size:12px;cursor:pointer;line-height:1;min-width:28px}
-.sb-icbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.08)}
+.sb-toolbar{display:flex;align-items:center;gap:4px;padding:4px 8px;margin-bottom:8px}
+.sb-icbtn{background:transparent;border:1px solid transparent;color:var(--muted);padding:6px;border-radius:6px;font-size:14px;cursor:pointer;line-height:1;transition:all 0.2s;display:flex;align-items:center;justify-content:center}
+.sb-icbtn:hover{border-color:var(--border);color:var(--accent);background:rgba(108,99,255,0.05);transform:translateY(-1px)}
 
 .sb-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;transition:background .2s;z-index:10}
 .sb-resizer:hover,.sb-resizer.active{background:var(--accent);opacity:.6}
 #termResizer:hover,#termResizer.active{background:var(--accent);opacity:.6}
 
 /* ── PANELS ── */
-.panels{flex:1;display:flex;min-width:0;overflow:hidden;position:relative}
+.panels{flex:1;display:flex;min-width:0;overflow:hidden;position:relative;background:var(--bg)}
 
-.pane{display:flex;flex-direction:column;min-width:80px;overflow:hidden}
-.pane-header{min-height:32px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:wrap;padding:6px 12px;gap:7px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);flex-shrink:0}
-.pane-dot{width:7px;height:7px;border-radius:50%}
-.pd-code{background:var(--accent)}.pd-preview{background:var(--accent2)}
-.code-pane-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.editor-doc-tabs{display:flex;gap:4px;margin-left:10px;align-items:center;flex-wrap:nowrap;overflow-x:auto}
-.editor-doc-tab{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
-.editor-doc-tab .tab-ic{font-size:14px;display:flex;align-items:center}
-.editor-doc-tab .tab-close{font-size:12px;opacity:0.5;margin-left:4px}
-.editor-doc-tab .tab-close:hover{opacity:1;color:var(--accent2)}
-.editor-doc-tab:hover{color:var(--text);background:var(--btnhov)}
-.editor-doc-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.12)}
+.pane{display:flex;flex-direction:column;min-width:80px;overflow:hidden;background:var(--panel);transition:flex 0.2s ease}
+.pane-header{min-height:36px;background:var(--sb);border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:nowrap;padding:0 12px;gap:8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);flex-shrink:0;user-select:none}
+.pane-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pd-code{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.pd-preview{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
+.code-pane-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+
+/* Modern Tabs */
+.editor-doc-tabs{display:flex;gap:2px;margin-left:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;height:100%;scrollbar-width:none}
+.editor-doc-tabs::-webkit-scrollbar{display:none}
+.editor-doc-tab{background:transparent;border:none;color:var(--muted);font-size:11px;padding:0 12px;height:100%;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 0.2s;display:flex;align-items:center;gap:6px;white-space:nowrap;position:relative;border-right:1px solid transparent}
+.editor-doc-tab:hover{color:var(--text);background:rgba(255,255,255,0.03)}
+.editor-doc-tab.active{color:var(--text);background:var(--panel);border-right:1px solid var(--border);border-left:1px solid var(--border)}
+.editor-doc-tab.active::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}
+.editor-doc-tab .tab-ic{font-size:14px;display:flex;align-items:center;opacity:0.7}
+.editor-doc-tab.active .tab-ic{opacity:1}
+
 .css-editor-ta{display:none;flex:1;min-width:0;width:100%;padding:12px 14px;background:var(--bg);color:var(--text);border:none;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.58;resize:none;outline:none;box-sizing:border-box}
 .css-editor-ta.show{display:block}
 .css-editor-ta:focus{box-shadow:inset 0 0 0 1px var(--accent)}
@@ -616,8 +627,8 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .pp-save:hover{filter:brightness(1.2)}
 
 /* ── STATUSBAR ── */
-.statusbar{position:fixed;bottom:0;left:0;right:0;height:20px;background:var(--accent);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--status-fg);z-index:999}
-#status-msg{font-weight:700}
+.statusbar{position:fixed;bottom:0;left:0;right:0;height:24px;background:var(--sb);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);z-index:999;box-shadow: 0 -2px 10px rgba(0,0,0,0.1);}
+#status-msg{font-weight:700;color:var(--accent)}
 
 /* ── TOAST ── */
 .toast{position:fixed;bottom:calc(28px + 20px + var(--seoFootH));right:18px;background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:10px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:9999}
@@ -1016,27 +1027,39 @@ body.sidebar-hidden #paneResizer{display:none!important}
   40% { transform: scale(1); opacity: 1; }
 }
 .browser-tab {
-  padding: 4px 12px;
-  background: var(--btn);
-  border: 1px solid var(--border);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  font-size: 10px;
+  padding: 0 12px;
+  background: transparent;
+  border: none;
+  height: 100%;
+  font-size: 11px;
   color: var(--muted);
   cursor: pointer;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   transition: all 0.2s;
+  position: relative;
+  font-family: 'JetBrains Mono', monospace;
+}
+.browser-tab:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.03);
 }
 .browser-tab.active {
   background: var(--panel);
   color: var(--text);
-  border-color: var(--accent);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
 }
-.browser-tab:hover {
-  background: var(--btnhov);
+.browser-tab.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent2);
 }
 .browser-tab-close {
   font-size: 12px;
@@ -1053,28 +1076,28 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex"><i class="codicon codicon-menu"></i></button>
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="tb-file-hamburger" onclick="toggleFileSidebar()" aria-label="Toggle file sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex"><i class="codicon codicon-files"></i></button>
-  <span class="logo">&#x3C;/&#x3E; HTML Editor</span>
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><i class="codicon codicon-menu"></i></button>
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="tb-file-hamburger" onclick="toggleFileSidebar()" aria-label="Toggle file sidebar"><i class="codicon codicon-files"></i></button>
+  <span class="logo">J-IDE</span>
   <div class="tb-div"></div>
-  <div class="mode-tabs">
-    <button class="mode-tab" id="tab-code" onclick="setMode('code')"><i class="codicon codicon-code" style="margin-right:4px"></i>Code</button>
-    <button class="mode-tab" id="tab-visual" onclick="setMode('visual')"><i class="codicon codicon-eye" style="margin-right:4px"></i>Visual</button>
-    <button class="mode-tab active" id="tab-split" onclick="setMode('split')"><i class="codicon codicon-split-horizontal" style="margin-right:4px"></i>Split</button>
-  </div>
-  <div class="tb-div"></div>
-  <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
-  <button class="tb-btn on" id="liveBtn" onclick="toggleLive()"><i class="codicon codicon-refresh" style="margin-right:4px"></i>Auto ON</button>
-  <button class="tb-btn" onclick="toggleTerminal()" title="Toggle Terminal"><i class="codicon codicon-terminal" style="margin-right:4px"></i>Terminal</button>
-  <div class="tb-div"></div>
-  <div class="tb-font-group">
-    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size"><i class="codicon codicon-dash"></i></button>
-    <span class="tb-stat" id="fontSizeLabel" style="min-width:22px;text-align:center">13</span>
-    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size"><i class="codicon codicon-add"></i></button>
-  </div>
-  <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme"><i class="codicon codicon-color-mode"></i></button>
+    <div class="mode-tabs">
+      <button class="mode-tab" id="tab-code" onclick="setMode('code')"><i class="codicon codicon-code"></i>Code</button>
+      <button class="mode-tab" id="tab-visual" onclick="setMode('visual')"><i class="codicon codicon-eye"></i>Visual</button>
+      <button class="mode-tab active" id="tab-split" onclick="setMode('split')"><i class="codicon codicon-split-horizontal"></i>Split</button>
+    </div>
+    <div class="tb-div"></div>
+    <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
+    <button class="tb-btn on" id="liveBtn" onclick="toggleLive()"><i class="codicon codicon-refresh"></i>Auto ON</button>
+    <button class="tb-btn" onclick="toggleTerminal()" title="Toggle Terminal"><i class="codicon codicon-terminal"></i>Terminal</button>
+    <div class="tb-div"></div>
+    <div class="tb-font-group">
+      <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size"><i class="codicon codicon-dash"></i></button>
+      <span class="tb-stat" id="fontSizeLabel" style="min-width:22px;text-align:center">13</span>
+      <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size"><i class="codicon codicon-add"></i></button>
+    </div>
   <div class="tb-right">
-    <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder"><i class="codicon codicon-sparkle" style="margin-right:4px"></i>AI Chat</button>
+    <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme"><i class="codicon codicon-color-mode"></i></button>
+    <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder"><i class="codicon codicon-sparkle"></i>AI Chat</button>
   </div>
 </div>
 
@@ -1162,14 +1185,13 @@ body.sidebar-hidden #paneResizer{display:none!important}
     <div class="pane" id="codePane" style="flex:1">
       <div class="pane-header">
         <div class="pane-dot pd-code"></div>
-        <span>Document</span>
         <div class="editor-doc-tabs" id="editorTabs" role="tablist" aria-label="Editor tabs">
           <!-- Dynamic tabs will be injected here -->
         </div>
-        <div style="margin-left:auto; display:flex; gap:6px;">
-          <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap" style="padding: 3px 8px; font-size: 10px;">Map</button>
-          <button class="tb-btn" onclick="copyHTML()" title="Copy HTML" style="padding: 3px 8px; font-size: 10px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-copy"></i> Copy</button>
-          <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-link"></i> Link</button>
+        <div style="margin-left:auto; display:flex; gap:6px; height: 100%; align-items: center;">
+          <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap" style="padding: 3px 8px; font-size: 10px; height: 24px;">Map</button>
+          <button class="tb-btn" onclick="copyHTML()" title="Copy HTML" style="padding: 3px 8px; font-size: 10px; height: 24px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-copy"></i> Copy</button>
+          <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px; height: 24px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-link"></i> Link</button>
         </div>
       </div>
       <div class="code-pane-body" id="codePaneBody">
@@ -1186,13 +1208,13 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
     <!-- PREVIEW PANE -->
     <div class="preview-pane pane" id="previewPane" style="flex:1">
-      <div class="pane-header" style="padding-bottom:0">
+      <div class="pane-header">
         <div class="pane-dot pd-preview"></div>
-        <div id="browserTabs" style="display:flex; gap:4px; overflow-x:auto; flex:1; align-self: flex-end; padding-bottom:0; margin-left: 4px;">
+        <div id="browserTabs" style="display:flex; gap:2px; overflow-x:auto; height: 100%; align-items: center; margin-left: 8px; scrollbar-width: none;">
           <!-- Tabs will be injected here -->
         </div>
-        <div class="pv-tools" id="viewportTools" title="Preview width" style="margin-left:auto"> 
-          <select id="viewportSelect" onchange="setViewport(this.value)" title="Preview size" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;outline:none;"> 
+        <div class="pv-tools" id="viewportTools" title="Preview width" style="margin-left:auto; display: flex; align-items: center; gap: 4px; height: 100%;"> 
+          <select id="viewportSelect" onchange="setViewport(this.value)" title="Preview size" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;outline:none;height: 24px;"> 
             <option value="full" selected>Full</option> 
             <option value="390">Mobile (390px)</option> 
             <option value="768">Tablet (768px)</option> 
@@ -1200,10 +1222,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
             <option value="480">Mobile L (480px)</option> 
             <option value="1440">Wide (1440px)</option> 
           </select> 
-          <button type="button" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)">⛶ Full</button> 
+          <button type="button" class="tb-btn" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)" style="padding: 3px 8px; font-size: 10px; height: 24px;">⛶ Full</button> 
+          <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="padding: 0 4px;"><i class="codicon codicon-terminal"></i></button>
         </div>
-        <span style="font-size:10px;color:var(--muted)" id="previewHint"></span>
-        <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="margin-left:8px"><i class="codicon codicon-terminal"></i></button>
       </div>
       <div class="visual-bar" id="visualBar">
         <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;"><i class="codicon codicon-symbol-color"></i> Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
@@ -1211,11 +1232,11 @@ body.sidebar-hidden #paneResizer{display:none!important}
       </div>
 
       <!-- BROWSER UI -->
-      <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:4px 8px; gap:4px;">
-        <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:16px; padding:4px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
-          <span style="color:var(--muted)"><i class="codicon codicon-lock"></i></span>
-          <input id="browserUrlInput" type="text" readonly style="flex:1; background:transparent; border:none; color:var(--text); outline:none;" value="about:blank">
-          <button class="pp-icon-btn" onclick="runCode()" title="Reload"><i class="codicon codicon-refresh"></i></button>
+      <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:6px 12px; gap:4px;">
+        <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:2px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
+          <span style="color:var(--muted); font-size:12px;"><i class="codicon codicon-lock"></i></span>
+          <input id="browserUrlInput" type="text" readonly style="flex:1; background:transparent; border:none; color:var(--muted); outline:none; height: 24px;" value="about:blank">
+          <button class="pp-icon-btn" onclick="runCode()" title="Reload" style="font-size: 12px;"><i class="codicon codicon-refresh"></i></button>
         </div>
       </div>
 
@@ -1584,23 +1605,8 @@ Type 'help' for available commands.
 </nav>
 
 <!-- Footer: compact by default; full copy stays in DOM inside <details> for SEO -->
-<div class="seo-landing-summary">
-  <details class="seo-details">
-    <summary class="seo-summary-row">
-      <h1 class="seo-summary-h1">Free HTML Editor Online</h1>
-      <span class="seo-summary-meta">Monaco, live preview, visual mode <span class="seo-more-hint">· more</span></span>
-    </summary>
-    <div class="seo-details-body">
-      <p><strong>HTML Editor by Jignesh</strong> is a free AI-powered tool that runs in your browser. You get a professional <strong>AI Chat Site Builder</strong> to generate code instantly, a real code editor (Monaco), a live preview, and advanced <strong>visual editing</strong>. Move elements with drag-and-drop, resize with handles, and tweak styles without touching the markup.</p>
-      <h2>AI-Powered Web Development</h2>
-      <p>Ask our built-in AI to create entire sections or fix bugs. The AI Chat supports multiple models including OpenAI, Gemini, and Mistral, and automatically applies code changes with a one-click "Undo" option. It's the ultimate <strong>AI HTML Editor</strong> for rapid prototyping.</p>
-      <h2>Visual CSS & Layout Editor</h2>
-      <p>Switch to Visual mode to select any element. Control <strong>Display</strong> (flex, grid, block), <strong>Position</strong> (relative, absolute, fixed), and precise coordinates. Changes sync back to your HTML source automatically.</p>
-      <p>Built-in templates, import/export, OpenRouter support, responsive previews, and dark themes make this the most versatile free web maker available.</p>
-    </div>
-  </details>
-  <p class="seo-foot-links"><a href="best-html-editor-online-free.html">Best free HTML editor</a> · <a href="how-to-edit-html-online-without-software.html">Edit HTML without software</a> · <a href="about.html">About</a> · <a href="privacy.html">Privacy</a></p>
-</div>
+<!-- SEO Content Removed -->
+
 
 <!-- STATUSBAR -->
 <div class="statusbar">
@@ -2538,8 +2544,7 @@ require(['vs/editor/editor.main'], () => {
   updateEditorTabs();
 
   editor = monaco.editor.create(document.getElementById('editor'), {
-    value: initial,
-    language: 'html',
+    theme: appTheme==='light'?'vs':'vs-dark',
     automaticLayout: true,
     readOnly: sharedPreviewOnly,
     fontSize: editorFontSize,
@@ -2553,47 +2558,29 @@ require(['vs/editor/editor.main'], () => {
     smoothScrolling:true,
     cursorBlinking:'smooth',
     cursorSmoothCaretAnimation:'on',
+    bracketPairColorization: { enabled: true },
+    formatOnPaste: true,
+    formatOnType: true,
   });
 
-  const auxOptions = {
-    automaticLayout: true,
-    fontSize: editorFontSize,
-    fontFamily:"'JetBrains Mono',monospace",
-    lineHeight: Math.round(editorFontSize*1.615),
-    minimap:{enabled:minimapEnabled},
-    scrollBeyondLastLine:false,
-    wordWrap:'on',
-    padding:{top:10},
-    smoothScrolling:true,
-  };
+  // Create initial model
+  if (currentPath) {
+    const lang = getLanguageByFilename(currentPath);
+    const model = monaco.editor.createModel(initial, lang, monaco.Uri.parse('file:///' + currentPath));
+    editor.setModel(model);
+  } else {
+    editor.setValue(initial);
+  }
 
-  cssEditor = monaco.editor.create(document.getElementById('cssEditor'), {
-    ...auxOptions,
-    value: '',
-    language: 'css',
-  });
-
-  jsEditor = monaco.editor.create(document.getElementById('jsEditor'), {
-    ...auxOptions,
-    value: '',
-    language: 'javascript',
-  });
-
-  // Hide the auxiliary editors - we only need one multi-language editor
-  if(document.getElementById('cssEditor')) document.getElementById('cssEditor').remove();
-  if(document.getElementById('jsEditor')) document.getElementById('jsEditor').remove();
-  if(document.getElementById('cssEditorArea')) document.getElementById('cssEditorArea').remove();
-  if(document.getElementById('jsEditorArea')) document.getElementById('jsEditorArea').remove();
-
-  cssEditor.onDidChangeModelContent(()=>{
-    if(currentDocTab!=='css') return;
-    onCssEditorInput();
-  });
-
-  jsEditor.onDidChangeModelContent(()=>{
-    if(currentDocTab!=='js') return;
-    onJsEditorInput();
-  });
+  // Remove redundant editors
+  const cssEl = document.getElementById('cssEditor');
+  const jsEl = document.getElementById('jsEditor');
+  const cssArea = document.getElementById('cssEditorArea');
+  const jsArea = document.getElementById('jsEditorArea');
+  if(cssEl) cssEl.remove();
+  if(jsEl) jsEl.remove();
+  if(cssArea) cssArea.remove();
+  if(jsArea) jsArea.remove();
 
   editor.onDidChangeModelContent(()=>{
     updateStats();
@@ -3227,28 +3214,69 @@ function updateEditorTabs() {
   });
 }
 
+function getLanguageByFilename(filename) {
+  const ext = filename.split('.').pop().toLowerCase();
+  
+  // Web Languages
+  if(['html','htm','jsp','asp','aspx'].includes(ext)) return 'html';
+  if(ext === 'css') return 'css';
+  if(ext === 'scss') return 'scss';
+  if(ext === 'less') return 'less';
+  if(['js','javascript','mjs','cjs'].includes(ext)) return 'javascript';
+  if(['ts','typescript','tsx'].includes(ext)) return 'typescript';
+  
+  // Data / Config
+  if(ext === 'json') return 'json';
+  if(['xml','svg','xaml'].includes(ext)) return 'xml';
+  if(['yaml','yml'].includes(ext)) return 'yaml';
+  if(['md','markdown'].includes(ext)) return 'markdown';
+  
+  // Programming Languages
+  if(['c','h'].includes(ext)) return 'c';
+  if(['cpp','hpp','cc','cxx'].includes(ext)) return 'cpp';
+  if(['cs','csharp'].includes(ext)) return 'csharp';
+  if(ext === 'java') return 'java';
+  if(['py','python','pyw'].includes(ext)) return 'python';
+  if(ext === 'php') return 'php';
+  if(['go','golang'].includes(ext)) return 'go';
+  if(['rs','rust'].includes(ext)) return 'rust';
+  
+  // Others
+  if(ext === 'sql') return 'sql';
+  if(ext === 'sh' || ext === 'bash') return 'shell';
+  if(ext === 'bat' || ext === 'cmd') return 'bat';
+  if(ext === 'ini') return 'ini';
+  if(ext === 'lua') return 'lua';
+  if(ext === 'rb' || ext === 'ruby') return 'ruby';
+  if(ext === 'swift') return 'swift';
+  if(ext === 'dart') return 'dart';
+  if(ext === 'kt' || ext === 'kotlin') return 'kotlin';
+  
+  return 'plaintext';
+}
+
 function switchEditorTab(index) {
   browserTabs.forEach((t, i) => t.active = (i === index));
   const tab = browserTabs[index];
   if(tab) {
     currentPath = tab.path;
     const content = virtualFS.get(currentPath) || '';
-    
-    // Auto-detect language by extension
-    const ext = tab.name.split('.').pop().toLowerCase();
-    let lang = 'plaintext';
-    if(ext === 'html' || ext === 'htm') lang = 'html';
-    else if(ext === 'css') lang = 'css';
-    else if(ext === 'js' || ext === 'javascript') lang = 'javascript';
-    else if(ext === 'json') lang = 'json';
-    else if(ext === 'md') lang = 'markdown';
-    else if(ext === 'ts') lang = 'typescript';
-    else if(ext === 'py') lang = 'python';
+    const lang = getLanguageByFilename(tab.name);
     
     if(editor) {
-      const model = editor.getModel();
-      if(model) monaco.editor.setModelLanguage(model, lang);
-      editor.setValue(content);
+      // Manage Monaco models for better syntax highlighting
+      let model = monaco.editor.getModels().find(m => m.uri.path === '/' + currentPath);
+      if(!model) {
+        model = monaco.editor.createModel(content, lang, monaco.Uri.parse('file:///' + currentPath));
+      } else {
+        monaco.editor.setModelLanguage(model, lang);
+        if(model.getValue() !== content) {
+          _ignoreEditorChangeForLive = true;
+          model.setValue(content);
+          _ignoreEditorChangeForLive = false;
+        }
+      }
+      editor.setModel(model);
     }
   }
   updateEditorTabs();
@@ -4064,19 +4092,16 @@ function toggleTerminal() {
   panel.style.display = terminalOpen ? 'flex' : 'none';
   if (terminalOpen) {
     document.getElementById('terminalInput').focus();
-    if (!webcontainerInstance && !webcontainerBooting) bootWebContainer();
+    // No automatic boot here - let the user run commands first
   }
 }
 
 async function handleTerminalCommand(cmdLine) {
+  const inputEl = document.getElementById('terminalInput');
   termLog(`~/project${currentTermDir} $ ${cmdLine}`, '#3b82f6');
   
-  if (webcontainerBooting) {
-    termLog('Please wait, WebContainer is still booting...', '#facc15');
-    return;
-  }
-
-  const parts = cmdLine.split(' ');
+  const parts = cmdLine.split(' ').filter(Boolean);
+  if (parts.length === 0) return;
   const cmd = parts[0];
   const args = parts.slice(1);
 
@@ -4085,8 +4110,45 @@ async function handleTerminalCommand(cmdLine) {
     return;
   }
 
-  // Handle Python Command
-  if (cmd === 'python' || cmd === 'python3') {
+  if (cmd === 'help') {
+    termLog('Available commands:', '#facc15');
+    termLog('  node <file.js>   - Run Node.js (WebContainer)', '#fff');
+    termLog('  npm <args>       - Node Package Manager', '#fff');
+    termLog('  python <file.py> - Run Python (Pyodide)', '#fff');
+    termLog('  pip install <pkg>- Install Python packages', '#fff');
+    termLog('  ls               - List files', '#fff');
+    termLog('  clear            - Clear terminal', '#fff');
+    return;
+  }
+
+  // Route to Python (Pyodide)
+  if (cmd === 'python' || cmd === 'python3' || cmd === 'pip') {
+    if (!pyodideInstance && !pyodideLoading) {
+      termLog('Starting Python service (Pyodide)...', '#facc15');
+      await bootPyodide();
+    }
+    
+    if (pyodideLoading) {
+      termLog('Python is still loading, please wait...', '#facc15');
+      return;
+    }
+
+    if (cmd === 'pip' && args[0] === 'install') {
+      const pkgs = args.slice(1);
+      if (pkgs.length > 0) {
+        termLog(`Installing Python packages: ${pkgs.join(', ')}...`, '#facc15');
+        try {
+          await pyodideInstance.loadPackage(pkgs);
+          termLog('Successfully installed packages.', '#00ff00');
+        } catch (e) {
+          termLog(`Failed to install: ${e.message}`, '#ef4444');
+        }
+      } else {
+        termLog('Usage: pip install <package_name>', '#facc15');
+      }
+      return;
+    }
+
     if (args[0]) {
       const code = virtualFS.get(args[0]);
       if (code) {
@@ -4100,27 +4162,50 @@ async function handleTerminalCommand(cmdLine) {
     return;
   }
 
-  if (!webcontainerInstance) {
-    // Fallback Mock Mode if WebContainer failed to boot
-    handleMockCommand(cmd, args);
+  // Route to Node.js (WebContainer)
+  if (cmd === 'node' || cmd === 'npm' || cmd === 'ls') {
+    if (!webcontainerInstance && !webcontainerBooting) {
+      termLog('Starting Node.js service (WebContainer)...', '#facc15');
+      await bootWebContainer();
+    }
+
+    if (webcontainerBooting) {
+      termLog('Node.js is still booting, please wait...', '#facc15');
+      return;
+    }
+
+    if (!webcontainerInstance) {
+      handleMockCommand(cmd, args);
+      return;
+    }
+
+    // Sync files to WebContainer before running
+    if (cmd === 'node' || cmd === 'npm') {
+      termLog('Syncing project files...', '#94a3b8');
+      for (const [path, content] of virtualFS.entries()) {
+        await writeToWebContainer(path, content);
+      }
+    }
+
+    try {
+      const process = await webcontainerInstance.spawn(cmd, args);
+      process.output.pipeTo(new WritableStream({
+        write(data) {
+          termLog(data, '#fff');
+        }
+      }));
+      
+      const exitCode = await process.exit;
+      if (exitCode !== 0) {
+        termLog(`Process exited with code ${exitCode}`, '#ef4444');
+      }
+    } catch (err) {
+      termLog(`Failed to execute: ${err.message}`, '#ef4444');
+    }
     return;
   }
 
-  try {
-    const process = await webcontainerInstance.spawn(cmd, args);
-    process.output.pipeTo(new WritableStream({
-      write(data) {
-        termLog(data, '#fff');
-      }
-    }));
-    
-    const exitCode = await process.exit;
-    if (exitCode !== 0) {
-      termLog(`Process exited with code ${exitCode}`, '#ef4444');
-    }
-  } catch (err) {
-    termLog(`Failed to execute: ${err.message}`, '#ef4444');
-  }
+  termLog(`Command '${cmd}' not recognized. Type 'help' for options.`, '#ef4444');
 }
 
 function handleMockCommand(cmd, args) {
