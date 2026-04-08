@@ -171,6 +171,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <!-- VS Code Codicons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.27/dist/codicon.css">
+<!-- VS Code Icons SVG API -->
+<script src="https://cdn.jsdelivr.net/npm/vscode-icons-svg@2.0.0/dist/vscode-icons-svg.js"></script>
 <style>
   .codicon { font-size: 14px !important; display: inline-block !important; vertical-align: middle; }
 </style>
@@ -1054,6 +1056,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
   <div class="tb-div"></div>
   <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
   <button class="tb-btn on" id="liveBtn" onclick="toggleLive()"><i class="codicon codicon-refresh" style="margin-right:4px"></i>Auto ON</button>
+  <button class="tb-btn" onclick="toggleTerminal()" title="Toggle Terminal"><i class="codicon codicon-terminal" style="margin-right:4px"></i>Terminal</button>
   <div class="tb-div"></div>
   <div class="tb-font-group">
     <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size"><i class="codicon codicon-dash"></i></button>
@@ -1235,10 +1238,27 @@ body.sidebar-hidden #paneResizer{display:none!important}
       <div id="consolePanel" style="display:none; position:absolute; bottom:0; left:0; right:0; height:150px; background:var(--sb); border-top:1px solid var(--border); z-index:100; flex-direction:column;">
         <div class="pane-header" style="padding:4px 12px; min-height:28px;">
           <span>Console</span>
-          <button class="pp-icon-btn" onclick="clearConsole()" style="margin-left:auto;">🗑</button>
-          <button class="pp-icon-btn" onclick="toggleConsole()">✕</button>
+          <button class="pp-icon-btn" onclick="clearConsole()" style="margin-left:auto;"><i class="codicon codicon-clear-all"></i></button>
+          <button class="pp-icon-btn" onclick="toggleConsole()"><i class="codicon codicon-close"></i></button>
         </div>
         <div id="consoleLogs" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:11px; white-space:pre-wrap;"></div>
+      </div>
+
+      <!-- TERMINAL -->
+      <div id="terminalPanel" style="display:none; position:absolute; bottom:0; left:0; right:0; height:200px; background:#000; color:#fff; border-top:1px solid var(--border); z-index:101; flex-direction:column;">
+        <div class="pane-header" style="padding:4px 12px; min-height:28px; background:#1e1e1e; border-bottom:1px solid #333;">
+          <span style="color:#ccc; font-size:11px;"><i class="codicon codicon-terminal" style="margin-right:6px"></i>Terminal</span>
+          <button class="pp-icon-btn" onclick="clearTerminal()" title="Clear Terminal" style="margin-left:auto; color:#ccc;"><i class="codicon codicon-clear-all"></i></button>
+          <button class="pp-icon-btn" onclick="toggleTerminal()" title="Close Terminal" style="color:#ccc;"><i class="codicon codicon-close"></i></button>
+        </div>
+        <div id="terminalOutput" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap; color:#00ff00;">Welcome to Jignesh-IDE Terminal v1.0.0
+Type 'help' for available commands.
+
+</div>
+        <div style="display:flex; align-items:center; padding:4px 8px; background:#000; border-top:1px solid #222;">
+          <span id="terminalPrompt" style="color:#3b82f6; font-family:'JetBrains Mono',monospace; font-size:12px; margin-right:8px;">~/project $</span>
+          <input id="terminalInput" type="text" style="flex:1; background:transparent; border:none; color:#fff; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none;" spellcheck="false">
+        </div>
       </div>
     </div>
 
@@ -1846,6 +1866,7 @@ const THEME_KEY='html-editor-theme';
 const FONT_KEY='html-editor-font-size';
 const SNAPSHOTS_KEY='html-editor-snapshots-v1';
 const SNAPSHOTS_MAX=25;
+const PROJECT_STATE_KEY='html-editor-project-state-v1';
 const SHARE_MAX_PLAIN=150000;
 const SHARE_MAX_COMPRESSED=65000;
 const RECENT_COLORS_KEY='html-editor-recent-colors-v1';
@@ -2479,18 +2500,31 @@ require(['vs/editor/editor.main'], () => {
   }
   if(shared){
     initial=shared;
+    // Set initial path and VFS
+    currentPath = 'index.html';
+    virtualFS.set('index.html', initial);
+    _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
   } else {
-    try{
-      const saved=localStorage.getItem(DRAFT_KEY);
-      if(saved&&saved.length)initial=saved;
-    }catch(e){}
+    if (!loadProjectState()) {
+      try{
+        const saved=localStorage.getItem(DRAFT_KEY);
+        if(saved&&saved.length)initial=saved;
+      }catch(e){}
+      // Set initial path and VFS
+      currentPath = 'index.html';
+      virtualFS.set('index.html', initial);
+      _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
+    } else {
+      const activeTab = browserTabs.find(t => t.active);
+      if (activeTab) {
+        initial = virtualFS.get(activeTab.path) || '';
+        currentPath = activeTab.path;
+      }
+    }
   }
 
-  // Set initial path and VFS
-  currentPath = 'index.html';
-  virtualFS.set('index.html', initial);
-  _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
   renderFileTree();
+  updateBrowserUi();
 
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: initial,
@@ -2551,6 +2585,7 @@ require(['vs/editor/editor.main'], () => {
     // Update VFS with current editor content
     if(currentPath) {
       virtualFS.set(currentPath, editor.getValue());
+      saveProjectState();
     }
 
     if(liveOn && !_ignoreEditorChangeForLive){
@@ -2975,12 +3010,27 @@ async function saveFileAs(){
   }
 }
 function clearCode(){
-  if(!confirm('Clear?'))return;
-  try{localStorage.removeItem(DRAFT_KEY);}catch(e){}
+  if(!confirm('Clear all code and reset project?')) return;
+  
+  _ignoreEditorChangeForLive = true;
   editor.setValue('');
+  cssEditor.setValue('');
+  jsEditor.setValue('');
+  _ignoreEditorChangeForLive = false;
+  
+  virtualFS.clear();
+  virtualFS.set('index.html', '');
+  _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
+  browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
+  currentPath = 'index.html';
+  
+  localStorage.removeItem(DRAFT_KEY);
+  localStorage.removeItem(PROJECT_STATE_KEY);
+  
+  renderFileTree();
+  updateBrowserUi();
   runCode();
-  syncActiveAuxPanel();
-  toast('Cleared 🗑');
+  toast('Project reset 🗑');
 }
 function formatCode(){
   editor.getAction('editor.action.formatDocument').run()
@@ -3271,6 +3321,7 @@ function createNewFile() {
   _fileTreeState.items.push({ name: name, kind: 'file', path: path });
   renderFileTree();
   openTextInEditor(name, '');
+  saveProjectState();
 }
 
 function createNewFolder() {
@@ -3278,6 +3329,7 @@ function createNewFolder() {
   if(!name) return;
   _fileTreeState.items.push({ name: name, kind: 'directory', children: [] });
   renderFileTree();
+  saveProjectState();
 }
 
 function renameFileItem(oldPath, event) {
@@ -3327,6 +3379,7 @@ function renameFileItem(oldPath, event) {
   renameRecursive(_fileTreeState.items);
   renderFileTree();
   updateBrowserUi();
+  saveProjectState();
   toast('Renamed');
 }
 
@@ -3355,6 +3408,7 @@ function deleteFileItem(path, event) {
   }
   removeRecursive(_fileTreeState.items);
   renderFileTree();
+  saveProjectState();
   toast('Deleted');
 }
 
@@ -3522,21 +3576,22 @@ function handleDrop(e, targetFolder) {
 
   renderFileTree();
   updateBrowserUi();
+  saveProjectState();
   toast('Moved successfully');
 }
 
-function getFileIcon(name, kind) {
-  if (kind === 'directory') return 'folder';
-  const ext = name.split('.').pop().toLowerCase();
-  switch (ext) {
-    case 'html': case 'htm': return 'file-code';
-    case 'css': return 'symbol-color';
-    case 'js': return 'file-type-js';
-    case 'json': return 'json';
-    case 'txt': return 'file-text';
-    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': return 'file-media';
-    default: return 'file';
+function getFileIcon(name, kind, expanded = false) {
+  if (kind === 'directory') {
+    const folderIcon = expanded ? 'default_folder_opened.svg' : 'default_folder.svg';
+    return `https://raw.githubusercontent.com/vscode-icons/vscode-icons/master/icons/${folderIcon}`;
   }
+  
+  if (typeof vscodeIconsSVG !== 'undefined') {
+    return vscodeIconsSVG.get(name);
+  }
+  
+  // Fallback to a basic file icon if API not loaded
+  return 'https://raw.githubusercontent.com/vscode-icons/vscode-icons/master/icons/default_file.svg';
 }
 
 function renderFileTree(){
@@ -3566,10 +3621,12 @@ function renderFileTree(){
       
       const icSpan = document.createElement('span');
       icSpan.className = 'file-ic';
-      icSpan.style.marginRight = '4px';
-      let iconName = getFileIcon(item.name, item.kind);
-      if (item.kind === 'directory' && item.expanded) iconName = 'folder-opened';
-      icSpan.innerHTML = `<i class="codicon codicon-${iconName}" style="${item.kind==='directory'?'color:#eab308':''}"></i>`;
+      icSpan.style.marginRight = '6px';
+      icSpan.style.display = 'inline-flex';
+      icSpan.style.alignItems = 'center';
+      
+      const iconUrl = getFileIcon(item.name, item.kind, item.expanded);
+      icSpan.innerHTML = `<img src="${iconUrl}" style="width:16px;height:16px;object-fit:contain;">`;
       
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
@@ -3647,6 +3704,10 @@ function renderFileTree(){
           if (caretIcon) {
             caretIcon.className = `codicon codicon-chevron-${item.expanded ? 'down' : 'right'}`;
           }
+          const img = row.querySelector('.file-ic img');
+          if (img) {
+            img.src = getFileIcon(item.name, item.kind, item.expanded);
+          }
           row.setAttribute('aria-expanded', item.expanded ? 'true' : 'false');
         });
         renderNodes(item.children, children, item);
@@ -3660,6 +3721,208 @@ function renderFileTree(){
     host.innerHTML = '<div class="file-row" style="cursor:default;color:var(--muted)">No files — use Open Folder</div>';
   }
 }
+/* ─── PERSISTENCE ─── */
+function saveProjectState() {
+  const state = {
+    virtualFS: Array.from(virtualFS.entries()),
+    fileTreeItems: _fileTreeState.items,
+    browserTabs: browserTabs,
+    currentPath: currentPath,
+    currentDocTab: currentDocTab
+  };
+  localStorage.setItem(PROJECT_STATE_KEY, JSON.stringify(state));
+}
+
+function loadProjectState() {
+  const saved = localStorage.getItem(PROJECT_STATE_KEY);
+  if (!saved) return false;
+  try {
+    const state = JSON.parse(saved);
+    virtualFS.clear();
+    state.virtualFS.forEach(([path, content]) => virtualFS.set(path, content));
+    _fileTreeState.items = state.fileTreeItems;
+    browserTabs = state.browserTabs;
+    currentPath = state.currentPath;
+    
+    const activeTab = browserTabs.find(t => t.active);
+    if (activeTab) {
+      const content = virtualFS.get(activeTab.path);
+      if (content !== undefined) {
+        // We'll set the editor value in monaco.init
+      }
+    }
+    renderFileTree();
+    updateBrowserUi();
+    return true;
+  } catch (e) {
+    console.error('Failed to load project state', e);
+    return false;
+  }
+}
+
+/* ─── TERMINAL LOGIC ─── */
+let terminalOpen = false;
+let currentTermDir = '/';
+let webcontainerInstance = null;
+let webcontainerBooting = false;
+
+async function bootWebContainer() {
+  if (webcontainerInstance || webcontainerBooting) return;
+  webcontainerBooting = true;
+  
+  try {
+    termLog('Loading WebContainer API...', '#facc15');
+    const { WebContainer } = await import('https://cdn.jsdelivr.net/npm/@webcontainer/api@1.1.0/dist/index.js');
+    
+    // Check for Cross-Origin Isolation (Required for WebContainer)
+    if (!window.crossOriginIsolated) {
+      termLog('⚠️ Warning: Page is not Cross-Origin Isolated.', '#facc15');
+      termLog('WebContainer requires COOP and COEP headers to work.', '#facc15');
+      termLog('If you are using VS Code Live Server, you MUST use a server that supports these headers.', '#94a3b8');
+      termLog('Attempting to boot anyway, but it may fail...', '#94a3b8');
+    }
+
+    termLog('Booting WebContainer...', '#facc15');
+    webcontainerInstance = await WebContainer.boot();
+    termLog('WebContainer booted! 🚀', '#00ff00');
+    
+    // Initial file sync
+    await syncFilesToWebContainer();
+    webcontainerBooting = false;
+    
+    // Listen for server output
+    webcontainerInstance.on('server-ready', (port, url) => {
+      termLog(`Server ready on port ${port}: ${url}`, '#facc15');
+      const previewBtn = document.createElement('button');
+      previewBtn.textContent = 'Open Preview';
+      previewBtn.className = 'tb-btn';
+      previewBtn.style.margin = '4px';
+      previewBtn.onclick = () => {
+        iframeEl.src = url;
+        document.getElementById('browserUrlInput').value = url;
+      };
+      document.getElementById('terminalOutput').appendChild(previewBtn);
+    });
+  } catch (err) {
+    webcontainerBooting = false;
+    termLog('❌ WebContainer boot failed.', '#ef4444');
+    termLog(`Error: ${err.message}`, '#ef4444');
+    termLog('Falling back to local mock terminal mode...', '#94a3b8');
+    termLog('Hint: WebContainers only work in modern browsers with HTTPS or localhost.', '#94a3b8');
+  }
+}
+
+async function syncFilesToWebContainer() {
+  if (!webcontainerInstance) return;
+  const files = {};
+  for (const [path, content] of virtualFS.entries()) {
+    const parts = path.split('/');
+    let current = files;
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (i === parts.length - 1) {
+        current[p] = { file: { contents: content } };
+      } else {
+        if (!current[p]) current[p] = { directory: {} };
+        current = current[p].directory;
+      }
+    }
+  }
+  await webcontainerInstance.mount(files);
+}
+
+async function writeToWebContainer(path, content) {
+  if (!webcontainerInstance) return;
+  try {
+    await webcontainerInstance.fs.writeFile(path, content);
+  } catch(e) {}
+}
+
+function toggleTerminal() {
+  const panel = document.getElementById('terminalPanel');
+  terminalOpen = !terminalOpen;
+  panel.style.display = terminalOpen ? 'flex' : 'none';
+  if (terminalOpen) {
+    document.getElementById('terminalInput').focus();
+    if (!webcontainerInstance && !webcontainerBooting) bootWebContainer();
+  }
+}
+
+async function handleTerminalCommand(cmdLine) {
+  termLog(`~/project${currentTermDir} $ ${cmdLine}`, '#3b82f6');
+  
+  if (webcontainerBooting) {
+    termLog('Please wait, WebContainer is still booting...', '#facc15');
+    return;
+  }
+
+  const parts = cmdLine.split(' ');
+  const cmd = parts[0];
+  const args = parts.slice(1);
+
+  if (cmd === 'clear') {
+    clearTerminal();
+    return;
+  }
+
+  if (!webcontainerInstance) {
+    // Fallback Mock Mode if WebContainer failed to boot
+    handleMockCommand(cmd, args);
+    return;
+  }
+
+  try {
+    const process = await webcontainerInstance.spawn(cmd, args);
+    process.output.pipeTo(new WritableStream({
+      write(data) {
+        termLog(data, '#fff');
+      }
+    }));
+    
+    const exitCode = await process.exit;
+    if (exitCode !== 0) {
+      termLog(`Process exited with code ${exitCode}`, '#ef4444');
+    }
+  } catch (err) {
+    termLog(`Failed to execute: ${err.message}`, '#ef4444');
+  }
+}
+
+function handleMockCommand(cmd, args) {
+  termLog('System: Using mock mode (WebContainer not available).', '#94a3b8');
+  switch (cmd) {
+    case 'ls':
+      termLog(Array.from(virtualFS.keys()).join('  '));
+      break;
+    case 'help':
+      termLog('Mock commands: ls, clear, help. Real execution requires COOP/COEP headers.');
+      break;
+    default:
+      termLog(`Command '${cmd}' not found in mock mode.`, '#ef4444');
+  }
+}
+
+document.getElementById('terminalInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const input = e.target.value.trim();
+    if (input) handleTerminalCommand(input);
+    e.target.value = '';
+  }
+});
+
+function termLog(msg, color = '#00ff00') {
+  const out = document.getElementById('terminalOutput');
+  const span = document.createElement('div');
+  span.style.color = color;
+  span.textContent = msg;
+  out.appendChild(span);
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearTerminal() {
+  document.getElementById('terminalOutput').textContent = '';
+}
+
 function openTextInEditor(name, text, fileHandle=null, path=null){
   currentFileHandle = fileHandle;
   currentFilePath = name;
