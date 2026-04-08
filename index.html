@@ -175,6 +175,11 @@
 <script src="https://cdn.jsdelivr.net/npm/vscode-icons-svg@2.0.0/dist/vscode-icons-svg.js" crossorigin></script>
 <style>
   .codicon { font-size: 14px !important; display: inline-block !important; vertical-align: middle; }
+.terminal-panel {
+  display:none; position:absolute; bottom:0; left:0; right:0; height:200px; 
+  background:#000; color:#fff; border-top:1px solid var(--border); 
+  z-index:101; flex-direction:column;
+}
 </style>
 
 <!-- ══ PERFORMANCE ══ -->
@@ -378,6 +383,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 .sb-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;transition:background .2s;z-index:10}
 .sb-resizer:hover,.sb-resizer.active{background:var(--accent);opacity:.6}
+#termResizer:hover,#termResizer.active{background:var(--accent);opacity:.6}
 
 /* ── PANELS ── */
 .panels{flex:1;display:flex;min-width:0;overflow:hidden;position:relative}
@@ -387,9 +393,12 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .pane-dot{width:7px;height:7px;border-radius:50%}
 .pd-code{background:var(--accent)}.pd-preview{background:var(--accent2)}
 .code-pane-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-.editor-doc-tabs{display:flex;gap:5px;margin-left:10px;align-items:center;flex-wrap:wrap}
-.editor-doc-tab{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px 11px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s}
-.editor-doc-tab:hover{color:var(--text)}
+.editor-doc-tabs{display:flex;gap:4px;margin-left:10px;align-items:center;flex-wrap:nowrap;overflow-x:auto}
+.editor-doc-tab{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.editor-doc-tab .tab-ic{font-size:14px;display:flex;align-items:center}
+.editor-doc-tab .tab-close{font-size:12px;opacity:0.5;margin-left:4px}
+.editor-doc-tab .tab-close:hover{opacity:1;color:var(--accent2)}
+.editor-doc-tab:hover{color:var(--text);background:var(--btnhov)}
 .editor-doc-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.12)}
 .css-editor-ta{display:none;flex:1;min-width:0;width:100%;padding:12px 14px;background:var(--bg);color:var(--text);border:none;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.58;resize:none;outline:none;box-sizing:border-box}
 .css-editor-ta.show{display:block}
@@ -1154,10 +1163,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
       <div class="pane-header">
         <div class="pane-dot pd-code"></div>
         <span>Document</span>
-        <div class="editor-doc-tabs" role="tablist" aria-label="Editor document">
-          <button type="button" class="editor-doc-tab active" id="tabDocHtml" role="tab" aria-selected="true" onclick="setDocTab('html')">HTML</button>
-          <button type="button" class="editor-doc-tab" id="tabDocCss" role="tab" aria-selected="false" onclick="setDocTab('css')">CSS</button>
-          <button type="button" class="editor-doc-tab" id="tabDocJs" role="tab" aria-selected="false" onclick="setDocTab('js')">JS</button>
+        <div class="editor-doc-tabs" id="editorTabs" role="tablist" aria-label="Editor tabs">
+          <!-- Dynamic tabs will be injected here -->
         </div>
         <div style="margin-left:auto; display:flex; gap:6px;">
           <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap" style="padding: 3px 8px; font-size: 10px;">Map</button>
@@ -1245,10 +1252,12 @@ body.sidebar-hidden #paneResizer{display:none!important}
       </div>
 
       <!-- TERMINAL -->
-      <div id="terminalPanel" style="display:none; position:absolute; bottom:0; left:0; right:0; height:200px; background:#000; color:#fff; border-top:1px solid var(--border); z-index:101; flex-direction:column;">
-        <div class="pane-header" style="padding:4px 12px; min-height:28px; background:#1e1e1e; border-bottom:1px solid #333;">
+      <div id="terminalPanel" class="terminal-panel">
+        <div id="termResizer" style="position:absolute; top:-2px; left:0; right:0; height:4px; cursor:row-resize; z-index:102; background:transparent;"></div>
+        <div class="pane-header" style="padding:4px 12px; min-height:28px; background:#1e1e1e; border-bottom:1px solid #333; cursor:move;">
           <span style="color:#ccc; font-size:11px;"><i class="codicon codicon-terminal" style="margin-right:6px"></i>Terminal</span>
           <button class="pp-icon-btn" onclick="clearTerminal()" title="Clear Terminal" style="margin-left:auto; color:#ccc;"><i class="codicon codicon-clear-all"></i></button>
+          <button class="pp-icon-btn" onclick="toggleFloat('terminalPanel')" title="Float Terminal" style="color:#ccc;"><i class="codicon codicon-screen-full"></i></button>
           <button class="pp-icon-btn" onclick="toggleTerminal()" title="Close Terminal" style="color:#ccc;"><i class="codicon codicon-close"></i></button>
         </div>
         <div id="terminalOutput" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap; color:#00ff00;">Welcome to Jignesh-IDE Terminal v1.0.0
@@ -2525,6 +2534,7 @@ require(['vs/editor/editor.main'], () => {
 
   renderFileTree();
   updateBrowserUi();
+  updateEditorTabs();
 
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: initial,
@@ -2568,6 +2578,12 @@ require(['vs/editor/editor.main'], () => {
     language: 'javascript',
   });
 
+  // Hide the auxiliary editors - we only need one multi-language editor
+  if(document.getElementById('cssEditor')) document.getElementById('cssEditor').remove();
+  if(document.getElementById('jsEditor')) document.getElementById('jsEditor').remove();
+  if(document.getElementById('cssEditorArea')) document.getElementById('cssEditorArea').remove();
+  if(document.getElementById('jsEditorArea')) document.getElementById('jsEditorArea').remove();
+
   cssEditor.onDidChangeModelContent(()=>{
     if(currentDocTab!=='css') return;
     onCssEditorInput();
@@ -2586,6 +2602,8 @@ require(['vs/editor/editor.main'], () => {
     if(currentPath) {
       virtualFS.set(currentPath, editor.getValue());
       saveProjectState();
+      // Sync to WebContainer if active
+      if(webcontainerInstance) writeToWebContainer(currentPath, editor.getValue());
     }
 
     if(liveOn && !_ignoreEditorChangeForLive){
@@ -3162,8 +3180,8 @@ function updateBrowserUi() {
 
     tabEl.innerHTML = ` 
       ${faviconHtml} 
-      <span onclick="switchBrowserTab(${index})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span> 
-      <span class="browser-tab-close" onclick="closeBrowserTab(${index}, event)">×</span> 
+      <span onclick="switchEditorTab(${index})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span> 
+      <span class="browser-tab-close" onclick="closeEditorTab(${index}, event)">×</span> 
     `; 
     tabsContainer.appendChild(tabEl); 
   }); 
@@ -3171,21 +3189,88 @@ function updateBrowserUi() {
   urlInput.value = `http://localhost/${currentPath}`; 
 }
 
-function switchBrowserTab(index) {
+function updateEditorTabs() {
+  const container = document.getElementById('editorTabs');
+  if(!container) return;
+  container.innerHTML = '';
+
+  // Use browserTabs as the source for editor tabs
+  browserTabs.forEach((tab, index) => {
+    const tabBtn = document.createElement('button');
+    tabBtn.type = 'button';
+    tabBtn.className = `editor-doc-tab ${tab.active ? 'active' : ''}`;
+    tabBtn.role = 'tab';
+    tabBtn.setAttribute('aria-selected', tab.active ? 'true' : 'false');
+    
+    const iconUrl = getFileIcon(tab.name, 'file');
+    const iconHtml = `<span class="tab-ic"><img src="${iconUrl}" style="width:14px;height:14px;object-fit:contain;"></span>`;
+    
+    tabBtn.innerHTML = `
+      ${iconHtml}
+      <span>${tab.name}</span>
+      <span class="tab-close" onclick="closeEditorTab(${index}, event)">×</span>
+    `;
+    
+    tabBtn.onclick = () => switchEditorTab(index);
+    container.appendChild(tabBtn);
+  });
+}
+
+function switchEditorTab(index) {
   browserTabs.forEach((t, i) => t.active = (i === index));
   const tab = browserTabs[index];
   if(tab) {
     currentPath = tab.path;
-    currentFilePath = tab.name;
-    const content = virtualFS.get(currentPath);
-    if(content !== undefined) {
-      _ignoreEditorChangeForLive = true;
+    const content = virtualFS.get(currentPath) || '';
+    
+    // Auto-detect language by extension
+    const ext = tab.name.split('.').pop().toLowerCase();
+    let lang = 'plaintext';
+    if(ext === 'html' || ext === 'htm') lang = 'html';
+    else if(ext === 'css') lang = 'css';
+    else if(ext === 'js' || ext === 'javascript') lang = 'javascript';
+    else if(ext === 'json') lang = 'json';
+    else if(ext === 'md') lang = 'markdown';
+    else if(ext === 'ts') lang = 'typescript';
+    else if(ext === 'py') lang = 'python';
+    
+    if(editor) {
+      const model = editor.getModel();
+      if(model) monaco.editor.setModelLanguage(model, lang);
       editor.setValue(content);
-      _ignoreEditorChangeForLive = false;
-      runCode();
     }
   }
+  updateEditorTabs();
   updateBrowserUi();
+  saveProjectState();
+}
+
+function closeEditorTab(index, event) {
+  if(event) event.stopPropagation();
+  const closedTab = browserTabs.splice(index, 1)[0];
+  if(closedTab.active && browserTabs.length > 0) {
+    switchEditorTab(Math.max(0, index - 1));
+  } else if(browserTabs.length === 0) {
+    currentPath = '';
+    if(editor) editor.setValue('');
+  }
+  updateEditorTabs();
+  updateBrowserUi();
+  saveProjectState();
+}
+
+function openTextInEditor(name, content, handle, path) {
+  // Check if already open
+  let existingIndex = browserTabs.findIndex(t => t.path === path);
+  if(existingIndex !== -1) {
+    switchEditorTab(existingIndex);
+    return;
+  }
+
+  // Add new tab
+  browserTabs.forEach(t => t.active = false);
+  browserTabs.push({ name: name, path: path, active: true });
+  switchEditorTab(browserTabs.length - 1);
 }
 
 function closeBrowserTab(index, event) {
@@ -3320,7 +3405,8 @@ function createNewFile() {
   virtualFS.set(path, '');
   _fileTreeState.items.push({ name: name, kind: 'file', path: path });
   renderFileTree();
-  openTextInEditor(name, '');
+  openTextInEditor(name, '', null, path);
+  if(webcontainerInstance) writeToWebContainer(path, '');
   saveProjectState();
 }
 
@@ -3379,6 +3465,8 @@ function renameFileItem(oldPath, event) {
   renameRecursive(_fileTreeState.items);
   renderFileTree();
   updateBrowserUi();
+  updateEditorTabs();
+  if(webcontainerInstance) syncFilesToWebContainer();
   saveProjectState();
   toast('Renamed');
 }
@@ -3391,9 +3479,9 @@ function deleteFileItem(path, event) {
   
   // Remove from browser tabs if open
   const tabIndex = browserTabs.findIndex(t => t.path === path);
-  if(tabIndex !== -1) {
-    closeBrowserTab(tabIndex);
-  }
+    if(tabIndex !== -1) {
+      closeEditorTab(tabIndex);
+    }
 
   // Remove from file tree state
   function removeRecursive(list) {
@@ -3408,6 +3496,9 @@ function deleteFileItem(path, event) {
   }
   removeRecursive(_fileTreeState.items);
   renderFileTree();
+  updateBrowserUi();
+  updateEditorTabs();
+  if(webcontainerInstance) syncFilesToWebContainer();
   saveProjectState();
   toast('Deleted');
 }
@@ -3576,6 +3667,8 @@ function handleDrop(e, targetFolder) {
 
   renderFileTree();
   updateBrowserUi();
+  updateEditorTabs();
+  if(webcontainerInstance) syncFilesToWebContainer();
   saveProjectState();
   toast('Moved successfully');
 }
@@ -3865,8 +3958,17 @@ async function syncFilesToWebContainer() {
 async function writeToWebContainer(path, content) {
   if (!webcontainerInstance) return;
   try {
+    // Ensure parent directories exist
+    const parts = path.split('/');
+    let currentDir = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      currentDir += (currentDir ? '/' : '') + parts[i];
+      try { await webcontainerInstance.fs.mkdir(currentDir, { recursive: true }); } catch(e) {}
+    }
     await webcontainerInstance.fs.writeFile(path, content);
-  } catch(e) {}
+  } catch(e) {
+    console.error('WebContainer write failed:', e);
+  }
 }
 
 function toggleTerminal() {
@@ -4428,9 +4530,17 @@ function toggleFloat(id){
   if(!el) return;
   const isFloating = el.classList.toggle('floating');
   if(isFloating){
-    el.style.width = '380px';
-    el.style.height = '600px';
-    el.style.top = '100px';
+    if(id === 'terminalPanel') {
+      el.style.width = '600px';
+      el.style.height = '400px';
+      el.style.bottom = '100px';
+      el.style.left = '100px';
+      el.style.right = 'auto';
+    } else {
+      el.style.width = '380px';
+      el.style.height = '600px';
+      el.style.top = '100px';
+    }
     
     if(id === 'aiChatPanel') {
       document.getElementById('aiMinimizeBtn').style.display = 'inline-flex';
@@ -4439,9 +4549,12 @@ function toggleFloat(id){
     let handle;
     if(id === 'sidebar') handle = el.querySelector('.sb-header');
     else if(id === 'aiChatPanel') handle = el.querySelector('.ai-chat-header');
+    else if(id === 'terminalPanel') handle = el.querySelector('.pane-header');
     else handle = el.querySelector('.pp-header');
     
-    el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
+    if (id !== 'terminalPanel') {
+      el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
+    }
     makeDraggable(el, handle);
   } else {
     el.style.cssText = '';
@@ -4449,8 +4562,12 @@ function toggleFloat(id){
       document.getElementById('aiMinimizeBtn').style.display = 'none';
       el.classList.remove('minimized');
     }
-    // Restore sidebar width if needed
+    // Restore defaults
     if(id === 'sidebar') el.style.width = 'var(--sbW)';
+    if(id === 'terminalPanel') {
+      el.style.display = terminalOpen ? 'flex' : 'none';
+      el.style.height = '200px';
+    }
   }
   if(editor) editor.layout();
 }
@@ -4524,6 +4641,33 @@ function makeDraggable(el, handle){
     document.body.style.userSelect='';
     document.body.style.cursor='';
     if(editor)editor.layout();
+  });
+})();
+
+/* ─── Terminal Resize ─── */
+(function(){
+  const tp = document.getElementById('terminalPanel');
+  const h = document.getElementById('termResizer');
+  if(!h) return;
+  let d = false, sy, sh;
+  h.addEventListener('mousedown', e => {
+    if(tp.classList.contains('floating')) return;
+    d = true; sy = e.clientY; sh = tp.offsetHeight;
+    h.classList.add('active');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if(!d) return;
+    tp.style.height = Math.min(window.innerHeight - 100, Math.max(60, sh - (e.clientY - sy))) + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if(!d) return; d = false;
+    h.classList.remove('active');
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    if(editor) editor.layout();
   });
 })();
 (function(){
