@@ -169,6 +169,11 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- VS Code Codicons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.27/dist/codicon.css">
+<style>
+  .codicon { font-size: 14px !important; display: inline-block !important; vertical-align: middle; }
+</style>
 
 <!-- ══ PERFORMANCE ══ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -184,6 +189,13 @@
     animation-duration: 0.25s; 
     animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1); 
   } 
+
+.file-row.drag-over { background: rgba(108, 99, 255, 0.2); border: 1px dashed var(--accent); }
+.ctx-menu { position: fixed; z-index: 1000000; background: var(--sb); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.4); padding: 4px; display: none; min-width: 140px; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.ctx-item { display: flex; align-items: center; gap: 8px; padding: 6px 12px; cursor: pointer; border-radius: 4px; color: var(--text); transition: background 0.1s; }
+.ctx-item:hover { background: var(--btnhov); color: var(--accent); }
+.ctx-item i { width: 14px; height: 14px; opacity: 0.8; }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -1030,27 +1042,27 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex">☰</button>
-<button type="button" class="tb-btn icon-only tb-hamburger" id="tb-file-hamburger" onclick="toggleFileSidebar()" aria-label="Toggle file sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex">📁</button>
-  <span class="logo">&#x3C;/&#x3E; HTML Editor by Jignesh</span>
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex"><i class="codicon codicon-menu"></i></button>
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="tb-file-hamburger" onclick="toggleFileSidebar()" aria-label="Toggle file sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex"><i class="codicon codicon-files"></i></button>
+  <span class="logo">&#x3C;/&#x3E; HTML Editor</span>
   <div class="tb-div"></div>
   <div class="mode-tabs">
-    <button class="mode-tab" id="tab-code"   onclick="setMode('code')">⌨ Code</button>
-    <button class="mode-tab" id="tab-visual" onclick="setMode('visual')">🎨 Visual</button>
-    <button class="mode-tab active" id="tab-split"  onclick="setMode('split')">⧉ Split</button>
+    <button class="mode-tab" id="tab-code" onclick="setMode('code')"><i class="codicon codicon-code" style="margin-right:4px"></i>Code</button>
+    <button class="mode-tab" id="tab-visual" onclick="setMode('visual')"><i class="codicon codicon-eye" style="margin-right:4px"></i>Visual</button>
+    <button class="mode-tab active" id="tab-split" onclick="setMode('split')"><i class="codicon codicon-split-horizontal" style="margin-right:4px"></i>Split</button>
   </div>
   <div class="tb-div"></div>
   <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
-  <button class="tb-btn on" id="liveBtn" onclick="toggleLive()">Auto ▶ ON</button>
+  <button class="tb-btn on" id="liveBtn" onclick="toggleLive()"><i class="codicon codicon-refresh" style="margin-right:4px"></i>Auto ON</button>
   <div class="tb-div"></div>
   <div class="tb-font-group">
-    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size">A−</button>
+    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size"><i class="codicon codicon-dash"></i></button>
     <span class="tb-stat" id="fontSizeLabel" style="min-width:22px;text-align:center">13</span>
-    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size">A+</button>
+    <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size"><i class="codicon codicon-add"></i></button>
   </div>
-  <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme">Light</button>
+  <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme"><i class="codicon codicon-color-mode"></i></button>
   <div class="tb-right">
-    <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder">✨ AI Chat</button>
+    <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder"><i class="codicon codicon-sparkle" style="margin-right:4px"></i>AI Chat</button>
   </div>
 </div>
 
@@ -1078,17 +1090,16 @@ body.sidebar-hidden #paneResizer{display:none!important}
   <div class="sidebar" id="fileSidebar">
     <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
       <div class="sb-label" style="padding:0">Files</div>
-      <button class="pp-icon-btn" title="Float file sidebar" onclick="toggleFloat('fileSidebar')">⛶</button>
+      <button class="pp-icon-btn" title="Float file sidebar" onclick="toggleFloat('fileSidebar')"><i class="codicon codicon-screen-full"></i></button>
     </div>
     <div class="sb-toolbar">
-      <button class="sb-icbtn" title="Open Folder" onclick="pickFolder()">📁</button>
-      <button class="sb-icbtn" title="Open File" onclick="pickAnyFile()">📄</button>
-      <button class="sb-icbtn" title="New File" onclick="createNewFile()">📄+</button>
-      <button class="sb-icbtn" title="New Folder" onclick="createNewFolder()">📁+</button>
-      <button class="sb-icbtn" title="Refresh" onclick="renderFileTree()">↻</button>
-      <button class="sb-icbtn" title="Collapse All" onclick="collapseAllFileTree()">▸</button>
+      <button class="sb-icbtn" title="Open Folder" onclick="pickFolder()"><i class="codicon codicon-folder-opened"></i></button>
+      <button class="sb-icbtn" title="Open File" onclick="pickAnyFile()"><i class="codicon codicon-file"></i></button>
+      <button class="sb-icbtn" title="New File" onclick="createNewFile()"><i class="codicon codicon-new-file"></i></button>
+      <button class="sb-icbtn" title="New Folder" onclick="createNewFolder()"><i class="codicon codicon-new-folder"></i></button>
+      <button class="sb-icbtn" title="Refresh" onclick="renderFileTree()"><i class="codicon codicon-refresh"></i></button>
     </div>
-    <div id="fileTree" class="file-tree"></div>
+    <div id="fileTree" class="file-tree" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(event, this)" ondrop="handleDrop(event, {name:'/', kind:'directory'})"></div>
     <div class="sb-resizer" id="fileSbResizer"></div>
   </div>
 
@@ -1096,39 +1107,39 @@ body.sidebar-hidden #paneResizer{display:none!important}
   <div class="sidebar" id="sidebar" style="display:none;">
     <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
       <div class="sb-label" style="padding:0">Sidebar</div>
-      <button class="pp-icon-btn" title="Float sidebar" onclick="toggleFloat('sidebar')">⛶</button>
+      <button class="pp-icon-btn" title="Float sidebar" onclick="toggleFloat('sidebar')"><i class="codicon codicon-screen-full"></i></button>
     </div>
     <div class="sb-sep"></div>
     <div class="sb-label">Preview</div>
-    <button class="sb-btn primary" onclick="openNewTab()"><span class="sb-icon">🌐</span>Open in Tab</button>
-    <button class="sb-btn" onclick="runCode()"><span class="sb-icon">▶</span>Run Preview</button>
+    <button class="sb-btn primary" onclick="openNewTab()"><span class="sb-icon"><i class="codicon codicon-link-external"></i></span>Open in Tab</button>
+    <button class="sb-btn" onclick="runCode()"><span class="sb-icon"><i class="codicon codicon-play"></i></span>Run Preview</button>
     <div class="sb-sep"></div>
     <div class="sb-label">Edit</div>
-    <button class="sb-btn" onclick="openTemplatesModal()"><span class="sb-icon">🎨</span>Templates</button>
-    <button class="sb-btn" onclick="openComponentLibrary()"><span class="sb-icon">🧩</span>UI Blocks</button>
-    <button class="sb-btn" onclick="toggleAiChat()"><span class="sb-icon">✨</span>AI Chat Builder</button>
+    <button class="sb-btn" onclick="openTemplatesModal()"><span class="sb-icon"><i class="codicon codicon-layout"></i></span>Templates</button>
+    <button class="sb-btn" onclick="openComponentLibrary()"><span class="sb-icon"><i class="codicon codicon-library"></i></span>UI Blocks</button>
+    <button class="sb-btn" onclick="toggleAiChat()"><span class="sb-icon"><i class="codicon codicon-sparkle"></i></span>AI Chat Builder</button>
     <div class="sb-sep"></div>
     <div class="sb-label">Tools</div>
-    <button class="sb-btn" onclick="toggleLayersPanel()"><span class="sb-icon">📑</span>Layers</button>
-    <button class="sb-btn" onclick="formatCode()"><span class="sb-icon">✨</span>Format</button>
-    <button class="sb-btn" onclick="clearCode()"><span class="sb-icon">🗑</span>Clear</button>
-    <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon">🖼</span>Insert image</button>
-    <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon">♿</span>A11y check</button>
+    <button class="sb-btn" onclick="toggleLayersPanel()"><span class="sb-icon"><i class="codicon codicon-layers"></i></span>Layers</button>
+    <button class="sb-btn" onclick="formatCode()"><span class="sb-icon"><i class="codicon codicon-check-all"></i></span>Format</button>
+    <button class="sb-btn" onclick="clearCode()"><span class="sb-icon"><i class="codicon codicon-trash"></i></span>Clear</button>
+    <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon"><i class="codicon codicon-file-media"></i></span>Insert image</button>
+    <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon"><i class="codicon codicon-accessibility"></i></span>A11y check</button>
     <div class="sb-sep"></div>
     <div class="sb-label">SEO & Social</div>
-    <button class="sb-btn" onclick="openSeoModal()"><span class="sb-icon">🔍</span>SEO Tools</button>
-    <button class="sb-btn" onclick="exportAsImage()"><span class="sb-icon">🖼️</span>Export as Image</button>
-    <button class="sb-btn" onclick="exportAsPDF()"><span class="sb-icon">📄</span>Export as PDF</button>
-    <button class="sb-btn" onclick="openDeployModal()"><span class="sb-icon">🚀</span>Deploy to Web</button>
+    <button class="sb-btn" onclick="openSeoModal()"><span class="sb-icon"><i class="codicon codicon-search"></i></span>SEO Tools</button>
+    <button class="sb-btn" onclick="exportAsImage()"><span class="sb-icon"><i class="codicon codicon-file-media"></i></span>Export as Image</button>
+    <button class="sb-btn" onclick="exportAsPDF()"><span class="sb-icon"><i class="codicon codicon-file-pdf"></i></span>Export as PDF</button>
+    <button class="sb-btn" onclick="openDeployModal()"><span class="sb-icon"><i class="codicon codicon-rocket"></i></span>Deploy to Web</button>
     <div class="sb-sep"></div>
     <div class="sb-label">Share</div>
-    <button class="sb-btn" onclick="openQrShareModal()" aria-label="Show QR code for share link"><span class="sb-icon">▣</span>QR for share link</button>
-    <button class="sb-btn" onclick="saveNamedSnapshot()" aria-label="Save named snapshot"><span class="sb-icon">📸</span>Save snapshot</button>
-    <button class="sb-btn" onclick="openSnapshotsModal()" aria-label="View saved snapshots"><span class="sb-icon">🗂</span>Snapshots…</button>
-    <button class="sb-btn" onclick="openDiffModal()" aria-label="Compare HTML sources"><span class="sb-icon">⇄</span>Snapshot diff…</button>
-    <button class="sb-btn" onclick="saveFile()"><span class="sb-icon">💾</span>Save</button>
-    <button class="sb-btn" onclick="saveFileAs()"><span class="sb-icon">💽</span>Save As</button>
-    <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon">💾</span>Forget saved draft</button>
+    <button class="sb-btn" onclick="openQrShareModal()" aria-label="Show QR code for share link"><span class="sb-icon"><i class="codicon codicon-device-mobile"></i></span>QR for share link</button>
+    <button class="sb-btn" onclick="saveNamedSnapshot()" aria-label="Save named snapshot"><span class="sb-icon"><i class="codicon codicon-camera"></i></span>Save snapshot</button>
+    <button class="sb-btn" onclick="openSnapshotsModal()" aria-label="View saved snapshots"><span class="sb-icon"><i class="codicon codicon-files"></i></span>Snapshots…</button>
+    <button class="sb-btn" onclick="openDiffModal()" aria-label="Compare HTML sources"><span class="sb-icon"><i class="codicon codicon-diff"></i></span>Snapshot diff…</button>
+    <button class="sb-btn" onclick="saveFile()"><span class="sb-icon"><i class="codicon codicon-save"></i></span>Save</button>
+    <button class="sb-btn" onclick="saveFileAs()"><span class="sb-icon"><i class="codicon codicon-files"></i></span>Save As</button>
+    <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon"><i class="codicon codicon-clear-all"></i></span>Forget saved draft</button>
     <div class="sb-resizer" id="sbResizer"></div>
   </div>
 
@@ -1147,8 +1158,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
         </div>
         <div style="margin-left:auto; display:flex; gap:6px;">
           <button type="button" class="tb-btn" id="minimapToggleBtn" onclick="toggleMinimap()" title="Toggle code minimap" style="padding: 3px 8px; font-size: 10px;">Map</button>
-          <button class="tb-btn" onclick="copyHTML()" title="Copy HTML" style="padding: 3px 8px; font-size: 10px;">📋 Copy</button>
-          <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px;">🔗 Link</button>
+          <button class="tb-btn" onclick="copyHTML()" title="Copy HTML" style="padding: 3px 8px; font-size: 10px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-copy"></i> Copy</button>
+          <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-link"></i> Link</button>
         </div>
       </div>
       <div class="code-pane-body" id="codePaneBody">
@@ -1182,19 +1193,19 @@ body.sidebar-hidden #paneResizer{display:none!important}
           <button type="button" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)">⛶ Full</button> 
         </div>
         <span style="font-size:10px;color:var(--muted)" id="previewHint"></span>
-        <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="margin-left:8px">📟</button>
+        <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="margin-left:8px"><i class="codicon codicon-terminal"></i></button>
       </div>
       <div class="visual-bar" id="visualBar">
-        <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
-        <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure">↕ DOM Reorder: <span id="domReorderStatus">OFF</span></button>
+        <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;"><i class="codicon codicon-symbol-color"></i> Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
+        <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure" style="display:flex;align-items:center;gap:4px;"><i class="codicon codicon-list-flat"></i> DOM Reorder: <span id="domReorderStatus">OFF</span></button>
       </div>
 
       <!-- BROWSER UI -->
       <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:4px 8px; gap:4px;">
         <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:16px; padding:4px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
-          <span style="color:var(--muted)">🔒</span>
+          <span style="color:var(--muted)"><i class="codicon codicon-lock"></i></span>
           <input id="browserUrlInput" type="text" readonly style="flex:1; background:transparent; border:none; color:var(--text); outline:none;" value="about:blank">
-          <button class="pp-icon-btn" onclick="runCode()" title="Reload">↻</button>
+          <button class="pp-icon-btn" onclick="runCode()" title="Reload"><i class="codicon codicon-refresh"></i></button>
         </div>
       </div>
 
@@ -1538,9 +1549,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
 <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
 
 <nav class="mobile-bottom-nav" id="mobileBottomNav" role="tablist" aria-label="Editor view">
-  <button type="button" class="mobile-nav-btn" id="mnavCode" role="tab" data-mnav="code" aria-selected="false" onclick="setMode('code');closeMobileSidebar();" aria-label="Code editor"><span class="mn-icon" aria-hidden="true">⌨</span>Code</button>
-  <button type="button" class="mobile-nav-btn" id="mnavPreview" role="tab" data-mnav="preview" aria-selected="false" onclick="setMode('preview');closeMobileSidebar();" aria-label="Live preview"><span class="mn-icon" aria-hidden="true">▶</span>Preview</button>
-  <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true">🎨</span>Visual</button>
+  <button type="button" class="mobile-nav-btn" id="mnavCode" role="tab" data-mnav="code" aria-selected="false" onclick="setMode('code');closeMobileSidebar();" aria-label="Code editor"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-code" style="font-size:20px !important"></i></span>Code</button>
+  <button type="button" class="mobile-nav-btn" id="mnavPreview" role="tab" data-mnav="preview" aria-selected="false" onclick="setMode('preview');closeMobileSidebar();" aria-label="Live preview"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-play" style="font-size:20px !important"></i></span>Preview</button>
+  <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-eye" style="font-size:20px !important"></i></span>Visual</button>
 </nav>
 
 <!-- Footer: compact by default; full copy stays in DOM inside <details> for SEO -->
@@ -1797,6 +1808,17 @@ body.sidebar-hidden #paneResizer{display:none!important}
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<!-- CONTEXT MENU -->
+<div id="fileCtxMenu" class="ctx-menu">
+  <div class="ctx-item" onclick="handleCtxAction('rename')"><i class="codicon codicon-edit"></i> Rename</div>
+  <div class="ctx-item" onclick="handleCtxAction('delete')"><i class="codicon codicon-trash"></i> Delete</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="handleCtxAction('download')"><i class="codicon codicon-download"></i> Download</div>
+  <div class="ctx-item" onclick="handleCtxAction('copyPath')"><i class="codicon codicon-link"></i> Copy Path</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="handleCtxAction('collapseAll')"><i class="codicon codicon-collapse-all"></i> Collapse All</div>
+</div>
+
 <script>
 /* ─────────────────────────────────────────
    GLOBALS
@@ -3336,41 +3358,236 @@ function deleteFileItem(path, event) {
   toast('Deleted');
 }
 
+let _ctxTarget = null;
+const ctxMenu = document.getElementById('fileCtxMenu');
+
+document.addEventListener('click', () => { ctxMenu.style.display = 'none'; });
+
+function showCtxMenu(e, item) {
+  e.preventDefault();
+  _ctxTarget = item;
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = e.pageX + 'px';
+  ctxMenu.style.top = e.pageY + 'px';
+}
+
+function handleCtxAction(action) {
+  if (!_ctxTarget && action !== 'collapseAll') return;
+  const path = _ctxTarget ? (_ctxTarget.path || _ctxTarget.name) : null;
+  
+  switch(action) {
+    case 'rename': renameFileItem(path); break;
+    case 'delete': deleteFileItem(path); break;
+    case 'download': downloadFile(path); break;
+    case 'copyPath': copyToClipboard(path); toast('Path copied'); break;
+    case 'collapseAll': collapseAllFileTree(); break;
+  }
+  ctxMenu.style.display = 'none';
+}
+
+function collapseAllFileTree(){
+  function collapseRecursive(list) {
+    list.forEach(item => {
+      if (item.kind === 'directory') {
+        item.expanded = false;
+        if (item.children) collapseRecursive(item.children);
+      }
+    });
+  }
+  collapseRecursive(_fileTreeState.items);
+  renderFileTree();
+}
+
+function downloadFile(path) {
+  const content = virtualFS.get(path);
+  if (content === undefined) { toast('File content not found'); return; }
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = path.split('/').pop();
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function copyToClipboard(text) {
+  const el = document.createElement('textarea');
+  el.value = text;
+  document.body.appendChild(el);
+  el.select();
+  document.execCommand('copy');
+  document.body.removeChild(el);
+}
+
+// Drag & Drop Logic
+let _dragSource = null;
+
+function handleDragStart(e, item) {
+  _dragSource = item;
+  e.dataTransfer.setData('text/plain', item.path || item.name);
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e, row) {
+  e.preventDefault();
+  row.classList.add('drag-over');
+}
+
+function handleDragLeave(e, row) {
+  row.classList.remove('drag-over');
+}
+
+function handleDrop(e, targetFolder) {
+  e.preventDefault();
+  e.stopPropagation();
+  const targetRow = e.target.closest('.file-row') || e.target.closest('.file-tree');
+  if (targetRow) targetRow.classList.remove('drag-over');
+  
+  if (!_dragSource || targetFolder.kind !== 'directory') return;
+  
+  const sourcePath = _dragSource.path || _dragSource.name;
+  const fileName = _dragSource.name;
+  const newPath = targetFolder.name === '/' ? fileName : (targetFolder.path || targetFolder.name) + '/' + fileName;
+
+  if (sourcePath === newPath) return;
+  if (newPath.startsWith(sourcePath + '/')) { toast('Cannot move a folder into itself'); return; }
+  if (virtualFS.has(newPath)) { toast('Item already exists in target folder'); return; }
+
+  // Move in virtualFS
+  if (_dragSource.kind === 'file') {
+    const content = virtualFS.get(sourcePath);
+    virtualFS.set(newPath, content);
+    virtualFS.delete(sourcePath);
+  } else {
+    // Recursive move for directory contents in virtualFS
+    for (const [path, content] of virtualFS.entries()) {
+      if (path === sourcePath || path.startsWith(sourcePath + '/')) {
+        const subPath = path.substring(sourcePath.length);
+        virtualFS.set(newPath + subPath, content);
+        virtualFS.delete(path);
+      }
+    }
+  }
+
+  // Update tabs
+  browserTabs.forEach(t => {
+    if (t.path === sourcePath) {
+      t.path = newPath;
+    } else if (t.path.startsWith(sourcePath + '/')) {
+      t.path = newPath + t.path.substring(sourcePath.length);
+    }
+  });
+  if (currentPath === sourcePath) {
+    currentPath = newPath;
+  } else if (currentPath.startsWith(sourcePath + '/')) {
+    currentPath = newPath + currentPath.substring(sourcePath.length);
+  }
+
+  // Move in _fileTreeState
+  function removeFromTree(list, path) {
+    for (let i = 0; i < list.length; i++) {
+      const itemPath = list[i].path || list[i].name;
+      if (itemPath === path) {
+        return list.splice(i, 1)[0];
+      }
+      if (list[i].children) {
+        const found = removeFromTree(list[i].children, path);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  function updatePathsRecursive(item, oldPrefix, newPrefix) {
+    if (item.path) {
+      item.path = newPrefix + item.path.substring(oldPrefix.length);
+    } else if (item.kind === 'file') {
+      item.path = newPrefix;
+    }
+    if (item.children) {
+      item.children.forEach(child => updatePathsRecursive(child, oldPrefix, newPrefix));
+    }
+  }
+
+  const movedItem = removeFromTree(_fileTreeState.items, sourcePath);
+  if (movedItem) {
+    updatePathsRecursive(movedItem, sourcePath, newPath);
+    if (targetFolder.name === '/') {
+      _fileTreeState.items.push(movedItem);
+    } else {
+      if (!targetFolder.children) targetFolder.children = [];
+      targetFolder.children.push(movedItem);
+    }
+  }
+
+  renderFileTree();
+  updateBrowserUi();
+  toast('Moved successfully');
+}
+
+function getFileIcon(name, kind) {
+  if (kind === 'directory') return 'folder';
+  const ext = name.split('.').pop().toLowerCase();
+  switch (ext) {
+    case 'html': case 'htm': return 'file-code';
+    case 'css': return 'symbol-color';
+    case 'js': return 'file-type-js';
+    case 'json': return 'json';
+    case 'txt': return 'file-text';
+    case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': return 'file-media';
+    default: return 'file';
+  }
+}
+
 function renderFileTree(){
   const host = document.getElementById('fileTree');
   if(!host) return;
   host.innerHTML = '';
-  function renderNodes(list, container){
+  
+  // Create a pseudo-root folder for dropping files at the root
+  const rootItem = { name: '/', kind: 'directory', children: _fileTreeState.items };
+  
+  function renderNodes(list, container, parentFolder){
     list.forEach(item=>{
       const row = document.createElement('div');
       row.className='file-row';
       row.style.position = 'relative';
+      row.draggable = true;
       
       const caret = document.createElement('span');
       caret.className = 'file-caret';
-      caret.textContent = item.kind==='directory' ? '▸' : '';
+      caret.style.display = 'inline-flex';
+      caret.style.alignItems = 'center';
+      caret.style.justifyContent = 'center';
+      caret.style.width = '14px';
+      if (item.kind === 'directory') {
+        caret.innerHTML = `<i class="codicon codicon-chevron-${item.expanded ? 'down' : 'right'}" style="font-size:10px !important"></i>`;
+      }
       
       const icSpan = document.createElement('span');
       icSpan.className = 'file-ic';
-      icSpan.textContent = item.kind==='directory'?'📁':'📄';
+      icSpan.style.marginRight = '4px';
+      let iconName = getFileIcon(item.name, item.kind);
+      if (item.kind === 'directory' && item.expanded) iconName = 'folder-opened';
+      icSpan.innerHTML = `<i class="codicon codicon-${iconName}" style="${item.kind==='directory'?'color:#eab308':''}"></i>`;
       
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       nameSpan.textContent = item.name;
 
       const delBtn = document.createElement('button');
-      delBtn.innerHTML = '×';
+      delBtn.innerHTML = '<i class="codicon codicon-trash"></i>';
       delBtn.className = 'pp-icon-btn';
       delBtn.title = 'Delete';
       delBtn.style.cssText = 'padding:2px 6px; font-size:12px; opacity:0; transition:opacity 0.2s;';
-      delBtn.onclick = (e) => deleteFileItem(item.path || item.name, e);
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteFileItem(item.path || item.name, e); };
       
       const renBtn = document.createElement('button');
-      renBtn.innerHTML = '✎';
+      renBtn.innerHTML = '<i class="codicon codicon-edit"></i>';
       renBtn.className = 'pp-icon-btn';
       renBtn.title = 'Rename';
       renBtn.style.cssText = 'padding:2px 6px; font-size:10px; opacity:0; transition:opacity 0.2s;';
-      renBtn.onclick = (e) => renameFileItem(item.path || item.name, e);
+      renBtn.onclick = (e) => { e.stopPropagation(); renameFileItem(item.path || item.name, e); };
       
       row.onmouseenter = () => { delBtn.style.opacity = '1'; renBtn.style.opacity = '1'; };
       row.onmouseleave = () => { delBtn.style.opacity = '0'; renBtn.style.opacity = '0'; };
@@ -3381,6 +3598,21 @@ function renderFileTree(){
       row.appendChild(renBtn);
       row.appendChild(delBtn);
       container.appendChild(row);
+
+      // Drag and Drop Events
+      row.addEventListener('dragstart', (e) => handleDragStart(e, item));
+      row.addEventListener('dragover', (e) => {
+        if (item.kind === 'directory') handleDragOver(e, row);
+      });
+      row.addEventListener('dragleave', (e) => {
+        if (item.kind === 'directory') handleDragLeave(e, row);
+      });
+      row.addEventListener('drop', (e) => {
+        if (item.kind === 'directory') handleDrop(e, item);
+      });
+
+      // Context Menu Event
+      row.addEventListener('contextmenu', (e) => showCtxMenu(e, item));
       
       if(item.kind==='file'){
         row.addEventListener('click', async ()=>{
@@ -3404,33 +3636,29 @@ function renderFileTree(){
         const children = document.createElement('div');
         children.className='file-children';
         container.appendChild(children);
-        let open = false;
-        row.setAttribute('aria-expanded','false');
+        
+        if (item.expanded) children.style.display = 'block';
+        
+        row.setAttribute('aria-expanded', item.expanded ? 'true' : 'false');
         row.addEventListener('click', ()=>{
-          open = !open;
-          children.style.display = open ? 'block' : 'none';
-          caret.textContent = open ? '▾' : '▸';
-          row.setAttribute('aria-expanded', open ? 'true' : 'false');
+          item.expanded = !item.expanded;
+          children.style.display = item.expanded ? 'block' : 'none';
+          const caretIcon = row.querySelector('.file-caret i');
+          if (caretIcon) {
+            caretIcon.className = `codicon codicon-chevron-${item.expanded ? 'down' : 'right'}`;
+          }
+          row.setAttribute('aria-expanded', item.expanded ? 'true' : 'false');
         });
-        renderNodes(item.children, children);
+        renderNodes(item.children, children, item);
       }
     });
   }
+  
   if(_fileTreeState.items && _fileTreeState.items.length){
-    renderNodes(_fileTreeState.items, host);
+    renderNodes(_fileTreeState.items, host, rootItem);
   } else {
     host.innerHTML = '<div class="file-row" style="cursor:default;color:var(--muted)">No files — use Open Folder</div>';
   }
-}
-function collapseAllFileTree(){
-  const host=document.getElementById('fileTree');
-  if(!host) return;
-  host.querySelectorAll('.file-children').forEach(el=>el.style.display='none');
-  host.querySelectorAll('.file-row[aria-expanded="true"]').forEach(row=>{
-    row.setAttribute('aria-expanded','false');
-    const c=row.querySelector('.file-caret');
-    if(c) c.textContent='▸';
-  });
 }
 function openTextInEditor(name, text, fileHandle=null, path=null){
   currentFileHandle = fileHandle;
@@ -3511,51 +3739,14 @@ document.getElementById('folderInput').addEventListener('change', (e)=>{
     for(const k in map){
       const v=map[k];
       if(v.kind==='file') out.push({name:v.name, kind:'file', file:v.file, path: v.path});
-      else out.push({name:v.name, kind:'directory', children:toList(v.children)});
+      else out.push({name:v.name, kind:'directory', children:toList(v.children), expanded: true});
     }
     out.sort((a,b)=> (a.kind===b.kind? a.name.localeCompare(b.name): a.kind==='directory'?-1:1));
     return out;
   }
   _fileTreeState.root = {name:'/'};
   _fileTreeState.items = toList(root);
-  const host = document.getElementById('fileTree');
-  host.innerHTML='';
-  function renderFolder(list, container){
-    list.forEach(item=>{
-      const row=document.createElement('div');
-      row.className='file-row';
-      const caret=document.createElement('span');
-      caret.className='file-caret';
-      caret.textContent=item.kind==='directory'?'▸':'';
-      const ic=document.createElement('span');
-      ic.className='file-ic';
-      ic.textContent=item.kind==='directory'?'📁':'📄';
-      const name=document.createElement('span');
-      name.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-      name.textContent=item.name;
-      row.appendChild(caret);row.appendChild(ic);row.appendChild(name);
-      container.appendChild(row);
-      if(item.kind==='file'){
-        row.addEventListener('click', ()=>{
-          const r=new FileReader();
-          r.onload=ev=>openTextInEditor(item.name, ev.target.result, null, item.path);
-          r.readAsText(item.file);
-        });
-      }else{
-        const ch=document.createElement('div'); ch.className='file-children'; container.appendChild(ch);
-        let open=false;
-        row.setAttribute('aria-expanded','false');
-        row.addEventListener('click', ()=>{ 
-          open=!open;
-          ch.style.display=open?'block':'none'; 
-          caret.textContent=open?'▾':'▸';
-          row.setAttribute('aria-expanded',open?'true':'false');
-        });
-        renderFolder(item.children, ch);
-      }
-    });
-  }
-  renderFolder(_fileTreeState.items, host);
+  renderFileTree();
   toast('Folder loaded 📁');
   e.target.value='';
   updateBrowserUi();
