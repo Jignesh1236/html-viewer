@@ -178,6 +178,13 @@
 <noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@600;800&display=swap" rel="stylesheet"></noscript>
 
 <style>
+  ::view-transition-group(*), 
+  ::view-transition-old(*), 
+  ::view-transition-new(*) { 
+    animation-duration: 0.25s; 
+    animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1); 
+  } 
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
 :root{
@@ -1076,6 +1083,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
     <div class="sb-toolbar">
       <button class="sb-icbtn" title="Open Folder" onclick="pickFolder()">📁</button>
       <button class="sb-icbtn" title="Open File" onclick="pickAnyFile()">📄</button>
+      <button class="sb-icbtn" title="New File" onclick="createNewFile()">📄+</button>
+      <button class="sb-icbtn" title="New Folder" onclick="createNewFolder()">📁+</button>
       <button class="sb-icbtn" title="Refresh" onclick="renderFileTree()">↻</button>
       <button class="sb-icbtn" title="Collapse All" onclick="collapseAllFileTree()">▸</button>
     </div>
@@ -1117,11 +1126,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
     <button class="sb-btn" onclick="saveNamedSnapshot()" aria-label="Save named snapshot"><span class="sb-icon">📸</span>Save snapshot</button>
     <button class="sb-btn" onclick="openSnapshotsModal()" aria-label="View saved snapshots"><span class="sb-icon">🗂</span>Snapshots…</button>
     <button class="sb-btn" onclick="openDiffModal()" aria-label="Compare HTML sources"><span class="sb-icon">⇄</span>Snapshot diff…</button>
-    <button class="sb-btn" onclick="importFile()"><span class="sb-icon">📂</span>Import</button>
     <button class="sb-btn" onclick="saveFile()"><span class="sb-icon">💾</span>Save</button>
     <button class="sb-btn" onclick="saveFileAs()"><span class="sb-icon">💽</span>Save As</button>
-    <button class="sb-btn" onclick="exportHTML()"><span class="sb-icon">⬇</span>Export HTML</button>
-    <button class="sb-btn" onclick="exportHTMLMinified()" title="Download a smaller one-line HTML (scripts may need testing)"><span class="sb-icon">⤓</span>Export minified</button>
     <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon">💾</span>Forget saved draft</button>
     <div class="sb-resizer" id="sbResizer"></div>
   </div>
@@ -1159,17 +1165,23 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
     <!-- PREVIEW PANE -->
     <div class="preview-pane pane" id="previewPane" style="flex:1">
-      <div class="pane-header">
+      <div class="pane-header" style="padding-bottom:0">
         <div class="pane-dot pd-preview"></div>
-        <span>Live Preview</span>
-        <div class="pv-tools" id="viewportTools" title="Preview width">
-          <button type="button" data-pv="full" class="on" onclick="setViewport('full')">Full</button>
-          <button type="button" data-pv="390" onclick="setViewport('390')">Mobile</button>
-          <button type="button" data-pv="768" onclick="setViewport('768')">Tablet</button>
-          <button type="button" data-pv="1200" onclick="setViewport('1200')">Desktop</button>
-          <button type="button" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)">⛶ Full</button>
+        <div id="browserTabs" style="display:flex; gap:4px; overflow-x:auto; flex:1; align-self: flex-end; padding-bottom:0; margin-left: 4px;">
+          <!-- Tabs will be injected here -->
         </div>
-        <span style="margin-left:auto;font-size:10px;color:var(--muted)" id="previewHint"></span>
+        <div class="pv-tools" id="viewportTools" title="Preview width" style="margin-left:auto"> 
+          <select id="viewportSelect" onchange="setViewport(this.value)" title="Preview size" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;outline:none;"> 
+            <option value="full" selected>Full</option> 
+            <option value="390">Mobile (390px)</option> 
+            <option value="768">Tablet (768px)</option> 
+            <option value="1200">Desktop (1200px)</option> 
+            <option value="480">Mobile L (480px)</option> 
+            <option value="1440">Wide (1440px)</option> 
+          </select> 
+          <button type="button" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)">⛶ Full</button> 
+        </div>
+        <span style="font-size:10px;color:var(--muted)" id="previewHint"></span>
         <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="margin-left:8px">📟</button>
       </div>
       <div class="visual-bar" id="visualBar">
@@ -1179,9 +1191,6 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
       <!-- BROWSER UI -->
       <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:4px 8px; gap:4px;">
-        <div id="browserTabs" style="display:flex; gap:4px; overflow-x:auto; padding-bottom:2px;">
-          <!-- Tabs will be injected here -->
-        </div>
         <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:16px; padding:4px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
           <span style="color:var(--muted)">🔒</span>
           <input id="browserUrlInput" type="text" readonly style="flex:1; background:transparent; border:none; color:var(--text); outline:none;" value="about:blank">
@@ -1806,6 +1815,10 @@ let aiPickMode=false;
 let autosaveTimer;
 let currentFileHandle = null; // New global variable for File System Access API
 let currentFilePath = null; // New global variable for current file path
+const _fileTreeState = { root: null, items: [] };
+const virtualFS = new Map();
+let currentPath = 'index.html';
+let browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
 const DRAFT_KEY='html-editor-by-jignesh-draft';
 const THEME_KEY='html-editor-theme';
 const FONT_KEY='html-editor-font-size';
@@ -2097,14 +2110,13 @@ function copyHTML(){
   }).catch(()=>{toast('Copy failed — use Export or HTTPS');});
 }
 
-function setViewport(mode){
-  const inner=document.getElementById('previewViewportInner');
-  const map={full:'100%',390:'390px',768:'768px',1200:'1200px'};
-  inner.style.setProperty('--pv-max',map[mode]||'100%');
-  document.querySelectorAll('#viewportTools button').forEach(b=>{
-    b.classList.toggle('on',b.dataset.pv===mode);
-  });
-  if(editor)editor.layout();
+function setViewport(mode){ 
+  const inner=document.getElementById('previewViewportInner'); 
+  const map={full:'100%',390:'390px',480:'480px',768:'768px',1200:'1200px',1440:'1440px'}; 
+  inner.style.setProperty('--pv-max',map[mode]||'100%'); 
+  const sel=document.getElementById('viewportSelect'); 
+  if(sel) sel.value=mode; 
+  if(editor)editor.layout(); 
 }
 
 function loadTemplate(id){
@@ -2455,6 +2467,8 @@ require(['vs/editor/editor.main'], () => {
   // Set initial path and VFS
   currentPath = 'index.html';
   virtualFS.set('index.html', initial);
+  _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
+  renderFileTree();
 
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: initial,
@@ -2808,7 +2822,7 @@ function runCode(){
     iframeEl.srcdoc=v;
   }catch(err){}
   setStatus('Preview updated');
-  updateBrowserUi();
+  setTimeout(updateBrowserUi, 500);  // iframe load hone ka wait 
 }
 function openNewTab(){
   const w=window.open('','_blank');
@@ -3037,28 +3051,52 @@ document.getElementById('imageInput').addEventListener('change',function(e){
 });
 
 /* ─── Local Files / Folders ─── */
-const _fileTreeState = { root: null, items: [] };
-const virtualFS = new Map();
-let currentPath = 'index.html';
-let browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
+function getFaviconFromIframe(){ 
+  try{ 
+    const iDoc=iframeEl.contentDocument; 
+    if(!iDoc) return null; 
+    const link=iDoc.querySelector('link[rel~="icon"],link[rel~="shortcut"]'); 
+    if(link && link.href) return link.href; 
+    return null; 
+  }catch(e){ return null; } 
+} 
 
-function updateBrowserUi() {
-  const tabsContainer = document.getElementById('browserTabs');
-  const urlInput = document.getElementById('browserUrlInput');
-  if(!tabsContainer || !urlInput) return;
+function getTitleFromIframe(){ 
+  try{ 
+    const iDoc=iframeEl.contentDocument; 
+    if(!iDoc) return null; 
+    return iDoc.title||null; 
+  }catch(e){ return null; } 
+} 
 
-  tabsContainer.innerHTML = '';
-  browserTabs.forEach((tab, index) => {
-    const tabEl = document.createElement('div');
-    tabEl.className = `browser-tab ${tab.active ? 'active' : ''}`;
-    tabEl.innerHTML = `
-      <span onclick="switchBrowserTab(${index})">${tab.name}</span>
-      <span class="browser-tab-close" onclick="closeBrowserTab(${index}, event)">×</span>
-    `;
-    tabsContainer.appendChild(tabEl);
-  });
+function updateBrowserUi() { 
+  const tabsContainer = document.getElementById('browserTabs'); 
+  const urlInput = document.getElementById('browserUrlInput'); 
+  if(!tabsContainer || !urlInput) return; 
 
-  urlInput.value = `http://localhost/${currentPath}`;
+  const favicon = getFaviconFromIframe(); 
+  const pageTitle = getTitleFromIframe(); 
+
+  tabsContainer.innerHTML = ''; 
+  browserTabs.forEach((tab, index) => { 
+    const tabEl = document.createElement('div'); 
+    tabEl.className = `browser-tab ${tab.active ? 'active' : ''}`; 
+
+    const faviconHtml = (tab.active && favicon) 
+      ? `<img src="${favicon}" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;border-radius:2px;" onerror="this.style.display='none'">` 
+      : `<span style="width:10px;height:10px;border-radius:2px;background:var(--border);display:inline-block;flex-shrink:0;"></span>`; 
+
+    const displayName = (tab.active && pageTitle) ? pageTitle.slice(0,22)+(pageTitle.length>22?'…':'') : tab.name; 
+
+    tabEl.innerHTML = ` 
+      ${faviconHtml} 
+      <span onclick="switchBrowserTab(${index})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span> 
+      <span class="browser-tab-close" onclick="closeBrowserTab(${index}, event)">×</span> 
+    `; 
+    tabsContainer.appendChild(tabEl); 
+  }); 
+
+  urlInput.value = `http://localhost/${currentPath}`; 
 }
 
 function switchBrowserTab(index) {
@@ -3066,6 +3104,7 @@ function switchBrowserTab(index) {
   const tab = browserTabs[index];
   if(tab) {
     currentPath = tab.path;
+    currentFilePath = tab.name;
     const content = virtualFS.get(currentPath);
     if(content !== undefined) {
       _ignoreEditorChangeForLive = true;
@@ -3107,8 +3146,10 @@ function navigateTo(path) {
       switchBrowserTab(existingTabIndex);
     } else {
       browserTabs.forEach(t => t.active = false);
-      browserTabs.push({ name: targetPath.split('/').pop(), path: targetPath, active: true });
+      const name = targetPath.split('/').pop();
+      browserTabs.push({ name: name, path: targetPath, active: true });
       currentPath = targetPath;
+      currentFilePath = name;
       const content = virtualFS.get(targetPath);
       _ignoreEditorChangeForLive = true;
       editor.setValue(content);
@@ -3196,6 +3237,105 @@ async function readDirHandle(handle, path = ''){
   node.children.sort((a,b)=> (a.kind===b.kind? a.name.localeCompare(b.name): a.kind==='directory'?-1:1));
   return node;
 }
+function createNewFile() {
+  const name = prompt('Enter file name (e.g. about.html):');
+  if(!name) return;
+  const path = name; // Basic flat structure for now, can be improved
+  if(virtualFS.has(path)) {
+    toast('File already exists');
+    return;
+  }
+  virtualFS.set(path, '');
+  _fileTreeState.items.push({ name: name, kind: 'file', path: path });
+  renderFileTree();
+  openTextInEditor(name, '');
+}
+
+function createNewFolder() {
+  const name = prompt('Enter folder name:');
+  if(!name) return;
+  _fileTreeState.items.push({ name: name, kind: 'directory', children: [] });
+  renderFileTree();
+}
+
+function renameFileItem(oldPath, event) {
+  if(event) event.stopPropagation();
+  const newName = prompt('Enter new name:', oldPath.split('/').pop());
+  if(!newName) return;
+  
+  const oldParts = oldPath.split('/');
+  oldParts.pop();
+  const newPath = oldParts.length ? [...oldParts, newName].join('/') : newName;
+  
+  if(virtualFS.has(newPath)) {
+    toast('File already exists');
+    return;
+  }
+  
+  const content = virtualFS.get(oldPath);
+  if(content !== undefined) {
+    virtualFS.set(newPath, content);
+    virtualFS.delete(oldPath);
+  }
+  
+  // Update browser tabs
+  browserTabs.forEach(t => {
+    if(t.path === oldPath) {
+      t.path = newPath;
+      t.name = newName;
+    }
+  });
+  
+  if(currentPath === oldPath) {
+    currentPath = newPath;
+  }
+
+  // Update file tree state
+  function renameRecursive(list) {
+    for(let i=0; i<list.length; i++) {
+      if(list[i].path === oldPath) {
+        list[i].name = newName;
+        list[i].path = newPath;
+        return true;
+      }
+      if(list[i].children && renameRecursive(list[i].children)) return true;
+    }
+    return false;
+  }
+  renameRecursive(_fileTreeState.items);
+  renderFileTree();
+  updateBrowserUi();
+  toast('Renamed');
+}
+
+function deleteFileItem(path, event) {
+  if(event) event.stopPropagation();
+  if(!confirm(`Delete ${path}?`)) return;
+  
+  virtualFS.delete(path);
+  
+  // Remove from browser tabs if open
+  const tabIndex = browserTabs.findIndex(t => t.path === path);
+  if(tabIndex !== -1) {
+    closeBrowserTab(tabIndex);
+  }
+
+  // Remove from file tree state
+  function removeRecursive(list) {
+    for(let i=0; i<list.length; i++) {
+      if(list[i].path === path || (list[i].kind === 'directory' && list[i].name === path)) {
+        list.splice(i, 1);
+        return true;
+      }
+      if(list[i].children && removeRecursive(list[i].children)) return true;
+    }
+    return false;
+  }
+  removeRecursive(_fileTreeState.items);
+  renderFileTree();
+  toast('Deleted');
+}
+
 function renderFileTree(){
   const host = document.getElementById('fileTree');
   if(!host) return;
@@ -3204,32 +3344,57 @@ function renderFileTree(){
     list.forEach(item=>{
       const row = document.createElement('div');
       row.className='file-row';
+      row.style.position = 'relative';
+      
       const caret = document.createElement('span');
       caret.className = 'file-caret';
       caret.textContent = item.kind==='directory' ? '▸' : '';
+      
       const icSpan = document.createElement('span');
       icSpan.className = 'file-ic';
       icSpan.textContent = item.kind==='directory'?'📁':'📄';
+      
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       nameSpan.textContent = item.name;
+
+      const delBtn = document.createElement('button');
+      delBtn.innerHTML = '×';
+      delBtn.className = 'pp-icon-btn';
+      delBtn.title = 'Delete';
+      delBtn.style.cssText = 'padding:2px 6px; font-size:12px; opacity:0; transition:opacity 0.2s;';
+      delBtn.onclick = (e) => deleteFileItem(item.path || item.name, e);
+      
+      const renBtn = document.createElement('button');
+      renBtn.innerHTML = '✎';
+      renBtn.className = 'pp-icon-btn';
+      renBtn.title = 'Rename';
+      renBtn.style.cssText = 'padding:2px 6px; font-size:10px; opacity:0; transition:opacity 0.2s;';
+      renBtn.onclick = (e) => renameFileItem(item.path || item.name, e);
+      
+      row.onmouseenter = () => { delBtn.style.opacity = '1'; renBtn.style.opacity = '1'; };
+      row.onmouseleave = () => { delBtn.style.opacity = '0'; renBtn.style.opacity = '0'; };
+
       row.appendChild(caret);
       row.appendChild(icSpan);
       row.appendChild(nameSpan);
+      row.appendChild(renBtn);
+      row.appendChild(delBtn);
       container.appendChild(row);
+      
       if(item.kind==='file'){
         row.addEventListener('click', async ()=>{
-          if(item.handle && item.handle.getFile){
+          const path = item.path || item.name;
+          const content = virtualFS.get(path);
+          if(content !== undefined) {
+            openTextInEditor(item.name, content, item.handle, path);
+          } else if(item.handle && item.handle.getFile){
             const f = await item.handle.getFile();
             const t = await f.text();
-            try{
-              openTextInEditor(item.name, t, item.handle, item.path);
-            }catch(err){
-              toast('Open failed');
-            }
+            openTextInEditor(item.name, t, item.handle, path);
           } else if(item.file){
             const r=new FileReader();
-            r.onload=ev=>{ openTextInEditor(item.name, ev.target.result, null, item.path); };
+            r.onload=ev=>{ openTextInEditor(item.name, ev.target.result, null, path); };
             r.readAsText(item.file);
           } else {
             toast('Unable to open file');
