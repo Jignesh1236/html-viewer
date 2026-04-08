@@ -3,8 +3,6 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- COI Service Worker to enable Cross-Origin Isolation (MUST BE FIRST) -->
-<script src="https://cdn.jsdelivr.net/gh/gzuidhof/coi-serviceworker@latest/coi-serviceworker.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="f4fUEvoriHXGuXUnmkINKMdvNM_3JXehqPnM79ZSySg" />
 <!-- ══ PRIMARY SEO ══ -->
@@ -169,12 +167,12 @@
   ]
 }
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin></script>
 <!-- VS Code Codicons -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.27/dist/codicon.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.27/dist/codicon.css" crossorigin>
 <!-- VS Code Icons SVG API -->
-<script src="https://cdn.jsdelivr.net/npm/vscode-icons-svg@2.0.0/dist/vscode-icons-svg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vscode-icons-svg@2.0.0/dist/vscode-icons-svg.js" crossorigin></script>
 <style>
   .codicon { font-size: 14px !important; display: inline-block !important; vertical-align: middle; }
 </style>
@@ -1826,10 +1824,10 @@ Type 'help' for available commands.
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js" crossorigin></script>
 <!-- CONTEXT MENU -->
 <div id="fileCtxMenu" class="ctx-menu">
   <div class="ctx-item" onclick="handleCtxAction('rename')"><i class="codicon codicon-edit"></i> Rename</div>
@@ -3797,8 +3795,18 @@ async function bootWebContainer() {
       fixBtn.className = 'tb-btn primary';
       fixBtn.style.margin = '10px 0';
       fixBtn.onclick = () => {
-        localStorage.removeItem('coi-sw-registered'); // Force re-registration if needed
-        location.reload();
+        // Clear all caches and unregister service workers to force a clean start
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) registration.unregister();
+            caches.keys().then(names => {
+              for (let name of names) caches.delete(name);
+              location.reload();
+            });
+          });
+        } else {
+          location.reload();
+        }
       };
       document.getElementById('terminalOutput').appendChild(fixBtn);
       
@@ -6531,11 +6539,23 @@ function getAiDiff(lang, newCode) {
 }
 
 function registerServiceWorker(){
-  if(!('serviceWorker' in navigator))return;
-  var secure=location.protocol==='https:'||location.hostname==='localhost'||location.hostname==='127.0.0.1';
-  if(!secure)return;
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+  if(!('serviceWorker' in navigator)) return;
+  var isLocal = location.hostname==='localhost'||location.hostname==='127.0.0.1';
+  var isSecure = location.protocol==='https:' || isLocal;
+  if(!isSecure) return;
+
+  navigator.serviceWorker.register('sw.js').then(registration => {
+    // If a new service worker is installed, reload to ensure headers are injected
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'activated' && !navigator.serviceWorker.controller) {
+          location.reload();
+        }
+      });
+    });
+  }).catch(function(err){
+    console.error('SW registration failed:', err);
   });
 }
 registerServiceWorker();
