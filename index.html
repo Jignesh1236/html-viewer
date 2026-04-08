@@ -1837,6 +1837,7 @@ Type 'help' for available commands.
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js" crossorigin></script>
 <!-- CONTEXT MENU -->
 <div id="fileCtxMenu" class="ctx-menu">
   <div class="ctx-item" onclick="handleCtxAction('rename')"><i class="codicon codicon-edit"></i> Rename</div>
@@ -2799,6 +2800,16 @@ function toggleLive(){
 ───────────────────────────────────────── */
 function runCode(){
   if(!editor) return;
+  
+  const ext = currentPath.split('.').pop().toLowerCase();
+  if (ext === 'py') {
+    terminalOpen = true;
+    document.getElementById('terminalPanel').style.display = 'flex';
+    document.getElementById('terminalInput').focus();
+    runPythonCode(editor.getValue());
+    return;
+  }
+
   var v=editor.getValue();
   
   // Inject Navigation Interception Script
@@ -3858,6 +3869,51 @@ let terminalOpen = false;
 let currentTermDir = '/';
 let webcontainerInstance = null;
 let webcontainerBooting = false;
+let pyodideInstance = null;
+let pyodideLoading = false;
+
+async function bootPyodide() {
+  if (pyodideInstance || pyodideLoading) return pyodideInstance;
+  pyodideLoading = true;
+  try {
+    termLog('Loading Python (Pyodide)...', '#facc15');
+    pyodideInstance = await loadPyodide();
+    termLog('Python ready! 🐍', '#00ff00');
+    pyodideLoading = false;
+    return pyodideInstance;
+  } catch (err) {
+    pyodideLoading = false;
+    termLog('❌ Python load failed.', '#ef4444');
+    console.error(err);
+    return null;
+  }
+}
+
+async function runPythonCode(code) {
+  const py = await bootPyodide();
+  if (!py) return;
+  try {
+    // Sync virtualFS to Pyodide FS
+    for (const [path, content] of virtualFS.entries()) {
+      const parts = path.split('/');
+      let current = '';
+      for (let i = 0; i < parts.length - 1; i++) {
+        current += (current ? '/' : '') + parts[i];
+        try { py.FS.mkdir(current); } catch(e) {}
+      }
+      py.FS.writeFile(path, content);
+    }
+
+    // Capture stdout/stderr
+    let output = '';
+    py.setStdout({ batched: (str) => { output += str + '\n'; termLog(str, '#fff'); } });
+    py.setStderr({ batched: (str) => { output += str + '\n'; termLog(str, '#ef4444'); } });
+
+    await py.runPythonAsync(code);
+  } catch (err) {
+    termLog(`❌ Python Error: ${err.message}`, '#ef4444');
+  }
+}
 
 async function bootWebContainer() {
   if (webcontainerInstance || webcontainerBooting) return;
@@ -3995,6 +4051,21 @@ async function handleTerminalCommand(cmdLine) {
 
   if (cmd === 'clear') {
     clearTerminal();
+    return;
+  }
+
+  // Handle Python Command
+  if (cmd === 'python' || cmd === 'python3') {
+    if (args[0]) {
+      const code = virtualFS.get(args[0]);
+      if (code) {
+        await runPythonCode(code);
+      } else {
+        termLog(`python: can't open file '${args[0]}': No such file`, '#ef4444');
+      }
+    } else {
+      termLog('Interactive Python REPL not supported. Use: python <filename>', '#facc15');
+    }
     return;
   }
 
