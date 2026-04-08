@@ -332,7 +332,17 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .workspace{display:flex;height:calc(100dvh - var(--topH));margin-top:var(--topH);overflow:hidden;padding-bottom:calc(20px + var(--seoFootH))}
 
 /* ── SIDEBAR ── */
-.sidebar{width:var(--sbW);min-width:140px;max-width:340px;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px;gap:3px;flex-shrink:0;overflow-y:auto;position:relative;user-select:none}
+.sidebar{width:var(--sbW);min-width:140px;max-width:340px;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px;gap:3px;flex-shrink:0;overflow-y:auto;position:relative;user-select:none;transition: transform 0.3s ease, width 0.3s ease;}
+#fileSidebar { border-right: 1px solid var(--border); z-index: 100; }
+.sidebar-hidden #sidebar { display: none !important; }
+.sidebar-hidden #fileSidebar { display: none !important; }
+
+.file-tree { flex: 1; overflow-y: auto; margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.file-row { display: flex; align-items: center; gap: 6px; padding: 4px 8px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+.file-row:hover { background: var(--btnhov); }
+.file-ic { font-size: 14px; width: 18px; text-align: center; }
+.file-children { margin-left: 16px; border-left: 1px solid var(--border); display: none; }
+
 .sb-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);padding:6px 8px 2px;font-family:'JetBrains Mono',monospace}
 .sb-sep{height:1px;background:var(--border);margin:5px 0}
 .sb-btn{display:flex;align-items:center;gap:8px;padding:8px 11px;border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;border-radius:8px;font-size:12px;font-family:'Syne',sans-serif;font-weight:600;transition:all .15s;width:100%;text-align:left}
@@ -340,6 +350,10 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .sb-btn.primary{background:linear-gradient(135deg,var(--accent),#4a42cc);color:#fff;border-color:transparent}
 .sb-btn.primary:hover{filter:brightness(1.15)}
 .sb-icon{font-size:14px;flex-shrink:0}
+
+.sb-toolbar{display:flex;align-items:center;gap:6px;padding:6px 8px}
+.sb-icbtn{background:var(--btn);border:1px solid var(--border);color:var(--muted);padding:6px;border-radius:6px;font-size:12px;cursor:pointer;line-height:1;min-width:28px}
+.sb-icbtn:hover{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.08)}
 
 .sb-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;transition:background .2s;z-index:10}
 .sb-resizer:hover,.sb-resizer.active{background:var(--accent);opacity:.6}
@@ -579,9 +593,21 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .toast{position:fixed;bottom:calc(28px + 20px + var(--seoFootH));right:18px;background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:10px;font-size:12px;font-family:'JetBrains Mono',monospace;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none;z-index:9999}
 .toast.show{opacity:1;transform:translateY(0)}
 
-.tb-hamburger{display:none}
+.tb-hamburger{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .mobile-sidebar-backdrop{display:none}
 .mobile-bottom-nav{display:none}
+
+/* Desktop sidebar toggle */
+body.sidebar-hidden .sidebar{display:none!important}
+body.sidebar-hidden #paneResizer{display:none!important}
+
+/* File explorer */
+.file-tree{border:none;border-radius:0;background:transparent;overflow:auto;max-height:none}
+.file-caret{width:10px;display:inline-block;color:var(--muted)}
+.file-row{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text);border-radius:6px}
+.file-row:hover{background:var(--btnhov)}
+.file-children{margin-left:16px;border-left:1px dashed var(--border);padding-left:8px;display:none}
+.file-ic{width:14px;text-align:center;opacity:.8}
 
   /* ── NARROW VIEWPORTS (phones / small tablets) ── */
 @media (max-width:900px){
@@ -959,6 +985,37 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
   0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
   40% { transform: scale(1); opacity: 1; }
 }
+.browser-tab {
+  padding: 4px 12px;
+  background: var(--btn);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+.browser-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.browser-tab:hover {
+  background: var(--btnhov);
+}
+.browser-tab-close {
+  font-size: 12px;
+  opacity: 0.5;
+}
+.browser-tab-close:hover {
+  opacity: 1;
+  color: var(--accent2);
+}
 </style>
 </head>
 <body>
@@ -966,7 +1023,8 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:32px;font-size:16px">☰</button>
+  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex">☰</button>
+<button type="button" class="tb-btn icon-only tb-hamburger" id="tb-file-hamburger" onclick="toggleFileSidebar()" aria-label="Toggle file sidebar" style="padding:2px 8px;min-width:32px;font-size:16px;display:inline-flex">📁</button>
   <span class="logo">&#x3C;/&#x3E; HTML Editor by Jignesh</span>
   <div class="tb-div"></div>
   <div class="mode-tabs">
@@ -1009,8 +1067,24 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 <!-- WORKSPACE -->
 <main class="workspace" id="workspace">
 
-  <!-- SIDEBAR -->
-  <div class="sidebar" id="sidebar">
+  <!-- FILE SIDEBAR (Explorer) -->
+  <div class="sidebar" id="fileSidebar">
+    <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
+      <div class="sb-label" style="padding:0">Files</div>
+      <button class="pp-icon-btn" title="Float file sidebar" onclick="toggleFloat('fileSidebar')">⛶</button>
+    </div>
+    <div class="sb-toolbar">
+      <button class="sb-icbtn" title="Open Folder" onclick="pickFolder()">📁</button>
+      <button class="sb-icbtn" title="Open File" onclick="pickAnyFile()">📄</button>
+      <button class="sb-icbtn" title="Refresh" onclick="renderFileTree()">↻</button>
+      <button class="sb-icbtn" title="Collapse All" onclick="collapseAllFileTree()">▸</button>
+    </div>
+    <div id="fileTree" class="file-tree"></div>
+    <div class="sb-resizer" id="fileSbResizer"></div>
+  </div>
+
+  <!-- SIDEBAR (Features) -->
+  <div class="sidebar" id="sidebar" style="display:none;">
     <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
       <div class="sb-label" style="padding:0">Sidebar</div>
       <button class="pp-icon-btn" title="Float sidebar" onclick="toggleFloat('sidebar')">⛶</button>
@@ -1038,12 +1112,14 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
     <button class="sb-btn" onclick="exportAsPDF()"><span class="sb-icon">📄</span>Export as PDF</button>
     <button class="sb-btn" onclick="openDeployModal()"><span class="sb-icon">🚀</span>Deploy to Web</button>
     <div class="sb-sep"></div>
-    <div class="sb-label">File</div>
+    <div class="sb-label">Share</div>
     <button class="sb-btn" onclick="openQrShareModal()" aria-label="Show QR code for share link"><span class="sb-icon">▣</span>QR for share link</button>
     <button class="sb-btn" onclick="saveNamedSnapshot()" aria-label="Save named snapshot"><span class="sb-icon">📸</span>Save snapshot</button>
     <button class="sb-btn" onclick="openSnapshotsModal()" aria-label="View saved snapshots"><span class="sb-icon">🗂</span>Snapshots…</button>
     <button class="sb-btn" onclick="openDiffModal()" aria-label="Compare HTML sources"><span class="sb-icon">⇄</span>Snapshot diff…</button>
     <button class="sb-btn" onclick="importFile()"><span class="sb-icon">📂</span>Import</button>
+    <button class="sb-btn" onclick="saveFile()"><span class="sb-icon">💾</span>Save</button>
+    <button class="sb-btn" onclick="saveFileAs()"><span class="sb-icon">💽</span>Save As</button>
     <button class="sb-btn" onclick="exportHTML()"><span class="sb-icon">⬇</span>Export HTML</button>
     <button class="sb-btn" onclick="exportHTMLMinified()" title="Download a smaller one-line HTML (scripts may need testing)"><span class="sb-icon">⤓</span>Export minified</button>
     <button class="sb-btn" onclick="clearSavedDraft()"><span class="sb-icon">💾</span>Forget saved draft</button>
@@ -1100,6 +1176,19 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
         <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
         <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure">↕ DOM Reorder: <span id="domReorderStatus">OFF</span></button>
       </div>
+
+      <!-- BROWSER UI -->
+      <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:4px 8px; gap:4px;">
+        <div id="browserTabs" style="display:flex; gap:4px; overflow-x:auto; padding-bottom:2px;">
+          <!-- Tabs will be injected here -->
+        </div>
+        <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:16px; padding:4px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
+          <span style="color:var(--muted)">🔒</span>
+          <input id="browserUrlInput" type="text" readonly style="flex:1; background:transparent; border:none; color:var(--text); outline:none;" value="about:blank">
+          <button class="pp-icon-btn" onclick="runCode()" title="Reload">↻</button>
+        </div>
+      </div>
+
       <div class="preview-viewport-wrap" id="previewViewportWrap">
         <div class="preview-viewport-inner" id="previewViewportInner">
       <iframe id="preview" title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
@@ -1477,6 +1566,8 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <input type="file" id="fileInput" accept=".html,.htm" hidden>
 <input type="file" id="imageInput" accept="image/*" hidden>
+<input type="file" id="anyFileInput" accept=".html,.htm,.css,.js,.txt,.json" hidden>
+<input type="file" id="folderInput" webkitdirectory directory multiple hidden>
 
 <!-- TEMPLATES MODAL -->
 <div class="modal-overlay" id="templatesModal" role="dialog" aria-modal="true" aria-labelledby="templatesTitle" onclick="if(event.target===this)closeTemplatesModal()">
@@ -1713,6 +1804,8 @@ let domReorderMode=false;
 let aiPickedEl=null;
 let aiPickMode=false;
 let autosaveTimer;
+let currentFileHandle = null; // New global variable for File System Access API
+let currentFilePath = null; // New global variable for current file path
 const DRAFT_KEY='html-editor-by-jignesh-draft';
 const THEME_KEY='html-editor-theme';
 const FONT_KEY='html-editor-font-size';
@@ -2359,6 +2452,10 @@ require(['vs/editor/editor.main'], () => {
     }catch(e){}
   }
 
+  // Set initial path and VFS
+  currentPath = 'index.html';
+  virtualFS.set('index.html', initial);
+
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: initial,
     language: 'html',
@@ -2414,6 +2511,12 @@ require(['vs/editor/editor.main'], () => {
   editor.onDidChangeModelContent(()=>{
     updateStats();
     scheduleAutosave();
+    
+    // Update VFS with current editor content
+    if(currentPath) {
+      virtualFS.set(currentPath, editor.getValue());
+    }
+
     if(liveOn && !_ignoreEditorChangeForLive){
       clearTimeout(liveTimer);
       liveTimer=setTimeout(runCode,350);
@@ -2457,19 +2560,36 @@ function isMobileLayout(){
   try{return window.matchMedia('(max-width:900px)').matches;}catch(e){return window.innerWidth<=900;}
 }
 function syncMobileMenuAria(){
-  var open=document.body.classList.contains('mobile-sidebar-open');
+  var open=isMobileLayout()?document.body.classList.contains('mobile-sidebar-open'):!document.body.classList.contains('sidebar-hidden');
   var btn=document.getElementById('mobileMenuBtn');
   if(btn) btn.setAttribute('aria-expanded',open?'true':'false');
   var bd=document.getElementById('mobileSidebarBackdrop');
   if(bd) bd.setAttribute('aria-hidden',open?'false':'true');
 }
 function toggleMobileSidebar(){
-  if(!isMobileLayout()) return;
-  document.body.classList.toggle('mobile-sidebar-open');
+  const sb = document.getElementById('sidebar');
+  if(!sb) return;
+  if(isMobileLayout()){
+    document.body.classList.toggle('mobile-sidebar-open');
+    sb.style.display = document.body.classList.contains('mobile-sidebar-open') ? 'flex' : 'none';
+  } else {
+    const isHidden = sb.style.display === 'none';
+    sb.style.display = isHidden ? 'flex' : 'none';
+    if(editor) editor.layout();
+  }
   syncMobileMenuAria();
+}
+function toggleFileSidebar(){
+  const fsb = document.getElementById('fileSidebar');
+  if(!fsb) return;
+  const isHidden = fsb.style.display === 'none';
+  fsb.style.display = isHidden ? 'flex' : 'none';
+  if(editor) editor.layout();
+  setStatus(isHidden ? 'File sidebar opened' : 'File sidebar closed');
 }
 function closeMobileSidebar(){
   document.body.classList.remove('mobile-sidebar-open');
+  document.body.classList.remove('sidebar-hidden');
   syncMobileMenuAria();
 }
 /** Bottom bar: split maps to Preview (live page focus). */
@@ -2592,9 +2712,43 @@ function runCode(){
   if(!editor) return;
   var v=editor.getValue();
   
+  // Inject Navigation Interception Script
+  const navInterceptionScript = `
+    <script>
+      (function() {
+        // Intercept link clicks
+        document.addEventListener('click', e => {
+          const a = e.target.closest('a');
+          if(a && a.href) {
+            const url = new URL(a.href, window.location.href);
+            // Check if it's a relative path or localhost (virtual)
+            if(url.origin === window.location.origin || url.protocol === 'about:') {
+              const path = a.getAttribute('href');
+              // Only intercept if not an external absolute URL
+              if(!path.startsWith('http') && !path.startsWith('//')) {
+                e.preventDefault();
+                window.parent.postMessage({ type: 'navigate', path: path }, '*');
+              }
+            }
+          }
+        }, true);
+
+        // Intercept form submissions
+        document.addEventListener('submit', e => {
+          const action = e.target.getAttribute('action');
+          if(action && !action.startsWith('http')) {
+            e.preventDefault();
+            window.parent.postMessage({ type: 'navigate', path: action }, '*');
+          }
+        }, true);
+      })();
+    <\/script>
+  `;
+
   // Inject Console Proxy Script if console is open
+  let consoleProxyScript = '';
   if(consoleOpen) {
-    const consoleProxyScript = `
+    consoleProxyScript = `
       <script>
         (function() {
           const originalLog = console.log;
@@ -2623,15 +2777,38 @@ function runCode(){
         })();
       <\/script>
     `;
-    // Insert before </head> or at start
-    if(v.includes('</head>')) v = v.replace('</head>', consoleProxyScript + '</head>');
-    else v = consoleProxyScript + v;
   }
+
+  // Inject .env support
+  let envScript = '';
+  const envContent = virtualFS.get('.env');
+  if(envContent) {
+    const envObj = {};
+    envContent.split('\n').forEach(line => {
+      const [key, ...val] = line.split('=');
+      if(key && val.length) {
+        envObj[key.trim()] = val.join('=').trim();
+      }
+    });
+    envScript = `
+      <script>
+        window.process = window.process || {};
+        window.process.env = ${JSON.stringify(envObj)};
+      <\/script>
+    `;
+  }
+
+  const scripts = navInterceptionScript + consoleProxyScript + envScript;
+
+  // Insert before </head> or at start
+  if(v.includes('</head>')) v = v.replace('</head>', scripts + '</head>');
+  else v = scripts + v;
 
   try{
     iframeEl.srcdoc=v;
   }catch(err){}
   setStatus('Preview updated');
+  updateBrowserUi();
 }
 function openNewTab(){
   const w=window.open('','_blank');
@@ -2700,6 +2877,24 @@ function closeAdModal(){
   }
 }
 
+async function saveFile(){
+  if(!editor) return;
+  if(currentFileHandle){
+    try{
+      const writable = await currentFileHandle.createWritable();
+      await writable.write(editor.getValue());
+      await writable.close();
+      toast('Saved: '+currentFilePath+' ✅');
+    }catch(e){
+      toast('Error saving file: '+e.message);
+      console.error('Error saving file:',e);
+    }
+  }else{
+    // Fallback to download if no file handle
+    exportHTML();
+  }
+}
+
 function exportHTML(){
   showAdModal(function(){
     const b=new Blob([editor.getValue()],{type:'text/html'});
@@ -2722,19 +2917,26 @@ function minifyHtmlLite(s){
     .replace(betweenTags,'><')
     .trim();
 }
-function exportHTMLMinified(){
+async function saveFileAs(){
   if(!editor) return;
-  showAdModal(function(){
-    const raw=minifyHtmlLite(editor.getValue());
-    const b=new Blob([raw],{type:'text/html'});
-    const a=document.createElement('a');
-    const url=URL.createObjectURL(b);
-    a.href=url;
-    a.download='code.min.html';
-    a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); },2500);
-    toast('Exported minified ⬇');
-  });
+  try{
+    const newHandle = await window.showSaveFilePicker({
+      types: [{
+        description: 'HTML Files',
+        accept: {'text/html': ['.html', '.htm']},
+      }],
+      suggestedName: currentFilePath || 'index.html',
+    });
+    const writable = await newHandle.createWritable();
+    await writable.write(editor.getValue());
+    await writable.close();
+    currentFileHandle = newHandle;
+    currentFilePath = newHandle.name;
+    toast('Saved as: '+currentFilePath+' ✅');
+  }catch(e){
+    toast('Error saving file: '+e.message);
+    console.error('Error saving file:',e);
+  }
 }
 function clearCode(){
   if(!confirm('Clear?'))return;
@@ -2751,8 +2953,20 @@ function formatCode(){
 }
 function importFile(){
   showAdModal(function(){
-    document.getElementById('fileInput').click();
+    if(supportsFSA() && location.protocol==='https:'){
+      openFileNativeForImport();
+    }else{
+      document.getElementById('fileInput').click();
+    }
   });
+}
+async function openFileNativeForImport(){
+  try{
+    const [fh] = await window.showOpenFilePicker({types:[{description:'Text',accept:{'text/plain':['.txt','.html','.htm','.css','.js','.json']}}]});
+    const file = await fh.getFile();
+    const text = await file.text();
+    openTextInEditor(file.name, text, fh);
+  }catch(e){ toast('File canceled'); }
 }
 document.getElementById('fileInput').addEventListener('change',function(e){
   const f=e.target.files[0];if(!f)return;
@@ -2822,6 +3036,436 @@ document.getElementById('imageInput').addEventListener('change',function(e){
   r.readAsDataURL(f);
 });
 
+/* ─── Local Files / Folders ─── */
+const _fileTreeState = { root: null, items: [] };
+const virtualFS = new Map();
+let currentPath = 'index.html';
+let browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
+
+function updateBrowserUi() {
+  const tabsContainer = document.getElementById('browserTabs');
+  const urlInput = document.getElementById('browserUrlInput');
+  if(!tabsContainer || !urlInput) return;
+
+  tabsContainer.innerHTML = '';
+  browserTabs.forEach((tab, index) => {
+    const tabEl = document.createElement('div');
+    tabEl.className = `browser-tab ${tab.active ? 'active' : ''}`;
+    tabEl.innerHTML = `
+      <span onclick="switchBrowserTab(${index})">${tab.name}</span>
+      <span class="browser-tab-close" onclick="closeBrowserTab(${index}, event)">×</span>
+    `;
+    tabsContainer.appendChild(tabEl);
+  });
+
+  urlInput.value = `http://localhost/${currentPath}`;
+}
+
+function switchBrowserTab(index) {
+  browserTabs.forEach((t, i) => t.active = (i === index));
+  const tab = browserTabs[index];
+  if(tab) {
+    currentPath = tab.path;
+    const content = virtualFS.get(currentPath);
+    if(content !== undefined) {
+      _ignoreEditorChangeForLive = true;
+      editor.setValue(content);
+      _ignoreEditorChangeForLive = false;
+      runCode();
+    }
+  }
+  updateBrowserUi();
+}
+
+function closeBrowserTab(index, event) {
+  if(event) event.stopPropagation();
+  if(browserTabs.length <= 1) return;
+  const wasActive = browserTabs[index].active;
+  browserTabs.splice(index, 1);
+  if(wasActive) {
+    switchBrowserTab(Math.max(0, index - 1));
+  } else {
+    updateBrowserUi();
+  }
+}
+
+function navigateTo(path) {
+  // Resolve relative path
+  let targetPath = path;
+  if(!path.startsWith('/')) {
+    const parts = currentPath.split('/');
+    parts.pop();
+    parts.push(path);
+    targetPath = parts.filter(Boolean).join('/');
+  } else {
+    targetPath = path.substring(1);
+  }
+
+  if(virtualFS.has(targetPath)) {
+    const existingTabIndex = browserTabs.findIndex(t => t.path === targetPath);
+    if(existingTabIndex !== -1) {
+      switchBrowserTab(existingTabIndex);
+    } else {
+      browserTabs.forEach(t => t.active = false);
+      browserTabs.push({ name: targetPath.split('/').pop(), path: targetPath, active: true });
+      currentPath = targetPath;
+      const content = virtualFS.get(targetPath);
+      _ignoreEditorChangeForLive = true;
+      editor.setValue(content);
+      _ignoreEditorChangeForLive = false;
+      runCode();
+      updateBrowserUi();
+    }
+  } else {
+    toast(`File not found: ${targetPath}`);
+  }
+}
+function supportsFSA(){ try{return !!(window.showDirectoryPicker||window.showOpenFilePicker);}catch(e){return false;} }
+function pickFolder(){
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if(supportsFSA() && (location.protocol==='https:' || isLocal)){
+    openFolderNative();
+  }else{
+    document.getElementById('folderInput').click();
+  }
+}
+function pickAnyFile(){
+  const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if(supportsFSA() && (location.protocol==='https:' || isLocal)){
+    openFileNative();
+  }else{
+    document.getElementById('anyFileInput').click();
+  }
+}
+async function openFolderNative(){
+  try{
+    const dirHandle = await window.showDirectoryPicker({mode:'read'});
+    const tree = await readDirHandle(dirHandle);
+    _fileTreeState.root = {name:'/', handle:dirHandle};
+  _fileTreeState.items = tree.children;
+  renderFileTree();
+  toast('Folder opened 📁');
+  updateBrowserUi();
+  }catch(e){ toast('Folder canceled'); }
+}
+async function openFileNative(){
+  try{
+    const [fh] = await window.showOpenFilePicker({types:[{description:'Text',accept:{'text/plain':['.txt','.html','.htm','.css','.js','.json']}}]});
+    const file = await fh.getFile();
+    const text = await file.text();
+    openTextInEditor(file.name, text, fh);
+  }catch(e){ toast('File canceled'); }
+}
+async function readDirHandle(handle, path = ''){
+  const node = {name: handle.name||'/', kind:'directory', handle, children:[]};
+  try{
+    if(typeof handle.values === 'function'){
+      for await (const entry of handle.values()){
+        const currentFullPath = path ? `${path}/${entry.name}` : entry.name;
+        if(entry.kind==='directory'){
+          const sub = await readDirHandle(entry, currentFullPath);
+          node.children.push(sub);
+        } else if(entry.kind==='file'){
+          const file = await entry.getFile();
+          const text = await file.text();
+          virtualFS.set(currentFullPath, text);
+          if(/\.(html?|css|js|txt|json|\.env)$/i.test(entry.name) || entry.name === '.env'){
+            node.children.push({name:entry.name, kind:'file', handle:entry, path: currentFullPath});
+          }
+        }
+      }
+    } else if(typeof handle.entries === 'function'){
+      for await (const pair of handle.entries()){
+        const entry = Array.isArray(pair) ? pair[1] : pair;
+        const nm = entry.name || (Array.isArray(pair)?pair[0]:'');
+        const currentFullPath = path ? `${path}/${nm}` : nm;
+        if(entry.kind==='directory'){
+          const sub = await readDirHandle(entry, currentFullPath);
+          node.children.push(sub);
+        } else if(entry.kind==='file'){
+          const file = await entry.getFile();
+          const text = await file.text();
+          virtualFS.set(currentFullPath, text);
+          if(/\.(html?|css|js|txt|json|\.env)$/i.test(nm) || nm === '.env'){
+            node.children.push({name:nm, kind:'file', handle:entry, path: currentFullPath});
+          }
+        }
+      }
+    }
+  }catch(e){}
+  node.children.sort((a,b)=> (a.kind===b.kind? a.name.localeCompare(b.name): a.kind==='directory'?-1:1));
+  return node;
+}
+function renderFileTree(){
+  const host = document.getElementById('fileTree');
+  if(!host) return;
+  host.innerHTML = '';
+  function renderNodes(list, container){
+    list.forEach(item=>{
+      const row = document.createElement('div');
+      row.className='file-row';
+      const caret = document.createElement('span');
+      caret.className = 'file-caret';
+      caret.textContent = item.kind==='directory' ? '▸' : '';
+      const icSpan = document.createElement('span');
+      icSpan.className = 'file-ic';
+      icSpan.textContent = item.kind==='directory'?'📁':'📄';
+      const nameSpan = document.createElement('span');
+      nameSpan.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      nameSpan.textContent = item.name;
+      row.appendChild(caret);
+      row.appendChild(icSpan);
+      row.appendChild(nameSpan);
+      container.appendChild(row);
+      if(item.kind==='file'){
+        row.addEventListener('click', async ()=>{
+          if(item.handle && item.handle.getFile){
+            const f = await item.handle.getFile();
+            const t = await f.text();
+            try{
+              openTextInEditor(item.name, t, item.handle, item.path);
+            }catch(err){
+              toast('Open failed');
+            }
+          } else if(item.file){
+            const r=new FileReader();
+            r.onload=ev=>{ openTextInEditor(item.name, ev.target.result, null, item.path); };
+            r.readAsText(item.file);
+          } else {
+            toast('Unable to open file');
+          }
+        });
+      } else if(item.kind==='directory'){
+        const children = document.createElement('div');
+        children.className='file-children';
+        container.appendChild(children);
+        let open = false;
+        row.setAttribute('aria-expanded','false');
+        row.addEventListener('click', ()=>{
+          open = !open;
+          children.style.display = open ? 'block' : 'none';
+          caret.textContent = open ? '▾' : '▸';
+          row.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        renderNodes(item.children, children);
+      }
+    });
+  }
+  if(_fileTreeState.items && _fileTreeState.items.length){
+    renderNodes(_fileTreeState.items, host);
+  } else {
+    host.innerHTML = '<div class="file-row" style="cursor:default;color:var(--muted)">No files — use Open Folder</div>';
+  }
+}
+function collapseAllFileTree(){
+  const host=document.getElementById('fileTree');
+  if(!host) return;
+  host.querySelectorAll('.file-children').forEach(el=>el.style.display='none');
+  host.querySelectorAll('.file-row[aria-expanded="true"]').forEach(row=>{
+    row.setAttribute('aria-expanded','false');
+    const c=row.querySelector('.file-caret');
+    if(c) c.textContent='▸';
+  });
+}
+function openTextInEditor(name, text, fileHandle=null, path=null){
+  currentFileHandle = fileHandle;
+  currentFilePath = name;
+  const actualPath = path || name;
+  currentPath = actualPath;
+  virtualFS.set(actualPath, text);
+
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  if(ext==='css'){
+    setDocTab('css');
+    cssEditor.setValue(text);
+    applyCssFromPanel();
+  } else if(ext==='js'){
+    setDocTab('js');
+    jsEditor.setValue(text);
+    applyJsFromPanel();
+  } else {
+    setDocTab('html');
+    editor.setValue(text);
+  }
+  
+  // Sync Browser UI
+  const existingTabIndex = browserTabs.findIndex(t => t.path === actualPath);
+  if(existingTabIndex !== -1) {
+    browserTabs.forEach((t, i) => t.active = (i === existingTabIndex));
+  } else {
+    browserTabs.forEach(t => t.active = false);
+    browserTabs.push({ name: name, path: actualPath, active: true });
+  }
+  
+  runCode();
+  setStatus('Opened: '+name);
+  scheduleAutosave();
+  updateBrowserUi();
+}
+document.getElementById('anyFileInput').addEventListener('change', (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=ev=>{ openTextInEditor(f.name, ev.target.result); };
+  r.readAsText(f);
+  e.target.value='';
+});
+document.getElementById('folderInput').addEventListener('change', (e)=>{
+  const files = Array.from(e.target.files||[]);
+  if(!files.length){ e.target.value=''; return; }
+  virtualFS.clear();
+  const root = {};
+  files.forEach(f=>{
+    const fullPath = f.webkitRelativePath || f.name;
+    const parts = fullPath.split('/').filter(Boolean);
+    // Remove the top-level folder name if it's from webkitRelativePath
+    if(f.webkitRelativePath) parts.shift();
+    const internalPath = parts.join('/');
+    
+    const r = new FileReader();
+    r.onload = ev => {
+      virtualFS.set(internalPath, ev.target.result);
+    };
+    r.readAsText(f);
+
+    let cur = root;
+    for(let i=0;i<parts.length;i++){
+      const part = parts[i];
+      const isFile = i===parts.length-1;
+      if(isFile){
+        if(/\.(html?|css|js|txt|json|\.env)$/i.test(part) || part === '.env'){
+          cur[part] = {kind:'file', file:f, name:part, path: internalPath};
+        }
+      }else{
+        cur[part] = cur[part]||{kind:'directory', name:part, children:{}};
+        cur = cur[part].children;
+      }
+    }
+  });
+  function toList(map){
+    const out=[];
+    for(const k in map){
+      const v=map[k];
+      if(v.kind==='file') out.push({name:v.name, kind:'file', file:v.file, path: v.path});
+      else out.push({name:v.name, kind:'directory', children:toList(v.children)});
+    }
+    out.sort((a,b)=> (a.kind===b.kind? a.name.localeCompare(b.name): a.kind==='directory'?-1:1));
+    return out;
+  }
+  _fileTreeState.root = {name:'/'};
+  _fileTreeState.items = toList(root);
+  const host = document.getElementById('fileTree');
+  host.innerHTML='';
+  function renderFolder(list, container){
+    list.forEach(item=>{
+      const row=document.createElement('div');
+      row.className='file-row';
+      const caret=document.createElement('span');
+      caret.className='file-caret';
+      caret.textContent=item.kind==='directory'?'▸':'';
+      const ic=document.createElement('span');
+      ic.className='file-ic';
+      ic.textContent=item.kind==='directory'?'📁':'📄';
+      const name=document.createElement('span');
+      name.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      name.textContent=item.name;
+      row.appendChild(caret);row.appendChild(ic);row.appendChild(name);
+      container.appendChild(row);
+      if(item.kind==='file'){
+        row.addEventListener('click', ()=>{
+          const r=new FileReader();
+          r.onload=ev=>openTextInEditor(item.name, ev.target.result, null, item.path);
+          r.readAsText(item.file);
+        });
+      }else{
+        const ch=document.createElement('div'); ch.className='file-children'; container.appendChild(ch);
+        let open=false;
+        row.setAttribute('aria-expanded','false');
+        row.addEventListener('click', ()=>{ 
+          open=!open;
+          ch.style.display=open?'block':'none'; 
+          caret.textContent=open?'▾':'▸';
+          row.setAttribute('aria-expanded',open?'true':'false');
+        });
+        renderFolder(item.children, ch);
+      }
+    });
+  }
+  renderFolder(_fileTreeState.items, host);
+  toast('Folder loaded 📁');
+  e.target.value='';
+  updateBrowserUi();
+});
+/* Drag & Drop into Files sidebar */
+(function(){
+  const host=document.getElementById('fileSidebar');
+  if(!host) return;
+  function prevent(e){e.preventDefault();e.stopPropagation();}
+  host.addEventListener('dragover',prevent);
+  host.addEventListener('dragenter',prevent);
+  host.addEventListener('drop',async e=>{
+    prevent(e);
+    const dt=e.dataTransfer;
+    if(!dt) return;
+    const entries=[];
+    if(dt.items && dt.items.length && dt.items[0].webkitGetAsEntry){
+      virtualFS.clear();
+      for(const it of dt.items){
+        const entry=it.webkitGetAsEntry&&it.webkitGetAsEntry();
+        if(entry) entries.push(entry);
+      }
+      const root={};
+      async function walk(entry, path, parent){
+        if(entry.isDirectory){
+          const reader=entry.createReader();
+          const entries=await new Promise(res=>reader.readEntries(res));
+          const dir=parent[path]||{kind:'directory',name:entry.name,children:{}};
+          parent[path]=dir;
+          for(const en of entries){
+            const nextPath = path ? `${path}/${en.name}` : en.name;
+            await walk(en, en.name, dir.children);
+          }
+        } else if(entry.isFile){
+          await new Promise(resolve=>{
+            entry.file(f=>{
+              const internalPath = f.webkitRelativePath || f.name;
+              const r = new FileReader();
+              r.onload = ev => virtualFS.set(internalPath, ev.target.result);
+              r.readAsText(f);
+              if(/\.(html?|css|js|txt|json|\.env)$/i.test(f.name) || f.name === '.env'){
+                parent[path]={kind:'file',name:f.name,file:f, path: internalPath};
+              }
+              resolve();
+            });
+          });
+        }
+      }
+      for(const en of entries){ await walk(en, en.name, root); }
+      function toList(map){
+        const out=[];
+        for(const k in map){
+          const v=map[k];
+          if(v.kind==='file') out.push({name:v.name,kind:'file',file:v.file, path: v.path});
+          else out.push({name:v.name,kind:'directory',children:toList(v.children)});
+        }
+        out.sort((a,b)=>(a.kind===b.kind?a.name.localeCompare(b.name):a.kind==='directory'?-1:1));
+        return out;
+      }
+      _fileTreeState.root={name:'/'};
+      _fileTreeState.items=toList(root);
+      renderFileTree();
+      toast('Folder dropped 📁');
+      updateBrowserUi();
+      return;
+    }
+    const files=Array.from(dt.files||[]);
+    if(files.length){
+      const f=files[0];
+      const r=new FileReader();
+      r.onload=ev=>openTextInEditor(f.name, ev.target.result, null, f.webkitRelativePath || f.name);
+      r.readAsText(f);
+    }
+  });
+})();
 function updateStats(){
   if(!editor)return;
   const v=editor.getValue();
@@ -3209,6 +3853,31 @@ function makeDraggable(el, handle){
   document.addEventListener('mousemove',e=>{
     if(!d)return;
     sb.style.width=Math.min(340,Math.max(140,sw+(e.clientX-sx)))+'px';
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!d)return;d=false;
+    h.classList.remove('active');
+    document.body.style.userSelect='';
+    document.body.style.cursor='';
+    if(editor)editor.layout();
+  });
+})();
+(function(){
+  const sb=document.getElementById('fileSidebar');
+  const h=document.getElementById('fileSbResizer');
+  if(!sb||!h) return;
+  let d=false,sx,sw;
+  h.addEventListener('mousedown',e=>{
+    d=true;sx=e.clientX;sw=sb.offsetWidth;
+    h.classList.add('active');
+    document.body.style.userSelect='none';
+    document.body.style.cursor='col-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!d)return;
+    sb.style.width=Math.min(340,Math.max(140,sw+(e.clientX-sx)))+'px';
+    if(editor)editor.layout();
   });
   document.addEventListener('mouseup',()=>{
     if(!d)return;d=false;
@@ -4552,10 +5221,13 @@ function addLogToPanel(type, args) {
   logContainer.scrollTop = logContainer.scrollHeight;
 }
 
-// Global listener for console messages from iframe
+// Global listener for console and navigation messages from iframe
 window.addEventListener('message', (e) => {
-  if(e.data && e.data.type === 'console') {
+  if(!e.data) return;
+  if(e.data.type === 'console') {
     addLogToPanel(e.data.logType, e.data.args);
+  } else if(e.data.type === 'navigate') {
+    navigateTo(e.data.path);
   }
 });
 
