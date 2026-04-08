@@ -4,6 +4,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- COI Service Worker to enable Cross-Origin Isolation (Required for WebContainer) -->
+<script src="https://cdn.jsdelivr.net/gh/gzuidhof/coi-serviceworker@latest/coi-serviceworker.min.js"></script>
 <meta name="google-site-verification" content="f4fUEvoriHXGuXUnmkINKMdvNM_3JXehqPnM79ZSySg" />
 <!-- ══ PRIMARY SEO ══ -->
 <title>HTML Editor Online by Jignesh – Free AI Chat Builder & Visual HTML Editor</title>
@@ -3772,14 +3774,24 @@ async function bootWebContainer() {
   
   try {
     termLog('Loading WebContainer API...', '#facc15');
-    const { WebContainer } = await import('https://cdn.jsdelivr.net/npm/@webcontainer/api@1.1.0/dist/index.js');
+    
+    let WebContainerModule;
+    try {
+      // Try jsdelivr first
+      WebContainerModule = await import('https://cdn.jsdelivr.net/npm/@webcontainer/api@1.1.0/dist/index.js');
+    } catch (e) {
+      termLog('Primary CDN failed, trying unpkg...', '#94a3b8');
+      // Fallback to unpkg
+      WebContainerModule = await import('https://unpkg.com/@webcontainer/api@1.1.0/dist/index.js');
+    }
+    
+    const { WebContainer } = WebContainerModule;
     
     // Check for Cross-Origin Isolation (Required for WebContainer)
     if (!window.crossOriginIsolated) {
       termLog('⚠️ Warning: Page is not Cross-Origin Isolated.', '#facc15');
-      termLog('WebContainer requires COOP and COEP headers to work.', '#facc15');
-      termLog('If you are using VS Code Live Server, you MUST use a server that supports these headers.', '#94a3b8');
-      termLog('Attempting to boot anyway, but it may fail...', '#94a3b8');
+      termLog('WebContainer requires COOP/COEP headers.', '#facc15');
+      termLog('COI-ServiceWorker has been added to enable this. Please REFRESH the page if it doesn\'t work.', '#00ff00');
     }
 
     termLog('Booting WebContainer...', '#facc15');
@@ -3808,7 +3820,7 @@ async function bootWebContainer() {
     termLog('❌ WebContainer boot failed.', '#ef4444');
     termLog(`Error: ${err.message}`, '#ef4444');
     termLog('Falling back to local mock terminal mode...', '#94a3b8');
-    termLog('Hint: WebContainers only work in modern browsers with HTTPS or localhost.', '#94a3b8');
+    termLog('Note: Local files will still work, but Node.js execution is disabled.', '#94a3b8');
   }
 }
 
