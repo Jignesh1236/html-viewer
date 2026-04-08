@@ -1837,7 +1837,7 @@ Type 'help' for available commands.
 <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js" crossorigin></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://unpkg.com/monaco-editor@0.45.0/min/vs/loader.js" crossorigin></script>
-<script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js" crossorigin></script>
 <!-- CONTEXT MENU -->
 <div id="fileCtxMenu" class="ctx-menu">
   <div class="ctx-item" onclick="handleCtxAction('rename')"><i class="codicon codicon-edit"></i> Rename</div>
@@ -3875,18 +3875,45 @@ let pyodideLoading = false;
 async function bootPyodide() {
   if (pyodideInstance || pyodideLoading) return pyodideInstance;
   pyodideLoading = true;
-  try {
-    termLog('Loading Python (Pyodide)...', '#facc15');
-    pyodideInstance = await loadPyodide();
-    termLog('Python ready! 🐍', '#00ff00');
-    pyodideLoading = false;
-    return pyodideInstance;
-  } catch (err) {
-    pyodideLoading = false;
-    termLog('❌ Python load failed.', '#ef4444');
-    console.error(err);
-    return null;
+  
+  if (typeof loadPyodide === 'undefined') {
+    termLog('⚠️ loadPyodide is not defined. Attempting to load script dynamically...', '#facc15');
+    try {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js';
+        script.crossOrigin = 'anonymous';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('Failed to load Pyodide script'));
+        document.head.appendChild(script);
+      });
+    } catch (e) {
+      pyodideLoading = false;
+      termLog('❌ Could not load Pyodide script. Check your internet connection.', '#ef4444');
+      return null;
+    }
   }
+
+  const cdns = [
+    "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
+    "https://unpkg.com/pyodide@0.26.4/full/"
+  ];
+
+  for (const indexURL of cdns) {
+    try {
+      termLog(`Loading Python (Pyodide) from ${new URL(indexURL).hostname}...`, '#facc15');
+      pyodideInstance = await loadPyodide({ indexURL });
+      termLog('Python ready! 🐍', '#00ff00');
+      pyodideLoading = false;
+      return pyodideInstance;
+    } catch (err) {
+      console.warn(`Failed to load Pyodide from ${indexURL}:`, err);
+    }
+  }
+
+  pyodideLoading = false;
+  termLog('❌ Python load failed after trying all CDNs.', '#ef4444');
+  return null;
 }
 
 async function runPythonCode(code) {
@@ -3908,6 +3935,10 @@ async function runPythonCode(code) {
     let output = '';
     py.setStdout({ batched: (str) => { output += str + '\n'; termLog(str, '#fff'); } });
     py.setStderr({ batched: (str) => { output += str + '\n'; termLog(str, '#ef4444'); } });
+
+    // Load any imported packages automatically
+    termLog('Checking dependencies...', '#94a3b8');
+    await py.loadPackagesFromImports(code);
 
     await py.runPythonAsync(code);
   } catch (err) {
