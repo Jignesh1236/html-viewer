@@ -2789,11 +2789,12 @@ function runCode(){
   if(!editor) return;
   
   const ext = currentPath.split('.').pop().toLowerCase();
-  if (ext === 'py') {
-    terminalOpen = true;
-    document.getElementById('terminalPanel').style.display = 'flex';
-    document.getElementById('terminalInput').focus();
-    runPythonCode(editor.getValue());
+  
+  // Only auto-run/preview for web-related files
+  const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
+  if (!webExts.includes(ext)) {
+    // For non-web files (like .py, .cpp, .java), we don't auto-run in the terminal/console.
+    // The user must run them manually via terminal commands.
     return;
   }
 
@@ -3278,6 +3279,13 @@ function switchEditorTab(index) {
       }
       editor.setModel(model);
     }
+    
+    // Auto-run preview only for web files
+    const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
+    const ext = tab.name.split('.').pop().toLowerCase();
+    if (webExts.includes(ext)) {
+      runCode();
+    }
   }
   updateEditorTabs();
   updateBrowserUi();
@@ -3299,8 +3307,12 @@ function closeEditorTab(index, event) {
 }
 
 function openTextInEditor(name, content, handle, path) {
+  const actualPath = path || name;
+  virtualFS.set(actualPath, content);
+  currentFileHandle = handle;
+  
   // Check if already open
-  let existingIndex = browserTabs.findIndex(t => t.path === path);
+  let existingIndex = browserTabs.findIndex(t => t.path === actualPath);
   if(existingIndex !== -1) {
     switchEditorTab(existingIndex);
     return;
@@ -3308,7 +3320,7 @@ function openTextInEditor(name, content, handle, path) {
 
   // Add new tab
   browserTabs.forEach(t => t.active = false);
-  browserTabs.push({ name: name, path: path, active: true });
+  browserTabs.push({ name: name, path: actualPath, active: true });
   switchEditorTab(browserTabs.length - 1);
 }
 
@@ -3318,7 +3330,7 @@ function closeBrowserTab(index, event) {
   const wasActive = browserTabs[index].active;
   browserTabs.splice(index, 1);
   if(wasActive) {
-    switchBrowserTab(Math.max(0, index - 1));
+    switchEditorTab(Math.max(0, index - 1));
   } else {
     updateBrowserUi();
   }
@@ -3339,7 +3351,7 @@ function navigateTo(path) {
   if(virtualFS.has(targetPath)) {
     const existingTabIndex = browserTabs.findIndex(t => t.path === targetPath);
     if(existingTabIndex !== -1) {
-      switchBrowserTab(existingTabIndex);
+      switchEditorTab(existingTabIndex);
     } else {
       browserTabs.forEach(t => t.active = false);
       const name = targetPath.split('/').pop();
@@ -3347,11 +3359,19 @@ function navigateTo(path) {
       currentPath = targetPath;
       currentFilePath = name;
       const content = virtualFS.get(targetPath);
-      _ignoreEditorChangeForLive = true;
-      editor.setValue(content);
-      _ignoreEditorChangeForLive = false;
-      runCode();
+      
+      if(editor) {
+        let model = monaco.editor.getModels().find(m => m.uri.path === '/' + targetPath);
+        if(!model) {
+          const lang = getLanguageByFilename(name);
+          model = monaco.editor.createModel(content, lang, monaco.Uri.parse('file:///' + targetPath));
+        }
+        editor.setModel(model);
+      }
+      
+      updateEditorTabs();
       updateBrowserUi();
+      runCode();
     }
   } else {
     toast(`File not found: ${targetPath}`);
@@ -3959,10 +3979,13 @@ async function runPythonCode(code) {
       py.FS.writeFile(path, content);
     }
 
-    // Capture stdout/stderr
-    let output = '';
-    py.setStdout({ batched: (str) => { output += str + '\n'; termLog(str, '#fff'); } });
-    py.setStderr({ batched: (str) => { output += str + '\n'; termLog(str, '#ef4444'); } });
+    // Capture stdout/stderr to Console Panel
+    py.setStdout({ batched: (str) => { 
+      addLogToPanel('log', [str]);
+    } });
+    py.setStderr({ batched: (str) => { 
+      addLogToPanel('error', [str]);
+    } });
 
     // Load any imported packages automatically
     termLog('Checking dependencies...', '#94a3b8');
@@ -4112,12 +4135,13 @@ async function handleTerminalCommand(cmdLine) {
 
   if (cmd === 'help') {
     termLog('Available commands:', '#facc15');
-    termLog('  node <file.js>   - Run Node.js (WebContainer)', '#fff');
+    termLog('  node <file.js>   - Run Node.js', '#fff');
     termLog('  npm <args>       - Node Package Manager', '#fff');
-    termLog('  python <file.py> - Run Python (Pyodide)', '#fff');
+    termLog('  python <file.py> - Run Python', '#fff');
     termLog('  pip install <pkg>- Install Python packages', '#fff');
     termLog('  ls               - List files', '#fff');
     termLog('  clear            - Clear terminal', '#fff');
+    termLog('Note: Execution results are shown in the Console.', '#94a3b8');
     return;
   }
 
@@ -4191,16 +4215,16 @@ async function handleTerminalCommand(cmdLine) {
       const process = await webcontainerInstance.spawn(cmd, args);
       process.output.pipeTo(new WritableStream({
         write(data) {
-          termLog(data, '#fff');
+          addLogToPanel('log', [data]);
         }
       }));
       
       const exitCode = await process.exit;
       if (exitCode !== 0) {
-        termLog(`Process exited with code ${exitCode}`, '#ef4444');
+        addLogToPanel('error', [`Process exited with code ${exitCode}`]);
       }
     } catch (err) {
-      termLog(`Failed to execute: ${err.message}`, '#ef4444');
+      addLogToPanel('error', [`Failed to execute: ${err.message}`]);
     }
     return;
   }
@@ -4257,41 +4281,6 @@ function clearTerminal() {
   document.getElementById('terminalOutput').textContent = '';
 }
 
-function openTextInEditor(name, text, fileHandle=null, path=null){
-  currentFileHandle = fileHandle;
-  currentFilePath = name;
-  const actualPath = path || name;
-  currentPath = actualPath;
-  virtualFS.set(actualPath, text);
-
-  const ext = (name.split('.').pop()||'').toLowerCase();
-  if(ext==='css'){
-    setDocTab('css');
-    cssEditor.setValue(text);
-    applyCssFromPanel();
-  } else if(ext==='js'){
-    setDocTab('js');
-    jsEditor.setValue(text);
-    applyJsFromPanel();
-  } else {
-    setDocTab('html');
-    editor.setValue(text);
-  }
-  
-  // Sync Browser UI
-  const existingTabIndex = browserTabs.findIndex(t => t.path === actualPath);
-  if(existingTabIndex !== -1) {
-    browserTabs.forEach((t, i) => t.active = (i === existingTabIndex));
-  } else {
-    browserTabs.forEach(t => t.active = false);
-    browserTabs.push({ name: name, path: actualPath, active: true });
-  }
-  
-  runCode();
-  setStatus('Opened: '+name);
-  scheduleAutosave();
-  updateBrowserUi();
-}
 document.getElementById('anyFileInput').addEventListener('change', (e)=>{
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
