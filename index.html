@@ -3,9 +3,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- COI Service Worker to enable Cross-Origin Isolation (Required for WebContainer) -->
+<!-- COI Service Worker to enable Cross-Origin Isolation (MUST BE FIRST) -->
 <script src="https://cdn.jsdelivr.net/gh/gzuidhof/coi-serviceworker@latest/coi-serviceworker.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="f4fUEvoriHXGuXUnmkINKMdvNM_3JXehqPnM79ZSySg" />
 <!-- ══ PRIMARY SEO ══ -->
 <title>HTML Editor Online by Jignesh – Free AI Chat Builder & Visual HTML Editor</title>
@@ -3790,8 +3790,19 @@ async function bootWebContainer() {
     // Check for Cross-Origin Isolation (Required for WebContainer)
     if (!window.crossOriginIsolated) {
       termLog('⚠️ Warning: Page is not Cross-Origin Isolated.', '#facc15');
-      termLog('WebContainer requires COOP/COEP headers.', '#facc15');
-      termLog('COI-ServiceWorker has been added to enable this. Please REFRESH the page if it doesn\'t work.', '#00ff00');
+      termLog('WebContainer requires specific security headers or a service worker to run.', '#facc15');
+      
+      const fixBtn = document.createElement('button');
+      fixBtn.textContent = 'Enable Real Execution (Reload)';
+      fixBtn.className = 'tb-btn primary';
+      fixBtn.style.margin = '10px 0';
+      fixBtn.onclick = () => {
+        localStorage.removeItem('coi-sw-registered'); // Force re-registration if needed
+        location.reload();
+      };
+      document.getElementById('terminalOutput').appendChild(fixBtn);
+      
+      termLog('If reloading doesn\'t help, you may need to host this on a server that supports COOP/COEP headers.', '#94a3b8');
     }
 
     termLog('Booting WebContainer...', '#facc15');
@@ -3901,13 +3912,27 @@ async function handleTerminalCommand(cmdLine) {
 }
 
 function handleMockCommand(cmd, args) {
-  termLog('System: Using mock mode (WebContainer not available).', '#94a3b8');
+  termLog('System: Using mock mode (WebContainer failed to boot).', '#94a3b8');
   switch (cmd) {
     case 'ls':
       termLog(Array.from(virtualFS.keys()).join('  '));
       break;
     case 'help':
-      termLog('Mock commands: ls, clear, help. Real execution requires COOP/COEP headers.');
+      termLog('Mock commands: ls, clear, help, npm, node. Real execution requires isolation.');
+      break;
+    case 'npm':
+      termLog('Mock: Simulating npm install... (Real npm requires WebContainer)', '#facc15');
+      setTimeout(() => termLog('Mock: Dependencies "simulated" successfully.'), 1000);
+      break;
+    case 'node':
+      if (args[0]) {
+        const content = virtualFS.get(args[0]);
+        if (content) {
+          termLog(`Mock Execution Output (${args[0]}):`, '#facc15');
+          termLog('(Simulated output only - Enable WebContainer for real Node.js)', '#94a3b8');
+          termLog(content, '#fff');
+        } else termLog(`node: ${args[0]}: No such file`, '#ef4444');
+      } else termLog('Usage: node <filename>');
       break;
     default:
       termLog(`Command '${cmd}' not found in mock mode.`, '#ef4444');
