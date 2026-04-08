@@ -327,10 +327,13 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
   background:var(--sb);
   border-bottom:1px solid var(--border);
   display:flex;align-items:center;
-  padding:0 12px;gap:8px;
+  padding:0 12px;
   z-index:1000;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
+.tb-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.tb-center{display:flex;justify-content:center;flex:1}
+.tb-right{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end;min-width:0}
 .logo{
   font-size:16px;font-weight:800;letter-spacing:-0.5px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
@@ -390,6 +393,9 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .sb-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;transition:background .2s;z-index:10}
 .sb-resizer:hover,.sb-resizer.active{background:var(--accent);opacity:.6}
 #termResizer:hover,#termResizer.active{background:var(--accent);opacity:.6}
+
+.tb-layout-group .tb-btn:hover{background:rgba(255,255,255,0.05) !important; transform:none !important;}
+.tb-layout-group .tb-btn.active{background:rgba(108,99,255,0.1) !important; color:var(--accent) !important;}
 
 /* ── PANELS ── */
 .panels{flex:1;display:flex;min-width:0;overflow:hidden;position:relative;background:var(--bg)}
@@ -1076,28 +1082,26 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
 <!-- TOPBAR -->
 <div class="topbar">
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><i class="codicon codicon-menu"></i></button>
-  <button type="button" class="tb-btn icon-only tb-hamburger" id="tb-file-hamburger" onclick="toggleFileSidebar()" aria-label="Toggle file sidebar"><i class="codicon codicon-files"></i></button>
-  <span class="logo">J-IDE</span>
-  <div class="tb-div"></div>
+  <div class="tb-left">
+    <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><i class="codicon codicon-menu"></i></button>
+    <span class="logo">J-IDE</span>
+  </div>
+  
+  <div class="tb-center">
     <div class="mode-tabs">
       <button class="mode-tab" id="tab-code" onclick="setMode('code')"><i class="codicon codicon-code"></i>Code</button>
       <button class="mode-tab" id="tab-visual" onclick="setMode('visual')"><i class="codicon codicon-eye"></i>Visual</button>
       <button class="mode-tab active" id="tab-split" onclick="setMode('split')"><i class="codicon codicon-split-horizontal"></i>Split</button>
     </div>
-    <div class="tb-div"></div>
-    <div class="tb-badge"><div class="tb-dot"></div>LIVE</div>
-    <button class="tb-btn on" id="liveBtn" onclick="toggleLive()"><i class="codicon codicon-refresh"></i>Auto ON</button>
-    <button class="tb-btn" onclick="toggleTerminal()" title="Toggle Terminal"><i class="codicon codicon-terminal"></i>Terminal</button>
-    <div class="tb-div"></div>
-    <div class="tb-font-group">
-      <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size"><i class="codicon codicon-dash"></i></button>
-      <span class="tb-stat" id="fontSizeLabel" style="min-width:22px;text-align:center">13</span>
-      <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size"><i class="codicon codicon-add"></i></button>
-    </div>
+  </div>
+
   <div class="tb-right">
-    <button type="button" class="tb-btn" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme"><i class="codicon codicon-color-mode"></i></button>
-    <button type="button" class="tb-btn" onclick="toggleAiChat()" title="Open AI Chat Site Builder"><i class="codicon codicon-sparkle"></i>AI Chat</button>
+    <div class="tb-layout-group" style="display:flex; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:2px; gap:2px; margin-right:8px;">
+      <button type="button" class="tb-btn icon-only" id="tb-file-hamburger" onclick="toggleFileSidebar()" title="Toggle file sidebar (Left)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-sidebar-left"></i></button>
+      <button type="button" class="tb-btn icon-only" onclick="toggleTerminal()" title="Toggle terminal (Bottom)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-panel"></i></button>
+      <button type="button" class="tb-btn icon-only" onclick="toggleAiChat()" title="Toggle AI Chat (Right)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-sidebar-right"></i></button>
+    </div>
+    <button type="button" class="tb-btn icon-only" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme" style="margin-left:8px;"><i class="codicon codicon-color-mode"></i></button>
   </div>
 </div>
 
@@ -1235,8 +1239,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
       <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:6px 12px; gap:4px;">
         <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:2px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
           <span style="color:var(--muted); font-size:12px;"><i class="codicon codicon-lock"></i></span>
-          <input id="browserUrlInput" type="text" readonly style="flex:1; background:transparent; border:none; color:var(--muted); outline:none; height: 24px;" value="about:blank">
+          <input id="browserUrlInput" type="text" style="flex:1; background:transparent; border:none; color:var(--text); outline:none; height: 24px;" value="about:blank" onkeydown="if(event.key==='Enter') navigateTo(this.value)">
           <button class="pp-icon-btn" onclick="runCode()" title="Reload" style="font-size: 12px;"><i class="codicon codicon-refresh"></i></button>
+          <button class="pp-icon-btn" onclick="openNewTab()" title="Open in New Tab" style="font-size: 12px;"><i class="codicon codicon-link-external"></i></button>
         </div>
       </div>
 
@@ -1610,9 +1615,28 @@ Type 'help' for available commands.
 
 <!-- STATUSBAR -->
 <div class="statusbar">
-  <span id="status-msg">Ready</span>
-  <span style="margin-left:auto;display:flex;align-items:center;gap:10px">
-    <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts" style="padding:2px 8px;min-width:28px">?</button>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="status-msg">Ready</span>
+    <span class="tb-stat" style="color:var(--border)">|</span>
+    <div id="status-errors" title="Errors" style="display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--muted)">
+      <i class="codicon codicon-error" style="font-size:12px;color:#ef4444"></i>
+      <span id="error-count">0</span>
+    </div>
+    <div id="status-warnings" title="Warnings" style="display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--muted)">
+      <i class="codicon codicon-warning" style="font-size:12px;color:#facc15"></i>
+      <span id="warning-count">0</span>
+    </div>
+  </div>
+  <span style="margin-left:auto;display:flex;align-items:center;gap:16px">
+    <div class="tb-font-group" style="display:flex;align-items:center;gap:4px">
+      <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(-1)" title="Smaller code font" aria-label="Decrease font size" style="padding:2px 6px;min-width:24px;height:20px;font-size:10px;"><i class="codicon codicon-dash"></i></button>
+      <span class="tb-stat" id="fontSizeLabel" style="min-width:18px;text-align:center;font-size:10px;">13</span>
+      <button type="button" class="tb-btn icon-only" onclick="fontSizeStep(1)" title="Larger code font" aria-label="Increase font size" style="padding:2px 6px;min-width:24px;height:20px;font-size:10px;"><i class="codicon codicon-add"></i></button>
+    </div>
+    <span class="tb-stat" style="color:var(--border)">|</span>
+    <button class="tb-btn on" id="liveBtn" onclick="toggleLive()" style="padding:2px 8px;font-size:10px;height:20px;border-radius:4px;"><i class="codicon codicon-refresh" style="font-size:10px;margin-right:4px;"></i>Auto ON</button>
+    <span class="tb-stat" style="color:var(--border)">|</span>
+    <button type="button" class="tb-btn icon-only" id="helpShortcutsBtn" onclick="openShortcutsModal()" title="Keyboard shortcuts" style="padding:2px 8px;min-width:24px;height:20px;font-size:10px;">?</button>
     <span class="tb-stat" id="stat-chars">0 chars</span>
     <span class="tb-stat" style="color:var(--border)">|</span>
     <span class="tb-stat" id="stat-lines">0 lines</span>
@@ -2613,6 +2637,28 @@ require(['vs/editor/editor.main'], () => {
     formatCode();
   });
 
+  // Listen for markers (errors/warnings)
+  monaco.editor.onDidChangeMarkers(([uri]) => {
+    if (!editor) return;
+    const model = editor.getModel();
+    if (model && model.uri.toString() === uri.toString()) {
+      const markers = monaco.editor.getModelMarkers({ resource: uri });
+      const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error).length;
+      const warnings = markers.filter(m => m.severity === monaco.MarkerSeverity.Warning).length;
+      
+      const errEl = document.getElementById('error-count');
+      const warnEl = document.getElementById('warning-count');
+      const errWrap = document.getElementById('status-errors');
+      const warnWrap = document.getElementById('status-warnings');
+      
+      if (errEl) errEl.textContent = errors;
+      if (warnEl) warnEl.textContent = warnings;
+      
+      if (errWrap) errWrap.style.color = errors > 0 ? '#ef4444' : 'var(--muted)';
+      if (warnWrap) warnWrap.style.color = warnings > 0 ? '#facc15' : 'var(--muted)';
+    }
+  });
+
   try{
     if(shared) toast('Loaded from share link');
     else if(initial!==TEMPLATES.hero&&initial.length) toast('Restored last draft 💾');
@@ -2658,9 +2704,11 @@ function toggleMobileSidebar(){
 }
 function toggleFileSidebar(){
   const fsb = document.getElementById('fileSidebar');
+  const btn = document.getElementById('tb-file-hamburger');
   if(!fsb) return;
   const isHidden = fsb.style.display === 'none';
   fsb.style.display = isHidden ? 'flex' : 'none';
+  if (btn) btn.classList.toggle('active', isHidden);
   if(editor) editor.layout();
   setStatus(isHidden ? 'File sidebar opened' : 'File sidebar closed');
 }
@@ -3185,7 +3233,11 @@ function updateBrowserUi() {
     tabsContainer.appendChild(tabEl); 
   }); 
 
-  urlInput.value = `http://localhost/${currentPath}`; 
+  // Format URL for display, but keep it editable
+  const displayUrl = currentPath.startsWith('http') ? currentPath : `http://localhost/${currentPath}`;
+  if (document.activeElement !== urlInput) {
+    urlInput.value = displayUrl;
+  }
 }
 
 function updateEditorTabs() {
@@ -3311,14 +3363,62 @@ function openTextInEditor(name, content, handle, path) {
   virtualFS.set(actualPath, content);
   currentFileHandle = handle;
   
-  // Check if already open
+  // 1. Add to File Tree if not present
+  const pathParts = actualPath.split('/').filter(Boolean);
+  let currentItems = _fileTreeState.items;
+  let parent = null;
+
+  for (let i = 0; i < pathParts.length; i++) {
+    const part = pathParts[i];
+    const isLast = i === pathParts.length - 1;
+    let existing = currentItems.find(item => item.name === part);
+
+    if (!existing) {
+      existing = {
+        name: part,
+        kind: isLast ? 'file' : 'directory',
+        path: pathParts.slice(0, i + 1).join('/'),
+        children: isLast ? undefined : [],
+        handle: isLast ? handle : null,
+        expanded: true
+      };
+      currentItems.push(existing);
+      currentItems.sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+    }
+
+    if (!isLast) {
+      currentItems = existing.children;
+      parent = existing;
+    }
+  }
+  renderFileTree();
+
+  // 2. Sync to WebContainer if active
+  if (webcontainerInstance) {
+    writeToWebContainer(actualPath, content);
+  }
+
+  // 3. Sync to Pyodide if active
+  if (pyodideInstance) {
+    const parts = actualPath.split('/');
+    let current = '';
+    for (let i = 0; i < parts.length - 1; i++) {
+      current += (current ? '/' : '') + parts[i];
+      try { pyodideInstance.FS.mkdir(current); } catch(e) {}
+    }
+    try { pyodideInstance.FS.writeFile(actualPath, content); } catch(e) {}
+  }
+
+  // 4. Manage Tabs
   let existingIndex = browserTabs.findIndex(t => t.path === actualPath);
   if(existingIndex !== -1) {
     switchEditorTab(existingIndex);
     return;
   }
 
-  // Add new tab
   browserTabs.forEach(t => t.active = false);
   browserTabs.push({ name: name, path: actualPath, active: true });
   switchEditorTab(browserTabs.length - 1);
@@ -3337,15 +3437,27 @@ function closeBrowserTab(index, event) {
 }
 
 function navigateTo(path) {
-  // Resolve relative path
+  if (!path) return;
+  
+  // Clean path for URL input
   let targetPath = path;
-  if(!path.startsWith('/')) {
+  if (targetPath.startsWith('http://localhost/')) {
+    targetPath = targetPath.replace('http://localhost/', '');
+  } else if (targetPath.startsWith('http')) {
+    // For now we don't support external URLs in the iframe due to CORS
+    toast('Only local files can be viewed in preview');
+    updateBrowserUi();
+    return;
+  }
+
+  // Resolve relative path
+  if(!targetPath.startsWith('/') && currentPath) {
     const parts = currentPath.split('/');
     parts.pop();
-    parts.push(path);
+    parts.push(targetPath);
     targetPath = parts.filter(Boolean).join('/');
-  } else {
-    targetPath = path.substring(1);
+  } else if (targetPath.startsWith('/')) {
+    targetPath = targetPath.substring(1);
   }
 
   if(virtualFS.has(targetPath)) {
@@ -3375,6 +3487,7 @@ function navigateTo(path) {
     }
   } else {
     toast(`File not found: ${targetPath}`);
+    updateBrowserUi(); // Reset URL bar
   }
 }
 function supportsFSA(){ try{return !!(window.showDirectoryPicker||window.showOpenFilePicker);}catch(e){return false;} }
@@ -4111,8 +4224,10 @@ async function writeToWebContainer(path, content) {
 
 function toggleTerminal() {
   const panel = document.getElementById('terminalPanel');
+  const btn = document.querySelector('.tb-layout-group button[onclick="toggleTerminal()"]');
   terminalOpen = !terminalOpen;
   panel.style.display = terminalOpen ? 'flex' : 'none';
+  if (btn) btn.classList.toggle('active', terminalOpen);
   if (terminalOpen) {
     document.getElementById('terminalInput').focus();
     // No automatic boot here - let the user run commands first
@@ -6448,8 +6563,10 @@ document.addEventListener('input', function (e) {
 
 function toggleAiChat() {
   const panel = document.getElementById('aiChatPanel');
-  panel.classList.toggle('open');
-  if(panel.classList.contains('open')) {
+  const btn = document.querySelector('.tb-layout-group button[onclick="toggleAiChat()"]');
+  const open = panel.classList.toggle('open');
+  if (btn) btn.classList.toggle('active', open);
+  if(open) {
     document.getElementById('aiChatInput').focus();
     if (editor) editor.layout();
   }
