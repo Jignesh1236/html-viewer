@@ -1413,7 +1413,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
       <div class="preview-viewport-wrap" id="previewViewportWrap">
         <div class="preview-viewport-inner" id="previewViewportInner">
-      <iframe id="preview" title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+      <iframe id="preview" title="Live Preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
       <!-- OVERLAY -->
       <div class="visual-overlay" id="visualOverlay">
         <div class="v-hover" id="vHover"></div>
@@ -3068,13 +3068,23 @@ function runCode(){
   const isSWActive = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
   const forceCompatibility = localStorage.getItem('forceCompatibility') === 'true';
   
-  if (isSWActive && !forceCompatibility && (ext === 'html' || ext === 'htm')) {
+  // Extra check: try to fetch a test resource from VFS via SW
+  const useVFS = isSWActive && !forceCompatibility && (ext === 'html' || ext === 'htm');
+
+  if (useVFS) {
     // 1. Service Worker Approach (Best for tree system)
-    // Calculate base URL correctly for Vercel/subfolders
     const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
     const virtualUrl = `${baseUrl}__vfs__/${currentPath}`;
     
-    // Check if iframe already has this source to avoid flicker
+    // Add a listener to detect load errors (like 404 from Vercel)
+    const handleLoadError = () => {
+      console.warn('VFS Preview failed to load. Switching to Compatibility Mode.');
+      localStorage.setItem('forceCompatibility', 'true');
+      runCode();
+    };
+
+    iframeEl.onerror = handleLoadError;
+    
     if (iframeEl.src !== virtualUrl) {
       iframeEl.src = virtualUrl;
     } else {
@@ -8265,21 +8275,29 @@ function registerServiceWorker(){
     return;
   }
 
-  navigator.serviceWorker.register('sw.js', { scope: './' }).then(registration => {
-    // Force immediate control
-    if (registration.active) syncVfsToServiceWorker();
+  // Use a root-relative path for the service worker
+  const swPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + 'sw.js';
+
+  navigator.serviceWorker.register(swPath, { scope: './' }).then(registration => {
+    console.log('SW registered with scope:', registration.scope);
     
+    // Check for controller
+    if (navigator.serviceWorker.controller) {
+      console.log('SW already controlling page');
+      syncVfsToServiceWorker();
+    }
+
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'activated') {
-          // Claim control immediately
-          if (navigator.serviceWorker.controller) {
-            toast('Service Worker updated');
-            runCode();
-          } else {
-            // Very first time - reload to let SW take control
+          console.log('New SW activated, claiming clients...');
+          // The SW itself should call clients.claim(), but we can also reload
+          if (!navigator.serviceWorker.controller) {
             location.reload();
+          } else {
+            syncVfsToServiceWorker();
+            runCode();
           }
         }
       });
@@ -8301,4 +8319,3 @@ function togglePreviewMode() {
 </script>
 </body>
 </html>
-
