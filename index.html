@@ -3064,15 +3064,22 @@ function runCode(){
   // Sync VFS to Service Worker if available
   syncVfsToServiceWorker();
 
-  // Determine if we can use Service Worker
+  // Determine if we can use Service Worker (must be controlling the page)
   const isSWActive = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+  const forceCompatibility = localStorage.getItem('forceCompatibility') === 'true';
   
-  if (isSWActive && (ext === 'html' || ext === 'htm')) {
+  if (isSWActive && !forceCompatibility && (ext === 'html' || ext === 'htm')) {
     // 1. Service Worker Approach (Best for tree system)
-    // Use relative path for virtual VFS to handle subfolders correctly
-    const baseUrl = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    // Calculate base URL correctly for Vercel/subfolders
+    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
     const virtualUrl = `${baseUrl}__vfs__/${currentPath}`;
-    iframeEl.src = virtualUrl;
+    
+    // Check if iframe already has this source to avoid flicker
+    if (iframeEl.src !== virtualUrl) {
+      iframeEl.src = virtualUrl;
+    } else {
+      iframeEl.contentWindow.location.reload();
+    }
     setStatus('Preview: VFS Mode');
   } else {
     // 2. Fallback: Inlining Approach (Most compatible)
@@ -8253,26 +8260,45 @@ function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return;
   var isLocal = location.hostname==='localhost'||location.hostname==='127.0.0.1';
   var isSecure = location.protocol==='https:' || isLocal;
-  if(!isSecure) return;
+  if(!isSecure) {
+    console.warn('VFS Mode requires HTTPS or localhost. Falling back to Compatibility Mode.');
+    return;
+  }
 
-  navigator.serviceWorker.register('sw.js').then(registration => {
-    // Sync VFS once registered
+  navigator.serviceWorker.register('sw.js', { scope: './' }).then(registration => {
+    // Force immediate control
     if (registration.active) syncVfsToServiceWorker();
     
-    // If a new service worker is installed, reload to ensure headers are injected
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
       newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'activated' && !navigator.serviceWorker.controller) {
-          location.reload();
+        if (newWorker.state === 'activated') {
+          // Claim control immediately
+          if (navigator.serviceWorker.controller) {
+            toast('Service Worker updated');
+            runCode();
+          } else {
+            // Very first time - reload to let SW take control
+            location.reload();
+          }
         }
       });
     });
   }).catch(function(err){
     console.error('SW registration failed:', err);
+    toast('Preview Mode limited: Service Worker failed to start', 'warn');
   });
 }
 registerServiceWorker();
+
+// Add a toggle for preview mode in settings or console
+function togglePreviewMode() {
+  const current = localStorage.getItem('forceCompatibility') === 'true';
+  localStorage.setItem('forceCompatibility', !current);
+  toast(`Preview Mode switched to: ${!current ? 'Compatibility' : 'VFS (Tree)'}`);
+  runCode();
+}
 </script>
 </body>
 </html>
+
