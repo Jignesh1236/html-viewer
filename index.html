@@ -173,36 +173,50 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons@0.0.27/dist/codicon.css" crossorigin>
 <!-- VS Code Icons SVG API -->
 <script src="https://cdn.jsdelivr.net/npm/vscode-icons-svg@2.0.0/dist/vscode-icons-svg.js" crossorigin></script>
+<!-- xterm.js Terminal -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.js" crossorigin></script>
 <style>
   .codicon { font-size: 14px !important; display: inline-block !important; vertical-align: middle; }
 .terminal-panel {
-  display:none; position:absolute; 
-  background:#000; color:#fff; border:1px solid var(--border); 
-  z-index:101; flex-direction:column;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display:none; 
+  flex-direction:column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  background:#0d0d12; 
+  color:#fff;
+  overflow: hidden;
 }
-.terminal-panel.dock-bottom {
-  bottom:0; left:0; right:0; height:200px; width: 100%;
-  border-left: none; border-right: none; border-bottom: none;
+.terminal-panel .xterm {
+  flex: 1;
+  padding: 8px;
+  min-height: 0;
+  width: 100%;
 }
-.terminal-panel.dock-right {
-  top:0; bottom:0; right:0; width:300px; height: auto;
-  border-top: none; border-right: none; border-bottom: none;
+.terminal-panel .xterm-viewport {
+  overflow-y: auto !important;
 }
-.terminal-panel.dock-left {
-  top:0; bottom:0; left:0; width:300px; height: auto;
-  border-top: none; border-left: none; border-bottom: none;
+.terminal-panel .xterm-viewport::-webkit-scrollbar {
+  width: 6px;
 }
-.terminal-panel.floating {
-  position: fixed !important;
-  border-radius: 8px;
-  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
-  z-index: 2000;
+.terminal-panel .xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
 }
-.dock-zone-hint {
-  position: fixed; background: rgba(108, 99, 255, 0.2);
-  border: 2px dashed var(--accent); z-index: 10000;
-  pointer-events: none; display: none; border-radius: 4px;
+.terminal-panel .xterm-viewport::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+#terminalContainer {
+  background: #0d0d12;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
 }
 </style>
 
@@ -416,7 +430,6 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 .sb-resizer{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;background:transparent;transition:background .2s;z-index:10}
 .sb-resizer:hover,.sb-resizer.active{background:var(--accent);opacity:.6}
-#termResizer:hover,#termResizer.active{background:var(--accent);opacity:.6}
 
 .tb-layout-group .tb-btn:hover{background:rgba(255,255,255,0.05) !important; transform:none !important;}
 .tb-layout-group .tb-btn.active{background:rgba(108,99,255,0.1) !important; color:var(--accent) !important;}
@@ -440,6 +453,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .editor-doc-tab.active::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}
 .editor-doc-tab .tab-ic{font-size:14px;display:flex;align-items:center;opacity:0.7}
 .editor-doc-tab.active .tab-ic{opacity:1}
+#terminal-tab .tab-ic{color:#6c63ff !important;}
 
 .css-editor-ta{display:none;flex:1;min-width:0;width:100%;padding:12px 14px;background:var(--bg);color:var(--text);border:none;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.58;resize:none;outline:none;box-sizing:border-box}
 .css-editor-ta.show{display:block}
@@ -453,6 +467,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
 #editor{flex:1;overflow:hidden;min-height:0}
 
+#tb-terminal.on{color:var(--accent) !important; background:rgba(108,99,255,0.15) !important; border-color:var(--accent) !important;}
 .panels-resizer{width:5px;background:var(--border);cursor:col-resize;flex-shrink:0;transition:background .2s}
 .panels-resizer:hover,.panels-resizer.active{background:var(--accent);opacity:.6}
 
@@ -779,16 +794,15 @@ body.sidebar-hidden #paneResizer{display:none!important}
   #browserTabs { margin-left: 4px !important; }
   .browser-tab { padding: 0 8px !important; font-size: 10px !important; }
 
-  #terminalPanel, #aiChatPanel {
+  #terminalPanel {
     position: fixed !important;
-    left: 0; right: 0;
+    left: 0 !important; right: 0 !important;
     bottom: calc(var(--mobileNavH) + 20px) !important;
-    width: 100% !important; max-width: none; min-width: 0;
+    width: 100% !important;
     height: 40vh !important;
     z-index: 10030;
     border-radius: 16px 16px 0 0;
     border-top: 2px solid var(--accent);
-    box-shadow: 0 -8px 32px rgba(0,0,0,.35);
   }
   #aiChatPanel { height: 60vh !important; }
   
@@ -1125,8 +1139,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
 }
 </style>
 </head>
-<body class="dock-bottom">
-<div id="dockZoneHint" class="dock-zone-hint"></div>
+<body>
 <a href="#workspace" class="skip-link">Skip to editor</a>
 
 <!-- TOPBAR -->
@@ -1147,7 +1160,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
   <div class="tb-right">
     <div class="tb-layout-group" style="display:flex; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:2px; gap:2px; margin-right:8px;">
       <button type="button" class="tb-btn icon-only" id="tb-file-hamburger" onclick="toggleFileSidebar()" title="Toggle file sidebar (Left)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-sidebar-left"></i></button>
-      <button type="button" class="tb-btn icon-only" onclick="toggleTerminal()" title="Toggle terminal (Bottom)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-panel"></i></button>
+      <button type="button" class="tb-btn icon-only" id="tb-terminal" onclick="toggleTerminal()" title="Toggle Terminal (Tab)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-terminal"></i></button>
       <button type="button" class="tb-btn icon-only" onclick="toggleAiChat()" title="Toggle AI Chat (Right)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-sidebar-right"></i></button>
     </div>
     <button type="button" class="tb-btn icon-only" id="themeToggleBtn" onclick="toggleAppTheme()" title="Switch light/dark theme" style="margin-left:8px;"><i class="codicon codicon-color-mode"></i></button>
@@ -1247,12 +1260,17 @@ body.sidebar-hidden #paneResizer{display:none!important}
           <button class="tb-btn" onclick="copyShareLink()" title="Copy Share Link" style="padding: 3px 8px; font-size: 10px; height: 24px; display: flex; align-items: center; gap: 4px;"><i class="codicon codicon-link"></i> Link</button>
         </div>
       </div>
+      <!-- Editor Area -->
       <div class="code-pane-body" id="codePaneBody">
         <div id="editor"></div>
         <div id="cssEditor" style="display:none; flex:1;"></div>
         <div id="jsEditor" style="display:none; flex:1;"></div>
         <textarea id="cssEditorArea" style="display:none;"></textarea>
         <textarea id="jsEditorArea" style="display:none;"></textarea>
+      </div>
+      <!-- Terminal Panel -->
+      <div id="terminalPanel" style="display:none; flex-direction:column; flex:1; min-height:0; background:#0d0d12;">
+        <div id="terminalContainer" style="flex:1; display:flex; flex-direction:column; min-height:0; width:100%;"></div>
       </div>
     </div>
 
@@ -1326,28 +1344,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
         <div id="consoleLogs" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:11px; white-space:pre-wrap;"></div>
       </div>
     </div>
-
-    </div>
   </div>
-
-  <!-- TERMINAL -->
-  <div id="terminalPanel" class="terminal-panel dock-bottom">
-    <div id="termResizer" style="position:absolute; top:-2px; left:0; right:0; height:4px; cursor:row-resize; z-index:102; background:transparent;"></div>
-    <div class="pane-header terminal-handle" style="padding:4px 12px; min-height:28px; background:#1e1e1e; border-bottom:1px solid #333; cursor:move;">
-      <span style="color:#ccc; font-size:11px;"><i class="codicon codicon-terminal" style="margin-right:6px"></i>Terminal</span>
-      <button class="pp-icon-btn" onclick="clearTerminal()" title="Clear Terminal" style="margin-left:auto; color:#ccc;"><i class="codicon codicon-clear-all"></i></button>
-      <button class="pp-icon-btn" onclick="cycleTerminalDock()" title="Cycle Dock Position" style="color:#ccc;"><i class="codicon codicon-screen-full"></i></button>
-      <button class="pp-icon-btn" onclick="toggleTerminal()" title="Close Terminal" style="color:#ccc;"><i class="codicon codicon-close"></i></button>
-    </div>
-    <div id="terminalOutput" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap; color:#00ff00;">Welcome to Jignesh-IDE Terminal v1.0.0
-Type 'help' for available commands.
-
 </div>
-    <div style="display:flex; align-items:center; padding:4px 8px; background:#000; border-top:1px solid #222;">
-      <span id="terminalPrompt" style="color:#3b82f6; font-family:'JetBrains Mono',monospace; font-size:12px; margin-right:8px;">~/project $</span>
-      <input id="terminalInput" type="text" style="flex:1; background:transparent; border:none; color:#fff; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none;" spellcheck="false">
-    </div>
-  </div>
 
   <!-- PROPERTY PANEL (Right Sidebar) -->
   <div class="prop-panel" id="propPanel">
@@ -3348,6 +3346,9 @@ function updateEditorTabs() {
     tabBtn.onclick = () => switchEditorTab(index);
     container.appendChild(tabBtn);
   });
+  
+  // Re-render terminal tab if it's open
+  renderTerminalTab();
 }
 
 function getLanguageByFilename(filename) {
@@ -3392,8 +3393,21 @@ function getLanguageByFilename(filename) {
 }
 
 function switchEditorTab(index) {
+  // Don't close terminal - keep it running in background
+  // Terminal tab stays visible even when viewing other tabs
+  
   browserTabs.forEach((t, i) => t.active = (i === index));
   const tab = browserTabs[index];
+  
+  // Show editor panel, but keep terminalOpen flag true so tab stays visible
+  const codePaneBody = document.getElementById('codePaneBody');
+  const terminalPanel = document.getElementById('terminalPanel');
+  // Only hide terminal panel but keep terminalOpen = true for tab visibility
+  if (terminalOpen) {
+    terminalPanel.style.display = 'none';
+  }
+  codePaneBody.style.display = 'flex';
+  
   if(tab) {
     currentPath = tab.path;
     const content = virtualFS.get(currentPath) || '';
@@ -3429,6 +3443,9 @@ function switchEditorTab(index) {
 
 function closeEditorTab(index, event) {
   if(event) event.stopPropagation();
+  
+  // Don't close terminal - keep it running
+  
   const closedTab = browserTabs.splice(index, 1)[0];
   if(closedTab.active && browserTabs.length > 0) {
     switchEditorTab(Math.max(0, index - 1));
@@ -3445,6 +3462,14 @@ function openTextInEditor(name, content, handle, path) {
   const actualPath = path || name;
   virtualFS.set(actualPath, content);
   currentFileHandle = handle;
+  
+  // Show editor (hide terminal panel but keep terminalOpen for tab visibility)
+  if (terminalOpen) {
+    const codePaneBody = document.getElementById('codePaneBody');
+    const terminalPanel = document.getElementById('terminalPanel');
+    terminalPanel.style.display = 'none';
+    codePaneBody.style.display = 'flex';
+  }
   
   // 1. Add to File Tree if not present
   const pathParts = actualPath.split('/').filter(Boolean);
@@ -4305,208 +4330,277 @@ async function writeToWebContainer(path, content) {
   }
 }
 
-function toggleTerminal() {
-  const panel = document.getElementById('terminalPanel');
-  const btn = document.querySelector('.tb-layout-group button[onclick="toggleTerminal()"]');
-  terminalOpen = !terminalOpen;
-  panel.style.display = terminalOpen ? 'flex' : 'none';
-  if (btn) btn.classList.toggle('active', terminalOpen);
-  if (terminalOpen) {
-    document.getElementById('terminalInput').focus();
-    if(panel.classList.contains('dock-bottom') || panel.classList.contains('dock-left') || panel.classList.contains('dock-right')) {
-      panel.style.cssText = '';
-      panel.style.display = 'flex';
+let xtermTerminal = null;
+let xtermFitAddon = null;
+let xtermInitialized = false;
+
+function initXterm() {
+  if (xtermInitialized) return;
+  const container = document.getElementById('terminalContainer');
+  if (!container) {
+    console.error('terminalContainer not found');
+    return;
+  }
+  
+  try {
+    if (typeof Terminal === 'undefined') {
+      console.error('xterm.js not loaded - check CDN');
+      alert('xterm.js not loaded! Check console for errors.');
+      return;
     }
     
-    // Show a quick loading simulation if services aren't ready
-    if ((!webcontainerInstance && !webcontainerBooting) || (!pyodideInstance && !pyodideLoading)) {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.floor(Math.random() * 15) + 5;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          termLog('✅ Terminal system ready.', '#00ff00', 'term-init');
-        } else {
-          termProgressBar(progress, 'Terminal is loading...', 'term-init');
-        }
-      }, 150);
+    xtermTerminal = new Terminal({
+      cursorBlink: true,
+      convertEol: true,
+      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+      fontSize: 13,
+      theme: {
+        background: '#0d0d12',
+        foreground: '#ddd8f0',
+        cursor: '#6c63ff',
+        cursorAccent: '#0d0d12',
+        selectionBackground: '#6c63ff40',
+        black: '#1c1b26',
+        red: '#ff5f87',
+        green: '#3ddc84',
+        yellow: '#facc15',
+        blue: '#6c63ff',
+        magenta: '#a855f7',
+        cyan: '#06b6d4',
+        white: '#ddd8f0',
+        brightBlack: '#5a5770',
+        brightRed: '#ff5f87',
+        brightGreen: '#3ddc84',
+        brightYellow: '#facc15',
+        brightBlue: '#6c63ff',
+        brightMagenta: '#c084fc',
+        brightCyan: '#06b6d4',
+        brightWhite: '#ffffff'
+      },
+      allowProposedApi: true
+    });
+    
+    if (typeof FitAddon !== 'undefined') {
+      xtermFitAddon = new FitAddon.FitAddon();
+      xtermTerminal.loadAddon(xtermFitAddon);
+    }
+    
+    if (typeof WebLinksAddon !== 'undefined') {
+      try {
+        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+        xtermTerminal.loadAddon(webLinksAddon);
+      } catch(e) {}
+    }
+    
+    xtermTerminal.open(container);
+    
+    if (xtermFitAddon) {
+      try { xtermFitAddon.fit(); } catch(e) {}
+    }
+    
+    xtermTerminal.writeln('\x1b[36m╔═══════════════════════════════════════════════════╗\x1b[0m');
+    xtermTerminal.writeln('\x1b[36m║\x1b[0m   \x1b[1;37mJignesh-IDE Terminal v1.0.0\x1b[0m                  \x1b[36m║\x1b[0m');
+    xtermTerminal.writeln('\x1b[36m╠═══════════════════════════════════════════════════╣\x1b[0m');
+    xtermTerminal.writeln('\x1b[36m║\x1b[0m   Type \x1b[33mhelp\x1b[0m for available commands            \x1b[36m║\x1b[0m');
+    xtermTerminal.writeln('\x1b[36m║\x1b[0m   \x1b[90mWebContainer + Pyodide ready\x1b[0m              \x1b[36m║\x1b[0m');
+    xtermTerminal.writeln('\x1b[36m╚═══════════════════════════════════════════════════╝\x1b[0m');
+    xtermTerminal.writeln('');
+    writeTermPrompt();
+    
+    xtermTerminal.onData(handleTerminalInput);
+    xtermInitialized = true;
+  } catch (e) {
+    console.error('xterm init failed:', e);
+    alert('Terminal init failed: ' + e.message);
+  }
+}
+
+function fitXterm() {
+  if (xtermFitAddon && xtermInitialized && terminalOpen) {
+    try { 
+      xtermFitAddon.fit(); 
+    } catch(e) {
+      console.warn('xterm fit failed:', e);
     }
   }
+}
+
+function renderTerminalTab() {
+  const tabs = document.getElementById('editorTabs');
+  if (!tabs) return;
+  
+  let termTab = document.getElementById('terminal-tab');
+  
+  if (terminalOpen) {
+    if (!termTab) {
+      termTab = document.createElement('button');
+      termTab.type = 'button';
+      termTab.className = 'editor-doc-tab active';
+      termTab.id = 'terminal-tab';
+      termTab.setAttribute('role', 'tab');
+      termTab.setAttribute('aria-selected', 'true');
+      termTab.innerHTML = `
+        <span class="tab-ic"><i class="codicon codicon-terminal" style="color:#6c63ff;"></i></span>
+        <span>Terminal</span>
+        <span class="tab-close" onclick="closeTerminalTab(event)">×</span>
+      `;
+      termTab.onclick = function(e) {
+        e.stopPropagation();
+        showTerminalTab();
+      };
+      tabs.appendChild(termTab);
+    } else {
+      termTab.classList.add('active');
+      termTab.setAttribute('aria-selected', 'true');
+    }
+  } else {
+    // When terminal is closed, keep the tab but remove active styling
+    // This keeps terminal tab visible so user can switch back to it
+    if (termTab) {
+      termTab.classList.remove('active');
+      termTab.setAttribute('aria-selected', 'false');
+    }
+  }
+}
+
+function showTerminalTab() {
+  const codePaneBody = document.getElementById('codePaneBody');
+  const terminalPanel = document.getElementById('terminalPanel');
+  
+  terminalOpen = true;
+  codePaneBody.style.display = 'none';
+  terminalPanel.style.display = 'flex';
+  
+  if (!xtermInitialized) {
+    initXterm();
+  }
+  
+  setTimeout(() => {
+    fitXterm();
+    if (xtermTerminal) xtermTerminal.focus();
+  }, 100);
+  
+  updateEditorTabs();
+  updateTerminalBtn();
+}
+
+function closeTerminalTab(event) {
+  if (event) event.stopPropagation();
+  closeTerminalAndShowEditor();
+}
+
+function closeTerminalAndShowEditor() {
+  const codePaneBody = document.getElementById('codePaneBody');
+  const terminalPanel = document.getElementById('terminalPanel');
+  
+  terminalOpen = false;
+  codePaneBody.style.display = 'flex';
+  terminalPanel.style.display = 'none';
+  
+  updateEditorTabs();
+  updateTerminalBtn();
+}
+
+function toggleTerminal() {
+  const codePaneBody = document.getElementById('codePaneBody');
+  const terminalPanel = document.getElementById('terminalPanel');
+  
+  terminalOpen = !terminalOpen;
+  
+  if (terminalOpen) {
+    codePaneBody.style.display = 'none';
+    terminalPanel.style.display = 'flex';
+    
+    if (!xtermInitialized) {
+      initXterm();
+    }
+    
+    setTimeout(() => {
+      fitXterm();
+      if (xtermTerminal) xtermTerminal.focus();
+    }, 100);
+  } else {
+    codePaneBody.style.display = 'flex';
+    terminalPanel.style.display = 'none';
+  }
+  
+  updateEditorTabs();
+  renderTerminalTab();
+  updateTerminalBtn();
+}
+
+function updateTerminalBtn() {
+  const tabBtn = document.getElementById('tb-terminal');
+  if (tabBtn) {
+    if (terminalOpen) {
+      tabBtn.classList.add('on');
+    } else {
+      tabBtn.classList.remove('on');
+    }
+  }
+}
+
+function toggleTerminalTab() {
+  toggleTerminal();
 }
 
 function cycleTerminalDock() {
-  const el = document.getElementById('terminalPanel');
-  const docks = ['dock-bottom', 'dock-left', 'dock-right', 'floating'];
-  let current = docks.find(d => el.classList.contains(d)) || 'dock-bottom';
-  let next = docks[(docks.indexOf(current) + 1) % docks.length];
-  
-  setTerminalDock(next);
+  toggleTerminalTab();
 }
 
 function setTerminalDock(dock) {
-  const el = document.getElementById('terminalPanel');
-  const resizer = document.getElementById('termResizer');
-  const docks = ['dock-bottom', 'dock-left', 'dock-right', 'floating'];
-  docks.forEach(d => el.classList.remove(d));
-  el.classList.add(dock);
-  
-  // Update resizer position
-  resizer.style.cssText = 'position:absolute; z-index:102; background:transparent;';
-  if (dock === 'dock-bottom') {
-    resizer.style.top = '-2px'; resizer.style.left = '0'; resizer.style.right = '0'; resizer.style.height = '4px'; resizer.style.cursor = 'row-resize';
-  } else if (dock === 'dock-right') {
-    resizer.style.top = '0'; resizer.style.left = '-2px'; resizer.style.bottom = '0'; resizer.style.width = '4px'; resizer.style.cursor = 'col-resize';
-  } else if (dock === 'dock-left') {
-    resizer.style.top = '0'; resizer.style.right = '-2px'; resizer.style.bottom = '0'; resizer.style.width = '4px'; resizer.style.cursor = 'col-resize';
-  } else if (dock === 'floating') {
-    resizer.style.display = 'none'; // No resize for floating for now, or use standard resize
-  }
-  
-  if (dock === 'floating') {
-    el.style.width = '600px';
-    el.style.height = '400px';
-    el.style.top = '100px';
-    el.style.left = '100px';
-    el.style.bottom = 'auto';
-    el.style.right = 'auto';
-  } else {
-    el.style.cssText = '';
-    el.style.display = terminalOpen ? 'flex' : 'none';
-  }
-  if(editor) editor.layout();
 }
 
 (function initTerminalResizer() {
-  const el = document.getElementById('terminalPanel');
-  const h = document.getElementById('termResizer');
-  let d = false, sx, sy, sw, sh;
-
-  h.onmousedown = (e) => {
-    d = true; sx = e.clientX; sy = e.clientY;
-    sw = el.offsetWidth; sh = el.offsetHeight;
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  };
-
-  document.addEventListener('mousemove', (e) => {
-    if (!d) return;
-    if (el.classList.contains('dock-bottom')) {
-      el.style.height = Math.max(100, sh - (e.clientY - sy)) + 'px';
-    } else if (el.classList.contains('dock-right')) {
-      el.style.width = Math.max(150, sw - (e.clientX - sx)) + 'px';
-    } else if (el.classList.contains('dock-left')) {
-      el.style.width = Math.max(150, sw + (e.clientX - sx)) + 'px';
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!d) return; d = false;
-    document.body.style.userSelect = '';
-    if (editor) editor.layout();
-  });
 })();
 
 (function initTerminalDraggable() {
-  const el = document.getElementById('terminalPanel');
-  const handle = el.querySelector('.terminal-handle');
-  const hint = document.getElementById('dockZoneHint');
-  
-  let dragging = false, startX, startY, startLeft, startTop;
-  let dockTarget = null;
-
-  handle.onmousedown = (e) => {
-    if (e.target.closest('button')) return;
-    dragging = true;
-    startX = e.clientX; startY = e.clientY;
-    
-    const ws = document.getElementById('workspace');
-    const wsRect = ws.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    
-    startLeft = rect.left - wsRect.left; 
-    startTop = rect.top - wsRect.top;
-    
-    // If docking, convert to absolute for dragging
-    if (!el.classList.contains('floating')) {
-      el.style.width = rect.width + 'px';
-      el.style.height = rect.height + 'px';
-      el.style.left = startLeft + 'px';
-      el.style.top = startTop + 'px';
-      el.style.bottom = 'auto';
-      el.style.right = 'auto';
-      el.classList.add('floating');
-    }
-    
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  };
-
-  document.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    el.style.left = (startLeft + dx) + 'px';
-    el.style.top = (startTop + dy) + 'px';
-
-    // Docking hints
-    const ws = document.getElementById('workspace');
-    const wsRect = ws.getBoundingClientRect();
-    const w = wsRect.width;
-    const h = wsRect.height;
-    const edge = 60;
-    
-    const relX = e.clientX - wsRect.left;
-    const relY = e.clientY - wsRect.top;
-    
-    hint.style.display = 'none';
-    dockTarget = null;
-
-    if (relY > h - edge) {
-      hint.style.display = 'block';
-      hint.style.left = wsRect.left + 'px'; 
-      hint.style.top = (wsRect.bottom - 150) + 'px'; 
-      hint.style.width = w + 'px'; 
-      hint.style.height = '150px';
-      dockTarget = 'dock-bottom';
-    } else if (relX < edge) {
-      hint.style.display = 'block';
-      hint.style.left = wsRect.left + 'px'; 
-      hint.style.top = wsRect.top + 'px'; 
-      hint.style.width = '250px'; 
-      hint.style.height = h + 'px';
-      dockTarget = 'dock-left';
-    } else if (relX > w - edge) {
-      hint.style.display = 'block';
-      hint.style.left = (wsRect.right - 250) + 'px'; 
-      hint.style.top = wsRect.top + 'px'; 
-      hint.style.width = '250px'; 
-      hint.style.height = h + 'px';
-      dockTarget = 'dock-right';
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    hint.style.display = 'none';
-    document.body.style.userSelect = '';
-    
-    if (dockTarget) {
-      setTerminalDock(dockTarget);
-    } else {
-      setTerminalDock('floating');
-    }
-  });
 })();
 
-async function handleTerminalCommand(cmdLine) {
-  const inputEl = document.getElementById('terminalInput');
-  termLog(`~/project${currentTermDir} $ ${cmdLine}`, '#3b82f6');
+let termCmdBuffer = '';
+let termShellProcess = null;
+
+function handleTerminalInput(data) {
+  if (!xtermTerminal) return;
   
+  const code = data.charCodeAt(0);
+  
+  if (code === 13) {
+    xtermTerminal.write('\r\n');
+    if (termCmdBuffer.trim()) {
+      handleTerminalCommand(termCmdBuffer.trim());
+    } else {
+      writeTermPrompt();
+    }
+    termCmdBuffer = '';
+  } else if (code === 127) {
+    if (termCmdBuffer.length > 0) {
+      termCmdBuffer = termCmdBuffer.slice(0, -1);
+      xtermTerminal.write('\b \b');
+    }
+  } else if (code === 3) {
+    xtermTerminal.write('^C\r\n');
+    termCmdBuffer = '';
+    writeTermPrompt();
+  } else if (code === 12) {
+    clearTerminal();
+  } else if (code >= 32) {
+    termCmdBuffer += data;
+    xtermTerminal.write(data);
+  }
+}
+
+function writeTermPrompt() {
+  if (!xtermTerminal) return;
+  xtermTerminal.write(`\x1b[34m~/project\x1b[0m $ `);
+}
+
+async function handleTerminalCommand(cmdLine) {
   const parts = cmdLine.split(' ').filter(Boolean);
-  if (parts.length === 0) return;
+  if (parts.length === 0) {
+    writeTermPrompt();
+    return;
+  }
   const cmd = parts[0];
   const args = parts.slice(1);
 
@@ -4516,42 +4610,45 @@ async function handleTerminalCommand(cmdLine) {
   }
 
   if (cmd === 'help') {
-    termLog('Available commands:', '#facc15');
-    termLog('  node <file.js>   - Run Node.js', '#fff');
-    termLog('  npm <args>       - Node Package Manager', '#fff');
-    termLog('  python <file.py> - Run Python', '#fff');
-    termLog('  pip install <pkg>- Install Python packages', '#fff');
-    termLog('  ls               - List files', '#fff');
-    termLog('  clear            - Clear terminal', '#fff');
-    termLog('Note: Execution results are shown in the Console.', '#94a3b8');
+    xtermTerminal.writeln('');
+    xtermTerminal.writeln('\x1b[33mAvailable commands:\x1b[0m');
+    xtermTerminal.writeln('  \x1b[32mnode <file.js>\x1b[0m   - Run Node.js');
+    xtermTerminal.writeln('  \x1b[32mnpm <args>\x1b[0m       - Node Package Manager');
+    xtermTerminal.writeln('  \x1b[32mpython <file.py>\x1b[0m - Run Python');
+    xtermTerminal.writeln('  \x1b[32mpip install <pkg>\x1b[0m - Install Python packages');
+    xtermTerminal.writeln('  \x1b[32mls\x1b[0m               - List files');
+    xtermTerminal.writeln('  \x1b[32mclear\x1b[0m            - Clear terminal');
+    xtermTerminal.writeln('');
+    writeTermPrompt();
     return;
   }
 
-  // Route to Python (Pyodide)
   if (cmd === 'python' || cmd === 'python3' || cmd === 'pip') {
     if (!pyodideInstance && !pyodideLoading) {
-      termLog('Starting Python service (Pyodide)...', '#facc15');
+      xtermTerminal.writeln('\x1b[33mStarting Python service (Pyodide)...\x1b[0m');
       await bootPyodide();
     }
     
     if (pyodideLoading) {
-      termLog('Python is still loading, please wait...', '#facc15');
+      xtermTerminal.writeln('\x1b[33mPython is still loading, please wait...\x1b[0m');
+      writeTermPrompt();
       return;
     }
 
     if (cmd === 'pip' && args[0] === 'install') {
       const pkgs = args.slice(1);
       if (pkgs.length > 0) {
-        termLog(`Installing Python packages: ${pkgs.join(', ')}...`, '#facc15');
+        xtermTerminal.writeln(`\x1b[33mInstalling Python packages: ${pkgs.join(', ')}...\x1b[0m`);
         try {
           await pyodideInstance.loadPackage(pkgs);
-          termLog('Successfully installed packages.', '#00ff00');
+          xtermTerminal.writeln('\x1b[32mSuccessfully installed packages.\x1b[0m');
         } catch (e) {
-          termLog(`Failed to install: ${e.message}`, '#ef4444');
+          xtermTerminal.writeln(`\x1b[31mFailed to install: ${e.message}\x1b[0m`);
         }
       } else {
-        termLog('Usage: pip install <package_name>', '#facc15');
+        xtermTerminal.writeln('\x1b[33mUsage: pip install <package_name>\x1b[0m');
       }
+      writeTermPrompt();
       return;
     }
 
@@ -4560,23 +4657,24 @@ async function handleTerminalCommand(cmdLine) {
       if (code) {
         await runPythonCode(code);
       } else {
-        termLog(`python: can't open file '${args[0]}': No such file`, '#ef4444');
+        xtermTerminal.writeln(`\x1b[31mpython: can't open file '${args[0]}': No such file\x1b[0m`);
       }
     } else {
-      termLog('Interactive Python REPL not supported. Use: python <filename>', '#facc15');
+      xtermTerminal.writeln('\x1b[33mInteractive Python REPL: Type Python code...\x1b[0m');
     }
+    writeTermPrompt();
     return;
   }
 
-  // Route to Node.js (WebContainer)
   if (cmd === 'node' || cmd === 'npm' || cmd === 'ls') {
     if (!webcontainerInstance && !webcontainerBooting) {
-      termLog('Starting Node.js service (WebContainer)...', '#facc15');
+      xtermTerminal.writeln('\x1b[33mStarting Node.js service (WebContainer)...\x1b[0m');
       await bootWebContainer();
     }
 
     if (webcontainerBooting) {
-      termLog('Node.js is still booting, please wait...', '#facc15');
+      xtermTerminal.writeln('\x1b[33mNode.js is still booting, please wait...\x1b[0m');
+      writeTermPrompt();
       return;
     }
 
@@ -4585,107 +4683,125 @@ async function handleTerminalCommand(cmdLine) {
       return;
     }
 
-    // Sync files to WebContainer before running
+    if (cmd === 'ls') {
+      try {
+        const lsProcess = await webcontainerInstance.spawn('ls', ['-la']);
+        lsProcess.output.pipeTo(new WritableStream({
+          write(data) {
+            if (xtermTerminal) xtermTerminal.write(data);
+          }
+        }));
+        await lsProcess.exit;
+      } catch (err) {
+        xtermTerminal.writeln(`\x1b[31mls: ${err.message}\x1b[0m`);
+      }
+      writeTermPrompt();
+      return;
+    }
+
     if (cmd === 'node' || cmd === 'npm') {
       const files = Array.from(virtualFS.entries());
       const total = files.length;
-      termLog(`Syncing ${total} files...`, '#94a3b8');
+      xtermTerminal.writeln(`\x1b[90mSyncing ${total} files...\x1b[0m`);
       
       for (let i = 0; i < total; i++) {
         const [path, content] = files[i];
-        const progress = Math.round(((i + 1) / total) * 100);
-        termProgressBar(progress, 'Syncing files...', 'file-sync');
         await writeToWebContainer(path, content);
       }
-      termLog('✅ Sync complete.', '#00ff00', 'file-sync');
+      xtermTerminal.writeln('\x1b[32m✅ Sync complete.\x1b[0m');
     }
 
     try {
-      const process = await webcontainerInstance.spawn(cmd, args);
-      process.output.pipeTo(new WritableStream({
+      termShellProcess = await webcontainerInstance.spawn(cmd, args);
+      termShellProcess.output.pipeTo(new WritableStream({
         write(data) {
-          addLogToPanel('log', [data]);
+          if (xtermTerminal) xtermTerminal.write(data);
         }
       }));
       
-      const exitCode = await process.exit;
-      if (exitCode !== 0) {
-        addLogToPanel('error', [`Process exited with code ${exitCode}`]);
-      }
+      termShellProcess.input.pipeTo(new WritableStream({
+        write(data) {}
+      }));
+      
+      const exitCode = await termShellProcess.exit;
+      termShellProcess = null;
+      xtermTerminal.writeln(`\x1b[90mProcess exited with code ${exitCode}\x1b[0m`);
     } catch (err) {
-      addLogToPanel('error', [`Failed to execute: ${err.message}`]);
+      xtermTerminal.writeln(`\x1b[31mFailed to execute: ${err.message}\x1b[0m`);
     }
+    writeTermPrompt();
     return;
   }
 
-  termLog(`Command '${cmd}' not recognized. Type 'help' for options.`, '#ef4444');
+  xtermTerminal.writeln(`\x1b[31mCommand '${cmd}' not recognized. Type 'help' for options.\x1b[0m`);
+  writeTermPrompt();
 }
 
 function handleMockCommand(cmd, args) {
-  termLog('System: Using mock mode (WebContainer failed to boot).', '#94a3b8');
+  if (!xtermTerminal) return;
+  
+  xtermTerminal.writeln('\x1b[90mSystem: Using mock mode (WebContainer failed to boot).\x1b[0m');
   switch (cmd) {
     case 'ls':
-      termLog(Array.from(virtualFS.keys()).join('  '));
+      xtermTerminal.writeln('\x1b[37m' + Array.from(virtualFS.keys()).join('  ') + '\x1b[0m');
       break;
     case 'help':
-      termLog('Mock commands: ls, clear, help, npm, node. Real execution requires isolation.');
+      xtermTerminal.writeln('\x1b[90mMock commands: ls, clear, help, npm, node.\x1b[0m');
       break;
     case 'npm':
-      termLog('Mock: Simulating npm install... (Real npm requires WebContainer)', '#facc15');
-      setTimeout(() => termLog('Mock: Dependencies "simulated" successfully.'), 1000);
+      xtermTerminal.writeln('\x1b[33mMock: Simulating npm install...\x1b[0m');
+      setTimeout(() => {
+        if (xtermTerminal) xtermTerminal.writeln('\x1b[32mMock: Dependencies "simulated" successfully.\x1b[0m');
+      }, 1000);
       break;
     case 'node':
       if (args[0]) {
         const content = virtualFS.get(args[0]);
         if (content) {
-          termLog(`Mock Execution Output (${args[0]}):`, '#facc15');
-          termLog('(Simulated output only - Enable WebContainer for real Node.js)', '#94a3b8');
-          termLog(content, '#fff');
-        } else termLog(`node: ${args[0]}: No such file`, '#ef4444');
-      } else termLog('Usage: node <filename>');
+          xtermTerminal.writeln(`\x1b[33mMock Execution Output (${args[0]}):\x1b[0m`);
+          xtermTerminal.writeln('\x1b[90m(Simulated output only)\x1b[0m');
+          xtermTerminal.writeln(content);
+        } else {
+          xtermTerminal.writeln(`\x1b[31mnode: ${args[0]}: No such file\x1b[0m`);
+        }
+      } else {
+        xtermTerminal.writeln('\x1b[33mUsage: node <filename>\x1b[0m');
+      }
       break;
     default:
-      termLog(`Command '${cmd}' not found in mock mode.`, '#ef4444');
+      xtermTerminal.writeln(`\x1b[31mCommand '${cmd}' not found in mock mode.\x1b[0m`);
   }
+  writeTermPrompt();
 }
 
-document.getElementById('terminalInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    const input = e.target.value.trim();
-    if (input) handleTerminalCommand(input);
-    e.target.value = '';
-  }
-});
-
-function termLog(msg, color = '#00ff00', id = null) {
-  const out = document.getElementById('terminalOutput');
-  let span;
-  if (id) {
-    span = document.getElementById(`term-log-${id}`);
-  }
-  
-  if (!span) {
-    span = document.createElement('div');
-    if (id) span.id = `term-log-${id}`;
-    out.appendChild(span);
-  }
-  
-  span.style.color = color;
-  span.textContent = msg;
-  out.scrollTop = out.scrollHeight;
-  return span;
+function termLog(msg, color = '#00ff00') {
+  if (!xtermTerminal) return;
+  const colorMap = {
+    '#00ff00': '\x1b[32m',
+    '#ef4444': '\x1b[31m',
+    '#facc15': '\x1b[33m',
+    '#fff': '\x1b[37m',
+    '#94a3b8': '\x1b[90m',
+    '#3b82f6': '\x1b[34m'
+  };
+  const ansi = colorMap[color] || '\x1b[37m';
+  xtermTerminal.writeln(ansi + msg + '\x1b[0m');
 }
 
-function termProgressBar(percent, label = 'Progress', id = 'progress') {
+function termProgressBar(percent, label = 'Progress') {
+  if (!xtermTerminal) return;
   const width = 40;
   const filled = Math.round((percent / 100) * width);
-  const empty = width - filled;
-  const bar = `[${'#'.repeat(filled)}${'-'.repeat(empty)}] ${percent}%`;
-  termLog(`${label} ${bar}`, '#facc15', id);
+  const bar = `[${'#'.repeat(filled)}${'-'.repeat(width - filled)}] ${percent}%`;
+  xtermTerminal.writeln(`\x1b[33m${label} ${bar}\x1b[0m`);
 }
 
 function clearTerminal() {
-  document.getElementById('terminalOutput').textContent = '';
+  if (xtermTerminal) {
+    xtermTerminal.clear();
+    xtermTerminal.writeln('\x1b[36mTerminal cleared.\x1b[0m');
+    writeTermPrompt();
+  }
 }
 
 document.getElementById('anyFileInput').addEventListener('change', (e)=>{
@@ -4695,6 +4811,26 @@ document.getElementById('anyFileInput').addEventListener('change', (e)=>{
   r.readAsText(f);
   e.target.value='';
 });
+
+window.addEventListener('resize', () => {
+  setTimeout(fitXterm, 100);
+});
+
+const terminalPanel = document.getElementById('terminalPanel');
+if (terminalPanel) {
+  new ResizeObserver(() => {
+    if (terminalOpen) fitXterm();
+  }).observe(terminalPanel);
+}
+
+const panelsEl = document.getElementById('panels');
+if (panelsEl) {
+  new ResizeObserver(() => {
+    if (terminalOpen) fitXterm();
+    if (editor) editor.layout();
+  }).observe(panelsEl);
+}
+
 document.getElementById('folderInput').addEventListener('change', (e)=>{
   const files = Array.from(e.target.files||[]);
   if(!files.length){ e.target.value=''; return; }
@@ -5119,6 +5255,10 @@ function toggleFloat(id){
       el.style.height = '600px';
       el.style.top = '100px';
       document.getElementById('aiMinimizeBtn').style.display = 'inline-flex';
+    } else if(id === 'fileSidebar') {
+      el.style.width = '300px';
+      el.style.height = '80vh';
+      el.style.top = '60px';
     } else {
       el.style.width = '380px';
       el.style.height = '600px';
@@ -5127,10 +5267,11 @@ function toggleFloat(id){
     
     let handle;
     if(id === 'sidebar') handle = el.querySelector('.sb-header');
+    else if(id === 'fileSidebar') handle = el.querySelector('.sb-header');
     else if(id === 'aiChatPanel') handle = el.querySelector('.ai-chat-header');
     else handle = el.querySelector('.pp-header');
     
-    el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
+    el.style.left = id === 'sidebar' || id === 'fileSidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
     makeDraggable(el, handle);
   } else {
     el.style.cssText = '';
@@ -5139,7 +5280,7 @@ function toggleFloat(id){
       el.classList.remove('minimized');
     }
     // Restore defaults
-    if(id === 'sidebar') el.style.width = 'var(--sbW)';
+    if(id === 'sidebar' || id === 'fileSidebar') el.style.width = 'var(--sbW)';
   }
   if(editor) editor.layout();
 }
@@ -5149,6 +5290,7 @@ function makeDraggable(el, handle){
   let d = false, sx, sy, ox, oy;
   handle.onmousedown = (e) => {
     if(!el.classList.contains('floating')) return;
+    e.stopPropagation();
     d = true; sx = e.clientX; sy = e.clientY;
     ox = el.offsetLeft; oy = el.offsetTop;
     document.body.style.userSelect = 'none';
