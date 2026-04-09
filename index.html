@@ -3054,7 +3054,17 @@ function toggleLive(){
 /* ─────────────────────────────────────────
    CORE
 ───────────────────────────────────────── */
-function runCode(){
+async function checkSwStatus() {
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return false;
+  try {
+    const resp = await fetch('/__vfs_ping__', { cache: 'no-store' });
+    return (await resp.text()) === 'pong';
+  } catch (e) {
+    return false;
+  }
+}
+
+async function runCode(){
   if(!editor) return;
   
   const ext = currentPath.split('.').pop().toLowerCase();
@@ -3064,33 +3074,30 @@ function runCode(){
   // Sync VFS to Service Worker if available
   syncVfsToServiceWorker();
 
-  // Determine if we can use Service Worker (must be controlling the page)
-  const isSWActive = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
+  // Determine if we can use Service Worker (must be controlling the page and pingable)
+  const swActive = await checkSwStatus();
   const forceCompatibility = localStorage.getItem('forceCompatibility') === 'true';
   
-  // Extra check: try to fetch a test resource from VFS via SW
-  const useVFS = isSWActive && !forceCompatibility && (ext === 'html' || ext === 'htm');
+  const useVFS = swActive && !forceCompatibility && (ext === 'html' || ext === 'htm');
 
   if (useVFS) {
-    // 1. Service Worker Approach (Best for tree system)
-    const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
-    const virtualUrl = `${baseUrl}__vfs__/${currentPath}`;
+    // 1. Service Worker Approach with srcdoc + <base> for maximum reliability
+    // This avoids "Refused to connect" while still allowing the SW to handle assets
+    let v = editor.getValue();
     
-    // Add a listener to detect load errors (like 404 from Vercel)
-    const handleLoadError = () => {
-      console.warn('VFS Preview failed to load. Switching to Compatibility Mode.');
-      localStorage.setItem('forceCompatibility', 'true');
-      runCode();
-    };
+    // Calculate folder-aware base URL
+    const dir = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+    const rootBase = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + '__vfs__/';
+    const baseUrl = rootBase + dir;
+    
+    // Inject <base> tag to point all relative assets to VFS
+    const baseTag = `<base href="${baseUrl}">`;
+    if (v.includes('<head>')) v = v.replace('<head>', '<head>' + baseTag);
+    else v = baseTag + v;
 
-    iframeEl.onerror = handleLoadError;
-    
-    if (iframeEl.src !== virtualUrl) {
-      iframeEl.src = virtualUrl;
-    } else {
-      iframeEl.contentWindow.location.reload();
-    }
-    setStatus('Preview: VFS Mode');
+    iframeEl.removeAttribute('src'); // Clear src if it was set to a VFS URL
+    iframeEl.srcdoc = v;
+    setStatus('Preview: VFS Mode (Reliable)');
   } else {
     // 2. Fallback: Inlining Approach (Most compatible)
     let v = editor.getValue();
