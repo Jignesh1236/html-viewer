@@ -4358,9 +4358,12 @@ async function bootWebContainer() {
     webcontainerInstance.on('server-ready', (port, url) => {
       termLog(`Server ready on port ${port}: ${url}`, '#facc15');
       
-      // Use this official URL for preview
-      if (url) {
-        openInPreview(url);
+      // The URL from server-ready should be the server URL
+      if (url && !url.includes('/webcontainer/') && !url.includes('/connect/')) {
+        // Use setTimeout to avoid popup blocker
+        setTimeout(() => {
+          openInPreview(url);
+        }, 500);
       }
     });
   } catch (err) {
@@ -4535,6 +4538,14 @@ function initXterm() {
       xtermFitAddon = new FitAddon.FitAddon();
       xtermTerminal.loadAddon(xtermFitAddon);
     }
+    
+    // Custom link handler for xterm - detect and open URLs
+    xtermTerminal.linkHandler = {
+      activate(e, text) {
+        console.log('Terminal link clicked:', text);
+        window.open(text, '_blank');
+      }
+    };
     
     if (typeof WebLinksAddon !== 'undefined') {
       try {
@@ -4749,43 +4760,41 @@ function writeTermPrompt() {
 let detectedServerUrl = null;
 
 function detectAndOpenServerUrl(data) {
-  // Patterns for server URLs - prioritize localhost over webcontainer-api.io
-  const patterns = [
-    /https?:\/\/localhost:[0-9]+[^\s]*/,
-    /https?:\/\/[^\s]*\.webcontainer-api\.io[^\s]*/,
-    /Server (?:running|ready) on (?:http|https):\/\/[^\s]+/i,
-    /server ready at (?:http|https):\/\/[^\s]+/i,
-    /listening on (?:http|https):\/\/[^\s]+/i,
-    /running at (?:http|https):\/\/[^\s]+/i,
-    /Application started at (?:http|https):\/\/[^\s]+/i
-  ];
+  // Extract server URLs from terminal output
+  // Look for patterns like "Server running on http://localhost:3000" or webcontainer URLs
   
-  for (const pattern of patterns) {
-    const match = data.match(pattern);
-    if (match) {
-      let url = match[0];
+  // Match server URLs in the output
+  const urlPattern = /(?:Server (?:running|ready) on|listening on|running at) (https?:\/\/[^\s]+)|(https?:\/\/[a-zA-Z0-9]+--[0-9]+--[a-zA-Z0-9]+\.local-corp\.webcontainer-api\.io(?:\/)?)/gi;
+  
+  let match;
+  while ((match = urlPattern.exec(data)) !== null) {
+    let url = match[1] || match[2];
+    
+    if (!url) continue;
+    
+    // Clean up URL
+    url = url.replace(/[",;:\s]*$/, '');
+    
+    // Skip internal paths
+    if (url.includes('/webcontainer/') || url.includes('/connect/')) {
+      continue;
+    }
+    
+    // Ensure URL has trailing slash for webcontainer URLs
+    if (url.includes('.webcontainer-api.io') && !url.endsWith('/')) {
+      url = url + '/';
+    }
+    
+    if (url !== detectedServerUrl) {
+      detectedServerUrl = url;
       
-      // Clean up URL (remove trailing characters)
-      url = url.replace(/[",;:\s]*$/, '');
-      
-      // Skip if URL has path other than root (like /webcontainer/connect/)
-      if (url.includes('/webcontainer/') || url.includes('/connect/')) {
-        continue;
+      if (xtermTerminal) {
+        xtermTerminal.writeln('');
+        xtermTerminal.writeln(`\x1b[32m🌐 Server ready: ${url}\x1b[0m`);
+        xtermTerminal.writeln(`\x1b[90mClick the URL above to open in browser\x1b[0m`);
+        showOpenPreviewButton(url);
       }
-      
-        if (url !== detectedServerUrl) {
-        detectedServerUrl = url;
-        
-        // Show message and create clickable button in terminal output area
-        if (xtermTerminal) {
-          xtermTerminal.writeln('');
-          xtermTerminal.writeln(`\x1b[32m🌐 Server detected: ${url}\x1b[0m`);
-          
-          // Add button to open in preview
-          showOpenPreviewButton(url);
-        }
-        break;
-      }
+      break;
     }
   }
 }
@@ -4793,29 +4802,31 @@ function detectAndOpenServerUrl(data) {
 function openInPreview(url) {
   if (!url) return;
   
-  console.log('Opening URL in preview:', url);
+  console.log('Opening URL:', url);
   
-  // Force open the URL in preview - handle various URL formats
-  const iframeEl = document.getElementById('preview');
-  if (iframeEl) {
-    // Clear any previous src first
-    iframeEl.src = 'about:blank';
-    
-    // Small delay to ensure clean state
-    setTimeout(() => {
-      iframeEl.src = url;
-      console.log('iframe src set to:', url);
-    }, 100);
+  // Validate URL is a proper server URL (not internal WebContainer path)
+  if (url.includes('/webcontainer/') || url.includes('/connect/')) {
+    console.error('Invalid URL - internal WebContainer path:', url);
+    toast('Invalid server URL');
+    return;
   }
   
-  // Update browser URL bar
-  const browserUrlInput = document.getElementById('browserUrlInput');
-  if (browserUrlInput) {
-    browserUrlInput.value = url;
+  // Make sure URL ends with / for webcontainer URLs
+  if (url.includes('.webcontainer-api.io') && !url.endsWith('/')) {
+    url = url + '/';
   }
   
-  updateBrowserUi();
-  toast(`Server opened: ${url}`);
+  console.log('Final URL to open:', url);
+  
+  // Open in new tab
+  const newTab = window.open(url, '_blank');
+  
+  if (newTab) {
+    toast(`Server opened: ${url}`);
+  } else {
+    toast('Popup blocked! Please allow popups and try again');
+  }
+}
 }
 
 function showOpenPreviewButton(url) {
@@ -4831,20 +4842,16 @@ function showOpenPreviewButton(url) {
     serverBtn.id = 'serverPreviewBtn';
     serverBtn.className = 'tb-btn';
     serverBtn.style.cssText = 'margin: 4px 8px; background: var(--accent); color: #fff; font-size: 11px; display: flex; align-items: center; gap: 4px;';
-    // Insert at the start of terminal panel
     terminalPanel.insertBefore(serverBtn, terminalPanel.firstChild);
   }
   
   // Update button with URL and click handler
-  serverBtn.innerHTML = `<i class="codicon codicon-link"></i> Preview`;
+  serverBtn.innerHTML = `<i class="codicon codicon-link"></i> Open in Browser`;
   serverBtn.onclick = (e) => {
     e.stopPropagation();
     openInPreview(url);
   };
   serverBtn.style.display = 'flex';
-  
-  // Auto-open preview after delay
-  setTimeout(() => openInPreview(url), 1500);
 }
 
 async function handleTerminalCommand(cmdLine) {
