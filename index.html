@@ -3026,6 +3026,20 @@ function setMode(mode){
   }catch(err){}
 })();
 
+function syncVfsToServiceWorker() {
+  if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
+  
+  const files = {};
+  virtualFS.forEach((content, path) => {
+    files[path] = content;
+  });
+  
+  navigator.serviceWorker.controller.postMessage({
+    type: 'SYNC_VFS',
+    files: files
+  });
+}
+
 /* ─────────────────────────────────────────
    LIVE TOGGLE
 ───────────────────────────────────────── */
@@ -3047,111 +3061,34 @@ function runCode(){
   
   // Only auto-run/preview for web-related files
   const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
-  if (!webExts.includes(ext)) {
-    // For non-web files (like .py, .cpp, .java), we don't auto-run in the terminal/console.
-    // The user must run them manually via terminal commands.
-    return;
-  }
+  if (!webExts.includes(ext)) return;
 
-  var v=editor.getValue();
+  // Sync VFS to Service Worker first
+  syncVfsToServiceWorker();
+
+  // If Service Worker is active, use it for the preview
+  const useSW = !!(navigator.serviceWorker && navigator.serviceWorker.controller);
   
-  // Inject Navigation Interception Script
-  const navInterceptionScript = `
-    <script>
-      (function() {
-        // Intercept link clicks
-        document.addEventListener('click', e => {
-          const a = e.target.closest('a');
-          if(a && a.href) {
-            const url = new URL(a.href, window.location.href);
-            // Check if it's a relative path or localhost (virtual)
-            if(url.origin === window.location.origin || url.protocol === 'about:') {
-              const path = a.getAttribute('href');
-              // Only intercept if not an external absolute URL
-              if(!path.startsWith('http') && !path.startsWith('//')) {
-                e.preventDefault();
-                window.parent.postMessage({ type: 'navigate', path: path }, '*');
-              }
-            }
-          }
-        }, true);
-
-        // Intercept form submissions
-        document.addEventListener('submit', e => {
-          const action = e.target.getAttribute('action');
-          if(action && !action.startsWith('http')) {
-            e.preventDefault();
-            window.parent.postMessage({ type: 'navigate', path: action }, '*');
-          }
-        }, true);
-      })();
-    <\/script>
-  `;
-
-  // Inject Console Proxy Script if console is open
-  let consoleProxyScript = '';
-  if(consoleOpen) {
-    consoleProxyScript = `
-      <script>
-        (function() {
-          const originalLog = console.log;
-          const originalError = console.error;
-          const originalWarn = console.warn;
-          const sendToParent = (type, args) => {
-            window.parent.postMessage({
-              type: 'console',
-              logType: type,
-              args: args.map(arg => {
-                try {
-                  return typeof arg === 'object' ? JSON.parse(JSON.stringify(arg)) : arg;
-                } catch(e) {
-                  return String(arg);
-                }
-              })
-            }, '*');
-          };
-          console.log = (...args) => { originalLog.apply(console, args); sendToParent('info', args); };
-          console.error = (...args) => { originalError.apply(console, args); sendToParent('error', args); };
-          console.warn = (...args) => { originalWarn.apply(console, args); sendToParent('warn', args); };
-          window.onerror = (msg, url, line, col, error) => {
-            sendToParent('error', [msg + ' (line ' + line + ')']);
-            return false;
-          };
-        })();
-      <\/script>
-    `;
+  if (useSW && (ext === 'html' || ext === 'htm')) {
+    // Navigate the iframe to the virtual path
+    const virtualUrl = `/__vfs__/${currentPath}`;
+    iframeEl.src = virtualUrl;
+    setStatus('Preview updated via VFS');
+  } else {
+    // Fallback to srcdoc for non-HTML files or if SW not ready
+    var v = editor.getValue();
+    
+    // (Existing inlining logic if we want to keep it as fallback)
+    // For now, let's keep it simple. If it's a non-html file, we show it as text or something.
+    if (ext !== 'html' && ext !== 'htm') {
+      v = `<pre>${v.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`;
+    }
+    
+    iframeEl.srcdoc = v;
+    setStatus('Preview updated (fallback)');
   }
-
-  // Inject .env support
-  let envScript = '';
-  const envContent = virtualFS.get('.env');
-  if(envContent) {
-    const envObj = {};
-    envContent.split('\n').forEach(line => {
-      const [key, ...val] = line.split('=');
-      if(key && val.length) {
-        envObj[key.trim()] = val.join('=').trim();
-      }
-    });
-    envScript = `
-      <script>
-        window.process = window.process || {};
-        window.process.env = ${JSON.stringify(envObj)};
-      <\/script>
-    `;
-  }
-
-  const scripts = navInterceptionScript + consoleProxyScript + envScript;
-
-  // Insert before </head> or at start
-  if(v.includes('</head>')) v = v.replace('</head>', scripts + '</head>');
-  else v = scripts + v;
-
-  try{
-    iframeEl.srcdoc=v;
-  }catch(err){}
-  setStatus('Preview updated');
-  setTimeout(updateBrowserUi, 500);  // iframe load hone ka wait 
+  
+  setTimeout(updateBrowserUi, 500);
 }
 function openNewTab(){
   const w=window.open('','_blank');
@@ -3673,34 +3610,40 @@ function closeBrowserTab(index, event) {
 function navigateTo(path) {
   if (!path) return;
   
+  // Clean virtual prefix if present
+  let cleanPath = path;
+  if (path.startsWith('/__vfs__/')) {
+    cleanPath = path.replace('/__vfs__/', '');
+  }
+
   // Check for external/server URLs (WebContainer or localhost)
-  const isWebContainerUrl = path.includes('.webcontainer-api.io') || path.startsWith('http://localhost');
+  const isWebContainerUrl = cleanPath.includes('.webcontainer-api.io') || cleanPath.startsWith('http://localhost');
   
   if (isWebContainerUrl) {
     // Open WebContainer URLs in new tab (iframe can't load them due to CORS)
-    const url = path.endsWith('/') ? path : path + '/';
+    const url = cleanPath.endsWith('/') ? cleanPath : cleanPath + '/';
     window.open(url, '_blank');
     return;
   }
   
   // Check for other https URLs
-  if (path.startsWith('https://')) {
+  if (cleanPath.startsWith('https://')) {
     // Load external URL in preview iframe
     const iframeEl = document.getElementById('preview');
     if (iframeEl) {
-      iframeEl.src = path;
+      iframeEl.src = cleanPath;
     }
     // Update browser URL bar
     const browserUrlInput = document.getElementById('browserUrlInput');
     if (browserUrlInput) {
-      browserUrlInput.value = path;
+      browserUrlInput.value = cleanPath;
     }
     updateBrowserUi();
     return;
   }
 
   // Clean path for URL input
-  let targetPath = path;
+  let targetPath = cleanPath;
   if (targetPath.startsWith('http://localhost/')) {
     targetPath = targetPath.replace('http://localhost/', '');
   } else if (targetPath.startsWith('http')) {
@@ -3827,27 +3770,45 @@ async function readDirHandle(handle, path = ''){
   return node;
 }
 function createNewFile() {
-  const name = prompt('Enter file name (e.g. about.html):');
+  const name = prompt('Enter file name (e.g. css/style.css):');
   if(!name) return;
-  const path = name; // Basic flat structure for now, can be improved
+  const path = name.replace(/^\//, ''); // Ensure no leading slash
+  
   if(virtualFS.has(path)) {
     toast('File already exists');
     return;
   }
-  virtualFS.set(path, '');
-  _fileTreeState.items.push({ name: name, kind: 'file', path: path });
-  renderFileTree();
-  openTextInEditor(name, '', null, path);
-  if(webcontainerInstance) writeToWebContainer(path, '');
-  saveProjectState();
+  
+  createFileItem(path, '');
+  openTextInEditor(path.split('/').pop(), '', null, path);
 }
 
 function createNewFolder() {
-  const name = prompt('Enter folder name:');
+  const name = prompt('Enter folder path (e.g. assets/images):');
   if(!name) return;
-  _fileTreeState.items.push({ name: name, kind: 'directory', children: [] });
+  const path = name.replace(/^\//, '');
+  
+  const DIR_MARKER = '__DIR__';
+  virtualFS.set(path, DIR_MARKER);
+  
+  const parts = path.split('/');
+  let curPath = "";
+  let curList = _fileTreeState.items;
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    curPath += (curPath ? "/" : "") + part;
+    let dir = curList.find(item => item.kind === 'directory' && item.name === part);
+    if (!dir) {
+      dir = { name: part, kind: 'directory', children: [], expanded: true, path: curPath };
+      curList.push(dir);
+    }
+    curList = dir.children;
+  }
+  
   renderFileTree();
   saveProjectState();
+  toast(`Folder created: ${path}`);
 }
 
 function renameFileItem(oldPath, event) {
@@ -8257,6 +8218,9 @@ function registerServiceWorker(){
   if(!isSecure) return;
 
   navigator.serviceWorker.register('sw.js').then(registration => {
+    // Sync VFS once registered
+    if (registration.active) syncVfsToServiceWorker();
+    
     // If a new service worker is installed, reload to ensure headers are injected
     registration.addEventListener('updatefound', () => {
       const newWorker = registration.installing;
