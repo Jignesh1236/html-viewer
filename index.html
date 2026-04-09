@@ -7529,8 +7529,7 @@ BEHAVIOR:
           ...aiChatHistory
         ],
         model: model,
-        stream: true,
-        jsonMode: false // Stream mode doesn't need jsonMode usually
+        stream: true
       })
     });
 
@@ -7544,6 +7543,7 @@ BEHAVIOR:
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let accumulatedText = "";
+    let buffer = ""; // Buffer to handle partial chunks
     
     // Create an empty message div for streaming
     const container = document.getElementById('aiChatMessages');
@@ -7556,17 +7556,66 @@ BEHAVIOR:
       if (done) break;
       
       const chunk = decoder.decode(value, { stream: true });
-      accumulatedText += chunk;
+      buffer += chunk;
       
-      // Update the UI with accumulated text
-      // We'll use a temporary function to render the partial text
-      renderPartialAiResponse(msgDiv, accumulatedText);
-      container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+      const lines = buffer.split('\n');
+      // Keep the last line in the buffer if it doesn't end with a newline (partial line)
+      buffer = lines.pop();
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
+        
+        if (trimmedLine.startsWith('data: ')) {
+          try {
+            const jsonStr = trimmedLine.slice(6);
+            const data = JSON.parse(jsonStr);
+            const content = data.choices[0]?.delta?.content || '';
+            if (content) {
+              accumulatedText += content;
+              renderPartialAiResponse(msgDiv, accumulatedText);
+              container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+            }
+          } catch (e) {
+            console.warn("Error parsing stream chunk:", e, trimmedLine);
+          }
+        } else {
+          // If it doesn't start with data: but it's not empty, it might be raw text (some APIs)
+          // However, Pollinations usually sends data: prefix for stream.
+          // We'll append it if it doesn't look like a different SSE event type.
+          if (!trimmedLine.includes(': ')) {
+            accumulatedText += trimmedLine;
+            renderPartialAiResponse(msgDiv, accumulatedText);
+            container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+          }
+        }
+      }
+    }
+    
+    // Final check for remaining buffer
+    if (buffer) {
+      const trimmedLine = buffer.trim();
+      if (trimmedLine && trimmedLine !== 'data: [DONE]') {
+        if (trimmedLine.startsWith('data: ')) {
+          try {
+            const jsonStr = trimmedLine.slice(6);
+            const data = JSON.parse(jsonStr);
+            const content = data.choices[0]?.delta?.content || '';
+            if (content) accumulatedText += content;
+          } catch(e) {}
+        } else if (!trimmedLine.includes(': ')) {
+          accumulatedText += trimmedLine;
+        }
+      }
     }
     
     // Final render to process all code blocks and buttons
-    processAiResponse(accumulatedText, msgDiv);
-    aiChatHistory.push({ role: "assistant", content: accumulatedText });
+    if (accumulatedText) {
+      processAiResponse(accumulatedText, msgDiv);
+      aiChatHistory.push({ role: "assistant", content: accumulatedText });
+    } else {
+      msgDiv.innerHTML = "Error: Received empty response from AI.";
+    }
 
   } catch (error) {
     console.error("AI Chat Error:", error);
