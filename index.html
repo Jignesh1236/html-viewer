@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -3967,6 +3966,51 @@ function getFileIcon(name, kind, expanded = false) {
   return 'https://raw.githubusercontent.com/vscode-icons/vscode-icons/master/icons/default_file.svg';
 }
 
+function updateFileTreeFromVirtualFS() {
+  virtualFS.forEach((content, path) => {
+    const parts = path.split('/').filter(Boolean);
+    let currentItems = _fileTreeState.items;
+    let found = false;
+    
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const existing = currentItems.find(item => item.name === part);
+      
+      if (!existing) {
+        const isLast = i === parts.length - 1;
+        const newItem = {
+          name: part,
+          kind: isLast ? 'file' : 'directory',
+          path: parts.slice(0, i + 1).join('/'),
+          children: isLast ? undefined : [],
+          expanded: true
+        };
+        currentItems.push(newItem);
+      }
+      
+      if (i < parts.length - 1) {
+        const item = currentItems.find(item => item.name === part);
+        if (item && item.children) {
+          currentItems = item.children;
+        }
+      }
+    }
+  });
+  
+  // Sort items (directories first, then alphabetically)
+  sortFileTreeItems(_fileTreeState.items);
+}
+
+function sortFileTreeItems(items) {
+  items.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'directory' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  items.forEach(item => {
+    if (item.children) sortFileTreeItems(item.children);
+  });
+}
+
 function renderFileTree(){
   const host = document.getElementById('fileTree');
   if(!host) return;
@@ -4609,6 +4653,63 @@ async function handleTerminalCommand(cmdLine) {
     return;
   }
 
+  // mkdir command - create directory
+  if (cmd === 'mkdir') {
+    if (args.length > 0) {
+      const dirPath = args[0].replace(/\/$/, '');
+      const currentDir = '~/project'.replace('~/project', '');
+      const newPath = currentDir + dirPath;
+      
+      virtualFS.set(newPath + '/.gitkeep', '');
+      xtermTerminal.writeln(`\x1b[32mDirectory created: ${dirPath}\x1b[0m`);
+      
+      updateFileTreeFromVirtualFS();
+      renderFileTree();
+      updateBrowserUi();
+    } else {
+      xtermTerminal.writeln('\x1b[33mUsage: mkdir <directory_name>\x1b[0m');
+    }
+    writeTermPrompt();
+    return;
+  }
+
+  // touch command - create file
+  if (cmd === 'touch') {
+    if (args.length > 0) {
+      const filePath = args[0];
+      virtualFS.set(filePath, '');
+      xtermTerminal.writeln(`\x1b[32mFile created: ${filePath}\x1b[0m`);
+      
+      updateFileTreeFromVirtualFS();
+      renderFileTree();
+      updateBrowserUi();
+    } else {
+      xtermTerminal.writeln('\x1b[33mUsage: touch <filename>\x1b[0m');
+    }
+    writeTermPrompt();
+    return;
+  }
+
+  // echo with redirection - create file with content
+  if (cmd === 'echo' && args.includes('>')) {
+    const redirectIdx = args.indexOf('>');
+    const content = args.slice(0, redirectIdx).join(' ').replace(/^["']|["']$/g, '');
+    const filePath = args[redirectIdx + 1];
+    
+    if (filePath) {
+      virtualFS.set(filePath, content);
+      xtermTerminal.writeln(`\x1b[32mFile created: ${filePath}\x1b[0m`);
+      
+      updateFileTreeFromVirtualFS();
+      renderFileTree();
+      updateBrowserUi();
+    } else {
+      xtermTerminal.writeln('\x1b[33mUsage: echo "content" > <filename>\x1b[0m');
+    }
+    writeTermPrompt();
+    return;
+  }
+
   if (cmd === 'help') {
     xtermTerminal.writeln('');
     xtermTerminal.writeln('\x1b[33mAvailable commands:\x1b[0m');
@@ -4617,6 +4718,9 @@ async function handleTerminalCommand(cmdLine) {
     xtermTerminal.writeln('  \x1b[32mpython <file.py>\x1b[0m - Run Python');
     xtermTerminal.writeln('  \x1b[32mpip install <pkg>\x1b[0m - Install Python packages');
     xtermTerminal.writeln('  \x1b[32mls\x1b[0m               - List files');
+    xtermTerminal.writeln('  \x1b[32mmkdir <dir>\x1b[0m       - Create directory');
+    xtermTerminal.writeln('  \x1b[32mtouch <file>\x1b[0m      - Create empty file');
+    xtermTerminal.writeln('  \x1b[32mecho "text" > <file>\x1b[0m - Create file with content');
     xtermTerminal.writeln('  \x1b[32mclear\x1b[0m            - Clear terminal');
     xtermTerminal.writeln('');
     writeTermPrompt();
