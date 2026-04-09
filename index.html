@@ -938,6 +938,70 @@ body.sidebar-hidden #paneResizer{display:none!important}
 .ai-chat-mode:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 .ai-chat-mode.active { background: var(--panel); color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 .ai-chat-mode i { font-size: 12px; }
+
+/* Agent Specific UI */
+.ai-agent-task-container {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+}
+.ai-agent-task-container.active { display: flex; }
+.ai-agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.ai-agent-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.plan-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.plan-step.current { color: var(--text); background: rgba(255,255,255,0.05); }
+.plan-step.done { color: var(--green); opacity: 0.8; }
+.plan-step-icon { width: 14px; height: 14px; margin-top: 1px; }
+
+.ai-agent-status {
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agent-pulse {
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
 .ai-chat-header-left { display: flex; align-items: center; gap: 8px; }
 .ai-chat-header-right { display: flex; align-items: center; gap: 6px; }
 .ai-chat-messages {
@@ -1662,6 +1726,22 @@ body.sidebar-hidden #paneResizer{display:none!important}
         <button class="ai-chat-mode active" onclick="setAiChatMode('chat')" id="aiModeChat"><i class="codicon codicon-comment-discussion"></i>Chat</button>
         <button class="ai-chat-mode" onclick="setAiChatMode('build')" id="aiModeBuild"><i class="codicon codicon-tools"></i>Build</button>
         <button class="ai-chat-mode" onclick="setAiChatMode('debug')" id="aiModeDebug"><i class="codicon codicon-debug"></i>Debug</button>
+        <button class="ai-chat-mode" onclick="setAiChatMode('agent')" id="aiModeAgent" title="Autonomous Agent Mode (Like OpenHands)"><i class="codicon codicon-robot"></i>Agent</button>
+      </div>
+    </div>
+
+    <div class="ai-agent-task-container" id="aiAgentTaskPanel">
+      <div class="ai-agent-header">
+        <span>🤖 AGENT TASK</span>
+        <button class="ai-clear-btn" onclick="stopAgent()" style="padding:2px 6px; font-size:9px">Stop</button>
+      </div>
+      <div class="ai-agent-plan" id="aiAgentPlan">
+        <!-- Agent will generate steps here -->
+        <div class="ai-msg-bot" style="font-size:11px; padding:0">Waiting for a goal...</div>
+      </div>
+      <div class="ai-agent-status" id="aiAgentStatus">
+        <div class="agent-pulse"></div>
+        <span>Agent Idle</span>
       </div>
     </div>
 
@@ -1715,6 +1795,10 @@ body.sidebar-hidden #paneResizer{display:none!important}
     <div id="status-warnings" title="Warnings" style="display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--muted)">
       <i class="codicon codicon-warning" style="font-size:12px;color:#facc15"></i>
       <span id="warning-count">0</span>
+    </div>
+    <div id="status-agent" title="AI Agent Status" style="display:none;align-items:center;gap:6px;font-size:11px;color:var(--accent);font-weight:600">
+      <span class="agent-pulse" style="width:8px;height:8px"></span>
+      <span>AGENT ACTIVE</span>
     </div>
   </div>
   <span style="margin-left:auto;display:flex;align-items:center;gap:16px">
@@ -7372,6 +7456,10 @@ function deployToNetlify() {
 /* AI Chat Site Builder */
 let currentAiMode = 'chat';
 let aiChatHistory = [];
+let isAgentRunning = false;
+let agentPlan = [];
+let currentStepIndex = 0;
+let agentGoal = "";
 
 function setAiChatMode(mode) {
   currentAiMode = mode;
@@ -7382,11 +7470,17 @@ function setAiChatMode(mode) {
   const placeholders = {
     chat: "Ask AI anything about your code or web development...",
     build: "Tell AI what feature or page you want to build...",
-    debug: "Describe a bug or paste an error for AI to fix..."
+    debug: "Describe a bug or paste an error for AI to fix...",
+    agent: "Enter a high-level goal (e.g. 'Build a complete Todo app with local storage'). Agent will handle everything autonomously."
   };
   
   const input = document.getElementById('aiChatInput');
   if (input) input.placeholder = placeholders[mode] || "Ask AI...";
+
+  const agentPanel = document.getElementById('aiAgentTaskPanel');
+  if (agentPanel) {
+    agentPanel.classList.toggle('active', mode === 'agent');
+  }
   
   toast(`AI Mode: ${mode.toUpperCase()}`);
 }
@@ -7482,7 +7576,13 @@ async function sendAiChatMessage() {
   const modeInstructions = {
     chat: "CHAT MODE: You are a helpful AI assistant. You can READ all project files but you should NOT suggest file edits or creations unless the user specifically asks for code examples. Focus on explaining concepts.",
     build: "BUILD MODE: You are a senior developer. You can READ, EDIT, and CREATE files. Proactively suggest and provide full code blocks for file updates/creations using the ```language:filepath``` format.",
-    debug: "DEBUG MODE: You are a debugging expert. You can READ files and EDIT them to fix bugs. Analyze the provided code/errors and provide fixed versions of the files."
+    debug: "DEBUG MODE: You are a debugging expert. You can READ files and EDIT them to fix bugs. Analyze the provided code/errors and provide fixed versions of the files.",
+    agent: "AGENT MODE (OpenHands style): You are an autonomous AI agent. Your goal is to complete the user's high-level task. \n" +
+           "1. START by providing a PLAN in a markdown list format.\n" +
+           "2. Work step-by-step. Each response should start with 'Working on Step X: [Description]'.\n" +
+           "3. You can READ, EDIT, and CREATE files.\n" +
+           "4. If you encounter errors, fix them in the next step.\n" +
+           "5. When finished, summarize the work and say 'TASK COMPLETED'."
   };
 
   const systemPrompt = `You are an expert full-stack web developer AI.
@@ -7524,6 +7624,10 @@ BEHAVIOR:
 
   // Clear picked element after use (will be stale after iframe reload)
   if(aiPickedEl){ aiPickedEl=null; syncAiPickBtn(); }
+
+  if (currentAiMode === 'agent' && !isAgentRunning) {
+    startAgentTask(message);
+  }
 
   aiChatHistory.push({ role: "user", content: message });
   if (aiChatHistory.length > 20) aiChatHistory.shift(); 
@@ -7619,10 +7723,22 @@ BEHAVIOR:
     }
     
     // Final render to process all code blocks and buttons
-    if (accumulatedText) {
-      processAiResponse(accumulatedText, msgDiv);
-      aiChatHistory.push({ role: "assistant", content: accumulatedText });
-    } else {
+  if (accumulatedText) {
+    processAiResponse(accumulatedText, msgDiv);
+    aiChatHistory.push({ role: "assistant", content: accumulatedText });
+
+    // AGENT MODE: Auto-continue if not finished
+    if (currentAiMode === 'agent' && isAgentRunning) {
+      if (accumulatedText.toUpperCase().includes('TASK COMPLETED')) {
+        stopAgent('Completed! 🎉');
+      } else {
+        // Wait a bit before next step to avoid rate limiting and allow user to see progress
+        setTimeout(() => {
+          if (isAgentRunning) continueAgentTask();
+        }, 3000);
+      }
+    }
+  } else {
       msgDiv.innerHTML = "Error: Received empty response from AI.";
     }
 
@@ -7721,6 +7837,83 @@ function renderPartialAiResponse(msgDiv, text) {
   msgDiv.innerHTML = formatted;
 }
 
+function stopAgent(status = 'Agent Stopped') {
+  isAgentRunning = false;
+  const statusEl = document.getElementById('aiAgentStatus');
+  if (statusEl) {
+    statusEl.innerHTML = `<div class="agent-pulse" style="background:var(--red)"></div><span>${status}</span>`;
+  }
+  const statBar = document.getElementById('status-agent');
+  if (statBar) statBar.style.display = 'none';
+  toast(status);
+}
+
+function startAgentTask(goal) {
+  isAgentRunning = true;
+  agentGoal = goal;
+  currentStepIndex = 0;
+  agentPlan = [];
+  
+  const statusEl = document.getElementById('aiAgentStatus');
+  if (statusEl) {
+    statusEl.innerHTML = `<div class="agent-pulse"></div><span>Thinking of a plan...</span>`;
+  }
+  
+  const statBar = document.getElementById('status-agent');
+  if (statBar) statBar.style.display = 'flex';
+  
+  const planEl = document.getElementById('aiAgentPlan');
+  if (planEl) planEl.innerHTML = '<div class="ai-msg-bot" style="font-size:11px; padding:0">Analyzing goal...</div>';
+  
+  // The first call to sendAiChatMessage is already done by handleAiChatKey -> sendAiChatMessage
+}
+
+async function continueAgentTask() {
+  if (!isAgentRunning) return;
+  
+  const statusEl = document.getElementById('aiAgentStatus');
+  if (statusEl) {
+    statusEl.innerHTML = `<div class="agent-pulse"></div><span>Executing next step...</span>`;
+  }
+  
+  // Manually trigger the next AI response
+  const input = document.getElementById('aiChatInput');
+  input.value = "Proceed with the next step of the plan.";
+  sendAiChatMessage();
+}
+
+function updateAgentPlanUI(text) {
+  // Detect current step from AI response (e.g. "Working on Step 2: ...")
+  const stepMatch = text.match(/Working on Step (\d+)/i);
+  if (stepMatch) {
+    currentStepIndex = parseInt(stepMatch[1]) - 1;
+  }
+
+  // Extract a list from the text (e.g. "1. Step one", "- Step two")
+  const lines = text.split('\n');
+  const planLines = lines.filter(line => /^(\d+\.|\-|\*)\s/.test(line.trim()));
+  
+  if (planLines.length > 0) {
+    agentPlan = planLines.map(line => line.replace(/^(\d+\.|\-|\*)\s/, '').trim());
+  }
+
+  const planEl = document.getElementById('aiAgentPlan');
+  if (planEl && agentPlan.length > 0) {
+    planEl.innerHTML = agentPlan.map((step, idx) => `
+      <div class="plan-step ${idx === currentStepIndex ? 'current' : (idx < currentStepIndex ? 'done' : '')}">
+        <span class="plan-step-icon">${idx < currentStepIndex ? '✅' : (idx === currentStepIndex ? '🔄' : '⏳')}</span>
+        <span>${step}</span>
+      </div>
+    `).join('');
+    
+    // Update status text
+    const statusEl = document.getElementById('aiAgentStatus');
+    if (statusEl && isAgentRunning) {
+      statusEl.innerHTML = `<div class="agent-pulse"></div><span>Step ${currentStepIndex + 1}/${agentPlan.length}: ${agentPlan[currentStepIndex] || 'Running...'}</span>`;
+    }
+  }
+}
+
 function processAiResponse(text, existingMsgDiv = null) {
   const container = document.getElementById('aiChatMessages');
   let msgDiv;
@@ -7743,6 +7936,11 @@ function processAiResponse(text, existingMsgDiv = null) {
 
   const parts = text.split(/```/);
   let autoApplied = false;
+
+  // AGENT MODE: Update plan UI from response
+  if (currentAiMode === 'agent' && isAgentRunning) {
+    updateAgentPlanUI(text);
+  }
 
   parts.forEach((part, index) => {
     if (index % 2 === 0) {
