@@ -3970,6 +3970,8 @@ function updateFileTreeFromVirtualFS() {
   // Clear and rebuild from scratch for proper structure
   _fileTreeState.items = [];
   
+  const DIR_MARKER = '__DIR__';
+  
   virtualFS.forEach((content, path) => {
     if (!path || path === '/') return;
     
@@ -3981,21 +3983,25 @@ function updateFileTreeFromVirtualFS() {
       const currentPath = parts.slice(0, i + 1).join('/');
       const isLast = i === parts.length - 1;
       
+      // Check if this specific path is a directory marker
+      const pathContent = virtualFS.get(currentPath);
+      const isDirMarker = pathContent === DIR_MARKER;
+      
       let existing = currentItems.find(item => item.name === part);
       
       if (!existing) {
         const newItem = {
           name: part,
-          kind: isLast ? 'file' : 'directory',
+          kind: (isLast && !isDirMarker) ? 'file' : 'directory',
           path: currentPath,
-          children: isLast ? undefined : [],
+          children: (isLast && !isDirMarker) ? undefined : [],
           expanded: !isLast
         };
         currentItems.push(newItem);
         existing = newItem;
       }
       
-      if (i < parts.length - 1) {
+      if (i < parts.length - 1 || isDirMarker) {
         if (!existing.children) {
           existing.children = [];
         }
@@ -4135,7 +4141,10 @@ function renderFileTree(){
           }
           row.setAttribute('aria-expanded', item.expanded ? 'true' : 'false');
         });
-        renderNodes(item.children, children, item);
+        // Only render children if they exist
+        if (item.children && item.children.length > 0) {
+          renderNodes(item.children, children, item);
+        }
       }
     });
   }
@@ -4385,40 +4394,71 @@ async function writeToWebContainer(path, content) {
 async function syncFromWebContainer() {
   if (!webcontainerInstance) return;
   
+  // Track directories separately
+  const dirPaths = new Set();
+  
   try {
-    // Helper to recursively get all files
-    async function getAllFiles(dirPath = '/') {
+    // Helper to recursively get all files and track directories
+    async function getAllFilesAndDirs(dirPath = '/') {
       const entries = await webcontainerInstance.fs.readdir(dirPath);
-      const files = [];
       
       for (const entry of entries) {
         const fullPath = dirPath === '/' ? entry : `${dirPath}/${entry}`;
         const isDir = entry.endsWith('/');
         
         if (isDir) {
-          const subFiles = await getAllFiles(fullPath);
-          files.push(...subFiles);
+          // Track this directory
+          dirPaths.add(fullPath.slice(0, -1)); // Remove trailing /
+          
+          // Recurse into directory
+          await getAllFilesAndDirs(fullPath);
         } else {
           try {
             const content = await webcontainerInstance.fs.readFile(fullPath, 'utf8');
             virtualFS.set(fullPath, content);
-            files.push(fullPath);
           } catch(e) {}
         }
       }
-      return files;
     }
     
-    const allFiles = await getAllFiles();
-    console.log('Synced files from WebContainer:', allFiles);
+    await getAllFilesAndDirs();
     
-    // Update sidebar
+    // Add directories to virtualFS as empty markers (for tree building)
+    // Use special marker to distinguish directories from empty files
+    const DIR_MARKER = '__DIR__';
+    dirPaths.forEach(dirPath => {
+      if (!virtualFS.has(dirPath)) {
+        virtualFS.set(dirPath, DIR_MARKER);
+      }
+    });
+    
+    console.log('Dirs from WebContainer:', Array.from(dirPaths));
+    console.log('virtualFS size:', virtualFS.size);
+    
+    // Update sidebar with debug info
     updateFileTreeFromVirtualFS();
+    
+    // Verify structure
+    function countItems(items) {
+      let count = 0;
+      items.forEach(item => {
+        count++;
+        if (item.children) count += countItems(item.children);
+      });
+      return count;
+    }
+    console.log('Sidebar tree items:', countItems(_fileTreeState.items));
+    
+    // Force re-render
+    const fileTreeEl = document.getElementById('fileTree');
+    if (fileTreeEl) {
+      fileTreeEl.innerHTML = '';
+    }
     renderFileTree();
     updateBrowserUi();
     
     if (xtermTerminal) {
-      xtermTerminal.writeln(`\x1b[32m✅ ${allFiles.length} files synced to sidebar.\x1b[0m`);
+      xtermTerminal.writeln(`\x1b[32m✅ Synced to sidebar.\x1b[0m`);
     }
   } catch(e) {
     console.error('Sync from WebContainer failed:', e);
