@@ -176,9 +176,33 @@
 <style>
   .codicon { font-size: 14px !important; display: inline-block !important; vertical-align: middle; }
 .terminal-panel {
-  display:none; position:absolute; bottom:0; left:0; right:0; height:200px; 
-  background:#000; color:#fff; border-top:1px solid var(--border); 
+  display:none; position:absolute; 
+  background:#000; color:#fff; border:1px solid var(--border); 
   z-index:101; flex-direction:column;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.terminal-panel.dock-bottom {
+  bottom:0; left:0; right:0; height:200px; width: 100%;
+  border-left: none; border-right: none; border-bottom: none;
+}
+.terminal-panel.dock-right {
+  top:0; bottom:0; right:0; width:300px; height: auto;
+  border-top: none; border-right: none; border-bottom: none;
+}
+.terminal-panel.dock-left {
+  top:0; bottom:0; left:0; width:300px; height: auto;
+  border-top: none; border-left: none; border-bottom: none;
+}
+.terminal-panel.floating {
+  position: fixed !important;
+  border-radius: 8px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+  z-index: 2000;
+}
+.dock-zone-hint {
+  position: fixed; background: rgba(108, 99, 255, 0.2);
+  border: 2px dashed var(--accent); z-index: 10000;
+  pointer-events: none; display: none; border-radius: 4px;
 }
 </style>
 
@@ -748,6 +772,13 @@ body.sidebar-hidden #paneResizer{display:none!important}
   #preview{min-height:180px}
   .toast { bottom: calc(var(--mobileNavH) + 40px + env(safe-area-inset-bottom, 0px)) !important; }
 
+  #browserHeader { padding: 4px 8px !important; }
+  #browserUrlBar { gap: 4px !important; padding: 0 8px !important; border-radius: 8px !important; }
+  #browserUrlInput { font-size: 10px !important; }
+  #browserHeader .pp-icon-btn { padding: 2px !important; font-size: 10px !important; }
+  #browserTabs { margin-left: 4px !important; }
+  .browser-tab { padding: 0 8px !important; font-size: 10px !important; }
+
   #terminalPanel, #aiChatPanel {
     position: fixed !important;
     left: 0; right: 0;
@@ -1094,7 +1125,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
 }
 </style>
 </head>
-<body>
+<body class="dock-bottom">
+<div id="dockZoneHint" class="dock-zone-hint"></div>
 <a href="#workspace" class="skip-link">Skip to editor</a>
 
 <!-- TOPBAR -->
@@ -1293,27 +1325,27 @@ body.sidebar-hidden #paneResizer{display:none!important}
         </div>
         <div id="consoleLogs" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:11px; white-space:pre-wrap;"></div>
       </div>
+    </div>
 
-      <!-- TERMINAL -->
-      <div id="terminalPanel" class="terminal-panel">
-        <div id="termResizer" style="position:absolute; top:-2px; left:0; right:0; height:4px; cursor:row-resize; z-index:102; background:transparent;"></div>
-        <div class="pane-header" style="padding:4px 12px; min-height:28px; background:#1e1e1e; border-bottom:1px solid #333; cursor:move;">
-          <span style="color:#ccc; font-size:11px;"><i class="codicon codicon-terminal" style="margin-right:6px"></i>Terminal</span>
-          <button class="pp-icon-btn" onclick="clearTerminal()" title="Clear Terminal" style="margin-left:auto; color:#ccc;"><i class="codicon codicon-clear-all"></i></button>
-          <button class="pp-icon-btn" onclick="toggleFloat('terminalPanel')" title="Float Terminal" style="color:#ccc;"><i class="codicon codicon-screen-full"></i></button>
-          <button class="pp-icon-btn" onclick="toggleTerminal()" title="Close Terminal" style="color:#ccc;"><i class="codicon codicon-close"></i></button>
-        </div>
-        <div id="terminalOutput" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap; color:#00ff00;">Welcome to Jignesh-IDE Terminal v1.0.0
+    </div>
+  </div>
+
+  <!-- TERMINAL -->
+  <div id="terminalPanel" class="terminal-panel dock-bottom">
+    <div id="termResizer" style="position:absolute; top:-2px; left:0; right:0; height:4px; cursor:row-resize; z-index:102; background:transparent;"></div>
+    <div class="pane-header terminal-handle" style="padding:4px 12px; min-height:28px; background:#1e1e1e; border-bottom:1px solid #333; cursor:move;">
+      <span style="color:#ccc; font-size:11px;"><i class="codicon codicon-terminal" style="margin-right:6px"></i>Terminal</span>
+      <button class="pp-icon-btn" onclick="clearTerminal()" title="Clear Terminal" style="margin-left:auto; color:#ccc;"><i class="codicon codicon-clear-all"></i></button>
+      <button class="pp-icon-btn" onclick="cycleTerminalDock()" title="Cycle Dock Position" style="color:#ccc;"><i class="codicon codicon-screen-full"></i></button>
+      <button class="pp-icon-btn" onclick="toggleTerminal()" title="Close Terminal" style="color:#ccc;"><i class="codicon codicon-close"></i></button>
+    </div>
+    <div id="terminalOutput" style="flex:1; overflow-y:auto; padding:8px; font-family:'JetBrains Mono',monospace; font-size:12px; white-space:pre-wrap; color:#00ff00;">Welcome to Jignesh-IDE Terminal v1.0.0
 Type 'help' for available commands.
 
 </div>
-        <div style="display:flex; align-items:center; padding:4px 8px; background:#000; border-top:1px solid #222;">
-          <span id="terminalPrompt" style="color:#3b82f6; font-family:'JetBrains Mono',monospace; font-size:12px; margin-right:8px;">~/project $</span>
-          <input id="terminalInput" type="text" style="flex:1; background:transparent; border:none; color:#fff; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none;" spellcheck="false">
-        </div>
-      </div>
-    </div>
-
+    <div style="display:flex; align-items:center; padding:4px 8px; background:#000; border-top:1px solid #222;">
+      <span id="terminalPrompt" style="color:#3b82f6; font-family:'JetBrains Mono',monospace; font-size:12px; margin-right:8px;">~/project $</span>
+      <input id="terminalInput" type="text" style="flex:1; background:transparent; border:none; color:#fff; font-family:'JetBrains Mono',monospace; font-size:12px; outline:none;" spellcheck="false">
     </div>
   </div>
 
@@ -4281,6 +4313,10 @@ function toggleTerminal() {
   if (btn) btn.classList.toggle('active', terminalOpen);
   if (terminalOpen) {
     document.getElementById('terminalInput').focus();
+    if(panel.classList.contains('dock-bottom') || panel.classList.contains('dock-left') || panel.classList.contains('dock-right')) {
+      panel.style.cssText = '';
+      panel.style.display = 'flex';
+    }
     
     // Show a quick loading simulation if services aren't ready
     if ((!webcontainerInstance && !webcontainerBooting) || (!pyodideInstance && !pyodideLoading)) {
@@ -4298,6 +4334,172 @@ function toggleTerminal() {
     }
   }
 }
+
+function cycleTerminalDock() {
+  const el = document.getElementById('terminalPanel');
+  const docks = ['dock-bottom', 'dock-left', 'dock-right', 'floating'];
+  let current = docks.find(d => el.classList.contains(d)) || 'dock-bottom';
+  let next = docks[(docks.indexOf(current) + 1) % docks.length];
+  
+  setTerminalDock(next);
+}
+
+function setTerminalDock(dock) {
+  const el = document.getElementById('terminalPanel');
+  const resizer = document.getElementById('termResizer');
+  const docks = ['dock-bottom', 'dock-left', 'dock-right', 'floating'];
+  docks.forEach(d => el.classList.remove(d));
+  el.classList.add(dock);
+  
+  // Update resizer position
+  resizer.style.cssText = 'position:absolute; z-index:102; background:transparent;';
+  if (dock === 'dock-bottom') {
+    resizer.style.top = '-2px'; resizer.style.left = '0'; resizer.style.right = '0'; resizer.style.height = '4px'; resizer.style.cursor = 'row-resize';
+  } else if (dock === 'dock-right') {
+    resizer.style.top = '0'; resizer.style.left = '-2px'; resizer.style.bottom = '0'; resizer.style.width = '4px'; resizer.style.cursor = 'col-resize';
+  } else if (dock === 'dock-left') {
+    resizer.style.top = '0'; resizer.style.right = '-2px'; resizer.style.bottom = '0'; resizer.style.width = '4px'; resizer.style.cursor = 'col-resize';
+  } else if (dock === 'floating') {
+    resizer.style.display = 'none'; // No resize for floating for now, or use standard resize
+  }
+  
+  if (dock === 'floating') {
+    el.style.width = '600px';
+    el.style.height = '400px';
+    el.style.top = '100px';
+    el.style.left = '100px';
+    el.style.bottom = 'auto';
+    el.style.right = 'auto';
+  } else {
+    el.style.cssText = '';
+    el.style.display = terminalOpen ? 'flex' : 'none';
+  }
+  if(editor) editor.layout();
+}
+
+(function initTerminalResizer() {
+  const el = document.getElementById('terminalPanel');
+  const h = document.getElementById('termResizer');
+  let d = false, sx, sy, sw, sh;
+
+  h.onmousedown = (e) => {
+    d = true; sx = e.clientX; sy = e.clientY;
+    sw = el.offsetWidth; sh = el.offsetHeight;
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  };
+
+  document.addEventListener('mousemove', (e) => {
+    if (!d) return;
+    if (el.classList.contains('dock-bottom')) {
+      el.style.height = Math.max(100, sh - (e.clientY - sy)) + 'px';
+    } else if (el.classList.contains('dock-right')) {
+      el.style.width = Math.max(150, sw - (e.clientX - sx)) + 'px';
+    } else if (el.classList.contains('dock-left')) {
+      el.style.width = Math.max(150, sw + (e.clientX - sx)) + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!d) return; d = false;
+    document.body.style.userSelect = '';
+    if (editor) editor.layout();
+  });
+})();
+
+(function initTerminalDraggable() {
+  const el = document.getElementById('terminalPanel');
+  const handle = el.querySelector('.terminal-handle');
+  const hint = document.getElementById('dockZoneHint');
+  
+  let dragging = false, startX, startY, startLeft, startTop;
+  let dockTarget = null;
+
+  handle.onmousedown = (e) => {
+    if (e.target.closest('button')) return;
+    dragging = true;
+    startX = e.clientX; startY = e.clientY;
+    
+    const ws = document.getElementById('workspace');
+    const wsRect = ws.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
+    
+    startLeft = rect.left - wsRect.left; 
+    startTop = rect.top - wsRect.top;
+    
+    // If docking, convert to absolute for dragging
+    if (!el.classList.contains('floating')) {
+      el.style.width = rect.width + 'px';
+      el.style.height = rect.height + 'px';
+      el.style.left = startLeft + 'px';
+      el.style.top = startTop + 'px';
+      el.style.bottom = 'auto';
+      el.style.right = 'auto';
+      el.classList.add('floating');
+    }
+    
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  };
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    el.style.left = (startLeft + dx) + 'px';
+    el.style.top = (startTop + dy) + 'px';
+
+    // Docking hints
+    const ws = document.getElementById('workspace');
+    const wsRect = ws.getBoundingClientRect();
+    const w = wsRect.width;
+    const h = wsRect.height;
+    const edge = 60;
+    
+    const relX = e.clientX - wsRect.left;
+    const relY = e.clientY - wsRect.top;
+    
+    hint.style.display = 'none';
+    dockTarget = null;
+
+    if (relY > h - edge) {
+      hint.style.display = 'block';
+      hint.style.left = wsRect.left + 'px'; 
+      hint.style.top = (wsRect.bottom - 150) + 'px'; 
+      hint.style.width = w + 'px'; 
+      hint.style.height = '150px';
+      dockTarget = 'dock-bottom';
+    } else if (relX < edge) {
+      hint.style.display = 'block';
+      hint.style.left = wsRect.left + 'px'; 
+      hint.style.top = wsRect.top + 'px'; 
+      hint.style.width = '250px'; 
+      hint.style.height = h + 'px';
+      dockTarget = 'dock-left';
+    } else if (relX > w - edge) {
+      hint.style.display = 'block';
+      hint.style.left = (wsRect.right - 250) + 'px'; 
+      hint.style.top = wsRect.top + 'px'; 
+      hint.style.width = '250px'; 
+      hint.style.height = h + 'px';
+      dockTarget = 'dock-right';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    hint.style.display = 'none';
+    document.body.style.userSelect = '';
+    
+    if (dockTarget) {
+      setTerminalDock(dockTarget);
+    } else {
+      setTerminalDock('floating');
+    }
+  });
+})();
 
 async function handleTerminalCommand(cmdLine) {
   const inputEl = document.getElementById('terminalInput');
@@ -4907,35 +5109,28 @@ function toggleAiMinimize() {
 }
 
 function toggleFloat(id){
+  if(id === 'terminalPanel') { cycleTerminalDock(); return; }
   const el = document.getElementById(id);
   if(!el) return;
   const isFloating = el.classList.toggle('floating');
   if(isFloating){
-    if(id === 'terminalPanel') {
-      el.style.width = '600px';
-      el.style.height = '400px';
-      el.style.bottom = '100px';
-      el.style.left = '100px';
-      el.style.right = 'auto';
+    if(id === 'aiChatPanel') {
+      el.style.width = '380px';
+      el.style.height = '600px';
+      el.style.top = '100px';
+      document.getElementById('aiMinimizeBtn').style.display = 'inline-flex';
     } else {
       el.style.width = '380px';
       el.style.height = '600px';
       el.style.top = '100px';
     }
     
-    if(id === 'aiChatPanel') {
-      document.getElementById('aiMinimizeBtn').style.display = 'inline-flex';
-    }
-    
     let handle;
     if(id === 'sidebar') handle = el.querySelector('.sb-header');
     else if(id === 'aiChatPanel') handle = el.querySelector('.ai-chat-header');
-    else if(id === 'terminalPanel') handle = el.querySelector('.pane-header');
     else handle = el.querySelector('.pp-header');
     
-    if (id !== 'terminalPanel') {
-      el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
-    }
+    el.style.left = id === 'sidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
     makeDraggable(el, handle);
   } else {
     el.style.cssText = '';
@@ -4945,10 +5140,6 @@ function toggleFloat(id){
     }
     // Restore defaults
     if(id === 'sidebar') el.style.width = 'var(--sbW)';
-    if(id === 'terminalPanel') {
-      el.style.display = terminalOpen ? 'flex' : 'none';
-      el.style.height = '200px';
-    }
   }
   if(editor) editor.layout();
 }
@@ -5026,31 +5217,6 @@ function makeDraggable(el, handle){
 })();
 
 /* ─── Terminal Resize ─── */
-(function(){
-  const tp = document.getElementById('terminalPanel');
-  const h = document.getElementById('termResizer');
-  if(!h) return;
-  let d = false, sy, sh;
-  h.addEventListener('mousedown', e => {
-    if(tp.classList.contains('floating')) return;
-    d = true; sy = e.clientY; sh = tp.offsetHeight;
-    h.classList.add('active');
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'row-resize';
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if(!d) return;
-    tp.style.height = Math.min(window.innerHeight - 100, Math.max(60, sh - (e.clientY - sy))) + 'px';
-  });
-  document.addEventListener('mouseup', () => {
-    if(!d) return; d = false;
-    h.classList.remove('active');
-    document.body.style.userSelect = '';
-    document.body.style.cursor = '';
-    if(editor) editor.layout();
-  });
-})();
 (function(){
   const sb=document.getElementById('fileSidebar');
   const h=document.getElementById('fileSbResizer');
