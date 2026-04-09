@@ -748,6 +748,19 @@ body.sidebar-hidden #paneResizer{display:none!important}
   #preview{min-height:180px}
   .toast { bottom: calc(var(--mobileNavH) + 40px + env(safe-area-inset-bottom, 0px)) !important; }
 
+  #terminalPanel, #aiChatPanel {
+    position: fixed !important;
+    left: 0; right: 0;
+    bottom: calc(var(--mobileNavH) + 20px) !important;
+    width: 100% !important; max-width: none; min-width: 0;
+    height: 40vh !important;
+    z-index: 10030;
+    border-radius: 16px 16px 0 0;
+    border-top: 2px solid var(--accent);
+    box-shadow: 0 -8px 32px rgba(0,0,0,.35);
+  }
+  #aiChatPanel { height: 60vh !important; }
+  
   .sidebar{
     position:fixed!important;top:0;
     bottom:0;
@@ -756,8 +769,10 @@ body.sidebar-hidden #paneResizer{display:none!important}
     transform:translateX(-100%);transition:transform .25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow:none;
     padding-top: 20px;
+    display: none;
   }
-  body.mobile-sidebar-open .sidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3)}
+  body.mobile-sidebar-open #sidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex;}
+  body.mobile-file-sidebar-open #fileSidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex;}
   .sb-resizer{display:none}
   .panels-resizer{display:none}
   #codePane,#previewPane{width:100%!important;min-width:0!important;flex:1 0 auto!important}
@@ -765,6 +780,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
     display:none;position:fixed;inset:0;
     background:rgba(0,0,0,.5);backdrop-filter:blur(2px);z-index:100099;
   }
+  body.mobile-sidebar-open .mobile-sidebar-backdrop,
+  body.mobile-file-sidebar-open .mobile-sidebar-backdrop{display:block}
 }
 
 /* ── NEW FEATURES STYLES ── */
@@ -1604,6 +1621,7 @@ Type 'help' for available commands.
 <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
 
 <nav class="mobile-bottom-nav" id="mobileBottomNav" role="tablist" aria-label="Editor view">
+  <button type="button" class="mobile-nav-btn" id="mnavExplorer" onclick="toggleFileSidebar()" aria-label="Toggle explorer"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-files" style="font-size:20px !important"></i></span>Explorer</button>
   <button type="button" class="mobile-nav-btn" id="mnavCode" role="tab" data-mnav="code" aria-selected="false" onclick="setMode('code');closeMobileSidebar();" aria-label="Code editor"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-code" style="font-size:20px !important"></i></span>Code</button>
   <button type="button" class="mobile-nav-btn" id="mnavPreview" role="tab" data-mnav="preview" aria-selected="false" onclick="setMode('preview');closeMobileSidebar();" aria-label="Live preview"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-play" style="font-size:20px !important"></i></span>Preview</button>
   <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-eye" style="font-size:20px !important"></i></span>Visual</button>
@@ -1886,6 +1904,7 @@ Type 'help' for available commands.
 let editor, liveOn=true, liveTimer;
 let _ignoreEditorChangeForLive=false;
 let _visualSyncTimer=null;
+let _visualModeTimer=null;
 let currentMode='split';
 let sharedPreviewOnly=false;
 let _sharedPreviewUiApplied=false;
@@ -2683,7 +2702,9 @@ function isMobileLayout(){
   try{return window.matchMedia('(max-width:900px)').matches;}catch(e){return window.innerWidth<=900;}
 }
 function syncMobileMenuAria(){
-  var open=isMobileLayout()?document.body.classList.contains('mobile-sidebar-open'):!document.body.classList.contains('sidebar-hidden');
+  var open = isMobileLayout() 
+    ? (document.body.classList.contains('mobile-sidebar-open') || document.body.classList.contains('mobile-file-sidebar-open'))
+    : !document.body.classList.contains('sidebar-hidden');
   var btn=document.getElementById('mobileMenuBtn');
   if(btn) btn.setAttribute('aria-expanded',open?'true':'false');
   var bd=document.getElementById('mobileSidebarBackdrop');
@@ -2693,8 +2714,8 @@ function toggleMobileSidebar(){
   const sb = document.getElementById('sidebar');
   if(!sb) return;
   if(isMobileLayout()){
+    document.body.classList.remove('mobile-file-sidebar-open');
     document.body.classList.toggle('mobile-sidebar-open');
-    sb.style.display = document.body.classList.contains('mobile-sidebar-open') ? 'flex' : 'none';
   } else {
     const isHidden = sb.style.display === 'none';
     sb.style.display = isHidden ? 'flex' : 'none';
@@ -2706,16 +2727,26 @@ function toggleFileSidebar(){
   const fsb = document.getElementById('fileSidebar');
   const btn = document.getElementById('tb-file-hamburger');
   if(!fsb) return;
-  const isHidden = fsb.style.display === 'none';
-  fsb.style.display = isHidden ? 'flex' : 'none';
-  if (btn) btn.classList.toggle('active', isHidden);
-  if(editor) editor.layout();
-  setStatus(isHidden ? 'File sidebar opened' : 'File sidebar closed');
+  if(isMobileLayout()){
+    document.body.classList.remove('mobile-sidebar-open');
+    document.body.classList.toggle('mobile-file-sidebar-open');
+    const isOpen = document.body.classList.contains('mobile-file-sidebar-open');
+    if (btn) btn.classList.toggle('active', isOpen);
+  } else {
+    const isHidden = fsb.style.display === 'none';
+    fsb.style.display = isHidden ? 'flex' : 'none';
+    if (btn) btn.classList.toggle('active', isHidden);
+    if(editor) editor.layout();
+  }
+  syncMobileMenuAria();
 }
 function closeMobileSidebar(){
   document.body.classList.remove('mobile-sidebar-open');
+  document.body.classList.remove('mobile-file-sidebar-open');
   document.body.classList.remove('sidebar-hidden');
   syncMobileMenuAria();
+  const btn = document.getElementById('tb-file-hamburger');
+  if (btn) btn.classList.remove('active');
 }
 /** Bottom bar: split maps to Preview (live page focus). */
 function syncMobileBottomNav(){
@@ -2726,9 +2757,16 @@ function syncMobileBottomNav(){
   if(m==='code') key='code';
   else if(m==='visual') key='visual';
   else if(m==='preview'||m==='split') key='preview';
+  
+  var fileSidebarOpen = document.body.classList.contains('mobile-file-sidebar-open');
+  
   nav.querySelectorAll('.mobile-nav-btn').forEach(function(b){
     var id=b.getAttribute('data-mnav');
-    var on=id===key;
+    if(b.id === 'mnavExplorer') {
+      b.classList.toggle('active', fileSidebarOpen);
+      return;
+    }
+    var on=id===key && !fileSidebarOpen;
     b.classList.toggle('active',on);
     b.setAttribute('aria-selected',on?'true':'false');
   });
@@ -2736,6 +2774,11 @@ function syncMobileBottomNav(){
 function setMode(mode){
   if(document.body.classList.contains('pv-fs')) togglePreviewFullscreen();
   if(sharedPreviewOnly && mode!=='preview') mode='preview';
+  
+  // Clear any pending visual mode activation
+  clearTimeout(_visualModeTimer);
+  _visualModeTimer = null;
+  
   currentMode=mode;
   const cp=document.getElementById('codePane');
   const pr=document.getElementById('paneResizer');
@@ -2786,17 +2829,25 @@ function setMode(mode){
   } else if(mode==='visual'){
     cp.style.display='none'; pr.style.display='none';
     pp.style.flex='1';
-    setTimeout(function(){setVisualMode(true);},80);
+    _visualModeTimer = setTimeout(function(){
+      if(currentMode === 'visual') setVisualMode(true);
+    },80);
   } else if(mode==='preview'){
     cp.style.display='none'; pr.style.display='none';
     pp.style.flex='1';
     setVisualMode(false);
   } else {
+    // split mode - if on mobile, it should behave as preview or code
+    if(isMobileLayout()){
+      // On mobile, default split to code or preview
+      setMode('preview');
+      return;
+    }
     cp.style.flex='1'; pp.style.flex='1';
     setVisualMode(false);
   }
 
-  var tabMode=(mode==='preview')?'split':mode;
+  var tabMode=(mode==='preview' || mode==='split')?'split':mode;
   ['code','visual','split'].forEach(function(t){
     var el=document.getElementById('tab-'+t);
     if(el) el.classList.toggle('active',t===tabMode);
@@ -5087,7 +5138,8 @@ function setVisualMode(on){
     const vbt=document.getElementById('visualBarText');
     if(vbt) vbt.textContent=isMobileLayout()?'🎨 Visual: Tap to select · Drag to move':'🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate';
   }
-  document.getElementById('previewHint').textContent=on?'🎨 Visual':'';
+  const ph = document.getElementById('previewHint');
+  if(ph) ph.textContent=on?'🎨 Visual':'';
   if(on){
     attachVisualListeners();
     propPanel.classList.add('open');
