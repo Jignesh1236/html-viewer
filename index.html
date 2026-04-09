@@ -3546,6 +3546,21 @@ function closeBrowserTab(index, event) {
 function navigateTo(path) {
   if (!path) return;
   
+  // Check for external/server URLs (WebContainer or localhost)
+  const isExternalUrl = path.startsWith('http://localhost') || 
+                        path.includes('.webcontainer-api.io') ||
+                        path.startsWith('https://');
+  
+  if (isExternalUrl) {
+    // Load external URL in preview iframe
+    const iframeEl = document.getElementById('preview');
+    if (iframeEl) {
+      iframeEl.src = path;
+    }
+    updateBrowserUi();
+    return;
+  }
+  
   // Clean path for URL input
   let targetPath = path;
   if (targetPath.startsWith('http://localhost/')) {
@@ -4730,6 +4745,59 @@ function writeTermPrompt() {
   xtermTerminal.write(`\x1b[34m~/project\x1b[0m $ `);
 }
 
+let detectedServerUrl = null;
+
+function detectAndOpenServerUrl(data) {
+  // Patterns for server URLs
+  const patterns = [
+    /https?:\/\/[^\s]*\.webcontainer-api\.io[^\s]*/,
+    /https?:\/\/localhost:[0-9]+[^\s]*/,
+    /Server (?:running|ready) on (?:http|https):\/\/[^\s]+/i,
+    /server ready at (?:http|https):\/\/[^\s]+/i,
+    /listening on (?:http|https):\/\/[^\s]+/i,
+    /running at (?:http|https):\/\/[^\s]+/i,
+    /Application started at (?:http|https):\/\/[^\s]+/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = data.match(pattern);
+    if (match) {
+      let url = match[0];
+      
+      // Clean up URL (remove trailing characters)
+      url = url.replace(/[",;:\s]*$/, '');
+      
+      if (url !== detectedServerUrl) {
+        detectedServerUrl = url;
+        
+        // Show clickable message in terminal
+        if (xtermTerminal) {
+          xtermTerminal.writeln('');
+          xtermTerminal.writeln(`\x1b[32m🌐 Server detected! Click to open preview:\x1b[0m`);
+          xtermTerminal.writeln(`\x1b[4;36m${url}\x1b[0m`);
+          
+          // Also try to open automatically
+          setTimeout(() => openInPreview(url), 1000);
+        }
+        break;
+      }
+    }
+  }
+}
+
+function openInPreview(url) {
+  if (!url) return;
+  
+  // Update browser URL bar and navigate
+  const urlInput = document.getElementById('browserUrlInput');
+  if (urlInput) {
+    urlInput.value = url;
+    navigateTo(url);
+  }
+  
+  toast(`Server opened: ${url}`);
+}
+
 async function handleTerminalCommand(cmdLine) {
   const parts = cmdLine.split(' ').filter(Boolean);
   if (parts.length === 0) {
@@ -4911,6 +4979,9 @@ async function handleTerminalCommand(cmdLine) {
       termShellProcess.output.pipeTo(new WritableStream({
         write(data) {
           if (xtermTerminal) xtermTerminal.write(data);
+          
+          // Detect server URLs in output
+          detectAndOpenServerUrl(data);
         }
       }));
       
