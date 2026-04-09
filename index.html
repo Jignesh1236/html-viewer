@@ -3557,6 +3557,11 @@ function navigateTo(path) {
     if (iframeEl) {
       iframeEl.src = path;
     }
+    // Update browser URL bar
+    const browserUrlInput = document.getElementById('browserUrlInput');
+    if (browserUrlInput) {
+      browserUrlInput.value = path;
+    }
     updateBrowserUi();
     return;
   }
@@ -4767,17 +4772,16 @@ function detectAndOpenServerUrl(data) {
       // Clean up URL (remove trailing characters)
       url = url.replace(/[",;:\s]*$/, '');
       
-      if (url !== detectedServerUrl) {
+        if (url !== detectedServerUrl) {
         detectedServerUrl = url;
         
-        // Show clickable message in terminal
+        // Show message and create clickable button in terminal output area
         if (xtermTerminal) {
           xtermTerminal.writeln('');
-          xtermTerminal.writeln(`\x1b[32m🌐 Server detected! Click to open preview:\x1b[0m`);
-          xtermTerminal.writeln(`\x1b[4;36m${url}\x1b[0m`);
+          xtermTerminal.writeln(`\x1b[32m🌐 Server detected!\x1b[0m`);
           
-          // Also try to open automatically
-          setTimeout(() => openInPreview(url), 1000);
+          // Add button to open in preview
+          showOpenPreviewButton(url);
         }
         break;
       }
@@ -4788,14 +4792,59 @@ function detectAndOpenServerUrl(data) {
 function openInPreview(url) {
   if (!url) return;
   
-  // Update browser URL bar and navigate
-  const urlInput = document.getElementById('browserUrlInput');
-  if (urlInput) {
-    urlInput.value = url;
-    navigateTo(url);
+  // Force open the URL in preview - handle various URL formats
+  const iframeEl = document.getElementById('preview');
+  if (iframeEl) {
+    // For WebContainer URLs, they need special handling
+    if (url.includes('.webcontainer-api.io')) {
+      // Try with the actual URL
+      iframeEl.src = url;
+    } else if (url.startsWith('http://localhost')) {
+      iframeEl.src = url;
+    } else if (url.startsWith('http')) {
+      iframeEl.src = url;
+    } else {
+      iframeEl.src = 'http://' + url;
+    }
   }
   
+  // Update browser URL bar
+  const browserUrlInput = document.getElementById('browserUrlInput');
+  if (browserUrlInput) {
+    browserUrlInput.value = url;
+  }
+  
+  updateBrowserUi();
   toast(`Server opened: ${url}`);
+}
+
+function showOpenPreviewButton(url) {
+  // Create or update the server button in terminal panel
+  let serverBtn = document.getElementById('serverPreviewBtn');
+  
+  const terminalPanel = document.getElementById('terminalPanel');
+  if (!terminalPanel) return;
+  
+  // Create button if not exists
+  if (!serverBtn) {
+    serverBtn = document.createElement('button');
+    serverBtn.id = 'serverPreviewBtn';
+    serverBtn.className = 'tb-btn';
+    serverBtn.style.cssText = 'margin: 4px 8px; background: var(--accent); color: #fff; font-size: 11px; display: flex; align-items: center; gap: 4px;';
+    // Insert at the start of terminal panel
+    terminalPanel.insertBefore(serverBtn, terminalPanel.firstChild);
+  }
+  
+  // Update button with URL and click handler
+  serverBtn.innerHTML = `<i class="codicon codicon-link"></i> Preview`;
+  serverBtn.onclick = (e) => {
+    e.stopPropagation();
+    openInPreview(url);
+  };
+  serverBtn.style.display = 'flex';
+  
+  // Auto-open preview after delay
+  setTimeout(() => openInPreview(url), 1500);
 }
 
 async function handleTerminalCommand(cmdLine) {
