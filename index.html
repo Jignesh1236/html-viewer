@@ -7502,16 +7502,25 @@ RESPONSE RULES (follow strictly):
 1. You can output text and code blocks.
 2. For file updates/creation (BUILD/DEBUG modes), use markdown code blocks with the format: \`\`\`language:filepath\`\`\`.
    Example: \`\`\`html:index.html\`\`\` or \`\`\`css:style.css\`\`\`.
-3. To DELETE a file (BUILD mode), use a special block: \`\`\`delete:filepath\`\`\`.
-4. In CHAT mode, only provide code if the user asks for examples.
-5. If the user asks in a different language, respond in that language.
-6. For broad requests, suggest a structure and provide necessary files.
-7. Keep explanations concise.
+3. For EDITS to existing files, PREFER the SEARCH/REPLACE format to avoid rewriting large files:
+   \`\`\`language:filepath
+   <<<< SEARCH
+   [existing code lines]
+   ====
+   [new code lines]
+   >>>>
+   \`\`\`
+4. To DELETE a file (BUILD mode), use a special block: \`\`\`delete:filepath\`\`\`.
+5. In CHAT mode, only provide code if the user asks for examples.
+6. If the user asks in a different language, respond in that language.
+7. For broad requests, suggest a structure and provide necessary files.
+8. Keep explanations concise.
 
 BEHAVIOR:
 - If in BUILD mode, be proactive in creating necessary files (HTML, CSS, JS).
 - If in DEBUG mode, explain why the bug occurred and provide the fix.
-- You have full access to create and delete files in the virtual file system.`;
+- You have full access to create and delete files in the virtual file system.
+- ALWAYS ensure code is complete and bug-free. If a code block is too long, use SEARCH/REPLACE for specific sections.`;
 
   // Clear picked element after use (will be stale after iframe reload)
   if(aiPickedEl){ aiPickedEl=null; syncAiPickBtn(); }
@@ -7757,7 +7766,7 @@ function processAiResponse(text, existingMsgDiv = null) {
 
       // Auto-apply logic - only in Build or Debug mode
       const canEdit = currentAiMode === 'build' || currentAiMode === 'debug';
-      if (!autoApplied && canEdit && (lang === 'html' || filepath)) {
+      if (canEdit && (lang === 'html' || filepath)) {
         applyAiCode(lang, code, true, filepath); 
         autoApplied = true;
       }
@@ -7916,6 +7925,28 @@ function undoChanges(btn) {
   }
 }
 
+function validateAppliedCode(path, code) {
+  const errors = [];
+  if (path.endsWith('.js') || path === 'script.js') {
+    try {
+      new Function(code);
+    } catch (e) {
+      errors.push(`JS Syntax Error: ${e.message}`);
+    }
+  } else if (path.endsWith('.html') || path === 'index.html') {
+    // Very basic tag closure check
+    const tags = (code.match(/<[a-zA-Z]+/g) || []).length;
+    const closingTags = (code.match(/<\/[a-zA-Z]+/g) || []).length;
+    if (Math.abs(tags - closingTags) > 5) { // Threshold for large documents
+      errors.push(`Possible unclosed HTML tags (found ${tags} open vs ${closingTags} close).`);
+    }
+    if (code.includes('<<<< SEARCH') || code.includes('====') || code.includes('>>>>')) {
+      errors.push("Remaining SEARCH/REPLACE markers found in file.");
+    }
+  }
+  return errors;
+}
+
 function applyAiCode(lang, code, isAuto = false, filepath = '') {
   try {
     const targetPath = filepath || (lang === 'html' ? 'index.html' : (lang === 'css' ? 'style.css' : (lang === 'js' || lang === 'javascript' ? 'script.js' : currentPath)));
@@ -7928,13 +7959,60 @@ function applyAiCode(lang, code, isAuto = false, filepath = '') {
     }
 
     const oldVal = virtualFS.get(targetPath) || "";
+    let newVal = code;
+
+    // Handle SEARCH/REPLACE format with better whitespace handling
+    if (code.includes('<<<< SEARCH') && code.includes('====') && code.includes('>>>>')) {
+      const parts = code.split('<<<< SEARCH');
+      let currentContent = oldVal;
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (let i = 1; i < parts.length; i++) {
+        const subPart = parts[i];
+        const innerParts = subPart.split('====');
+        if (innerParts.length < 2) continue;
+        
+        const searchStr = innerParts[0].replace(/^\s*[\r\n]/, '').replace(/[\r\n]\s*$/, '');
+        const replacePart = innerParts[1].split('>>>>');
+        if (replacePart.length < 1) continue;
+        
+        const replaceStr = replacePart[0].replace(/^\s*[\r\n]/, '').replace(/[\r\n]\s*$/, '');
+        
+        if (currentContent.includes(searchStr)) {
+          currentContent = currentContent.replace(searchStr, replaceStr);
+          successCount++;
+        } else {
+          // Try fuzzy search by trimming lines if direct match fails
+          const trimmedSearch = searchStr.trim();
+          if (currentContent.includes(trimmedSearch)) {
+            currentContent = currentContent.replace(trimmedSearch, replaceStr);
+            successCount++;
+          } else {
+            console.warn("SEARCH block not found in file:", targetPath);
+            failCount++;
+          }
+        }
+      }
+      newVal = currentContent;
+      if (failCount > 0) {
+        toast(`Partial update: ${successCount} applied, ${failCount} failed in ${targetPath}`);
+      }
+    }
     
     // Update VFS
-    createFileItem(targetPath, code);
+    createFileItem(targetPath, newVal);
+
+    // Validate the new code
+    const errors = validateAppliedCode(targetPath, newVal);
+    if (errors.length > 0) {
+      toast(`⚠️ Potential bugs found in ${targetPath}!`);
+      addAiChatMessage(`⚠️ I found some potential issues in ${targetPath}:\n${errors.join('\n')}\nPlease fix these or ask me to fix them.`, 'bot');
+    }
     
     if (!isAuto) {
       // Log manual changes
-      const diff = Diff.diffLines(oldVal, code);
+      const diff = Diff.diffLines(oldVal, newVal);
       let added = 0, removed = 0;
       diff.forEach(part => {
         if(part.added) added += part.count;
