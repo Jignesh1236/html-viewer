@@ -3967,37 +3967,45 @@ function getFileIcon(name, kind, expanded = false) {
 }
 
 function updateFileTreeFromVirtualFS() {
+  // Clear and rebuild from scratch for proper structure
+  _fileTreeState.items = [];
+  
   virtualFS.forEach((content, path) => {
+    if (!path || path === '/') return;
+    
     const parts = path.split('/').filter(Boolean);
     let currentItems = _fileTreeState.items;
-    let found = false;
     
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
-      const existing = currentItems.find(item => item.name === part);
+      const currentPath = parts.slice(0, i + 1).join('/');
+      const isLast = i === parts.length - 1;
+      
+      let existing = currentItems.find(item => item.name === part);
       
       if (!existing) {
-        const isLast = i === parts.length - 1;
         const newItem = {
           name: part,
           kind: isLast ? 'file' : 'directory',
-          path: parts.slice(0, i + 1).join('/'),
+          path: currentPath,
           children: isLast ? undefined : [],
-          expanded: true
+          expanded: !isLast
         };
         currentItems.push(newItem);
+        existing = newItem;
       }
       
       if (i < parts.length - 1) {
-        const item = currentItems.find(item => item.name === part);
-        if (item && item.children) {
-          currentItems = item.children;
+        if (!existing.children) {
+          existing.children = [];
         }
+        existing.kind = 'directory';
+        existing.expanded = true;
+        currentItems = existing.children;
       }
     }
   });
   
-  // Sort items (directories first, then alphabetically)
   sortFileTreeItems(_fileTreeState.items);
 }
 
@@ -4378,34 +4386,31 @@ async function syncFromWebContainer() {
   if (!webcontainerInstance) return;
   
   try {
-    const rootFiles = await webcontainerInstance.fs.readdir('/');
-    
-    async function readDirRecursive(dir, basePath = '') {
-      const items = [];
-      for (const entry of dir) {
-        // Entries with trailing / are directories
+    // Helper to recursively get all files
+    async function getAllFiles(dirPath = '/') {
+      const entries = await webcontainerInstance.fs.readdir(dirPath);
+      const files = [];
+      
+      for (const entry of entries) {
+        const fullPath = dirPath === '/' ? entry : `${dirPath}/${entry}`;
         const isDir = entry.endsWith('/');
-        const cleanEntry = isDir ? entry.slice(0, -1) : entry;
-        const fullPath = basePath ? `${basePath}/${cleanEntry}` : cleanEntry;
         
         if (isDir) {
-          try {
-            const subDir = await webcontainerInstance.fs.readdir(fullPath);
-            const subItems = await readDirRecursive(subDir, fullPath);
-            items.push(...subItems);
-          } catch(e) {}
+          const subFiles = await getAllFiles(fullPath);
+          files.push(...subFiles);
         } else {
           try {
             const content = await webcontainerInstance.fs.readFile(fullPath, 'utf8');
             virtualFS.set(fullPath, content);
-            items.push(fullPath);
+            files.push(fullPath);
           } catch(e) {}
         }
       }
-      return items;
+      return files;
     }
     
-    await readDirRecursive(rootFiles);
+    const allFiles = await getAllFiles();
+    console.log('Synced files from WebContainer:', allFiles);
     
     // Update sidebar
     updateFileTreeFromVirtualFS();
@@ -4413,7 +4418,7 @@ async function syncFromWebContainer() {
     updateBrowserUi();
     
     if (xtermTerminal) {
-      xtermTerminal.writeln(`\x1b[32m✅ Files synced to sidebar.\x1b[0m`);
+      xtermTerminal.writeln(`\x1b[32m✅ ${allFiles.length} files synced to sidebar.\x1b[0m`);
     }
   } catch(e) {
     console.error('Sync from WebContainer failed:', e);
