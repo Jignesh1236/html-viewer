@@ -4374,6 +4374,52 @@ async function writeToWebContainer(path, content) {
   }
 }
 
+async function syncFromWebContainer() {
+  if (!webcontainerInstance) return;
+  
+  try {
+    const rootFiles = await webcontainerInstance.fs.readdir('/');
+    
+    async function readDirRecursive(dir, basePath = '') {
+      const items = [];
+      for (const entry of dir) {
+        // Entries with trailing / are directories
+        const isDir = entry.endsWith('/');
+        const cleanEntry = isDir ? entry.slice(0, -1) : entry;
+        const fullPath = basePath ? `${basePath}/${cleanEntry}` : cleanEntry;
+        
+        if (isDir) {
+          try {
+            const subDir = await webcontainerInstance.fs.readdir(fullPath);
+            const subItems = await readDirRecursive(subDir, fullPath);
+            items.push(...subItems);
+          } catch(e) {}
+        } else {
+          try {
+            const content = await webcontainerInstance.fs.readFile(fullPath, 'utf8');
+            virtualFS.set(fullPath, content);
+            items.push(fullPath);
+          } catch(e) {}
+        }
+      }
+      return items;
+    }
+    
+    await readDirRecursive(rootFiles);
+    
+    // Update sidebar
+    updateFileTreeFromVirtualFS();
+    renderFileTree();
+    updateBrowserUi();
+    
+    if (xtermTerminal) {
+      xtermTerminal.writeln(`\x1b[32m✅ Files synced to sidebar.\x1b[0m`);
+    }
+  } catch(e) {
+    console.error('Sync from WebContainer failed:', e);
+  }
+}
+
 let xtermTerminal = null;
 let xtermFitAddon = null;
 let xtermInitialized = false;
@@ -4823,13 +4869,18 @@ async function handleTerminalCommand(cmdLine) {
         }
       }));
       
-      termShellProcess.input.pipeTo(new WritableStream({
-        write(data) {}
-      }));
+      // Get input writer properly
+      const inputWriter = termShellProcess.input.getWriter();
+      inputWriter.releaseLock();
       
       const exitCode = await termShellProcess.exit;
       termShellProcess = null;
       xtermTerminal.writeln(`\x1b[90mProcess exited with code ${exitCode}\x1b[0m`);
+      
+      // After command completes, sync files back to virtualFS and sidebar
+      if (cmd === 'npm' || cmd === 'node' || cmd === 'mkdir' || cmd === 'touch') {
+        await syncFromWebContainer();
+      }
     } catch (err) {
       xtermTerminal.writeln(`\x1b[31mFailed to execute: ${err.message}\x1b[0m`);
     }
