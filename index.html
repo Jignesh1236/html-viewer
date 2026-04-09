@@ -7480,9 +7480,9 @@ async function sendAiChatMessage() {
   }
 
   const modeInstructions = {
-    chat: "General chat mode. Answer questions and help with code concepts.",
-    build: "Project builder mode. Focus on creating new features, pages, or entire sections.",
-    debug: "Debugging mode. Focus on finding errors, fixing bugs, and improving code quality."
+    chat: "CHAT MODE: You are a helpful AI assistant. You can READ all project files but you should NOT suggest file edits or creations unless the user specifically asks for code examples. Focus on explaining concepts.",
+    build: "BUILD MODE: You are a senior developer. You can READ, EDIT, and CREATE files. Proactively suggest and provide full code blocks for file updates/creations using the ```language:filepath``` format.",
+    debug: "DEBUG MODE: You are a debugging expert. You can READ files and EDIT them to fix bugs. Analyze the provided code/errors and provide fixed versions of the files."
   };
 
   const systemPrompt = `You are an expert full-stack web developer AI.
@@ -7500,10 +7500,10 @@ ${pickedElInfo}
 
 RESPONSE RULES (follow strictly):
 1. You can output text and code blocks.
-2. For file updates/creation, use markdown code blocks with the format: \`\`\`language:filepath\`\`\`.
+2. For file updates/creation (BUILD/DEBUG modes), use markdown code blocks with the format: \`\`\`language:filepath\`\`\`.
    Example: \`\`\`html:index.html\`\`\` or \`\`\`css:style.css\`\`\`.
-3. To DELETE a file, use a special block: \`\`\`delete:filepath\`\`\`.
-4. You can provide multiple code blocks to update multiple files at once.
+3. To DELETE a file (BUILD mode), use a special block: \`\`\`delete:filepath\`\`\`.
+4. In CHAT mode, only provide code if the user asks for examples.
 5. If the user asks in a different language, respond in that language.
 6. For broad requests, suggest a structure and provide necessary files.
 7. Keep explanations concise.
@@ -7529,8 +7529,8 @@ BEHAVIOR:
           ...aiChatHistory
         ],
         model: model,
-        stream: false,
-        jsonMode: true
+        stream: true,
+        jsonMode: false // Stream mode doesn't need jsonMode usually
       })
     });
 
@@ -7538,14 +7538,35 @@ BEHAVIOR:
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
-    const result = await response.json();
-    const data = result.choices[0].message.content;
-    
-    // Hide thinking state
+    // Hide thinking state as soon as we start receiving data
     if (thinking) thinking.classList.remove('active');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulatedText = "";
     
-    processAiResponse(data);
-    aiChatHistory.push({ role: "assistant", content: data });
+    // Create an empty message div for streaming
+    const container = document.getElementById('aiChatMessages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'ai-msg ai-msg-bot';
+    container.appendChild(msgDiv);
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      const chunk = decoder.decode(value, { stream: true });
+      accumulatedText += chunk;
+      
+      // Update the UI with accumulated text
+      // We'll use a temporary function to render the partial text
+      renderPartialAiResponse(msgDiv, accumulatedText);
+      container.scrollTo({ top: container.scrollHeight, behavior: 'instant' });
+    }
+    
+    // Final render to process all code blocks and buttons
+    processAiResponse(accumulatedText, msgDiv);
+    aiChatHistory.push({ role: "assistant", content: accumulatedText });
 
   } catch (error) {
     console.error("AI Chat Error:", error);
@@ -7553,7 +7574,7 @@ BEHAVIOR:
     // Fallback 1: Simplified GET to Pollinations (without huge system prompt if possible)
     try {
       const shortSystemPrompt = `You are an AI assistant. Help the user with their request.`;
-      const fallbackUrl = `https://text.pollinations.ai/${encodeURIComponent(message)}?model=${model}&system=${encodeURIComponent(shortSystemPrompt)}`;
+      const fallbackUrl = `https://text.pollinations.ai/${encodeURIComponent(message)}?model=${model}&system=${encodeURIComponent(shortSystemPrompt)}&stream=false`;
       const fallbackResponse = await fetch(fallbackUrl);
       if (!fallbackResponse.ok) throw new Error("Pollinations fallback failed");
       const fallbackData = await fallbackResponse.text();
@@ -7630,10 +7651,30 @@ function addAiChatMessage(content, type, id = null) {
   return msgDiv;
 }
 
-function processAiResponse(text) {
+function renderPartialAiResponse(msgDiv, text) {
+  // Simple formatting for streaming: replace newlines and basic markdown
+  const formatted = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>');
+  msgDiv.innerHTML = formatted;
+}
+
+function processAiResponse(text, existingMsgDiv = null) {
   const container = document.getElementById('aiChatMessages');
-  const msgDiv = document.createElement('div');
-  msgDiv.className = 'ai-msg ai-msg-bot';
+  let msgDiv;
+  
+  if (existingMsgDiv) {
+    msgDiv = existingMsgDiv;
+    msgDiv.innerHTML = ''; // Clear partial text
+  } else {
+    msgDiv = document.createElement('div');
+    msgDiv.className = 'ai-msg ai-msg-bot';
+    container.appendChild(msgDiv);
+  }
   
   const formatText = (t) => {
     return t.trim()
@@ -7665,13 +7706,14 @@ function processAiResponse(text) {
         lang = headerLine;
       }
 
-      // Auto-apply logic
-      if (!autoApplied && (lang === 'html' || filepath)) {
+      // Auto-apply logic - only in Build or Debug mode
+      const canEdit = currentAiMode === 'build' || currentAiMode === 'debug';
+      if (!autoApplied && canEdit && (lang === 'html' || filepath)) {
         applyAiCode(lang, code, true, filepath); 
         autoApplied = true;
       }
 
-      if (lang === 'delete') {
+      if (lang === 'delete' && currentAiMode === 'build') {
         const deleteDiv = document.createElement('div');
         deleteDiv.className = 'ai-msg-code-change';
         deleteDiv.style.borderLeft = '3px solid var(--red)';
@@ -7713,6 +7755,12 @@ function processAiResponse(text) {
       const applyBtn = document.createElement('button');
       applyBtn.className = 'ai-apply-btn';
       applyBtn.innerText = autoApplied ? 'Re-Apply' : 'Apply Changes';
+      // Disable apply button if in Chat mode and not an example
+      if (currentAiMode === 'chat') {
+        applyBtn.disabled = true;
+        applyBtn.style.opacity = '0.5';
+        applyBtn.title = "Switch to BUILD or DEBUG mode to apply changes";
+      }
       applyBtn.onclick = () => applyAiCode(lang, code, false, filepath);
       
       btnGroup.appendChild(diffBtn);
@@ -7755,7 +7803,7 @@ function processAiResponse(text) {
     msgDiv.appendChild(confirmDiv);
   }
   
-  container.appendChild(msgDiv);
+  if (!existingMsgDiv) container.appendChild(msgDiv);
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
 }
 
