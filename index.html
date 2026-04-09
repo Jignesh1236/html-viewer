@@ -4354,18 +4354,14 @@ async function bootWebContainer() {
     await syncFilesToWebContainer();
     webcontainerBooting = false;
     
-    // Listen for server output
+    // Listen for server-ready event from WebContainer - this gives the correct URL
     webcontainerInstance.on('server-ready', (port, url) => {
       termLog(`Server ready on port ${port}: ${url}`, '#facc15');
-      const previewBtn = document.createElement('button');
-      previewBtn.textContent = 'Open Preview';
-      previewBtn.className = 'tb-btn';
-      previewBtn.style.margin = '4px';
-      previewBtn.onclick = () => {
-        iframeEl.src = url;
-        document.getElementById('browserUrlInput').value = url;
-      };
-      document.getElementById('terminalOutput').appendChild(previewBtn);
+      
+      // Use this official URL for preview
+      if (url) {
+        openInPreview(url);
+      }
     });
   } catch (err) {
     webcontainerBooting = false;
@@ -4753,10 +4749,10 @@ function writeTermPrompt() {
 let detectedServerUrl = null;
 
 function detectAndOpenServerUrl(data) {
-  // Patterns for server URLs
+  // Patterns for server URLs - prioritize localhost over webcontainer-api.io
   const patterns = [
-    /https?:\/\/[^\s]*\.webcontainer-api\.io[^\s]*/,
     /https?:\/\/localhost:[0-9]+[^\s]*/,
+    /https?:\/\/[^\s]*\.webcontainer-api\.io[^\s]*/,
     /Server (?:running|ready) on (?:http|https):\/\/[^\s]+/i,
     /server ready at (?:http|https):\/\/[^\s]+/i,
     /listening on (?:http|https):\/\/[^\s]+/i,
@@ -4772,13 +4768,18 @@ function detectAndOpenServerUrl(data) {
       // Clean up URL (remove trailing characters)
       url = url.replace(/[",;:\s]*$/, '');
       
+      // Skip if URL has path other than root (like /webcontainer/connect/)
+      if (url.includes('/webcontainer/') || url.includes('/connect/')) {
+        continue;
+      }
+      
         if (url !== detectedServerUrl) {
         detectedServerUrl = url;
         
         // Show message and create clickable button in terminal output area
         if (xtermTerminal) {
           xtermTerminal.writeln('');
-          xtermTerminal.writeln(`\x1b[32m🌐 Server detected!\x1b[0m`);
+          xtermTerminal.writeln(`\x1b[32m🌐 Server detected: ${url}\x1b[0m`);
           
           // Add button to open in preview
           showOpenPreviewButton(url);
@@ -4792,20 +4793,19 @@ function detectAndOpenServerUrl(data) {
 function openInPreview(url) {
   if (!url) return;
   
+  console.log('Opening URL in preview:', url);
+  
   // Force open the URL in preview - handle various URL formats
   const iframeEl = document.getElementById('preview');
   if (iframeEl) {
-    // For WebContainer URLs, they need special handling
-    if (url.includes('.webcontainer-api.io')) {
-      // Try with the actual URL
+    // Clear any previous src first
+    iframeEl.src = 'about:blank';
+    
+    // Small delay to ensure clean state
+    setTimeout(() => {
       iframeEl.src = url;
-    } else if (url.startsWith('http://localhost')) {
-      iframeEl.src = url;
-    } else if (url.startsWith('http')) {
-      iframeEl.src = url;
-    } else {
-      iframeEl.src = 'http://' + url;
-    }
+      console.log('iframe src set to:', url);
+    }, 100);
   }
   
   // Update browser URL bar
