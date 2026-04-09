@@ -264,39 +264,6 @@ For issues or improvements, track them in your own repo’s issue tracker.
 ---
 
 ## next plaing
-
-visual editor me jab koi element ko move kare to ek grup se dusre grop me bhi move kar sake hai ek hab koi elemant ko8i dusri jagah pe move ho to usske aas pass pe elements ko bhi frak pde
-iske lekin button add karo side bar me if toggle on ho to object move karne pe ko uski achual pojition se move jo baki grups me and toggle off ho to abhi jese normally move ho raha hai wese move ho
-
-here is a example 
-
-<dev>
-
-<button>click click</button>
-
-</dev>
-
-<section>
-
-<p>lorem</p>
-
-</section>
-
-now user ne button ko dev ke ariya se baha move kiya paragraph ke pass 
-to code me button ka element bhi move ho
-
-<dev>
-
-</dev>
-
-<section>
-
-<button>click click</button>
-
-<p>lorem</p>
-
-</section>
-
-
+project expose / mount / route mapping missing
 
 
