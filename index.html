@@ -858,10 +858,11 @@ body.sidebar-hidden #paneResizer{display:none!important}
 .comp-preview { height: 40px; background: var(--panel); border-radius: 4px; margin-top: 6px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 
 /* AI CHAT SIDEBAR */
+/* AI CHAT SIDEBAR MODERNIZED */
 .ai-chat-panel {
-  width: 380px;
-  min-width: 300px;
-  max-width: 650px;
+  width: 420px;
+  min-width: 350px;
+  max-width: 700px;
   background: var(--panel);
   border-left: 1px solid var(--border);
   display: none;
@@ -870,7 +871,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
   position: relative;
   z-index: 1000;
   height: 100%;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -10px 0 30px rgba(0,0,0,0.2);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .ai-chat-panel.minimized .ai-chat-messages,
 .ai-chat-panel.minimized .ai-chat-input-area {
@@ -882,155 +884,186 @@ body.sidebar-hidden #paneResizer{display:none!important}
   bottom: 20px;
   z-index: 2000;
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-  height: 600px;
-  max-height: 85vh;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.7);
+  height: 650px;
+  max-height: 90vh;
 }
-.ai-chat-panel.open { display: flex; animation: slideIn 0.3s ease-out; }
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
+.ai-chat-panel.open { display: flex; animation: slideInModern 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes slideInModern {
+  from { transform: translateX(30px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 }
 .ai-chat-header {
-  padding: 12px 16px;
+  padding: 16px 20px;
   background: var(--sb);
   border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .ai-chat-header-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  gap: 10px;
 }
+.ai-chat-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.5px;
+}
+.ai-chat-title i { color: var(--accent); font-size: 18px; }
+
 .ai-chat-modes {
   display: flex;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 2px;
-  gap: 2px;
+  border-radius: 12px;
+  padding: 3px;
+  gap: 3px;
   width: 100%;
 }
 .ai-chat-mode {
   flex: 1;
-  padding: 5px 8px;
+  padding: 6px 10px;
   font-size: 11px;
   border: none;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  white-space: nowrap;
 }
-.ai-chat-mode:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.ai-chat-mode.active { background: var(--panel); color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-.ai-chat-mode i { font-size: 12px; }
+.ai-chat-mode:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+.ai-chat-mode.active { background: var(--panel); color: var(--accent); box-shadow: 0 4px 10px rgba(0,0,0,0.3); transform: translateY(-1px); }
+.ai-chat-mode i { font-size: 13px; }
 
-/* Agent Specific UI */
+/* Agent Specific UI Improved */
 .ai-agent-task-container {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  background: linear-gradient(to bottom, rgba(108,99,255,0.05), transparent);
+  border: 1px solid rgba(108,99,255,0.2);
+  border-radius: 12px;
+  padding: 14px;
   margin: 10px 0;
   display: none;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
 }
-.ai-agent-task-container.active { display: flex; }
+.ai-agent-task-container.active { display: flex; animation: fadeIn 0.3s ease; }
 .ai-agent-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 800;
   color: var(--accent);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 .ai-agent-plan {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 200px;
+  gap: 8px;
+  max-height: 250px;
   overflow-y: auto;
+  padding-right: 5px;
 }
+.ai-agent-plan::-webkit-scrollbar { width: 4px; }
+.ai-agent-plan::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
 .plan-step {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 11px;
+  gap: 10px;
+  font-size: 12px;
   color: var(--muted);
-  padding: 4px;
-  border-radius: 4px;
-  transition: background 0.2s;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  transition: all 0.2s;
+  border: 1px solid transparent;
 }
-.plan-step.current { color: var(--text); background: rgba(255,255,255,0.05); }
-.plan-step.done { color: var(--green); opacity: 0.8; }
-.plan-step-icon { width: 14px; height: 14px; margin-top: 1px; }
+.plan-step.current { color: var(--text); background: rgba(108,99,255,0.1); border-color: rgba(108,99,255,0.2); }
+.plan-step.done { color: var(--green); opacity: 0.8; background: rgba(34,197,94,0.03); }
+.plan-step-icon { font-size: 14px; width: 18px; text-align: center; }
 
 .ai-agent-status {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
-  font-style: italic;
+  font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  background: rgba(0,0,0,0.2);
+  padding: 6px 12px;
+  border-radius: 20px;
+  width: fit-content;
 }
 .agent-pulse {
-  width: 6px;
-  height: 6px;
+  width: 8px; height: 8px;
   background: var(--accent);
   border-radius: 50%;
-  animation: pulse 1.5s infinite;
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulseModern 2s infinite;
 }
-@keyframes pulse {
-  0% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.5); opacity: 0.5; }
-  100% { transform: scale(1); opacity: 1; }
+@keyframes pulseModern {
+  0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(108,99,255,0.7); }
+  70% { transform: scale(1.2); opacity: 0.5; box-shadow: 0 0 0 8px rgba(108,99,255,0); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(108,99,255,0); }
 }
-.ai-chat-header-left { display: flex; align-items: center; gap: 8px; }
-.ai-chat-header-right { display: flex; align-items: center; gap: 6px; }
+
 .ai-chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
   background: var(--bg);
   scroll-behavior: smooth;
 }
+.ai-chat-messages::-webkit-scrollbar { width: 6px; }
+.ai-chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
 .ai-msg {
-  padding: 14px 18px;
-  border-radius: 16px;
+  padding: 16px 20px;
+  border-radius: 20px;
   font-size: 14px;
-  line-height: 1.6;
-  max-width: 85%;
+  line-height: 1.7;
+  max-width: 90%;
   word-wrap: break-word;
   position: relative;
-  transition: transform 0.2s;
+  animation: messageSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
-.ai-msg:hover { transform: translateY(-1px); }
+@keyframes messageSlide {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 .ai-msg-user {
   align-self: flex-end;
   background: linear-gradient(135deg, var(--accent), #4a42cc);
   color: #fff;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  font-weight: 500;
 }
 .ai-msg-bot {
   align-self: flex-start;
@@ -1038,78 +1071,225 @@ body.sidebar-hidden #paneResizer{display:none!important}
   color: var(--text);
   border-bottom-left-radius: 4px;
   border: 1px solid var(--border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
-.ai-msg-code-change {
-  margin: 12px 0;
+.ai-msg-bot::before {
+  content: "🤖";
+  position: absolute;
+  top: -22px;
+  left: 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.ai-msg-user::after {
+  content: "👤 You";
+  position: absolute;
+  top: -22px;
+  right: 0;
+  font-size: 12px;
+  opacity: 0.7;
+  color: var(--muted);
+}
+
+.ai-msg-code-container {
+  margin: 16px 0;
   background: #0d1117;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
-  font-family: 'JetBrains Mono', monospace;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
   width: 100%;
 }
 .ai-msg-code-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  background: rgba(255,255,255,0.03);
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.05);
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
-  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
 }
+
 .ai-chat-input-area {
-  padding: 20px;
+  padding: 20px 24px;
   border-top: 1px solid var(--border);
   background: var(--panel);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+  box-shadow: 0 -10px 30px rgba(0,0,0,0.1);
 }
 .ai-chat-input-wrapper {
   position: relative;
   background: var(--bg);
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
 }
 .ai-chat-input-wrapper:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 4px rgba(108,99,255,0.15);
+  transform: translateY(-2px);
 }
 .ai-chat-input {
   width: 100%;
   background: transparent;
   border: none;
   color: var(--text);
-  padding: 12px 16px;
+  padding: 16px;
   font-size: 14px;
   font-family: inherit;
   resize: none;
-  height: 80px;
+  height: 100px;
+  min-height: 80px;
+  max-height: 250px;
   outline: none;
   display: block;
+  line-height: 1.5;
 }
+.ai-chat-input::placeholder { color: var(--muted); opacity: 0.5; }
+
 .ai-chat-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
+.ai-chat-tools {
+  display: flex;
+  gap: 8px;
+}
+.ai-tool-btn {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+}
+.ai-tool-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(108,99,255,0.1); }
+
 .ai-chat-send {
   background: linear-gradient(135deg, var(--accent), #4a42cc);
   border: none;
   color: #fff;
-  padding: 8px 20px;
-  border-radius: 8px;
+  padding: 0 24px;
+  height: 40px;
+  border-radius: 12px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(108,99,255,0.3);
+}
+.ai-chat-send:hover { transform: scale(1.05) translateY(-2px); box-shadow: 0 8px 25px rgba(108,99,255,0.4); }
+.ai-chat-send:active { transform: scale(0.95); }
+.ai-chat-send:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+.ai-thinking {
+  display: none;
+  padding: 12px 20px;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  align-items: center;
+  gap: 10px;
+}
+.ai-thinking.active { display: flex; animation: fadeIn 0.3s ease; }
+.thinking-dots { display: flex; gap: 4px; }
+.thinking-dots span {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: thinkingDot 1.4s infinite ease-in-out both;
+}
+.thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+.thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+@keyframes thinkingDot {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
+
+/* Clear Chat Button */
+.ai-chat-clear-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.ai-msg-code-header button {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
+.ai-msg-code-header button:hover {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+.ai-msg-code-header .ai-apply-btn {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+.ai-msg-code-header .ai-apply-btn:hover {
+  filter: brightness(1.2);
+}
+.ai-msg-code-header .ai-copy-btn:hover {
+  color: var(--accent);
+  background: rgba(108,99,255,0.1);
+}
+
+/* Model Select Improved */
+.ai-model-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.2);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+.ai-model-select-wrap select {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+}
+
 .ai-chat-send:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
 .ai-chat-send:active { transform: translateY(0); }
 .ai-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1704,54 +1884,65 @@ body.sidebar-hidden #paneResizer{display:none!important}
   <!-- AI CHAT SIDEBAR (Right) -->
   <div class="ai-chat-panel" id="aiChatPanel">
     <div class="pp-resizer" id="aiResizer"></div>
+    
     <div class="ai-chat-header">
       <div class="ai-chat-header-top">
-        <div class="ai-chat-header-left">
-          <span class="pp-tag">AI Builder</span>
-          <select class="ai-model-select" id="aiModelSelect" title="Change AI Model">
-            <option value="openai">OpenAI (Default)</option>
-            <option value="mistral">Mistral</option>
-            <option value="llama">Llama</option>
-            <option value="gemini">Gemini</option>
-          </select>
+        <div class="ai-chat-title">
+          <i class="codicon codicon-sparkle-filled"></i>
+          <span>AI Site Builder</span>
         </div>
         <div class="ai-chat-header-right">
-          <button class="pp-icon-btn" id="aiMinimizeBtn" onclick="toggleAiMinimize()" title="Minimize/Expand" style="display:none">_</button>
-          <button class="ai-clear-btn" onclick="clearAiChat()" title="Clear Chat History">Clear</button>
-          <button class="pp-icon-btn" onclick="toggleFloat('aiChatPanel')" title="Float AI Chat">⛶</button>
-          <button class="pp-icon-btn" onclick="toggleAiChat()" title="Close Chat">✕</button>
+          <div class="ai-model-select-wrap">
+            <i class="codicon codicon-bracket-dot" style="font-size:10px; color:var(--accent)"></i>
+            <select class="ai-model-select" id="aiModelSelect" title="Change AI Model">
+              <option value="openai">GPT-4o</option>
+              <option value="mistral">Mistral</option>
+              <option value="llama">Llama 3</option>
+              <option value="gemini">Gemini Pro</option>
+            </select>
+          </div>
+          <button class="pp-icon-btn" onclick="toggleFloat('aiChatPanel')" title="Float AI Chat"><i class="codicon codicon-screen-full"></i></button>
+          <button class="pp-icon-btn" onclick="toggleAiChat()" title="Close Chat"><i class="codicon codicon-close"></i></button>
         </div>
       </div>
+      
       <div class="ai-chat-modes" id="aiChatModes">
         <button class="ai-chat-mode active" onclick="setAiChatMode('chat')" id="aiModeChat"><i class="codicon codicon-comment-discussion"></i>Chat</button>
         <button class="ai-chat-mode" onclick="setAiChatMode('build')" id="aiModeBuild"><i class="codicon codicon-tools"></i>Build</button>
         <button class="ai-chat-mode" onclick="setAiChatMode('debug')" id="aiModeDebug"><i class="codicon codicon-debug"></i>Debug</button>
-        <button class="ai-chat-mode" onclick="setAiChatMode('agent')" id="aiModeAgent" title="Autonomous Agent Mode (Like OpenHands)"><i class="codicon codicon-robot"></i>Agent</button>
+        <button class="ai-chat-mode" onclick="setAiChatMode('agent')" id="aiModeAgent" title="Autonomous Agent Mode"><i class="codicon codicon-robot"></i>Agent</button>
+      </div>
+
+      <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+        <div class="ai-agent-status" id="aiAgentStatus" style="display:none">
+          <div class="agent-pulse"></div>
+          <span>Agent Idle</span>
+        </div>
+        <button class="ai-chat-clear-btn" onclick="clearAiChat()"><i class="codicon codicon-trash"></i>Clear Chat</button>
       </div>
     </div>
 
     <div class="ai-agent-task-container" id="aiAgentTaskPanel">
       <div class="ai-agent-header">
-        <span>🤖 AGENT TASK</span>
-        <button class="ai-clear-btn" onclick="stopAgent()" style="padding:2px 6px; font-size:9px">Stop</button>
+        <span><i class="codicon codicon-list-ordered"></i> Agent Execution Plan</span>
+        <button class="ai-clear-btn" onclick="stopAgent()" style="padding:4px 10px; font-size:10px; border-radius:6px; color:var(--red); border-color:var(--red)">Stop Agent</button>
       </div>
       <div class="ai-agent-plan" id="aiAgentPlan">
-        <!-- Agent will generate steps here -->
-        <div class="ai-msg-bot" style="font-size:11px; padding:0">Waiting for a goal...</div>
-      </div>
-      <div class="ai-agent-status" id="aiAgentStatus">
-        <div class="agent-pulse"></div>
-        <span>Agent Idle</span>
+        <div class="ai-msg-bot" style="font-size:12px; padding:0; opacity:0.6">Waiting for a high-level goal...</div>
       </div>
     </div>
 
     <div class="ai-chat-messages" id="aiChatMessages">
-      <div class="ai-msg ai-msg-bot">Hello! I'm your AI site builder. Tell me what you want to create or edit, and I'll help you with the code.</div>
+      <div class="ai-msg ai-msg-bot">
+        Hello! I'm your AI site builder. 🚀<br>
+        Tell me what you want to create or edit, and I'll help you with the code.
+      </div>
+      
       <div class="ai-thinking" id="aiThinking">
-        <div class="ai-thinking-dots">
-          <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+        <div class="thinking-dots">
+          <span></span><span></span><span></span>
         </div>
-        <span>Thinking...</span>
+        <span>AI is thinking...</span>
       </div>
     </div>
 
@@ -1760,10 +1951,13 @@ body.sidebar-hidden #paneResizer{display:none!important}
         <textarea class="ai-chat-input" id="aiChatInput" placeholder="Ask AI to build or edit something..." onkeydown="handleAiChatKey(event)"></textarea>
       </div>
       <div class="ai-chat-footer">
-        <button class="ai-pick-btn" id="aiPickBtn" onclick="toggleAiPickMode()" title="Click an element in the preview to target it for AI editing">🎯 Pick Element</button>
+        <div class="ai-chat-tools">
+          <button class="ai-tool-btn" id="aiPickBtn" onclick="toggleAiPickMode()" title="Pick element from preview"><i class="codicon codicon-target"></i></button>
+          <button class="ai-tool-btn" onclick="setAiChatMode('build')" title="Switch to Build mode"><i class="codicon codicon-tools"></i></button>
+        </div>
         <button class="ai-chat-send" id="aiChatSend" onclick="sendAiChatMessage()">
           <span>Send</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          <i class="codicon codicon-send"></i>
         </button>
       </div>
     </div>
@@ -6824,18 +7018,33 @@ function toggleDomReorder(){
 
 /* ─── AI PICK ELEMENT MODE ─── */
 function syncAiPickBtn(){
-  const btn=document.getElementById('aiPickBtn');
+  const btn = document.getElementById('aiPickBtn');
   if(!btn) return;
   if(aiPickedEl){
-    btn.textContent='✓ <'+aiPickedEl.tagName.toLowerCase()+'> · Clear';
-    btn.className='ai-pick-btn picked';
+    btn.innerHTML = `<i class="codicon codicon-check"></i><span style="font-size:10px; margin-left:4px;">&lt;${aiPickedEl.tagName.toLowerCase()}&gt;</span>`;
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+    btn.title = `Picked: <${aiPickedEl.tagName.toLowerCase()}>. Click to clear.`;
   } else if(aiPickMode){
-    btn.textContent='🎯 Click any element...';
-    btn.className='ai-pick-btn active';
+    btn.innerHTML = '<i class="codicon codicon-loading codicon-modifier-spin"></i>';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+    btn.title = 'Click any element in preview...';
   } else {
-    btn.textContent='🎯 Pick Element';
-    btn.className='ai-pick-btn';
+    btn.innerHTML = '<i class="codicon codicon-target"></i>';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.title = 'Pick element from preview';
   }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    toast('Code copied to clipboard! 📋');
+  }).catch(err => {
+    console.error('Copy failed:', err);
+    toast('Failed to copy code', 'error');
+  });
 }
 function _aiPickClickHandler(e){
   e.preventDefault();e.stopPropagation();
@@ -7501,13 +7710,18 @@ function setAiChatMode(mode) {
   if (input) input.placeholder = placeholders[mode] || "Ask AI...";
 
   const agentPanel = document.getElementById('aiAgentTaskPanel');
+  const agentStatus = document.getElementById('aiAgentStatus');
   if (agentPanel) {
     agentPanel.classList.toggle('active', mode === 'agent');
+  }
+  if (agentStatus) {
+    agentStatus.style.display = (mode === 'agent' || isAgentRunning) ? 'flex' : 'none';
   }
   
   toast(`AI Mode: ${mode.toUpperCase()}`);
 }
-let lastCodeState = null; // Store for undo functionality
+let lastCodeState = null; // Snapshot before agent starts
+let agentChangesCount = 0;
 
 // Auto-resize textarea
 document.addEventListener('input', function (e) {
@@ -7535,9 +7749,17 @@ function toggleAiChat() {
 }
 
 function clearAiChat() {
-  aiChatHistory = [];
-  const container = document.getElementById('aiChatMessages');
-  container.innerHTML = '<div class="ai-msg ai-msg-bot">Hello! I\'m your AI site builder. Tell me what you want to create or edit, and I\'ll help you with the code.</div>';
+  if (confirm('Are you sure you want to clear the chat history?')) {
+    const container = document.getElementById('aiChatMessages');
+    container.innerHTML = `
+      <div class="ai-msg ai-msg-bot">
+        Hello! I'm your AI site builder. 🚀<br>
+        Tell me what you want to create or edit, and I'll help you with the code.
+      </div>
+    `;
+    aiChatHistory = [];
+    toast('Chat cleared');
+  }
 }
 
 function handleAiChatKey(e) {
@@ -7603,7 +7825,7 @@ async function sendAiChatMessage() {
     agent: "AGENT MODE (OpenHands style): You are an autonomous AI agent. Your goal is to complete the user's high-level task. \n" +
            "1. START by providing a PLAN in a markdown list format.\n" +
            "2. Work step-by-step. Each response should start with 'Working on Step X: [Description]'.\n" +
-           "3. You can READ, EDIT, and CREATE files.\n" +
+           "3. You can READ, EDIT, and CREATE files. You should AUTO-APPLY your code changes using ```language:filepath```.\n" +
            "4. If you encounter errors, fix them in the next step.\n" +
            "5. When finished, summarize the work and say 'TASK COMPLETED'."
   };
@@ -7754,6 +7976,28 @@ BEHAVIOR:
     if (currentAiMode === 'agent' && isAgentRunning) {
       if (accumulatedText.toUpperCase().includes('TASK COMPLETED')) {
         stopAgent('Completed! 🎉');
+        
+        // Add Keep/Undo buttons at the end of task
+        if (agentChangesCount > 0) {
+          const confirmDiv = document.createElement('div');
+          confirmDiv.className = 'ai-msg ai-msg-bot';
+          confirmDiv.style.display = 'flex';
+          confirmDiv.style.flexDirection = 'column';
+          confirmDiv.style.gap = '10px';
+          confirmDiv.style.alignItems = 'center';
+          confirmDiv.style.border = '1px dashed var(--accent)';
+          confirmDiv.style.padding = '15px';
+          
+          confirmDiv.innerHTML = `
+            <div style="font-weight:bold; margin-bottom:5px; color:var(--accent)">Agent finished ${agentChangesCount} changes.</div>
+            <div style="display:flex; gap:10px">
+              <button onclick="keepChanges(this)" class="ai-apply-btn" style="background:var(--green); color:#000; padding:8px 25px; border-radius:20px; font-weight:bold">Keep All</button>
+              <button onclick="undoChanges(this)" class="ai-clear-btn" style="padding:8px 25px; border-radius:20px; border-color:var(--red); color:var(--red)">Undo All</button>
+            </div>
+          `;
+          container.appendChild(confirmDiv);
+          container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        }
       } else {
         // Wait a bit before next step to avoid rate limiting and allow user to see progress
         setTimeout(() => {
@@ -7830,34 +8074,33 @@ function addAiChatMessage(content, type, id = null) {
   msgDiv.className = `ai-msg ai-msg-${type}`;
   if (id) msgDiv.id = id;
   
-  if (content.includes('✅ Applied') || content.includes('❌ Error')) {
-    const isOk = content.includes('✅');
-    const msg = content.replace(/[✅❌]\s*/, '');
-    msgDiv.innerHTML = `<div style="display:flex; align-items:center; gap:8px;">
-      <span style="font-size:18px">${isOk ? '✅' : '❌'}</span>
-      <span style="font-weight:600">${msg}</span>
-    </div>`;
+  if (type === 'bot') {
+    // Process bot message with markdown-like formatting
+    msgDiv.innerHTML = formatAiText(content);
   } else {
-    // Basic formatting for user messages too
+    // Basic formatting for user messages
     msgDiv.innerText = content;
   }
   
   container.appendChild(msgDiv);
-  // Smooth scroll to bottom
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
   return msgDiv;
 }
 
-function renderPartialAiResponse(msgDiv, text) {
-  // Simple formatting for streaming: replace newlines and basic markdown
-  const formatted = text
+function formatAiText(text) {
+  return text.trim()
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n/g, '<br>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>');
-  msgDiv.innerHTML = formatted;
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/✅ (.*?) lines added, (.*?) lines removed\./g, '<div style="display:flex; align-items:center; gap:8px; color:var(--green); font-weight:600; margin-top:4px;"><i class="codicon codicon-check"></i> Applied: $1 added, $2 removed</div>')
+    .replace(/⚠️ (.*?)/g, '<div style="color:#facc15; font-weight:600; margin-top:4px;"><i class="codicon codicon-warning"></i> $1</div>');
+}
+
+function renderPartialAiResponse(msgDiv, text) {
+  msgDiv.innerHTML = formatAiText(text);
 }
 
 function stopAgent(status = 'Agent Stopped') {
@@ -7865,6 +8108,9 @@ function stopAgent(status = 'Agent Stopped') {
   const statusEl = document.getElementById('aiAgentStatus');
   if (statusEl) {
     statusEl.innerHTML = `<div class="agent-pulse" style="background:var(--red)"></div><span>${status}</span>`;
+    if (currentAiMode !== 'agent') {
+      setTimeout(() => { if(!isAgentRunning) statusEl.style.display = 'none'; }, 3000);
+    }
   }
   const statBar = document.getElementById('status-agent');
   if (statBar) statBar.style.display = 'none';
@@ -7879,6 +8125,7 @@ function startAgentTask(goal) {
   
   const statusEl = document.getElementById('aiAgentStatus');
   if (statusEl) {
+    statusEl.style.display = 'flex';
     statusEl.innerHTML = `<div class="agent-pulse"></div><span>Thinking of a plan...</span>`;
   }
   
@@ -7949,120 +8196,81 @@ function processAiResponse(text, existingMsgDiv = null) {
     msgDiv.className = 'ai-msg ai-msg-bot';
     container.appendChild(msgDiv);
   }
-  
-  const formatText = (t) => {
-    return t.trim()
-      .replace(/\n/g, '<br>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>');
-  };
-
-  const parts = text.split(/```/);
-  let autoApplied = false;
 
   // AGENT MODE: Update plan UI from response
   if (currentAiMode === 'agent' && isAgentRunning) {
     updateAgentPlanUI(text);
   }
 
+  const parts = text.split(/```/);
+  let autoApplied = false;
+
   parts.forEach((part, index) => {
     if (index % 2 === 0) {
-      const textSpan = document.createElement('div');
-      textSpan.innerHTML = formatText(part);
-      if(textSpan.innerText.trim() || textSpan.innerHTML.includes('<br>')) msgDiv.appendChild(textSpan);
+      // Text part
+      const textDiv = document.createElement('div');
+      textDiv.innerHTML = formatAiText(part);
+      if (textDiv.innerText.trim() || textDiv.innerHTML.includes('<br>')) {
+        msgDiv.appendChild(textDiv);
+      }
     } else {
+      // Code part
       const lines = part.split('\n');
       const headerLine = lines[0].trim().toLowerCase() || 'code';
       const code = lines.slice(1).join('\n').trim();
       
-      // Parse lang and filepath (e.g., html:index.html)
       let lang = 'text';
       let filepath = '';
-      
       if (headerLine.includes(':')) {
         [lang, filepath] = headerLine.split(':');
       } else {
         lang = headerLine;
       }
 
-      // Auto-apply logic - only in Build or Debug mode
-      const canEdit = currentAiMode === 'build' || currentAiMode === 'debug';
-      if (canEdit && (lang === 'html' || filepath)) {
+      // Auto-apply logic
+      const shouldAuto = (currentAiMode === 'build' || currentAiMode === 'debug' || currentAiMode === 'agent');
+      if (shouldAuto && !autoApplied && (lang === 'html' || filepath)) {
         applyAiCode(lang, code, true, filepath); 
         autoApplied = true;
       }
 
       if (lang === 'delete' && currentAiMode === 'build') {
         const deleteDiv = document.createElement('div');
-        deleteDiv.className = 'ai-msg-code-change';
-        deleteDiv.style.borderLeft = '3px solid var(--red)';
+        deleteDiv.className = 'ai-msg-code-container';
+        deleteDiv.style.borderLeft = '4px solid var(--red)';
         deleteDiv.innerHTML = `<div class="ai-msg-code-header">
-          <span>DELETE FILE: ${filepath}</span>
-          <button class="ai-apply-btn" style="background:var(--red)" onclick="deleteFileItem('${filepath}')">Delete Now</button>
+          <span><i class="codicon codicon-trash"></i> DELETE FILE: ${filepath}</span>
+          <button class="ai-apply-btn" style="background:var(--red); color:#fff" onclick="deleteFileItem('${filepath}')">Confirm Delete</button>
         </div>`;
         msgDiv.appendChild(deleteDiv);
         return;
       }
 
       const codeContainer = document.createElement('div');
-      codeContainer.className = 'ai-msg-code-change';
+      codeContainer.className = 'ai-msg-code-container';
       
-      const header = document.createElement('div');
-      header.className = 'ai-msg-code-header';
-      header.innerHTML = `<span>${lang.toUpperCase()} ${filepath ? `(${filepath})` : ''} ${autoApplied ? '(Auto-Applied)' : ''}</span>`;
+      const codeHeader = document.createElement('div');
+      codeHeader.className = 'ai-msg-code-header';
+      codeHeader.innerHTML = `
+        <span><i class="codicon codicon-code"></i> ${filepath || lang.toUpperCase()} ${autoApplied ? '(Auto-Applied)' : ''}</span>
+        <div style="display:flex; gap:8px;">
+          <button class="ai-tool-btn" style="width:auto; padding:0 8px; font-size:11px" onclick="copyToClipboard(\`${code.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`)" title="Copy Code"><i class="codicon codicon-copy"></i> Copy</button>
+          <button class="ai-apply-btn" style="padding:4px 12px; font-size:11px" onclick="applyAiCode('${lang}', \`${code.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`, false, '${filepath}')" title="Apply Changes">${autoApplied ? 'Re-Apply' : 'Apply'}</button>
+        </div>
+      `;
       
-      const btnGroup = document.createElement('div');
-      btnGroup.style.display = 'flex';
-      btnGroup.style.gap = '8px';
-
-      const diffBtn = document.createElement('button');
-      diffBtn.className = 'ai-clear-btn';
-      diffBtn.style.padding = '4px 10px';
-      diffBtn.innerText = 'Show Diff';
-      diffBtn.onclick = () => {
-        const diffArea = codeContainer.querySelector('.ai-diff-container');
-        if(diffArea.style.display === 'none') {
-          diffArea.innerHTML = getAiDiff(lang, code, filepath);
-          diffArea.style.display = 'block';
-          diffBtn.innerText = 'Hide Diff';
-        } else {
-          diffArea.style.display = 'none';
-          diffBtn.innerText = 'Show Diff';
-        }
-      };
-
-      const applyBtn = document.createElement('button');
-      applyBtn.className = 'ai-apply-btn';
-      applyBtn.innerText = autoApplied ? 'Re-Apply' : 'Apply Changes';
-      // Disable apply button if in Chat mode and not an example
-      if (currentAiMode === 'chat') {
-        applyBtn.disabled = true;
-        applyBtn.style.opacity = '0.5';
-        applyBtn.title = "Switch to BUILD or DEBUG mode to apply changes";
-      }
-      applyBtn.onclick = () => applyAiCode(lang, code, false, filepath);
+      const pre = document.createElement('pre');
+      pre.style.margin = '0';
+      pre.style.padding = '16px';
+      pre.style.overflowX = 'auto';
+      pre.style.fontSize = '12px';
+      pre.style.fontFamily = "'JetBrains Mono', monospace";
+      pre.style.background = 'transparent';
+      pre.style.color = '#e6edf3';
+      pre.innerText = code.length > 2000 ? code.substring(0, 2000) + '\n\n... (code truncated)' : code;
       
-      btnGroup.appendChild(diffBtn);
-      btnGroup.appendChild(applyBtn);
-      header.appendChild(btnGroup);
-      codeContainer.appendChild(header);
-      
-      const diffContainer = document.createElement('div');
-      diffContainer.className = 'ai-diff-container';
-      diffContainer.style.display = 'none';
-      codeContainer.appendChild(diffContainer);
-
-      const codePre = document.createElement('pre');
-      codePre.style.fontSize = '11px';
-      codePre.style.overflowX = 'auto';
-      codePre.style.margin = '0';
-      codePre.style.padding = '12px';
-      codePre.style.background = 'transparent';
-      codePre.style.whiteSpace = 'pre-wrap';
-      codePre.style.wordBreak = 'break-all';
-      codePre.innerText = code.length > 500 ? code.substring(0, 500) + '\n\n... (code truncated)' : code;
-      codeContainer.appendChild(codePre);
-      
+      codeContainer.appendChild(codeHeader);
+      codeContainer.appendChild(pre);
       msgDiv.appendChild(codeContainer);
     }
   });
@@ -8081,14 +8289,14 @@ function processAiResponse(text, existingMsgDiv = null) {
     `;
     msgDiv.appendChild(confirmDiv);
   }
-  
-  if (!existingMsgDiv) container.appendChild(msgDiv);
+
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
 }
 
 function keepChanges(btn) {
   lastCodeState = null;
-  btn.parentElement.innerHTML = '<span style="color:var(--green); font-weight:bold; font-size:12px;">✓ Changes Kept</span>';
+  agentChangesCount = 0;
+  btn.parentElement.innerHTML = '<span style="color:var(--green); font-weight:bold; font-size:12px;"><i class="codicon codicon-check"></i> Changes Kept</span>';
   toast('Changes finalized!');
 }
 
@@ -8096,16 +8304,14 @@ function undoChanges(btn) {
   if (lastCodeState) {
     // 1. Clear current VFS and restore from snapshot
     virtualFS.clear();
-    lastCodeState.files.forEach((content, path) => {
+    lastCodeState.forEach((content, path) => {
       virtualFS.set(path, content);
     });
     
-    // 2. Rebuild the file tree state from scratch to reflect the old VFS
-    // This is the simplest way to ensure the UI matches the restored VFS
-    const restoredFiles = Array.from(lastCodeState.files.keys());
+    // 2. Rebuild the file tree state from scratch
+    const restoredFiles = Array.from(lastCodeState.keys());
     _fileTreeState.items = [];
     restoredFiles.forEach(path => {
-      // Logic similar to createFileItem but without the VFS set and redundant UI refreshes
       const parts = path.split('/');
       const fileName = parts.pop();
       let curList = _fileTreeState.items;
@@ -8128,12 +8334,11 @@ function undoChanges(btn) {
     });
 
     // 3. Restore editor content
-    if (currentPath && lastCodeState.files.has(currentPath)) {
-      editor.setValue(lastCodeState.files.get(currentPath));
+    if (currentPath && lastCodeState.has(currentPath)) {
+      editor.setValue(lastCodeState.get(currentPath));
     } else if (restoredFiles.length > 0) {
-      // If currentPath is gone, switch to the first available file
       currentPath = restoredFiles[0];
-      editor.setValue(lastCodeState.files.get(currentPath));
+      editor.setValue(lastCodeState.get(currentPath));
     }
 
     runCode();
@@ -8141,7 +8346,8 @@ function undoChanges(btn) {
     updateBrowserUi();
     updateEditorTabs();
     lastCodeState = null;
-    btn.parentElement.innerHTML = '<span style="color:var(--red); font-weight:bold; font-size:12px;">↺ Changes Undone</span>';
+    agentChangesCount = 0;
+    btn.parentElement.innerHTML = '<span style="color:var(--red); font-weight:bold; font-size:12px;"><i class="codicon codicon-discard"></i> Changes Undone</span>';
     toast('Changes reverted');
   }
 }
@@ -8172,12 +8378,12 @@ function applyAiCode(lang, code, isAuto = false, filepath = '') {
   try {
     const targetPath = filepath || (lang === 'html' ? 'index.html' : (lang === 'css' ? 'style.css' : (lang === 'js' || lang === 'javascript' ? 'script.js' : currentPath)));
 
-    // Save state for undo BEFORE applying (first auto-apply only)
+    // Save state for undo BEFORE applying (first auto-apply/agent action only)
     if (isAuto && !lastCodeState) {
-      lastCodeState = {
-        files: new Map(virtualFS)
-      };
+      lastCodeState = new Map(virtualFS);
+      agentChangesCount = 0;
     }
+    if (isAuto) agentChangesCount++;
 
     const oldVal = virtualFS.get(targetPath) || "";
     let newVal = code;
