@@ -898,10 +898,46 @@ body.sidebar-hidden #paneResizer{display:none!important}
   background: var(--sb);
   border-bottom: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
 }
+.ai-chat-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+.ai-chat-modes {
+  display: flex;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  width: 100%;
+}
+.ai-chat-mode {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  transition: all 0.2s;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.ai-chat-mode:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.ai-chat-mode.active { background: var(--panel); color: var(--accent); box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+.ai-chat-mode i { font-size: 12px; }
 .ai-chat-header-left { display: flex; align-items: center; gap: 8px; }
 .ai-chat-header-right { display: flex; align-items: center; gap: 6px; }
 .ai-chat-messages {
@@ -1605,20 +1641,27 @@ body.sidebar-hidden #paneResizer{display:none!important}
   <div class="ai-chat-panel" id="aiChatPanel">
     <div class="pp-resizer" id="aiResizer"></div>
     <div class="ai-chat-header">
-      <div class="ai-chat-header-left">
-        <span class="pp-tag">AI Builder</span>
-        <select class="ai-model-select" id="aiModelSelect" title="Change AI Model">
-          <option value="openai">OpenAI (Default)</option>
-          <option value="mistral">Mistral</option>
-          <option value="llama">Llama</option>
-          <option value="gemini">Gemini</option>
-        </select>
+      <div class="ai-chat-header-top">
+        <div class="ai-chat-header-left">
+          <span class="pp-tag">AI Builder</span>
+          <select class="ai-model-select" id="aiModelSelect" title="Change AI Model">
+            <option value="openai">OpenAI (Default)</option>
+            <option value="mistral">Mistral</option>
+            <option value="llama">Llama</option>
+            <option value="gemini">Gemini</option>
+          </select>
+        </div>
+        <div class="ai-chat-header-right">
+          <button class="pp-icon-btn" id="aiMinimizeBtn" onclick="toggleAiMinimize()" title="Minimize/Expand" style="display:none">_</button>
+          <button class="ai-clear-btn" onclick="clearAiChat()" title="Clear Chat History">Clear</button>
+          <button class="pp-icon-btn" onclick="toggleFloat('aiChatPanel')" title="Float AI Chat">⛶</button>
+          <button class="pp-icon-btn" onclick="toggleAiChat()" title="Close Chat">✕</button>
+        </div>
       </div>
-      <div class="ai-chat-header-right">
-        <button class="pp-icon-btn" id="aiMinimizeBtn" onclick="toggleAiMinimize()" title="Minimize/Expand" style="display:none">_</button>
-        <button class="ai-clear-btn" onclick="clearAiChat()" title="Clear Chat History">Clear</button>
-        <button class="pp-icon-btn" onclick="toggleFloat('aiChatPanel')" title="Float AI Chat">⛶</button>
-        <button class="pp-icon-btn" onclick="toggleAiChat()" title="Close Chat">✕</button>
+      <div class="ai-chat-modes" id="aiChatModes">
+        <button class="ai-chat-mode active" onclick="setAiChatMode('chat')" id="aiModeChat"><i class="codicon codicon-comment-discussion"></i>Chat</button>
+        <button class="ai-chat-mode" onclick="setAiChatMode('build')" id="aiModeBuild"><i class="codicon codicon-tools"></i>Build</button>
+        <button class="ai-chat-mode" onclick="setAiChatMode('debug')" id="aiModeDebug"><i class="codicon codicon-debug"></i>Debug</button>
       </div>
     </div>
 
@@ -3774,6 +3817,53 @@ function renameFileItem(oldPath, event) {
   if(webcontainerInstance) syncFilesToWebContainer();
   saveProjectState();
   toast('Renamed');
+}
+
+function createFileItem(path, content = "") {
+  if (virtualFS.has(path)) {
+    virtualFS.set(path, content);
+    if(currentPath === path) editor.setValue(content);
+    saveProjectState();
+    return;
+  }
+  
+  virtualFS.set(path, content);
+  
+  const parts = path.split('/');
+  const fileName = parts.pop();
+  let currentDirList = _fileTreeState.items;
+  
+  // Simple creation for root-level files if path doesn't contain /
+  if (parts.length === 0) {
+    if(!currentDirList.find(i => i.name === fileName)) {
+      currentDirList.push({ name: fileName, kind: 'file', path: fileName });
+    }
+  } else {
+    // Navigate/Create directories if nested path
+    let curPath = "";
+    let curList = _fileTreeState.items;
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      curPath += (curPath ? "/" : "") + part;
+      let dir = curList.find(item => item.kind === 'directory' && item.name === part);
+      if (!dir) {
+        dir = { name: part, kind: 'directory', children: [], expanded: true, path: curPath };
+        curList.push(dir);
+      }
+      curList = dir.children;
+      currentDirList = curList;
+    }
+    if(!currentDirList.find(i => i.name === fileName)) {
+      currentDirList.push({ name: fileName, kind: 'file', path: path });
+    }
+  }
+  
+  renderFileTree();
+  updateBrowserUi();
+  updateEditorTabs();
+  if(webcontainerInstance) syncFilesToWebContainer();
+  saveProjectState();
+  toast(`Created/Updated: ${path}`);
 }
 
 function deleteFileItem(path, event) {
@@ -7280,7 +7370,26 @@ function deployToNetlify() {
 })();
 
 /* AI Chat Site Builder */
+let currentAiMode = 'chat';
 let aiChatHistory = [];
+
+function setAiChatMode(mode) {
+  currentAiMode = mode;
+  document.querySelectorAll('.ai-chat-mode').forEach(btn => {
+    btn.classList.toggle('active', btn.id === `aiMode${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
+  });
+  
+  const placeholders = {
+    chat: "Ask AI anything about your code or web development...",
+    build: "Tell AI what feature or page you want to build...",
+    debug: "Describe a bug or paste an error for AI to fix..."
+  };
+  
+  const input = document.getElementById('aiChatInput');
+  if (input) input.placeholder = placeholders[mode] || "Ask AI...";
+  
+  toast(`AI Mode: ${mode.toUpperCase()}`);
+}
 let lastCodeState = null; // Store for undo functionality
 
 // Auto-resize textarea
@@ -7346,19 +7455,18 @@ async function sendAiChatMessage() {
     thinking.parentElement.scrollTop = thinking.parentElement.scrollHeight;
   }
 
-  // Prepare context with line numbers
-  const getCodeWithLines = (ed) => ed.getValue().split('\n').map((l, i) => `${i + 1}: ${l}`).join('\n');
-  
-  const htmlCode = getCodeWithLines(editor);
-  const cssCode = getCodeWithLines(cssEditor);
-  const jsCode = getCodeWithLines(jsEditor);
-  
+  // Get all files from VFS
+  let allFilesContext = "";
+  virtualFS.forEach((content, path) => {
+    allFilesContext += `\n--- FILE: ${path} ---\n${content}\n`;
+  });
+
   // Get selected code/lines if any
   const selection = editor.getSelection();
   let selectedInfo = "";
   if (selection && !selection.isEmpty()) {
     const text = editor.getModel().getValueInRange(selection);
-    selectedInfo = `The user has selected lines ${selection.startLineNumber} to ${selection.endLineNumber}:\n${text}`;
+    selectedInfo = `\nThe user has selected lines ${selection.startLineNumber} to ${selection.endLineNumber} in ${currentPath}:\n${text}`;
   }
 
   // Get AI-picked element context
@@ -7367,48 +7475,52 @@ async function sendAiChatMessage() {
     try {
       const tag = aiPickedEl.tagName.toLowerCase();
       const outerHTML = aiPickedEl.outerHTML.slice(0, 3000);
-      pickedElInfo = `\n\nIMPORTANT — The user has specifically selected this element for editing:\nTag: <${tag}>\nHTML: ${outerHTML}\nFocus your changes on this specific element. Modify only this element and keep everything else the same unless the user says otherwise.`;
+      pickedElInfo = `\n\nIMPORTANT — The user has specifically selected this element for editing:\nTag: <${tag}>\nHTML: ${outerHTML}\nFocus your changes on this specific element.`;
     } catch(e) {}
   }
 
-  const systemPrompt = `You are an expert web developer AI Site Builder. 
-The user is working in a live editor. You can see their code with line numbers below.
+  const modeInstructions = {
+    chat: "General chat mode. Answer questions and help with code concepts.",
+    build: "Project builder mode. Focus on creating new features, pages, or entire sections.",
+    debug: "Debugging mode. Focus on finding errors, fixing bugs, and improving code quality."
+  };
 
-Current HTML:
-${htmlCode}
+  const systemPrompt = `You are an expert full-stack web developer AI.
+CURRENT MODE: ${currentAiMode.toUpperCase()}
+Instruction for this mode: ${modeInstructions[currentAiMode]}
 
-Current CSS:
-${cssCode}
+The user is working in a browser-based IDE with a virtual file system. 
+CURRENT OPEN FILE: ${currentPath}
 
-Current JS:
-${jsCode}
+PROJECT FILES:
+${allFilesContext}
 
 ${selectedInfo}
 ${pickedElInfo}
 
 RESPONSE RULES (follow strictly):
-1. Reply ONLY with helpful, clean text or code.
-2. Provide a SINGLE markdown code block with language "html".
-3. Inside this block, include ALL HTML, CSS (in <style> tags), and JS (in <script> tags).
-4. Do NOT use separate blocks for css or javascript.
-5. NEVER output JSON, raw API response, or internal reasoning.
-6. Do NOT explain your thought process unless the user asks.
-7. If a request is broad, provide a complete starter template immediately.
-8. Keep explanations brief and AFTER the code block.
+1. You can output text and code blocks.
+2. For file updates/creation, use markdown code blocks with the format: \`\`\`language:filepath\`\`\`.
+   Example: \`\`\`html:index.html\`\`\` or \`\`\`css:style.css\`\`\`.
+3. To DELETE a file, use a special block: \`\`\`delete:filepath\`\`\`.
+4. You can provide multiple code blocks to update multiple files at once.
+5. If the user asks in a different language, respond in that language.
+6. For broad requests, suggest a structure and provide necessary files.
+7. Keep explanations concise.
 
 BEHAVIOR:
-- Be direct and helpful.
-- Assume the user wants working code, not theory.
-- ALWAYS provide the FULL updated code for the entire project in that single HTML block.`;
+- If in BUILD mode, be proactive in creating necessary files (HTML, CSS, JS).
+- If in DEBUG mode, explain why the bug occurred and provide the fix.
+- You have full access to create and delete files in the virtual file system.`;
 
   // Clear picked element after use (will be stale after iframe reload)
   if(aiPickedEl){ aiPickedEl=null; syncAiPickBtn(); }
 
   aiChatHistory.push({ role: "user", content: message });
-  if (aiChatHistory.length > 20) aiChatHistory.shift(); // Keep history manageable
+  if (aiChatHistory.length > 20) aiChatHistory.shift(); 
   
   try {
-    const response = await fetch('https://text.pollinations.ai/openai', {
+    const response = await fetch('https://text.pollinations.ai/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -7417,7 +7529,8 @@ BEHAVIOR:
           ...aiChatHistory
         ],
         model: model,
-        stream: false
+        stream: false,
+        jsonMode: true
       })
     });
 
@@ -7437,9 +7550,10 @@ BEHAVIOR:
   } catch (error) {
     console.error("AI Chat Error:", error);
     
-    // Fallback 1: Simple GET to Pollinations
+    // Fallback 1: Simplified GET to Pollinations (without huge system prompt if possible)
     try {
-      const fallbackUrl = `https://text.pollinations.ai/${encodeURIComponent(message)}?model=${model}&system=${encodeURIComponent(systemPrompt)}`;
+      const shortSystemPrompt = `You are an AI assistant. Help the user with their request.`;
+      const fallbackUrl = `https://text.pollinations.ai/${encodeURIComponent(message)}?model=${model}&system=${encodeURIComponent(shortSystemPrompt)}`;
       const fallbackResponse = await fetch(fallbackUrl);
       if (!fallbackResponse.ok) throw new Error("Pollinations fallback failed");
       const fallbackData = await fallbackResponse.text();
@@ -7538,13 +7652,35 @@ function processAiResponse(text) {
       if(textSpan.innerText.trim() || textSpan.innerHTML.includes('<br>')) msgDiv.appendChild(textSpan);
     } else {
       const lines = part.split('\n');
-      const lang = lines[0].trim().toLowerCase() || 'code';
+      const headerLine = lines[0].trim().toLowerCase() || 'code';
       const code = lines.slice(1).join('\n').trim();
       
-      // Auto-apply only the first HTML code block found
-      if (!autoApplied && lang === 'html') {
-        applyAiCode(lang, code, true); // true for auto-apply
+      // Parse lang and filepath (e.g., html:index.html)
+      let lang = 'text';
+      let filepath = '';
+      
+      if (headerLine.includes(':')) {
+        [lang, filepath] = headerLine.split(':');
+      } else {
+        lang = headerLine;
+      }
+
+      // Auto-apply logic
+      if (!autoApplied && (lang === 'html' || filepath)) {
+        applyAiCode(lang, code, true, filepath); 
         autoApplied = true;
+      }
+
+      if (lang === 'delete') {
+        const deleteDiv = document.createElement('div');
+        deleteDiv.className = 'ai-msg-code-change';
+        deleteDiv.style.borderLeft = '3px solid var(--red)';
+        deleteDiv.innerHTML = `<div class="ai-msg-code-header">
+          <span>DELETE FILE: ${filepath}</span>
+          <button class="ai-apply-btn" style="background:var(--red)" onclick="deleteFileItem('${filepath}')">Delete Now</button>
+        </div>`;
+        msgDiv.appendChild(deleteDiv);
+        return;
       }
 
       const codeContainer = document.createElement('div');
@@ -7552,7 +7688,7 @@ function processAiResponse(text) {
       
       const header = document.createElement('div');
       header.className = 'ai-msg-code-header';
-      header.innerHTML = `<span>${lang.toUpperCase()} ${autoApplied ? '(Auto-Applied)' : ''}</span>`;
+      header.innerHTML = `<span>${lang.toUpperCase()} ${filepath ? `(${filepath})` : ''} ${autoApplied ? '(Auto-Applied)' : ''}</span>`;
       
       const btnGroup = document.createElement('div');
       btnGroup.style.display = 'flex';
@@ -7565,7 +7701,7 @@ function processAiResponse(text) {
       diffBtn.onclick = () => {
         const diffArea = codeContainer.querySelector('.ai-diff-container');
         if(diffArea.style.display === 'none') {
-          diffArea.innerHTML = getAiDiff(lang, code);
+          diffArea.innerHTML = getAiDiff(lang, code, filepath);
           diffArea.style.display = 'block';
           diffBtn.innerText = 'Hide Diff';
         } else {
@@ -7577,7 +7713,7 @@ function processAiResponse(text) {
       const applyBtn = document.createElement('button');
       applyBtn.className = 'ai-apply-btn';
       applyBtn.innerText = autoApplied ? 'Re-Apply' : 'Apply Changes';
-      applyBtn.onclick = () => applyAiCode(lang, code);
+      applyBtn.onclick = () => applyAiCode(lang, code, false, filepath);
       
       btnGroup.appendChild(diffBtn);
       btnGroup.appendChild(applyBtn);
@@ -7631,41 +7767,73 @@ function keepChanges(btn) {
 
 function undoChanges(btn) {
   if (lastCodeState) {
-    editor.setValue(lastCodeState.html);
-    cssEditor.setValue(lastCodeState.css);
-    jsEditor.setValue(lastCodeState.js);
+    // 1. Clear current VFS and restore from snapshot
+    virtualFS.clear();
+    lastCodeState.files.forEach((content, path) => {
+      virtualFS.set(path, content);
+    });
+    
+    // 2. Rebuild the file tree state from scratch to reflect the old VFS
+    // This is the simplest way to ensure the UI matches the restored VFS
+    const restoredFiles = Array.from(lastCodeState.files.keys());
+    _fileTreeState.items = [];
+    restoredFiles.forEach(path => {
+      // Logic similar to createFileItem but without the VFS set and redundant UI refreshes
+      const parts = path.split('/');
+      const fileName = parts.pop();
+      let curList = _fileTreeState.items;
+      if (parts.length === 0) {
+        curList.push({ name: fileName, kind: 'file', path: fileName });
+      } else {
+        let curPath = "";
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          curPath += (curPath ? "/" : "") + part;
+          let dir = curList.find(item => item.kind === 'directory' && item.name === part);
+          if (!dir) {
+            dir = { name: part, kind: 'directory', children: [], expanded: true, path: curPath };
+            curList.push(dir);
+          }
+          curList = dir.children;
+        }
+        curList.push({ name: fileName, kind: 'file', path: path });
+      }
+    });
+
+    // 3. Restore editor content
+    if (currentPath && lastCodeState.files.has(currentPath)) {
+      editor.setValue(lastCodeState.files.get(currentPath));
+    } else if (restoredFiles.length > 0) {
+      // If currentPath is gone, switch to the first available file
+      currentPath = restoredFiles[0];
+      editor.setValue(lastCodeState.files.get(currentPath));
+    }
+
     runCode();
+    renderFileTree();
+    updateBrowserUi();
+    updateEditorTabs();
     lastCodeState = null;
     btn.parentElement.innerHTML = '<span style="color:var(--red); font-weight:bold; font-size:12px;">↺ Changes Undone</span>';
     toast('Changes reverted');
   }
 }
 
-function applyAiCode(lang, code, isAuto = false) {
+function applyAiCode(lang, code, isAuto = false, filepath = '') {
   try {
-    // Save state for undo BEFORE applying
-    if (isAuto) {
+    const targetPath = filepath || (lang === 'html' ? 'index.html' : (lang === 'css' ? 'style.css' : (lang === 'js' || lang === 'javascript' ? 'script.js' : currentPath)));
+
+    // Save state for undo BEFORE applying (first auto-apply only)
+    if (isAuto && !lastCodeState) {
       lastCodeState = {
-        html: editor.getValue(),
-        css: cssEditor.getValue(),
-        js: jsEditor.getValue()
+        files: new Map(virtualFS)
       };
     }
 
-    const oldVal = (lang === 'html' ? editor.getValue() : (lang === 'css' ? cssEditor.getValue() : jsEditor.getValue()));
+    const oldVal = virtualFS.get(targetPath) || "";
     
-    if (lang === 'html') {
-      // If it's HTML, we should check if it contains style/script tags and strip them if necessary
-      // BUT the user wants them in one file, so we just set it to the main editor
-      editor.setValue(code);
-      // Optional: Clear CSS and JS editors if AI provides everything in HTML
-      if (isAuto && (code.includes('<style>') || code.includes('<script>'))) {
-        cssEditor.setValue('/* Styles moved to HTML <style> tag */');
-        jsEditor.setValue('// Scripts moved to HTML <script> tag');
-      }
-    }
-    else if (lang === 'css') cssEditor.setValue(code);
-    else if (lang === 'javascript' || lang === 'js') jsEditor.setValue(code);
+    // Update VFS
+    createFileItem(targetPath, code);
     
     if (!isAuto) {
       // Log manual changes
@@ -7675,10 +7843,10 @@ function applyAiCode(lang, code, isAuto = false) {
         if(part.added) added += part.count;
         if(part.removed) removed += part.count;
       });
-      addAiChatMessage(`✅ Applied ${lang.toUpperCase()} changes: ${added} lines added, ${removed} lines removed.`, 'bot');
-      toast(`${lang.toUpperCase()} changes applied!`);
+      addAiChatMessage(`✅ Applied changes to ${targetPath}: ${added} lines added, ${removed} lines removed.`, 'bot');
+      toast(`Changes applied to ${targetPath}!`);
     } else {
-      toast('AI changes auto-applied!');
+      toast(`AI auto-applied to ${targetPath}`);
     }
     
     runCode();
@@ -7688,11 +7856,9 @@ function applyAiCode(lang, code, isAuto = false) {
   }
 }
 
-function getAiDiff(lang, newCode) {
-  let oldCode = "";
-  if (lang === 'html') oldCode = editor.getValue();
-  else if (lang === 'css') oldCode = cssEditor.getValue();
-  else if (lang === 'javascript' || lang === 'js') oldCode = jsEditor.getValue();
+function getAiDiff(lang, newCode, filepath = '') {
+  const targetPath = filepath || (lang === 'html' ? 'index.html' : (lang === 'css' ? 'style.css' : (lang === 'js' || lang === 'javascript' ? 'script.js' : currentPath)));
+  let oldCode = virtualFS.get(targetPath) || "";
 
   if (typeof Diff === 'undefined') return "Diff library not loaded";
 
@@ -7705,7 +7871,7 @@ function getAiDiff(lang, newCode) {
       const esc = line.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       if (part.added) html += `<div class="diff-row diff-line-add">+ ${esc}</div>`;
       else if (part.removed) html += `<div class="diff-row diff-line-rem">− ${esc}</div>`;
-      else if (parts.length < 20) html += `<div class="diff-row diff-line-ctx">  ${esc}</div>`; // Only show context if diff is small
+      else if (parts.length < 20) html += `<div class="diff-row diff-line-ctx">  ${esc}</div>`; 
     });
   });
   return html || "No changes detected.";
