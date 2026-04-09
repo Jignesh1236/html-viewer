@@ -1,5 +1,5 @@
 const CACHE_NAME = 'html-editor-v2';
-const VIRTUAL_PATH_PREFIX = '/__vfs__/';
+const VIRTUAL_MARKER = '__vfs__';
 
 let virtualFS = new Map();
 
@@ -25,9 +25,8 @@ const INJECTED_SCRIPTS = `
       const a = e.target.closest('a');
       if(a && a.href) {
         const url = new URL(a.href, window.location.href);
-        if(url.origin === window.location.origin && url.pathname.startsWith('${VIRTUAL_PATH_PREFIX}')) {
-          // It's a virtual path. We'll let it happen, but also notify parent
-          const path = url.pathname.slice('${VIRTUAL_PATH_PREFIX}'.length);
+        if(url.origin === window.location.origin && url.pathname.includes('${VIRTUAL_MARKER}')) {
+          const path = url.pathname.split('${VIRTUAL_MARKER}').pop().replace(/^\\//, '');
           window.parent.postMessage({ type: 'navigate', path: path }, '*');
         }
       }
@@ -55,9 +54,13 @@ const INJECTED_SCRIPTS = `
     const originalLog = console.log;
     console.log = (...args) => { originalLog.apply(console, args); sendToParent('info', args); };
     const originalError = console.error;
-    console.error = (...args) => { originalError.apply(console, args); sendToParent('error', args); };
+    if (typeof originalError === 'function') {
+       console.error = (...args) => { originalError.apply(console, args); sendToParent('error', args); };
+    }
     const originalWarn = console.warn;
-    console.warn = (...args) => { originalWarn.apply(console, args); sendToParent('warn', args); };
+    if (typeof originalWarn === 'function') {
+       console.warn = (...args) => { originalWarn.apply(console, args); sendToParent('warn', args); };
+    }
     window.onerror = (msg, url, line, col, error) => {
       sendToParent('error', [msg + ' (line ' + line + ')']);
       return false;
@@ -69,13 +72,21 @@ const INJECTED_SCRIPTS = `
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   
-  if (url.pathname.startsWith(VIRTUAL_PATH_PREFIX)) {
-    const path = url.pathname.slice(VIRTUAL_PATH_PREFIX.length);
-    const filePath = path.endsWith('/') ? path + 'index.html' : path;
+  // Heartbeat check
+  if (url.pathname.endsWith('/__vfs_ping__')) {
+    event.respondWith(new Response('pong', { headers: { 'Content-Type': 'text/plain' } }));
+    return;
+  }
+
+  if (url.pathname.includes(VIRTUAL_MARKER)) {
+    // Split by marker and take the last part
+    const parts = url.pathname.split(VIRTUAL_MARKER);
+    const filePath = parts.pop().replace(/^\//, ''); // Remove leading slash if any
+    const cleanPath = filePath.endsWith('/') ? filePath + 'index.html' : filePath;
     
-    if (virtualFS.has(filePath)) {
-      let content = virtualFS.get(filePath);
-      const ext = filePath.split('.').pop().toLowerCase();
+    if (virtualFS.has(cleanPath)) {
+      let content = virtualFS.get(cleanPath);
+      const ext = cleanPath.split('.').pop().toLowerCase();
       
       const mimeTypes = {
         'html': 'text/html', 'htm': 'text/html',
@@ -96,14 +107,19 @@ self.addEventListener('fetch', (event) => {
       }
       
       event.respondWith(new Response(content, {
-        headers: { 'Content-Type': contentType }
+        headers: { 
+          'Content-Type': contentType,
+          'X-VFS-Handled': 'true'
+        }
       }));
       return;
     }
     
-    event.respondWith(new Response('404 Not Found in VFS: ' + filePath, { status: 404 }));
+    // Fallback for not found files in VFS
+    event.respondWith(new Response('404 Not Found in VFS: ' + cleanPath, { status: 404 }));
     return;
   }
 
+  // Allow standard requests
   event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
 });
