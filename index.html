@@ -3547,11 +3547,17 @@ function navigateTo(path) {
   if (!path) return;
   
   // Check for external/server URLs (WebContainer or localhost)
-  const isExternalUrl = path.startsWith('http://localhost') || 
-                        path.includes('.webcontainer-api.io') ||
-                        path.startsWith('https://');
+  const isWebContainerUrl = path.includes('.webcontainer-api.io') || path.startsWith('http://localhost');
   
-  if (isExternalUrl) {
+  if (isWebContainerUrl) {
+    // Open WebContainer URLs in new tab (iframe can't load them due to CORS)
+    const url = path.endsWith('/') ? path : path + '/';
+    window.open(url, '_blank');
+    return;
+  }
+  
+  // Check for other https URLs
+  if (path.startsWith('https://')) {
     // Load external URL in preview iframe
     const iframeEl = document.getElementById('preview');
     if (iframeEl) {
@@ -3565,7 +3571,7 @@ function navigateTo(path) {
     updateBrowserUi();
     return;
   }
-  
+
   // Clean path for URL input
   let targetPath = path;
   if (targetPath.startsWith('http://localhost/')) {
@@ -4819,12 +4825,17 @@ function openInPreview(url) {
   console.log('Final URL to open:', url);
   
   // Open in new tab
-  const newTab = window.open(url, '_blank');
-  
-  if (newTab) {
-    toast(`Server opened: ${url}`);
-  } else {
-    toast('Popup blocked! Please allow popups and try again');
+  try {
+    const newTab = window.open(url, '_blank');
+    
+    if (newTab) {
+      toast(`Server opened: ${url}`);
+    } else {
+      toast('Popup blocked! Allow popups and try again');
+    }
+  } catch (e) {
+    console.error('Error opening URL:', e);
+    toast('Error opening server');
   }
 }
 
