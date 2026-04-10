@@ -2044,6 +2044,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js" crossorigin></script>
 <!-- CONTEXT MENU -->
 <div id="fileCtxMenu" class="ctx-menu">
+  <div class="ctx-item" onclick="handleCtxAction('preview')"><i class="codicon codicon-eye"></i> Preview</div>
   <div class="ctx-item" onclick="handleCtxAction('rename')"><i class="codicon codicon-edit"></i> Rename</div>
   <div class="ctx-item" onclick="handleCtxAction('delete')"><i class="codicon codicon-trash"></i> Delete</div>
   <div class="ctx-sep"></div>
@@ -2057,7 +2058,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
 /* ─────────────────────────────────────────
    GLOBALS
 ───────────────────────────────────────── */
-let editor, liveOn=true, liveTimer;
+let editor, liveOn=false, liveTimer;
 let _ignoreEditorChangeForLive=false;
 let _visualSyncTimer=null;
 let _visualModeTimer=null;
@@ -3074,118 +3075,39 @@ async function runCode(){
   
   const ext = currentPath.split('.').pop().toLowerCase();
   const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
-  if (!webExts.includes(ext)) return;
-
-  // Sync VFS to Service Worker if available
-  syncVfsToServiceWorker();
-
-  // Determine if we can use Service Worker (must be controlling the page and pingable)
-  const swActive = await checkSwStatus();
-  const forceCompatibility = localStorage.getItem('forceCompatibility') === 'true';
+  const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'svg'];
   
-  const useVFS = swActive && !forceCompatibility && (ext === 'html' || ext === 'htm');
-
-  if (useVFS) {
-    // 1. Service Worker Approach with srcdoc + <base> for maximum reliability
-    // This avoids "Refused to connect" while still allowing the SW to handle assets
-    let v = editor.getValue();
-    
-    // Calculate folder-aware base URL
-    const dir = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-    const rootBase = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + '__vfs__/';
-    const baseUrl = rootBase + dir;
-    
-    // Inject <base> tag to point all relative assets to VFS
-    const baseTag = `<base href="${baseUrl}">`;
-    if (v.includes('<head>')) v = v.replace('<head>', '<head>' + baseTag);
-    else v = baseTag + v;
-
-    iframeEl.removeAttribute('src'); // Clear src if it was set to a VFS URL
-    iframeEl.srcdoc = v;
-    setStatus('Preview: VFS Mode (Reliable)');
-  } else {
-    // 2. Fallback: Inlining Approach (Most compatible)
-    let v = editor.getValue();
-    
-    if (ext === 'html' || ext === 'htm') {
-      // Inline CSS from VFS
-      v = v.replace(/<link\s+([^>]*?)>/gi, (match, attrs) => {
-        const isStylesheet = /rel=["']stylesheet["']/i.test(attrs);
-        if (!isStylesheet) return match;
-        const hrefMatch = attrs.match(/href=["']([^"']+)["']/i);
-        if (!hrefMatch) return match;
-        const href = hrefMatch[1].replace(/^\.\//, '').replace(/^\//, '');
-        if (virtualFS.has(href)) {
-          return `<style data-vfs-path="${href}">\n${virtualFS.get(href)}\n</style>`;
-        }
-        return match;
-      });
-
-      // Inline JS from VFS
-      v = v.replace(/<script\s+([^>]*?)>\s*<\/script>/gi, (match, attrs) => {
-        const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
-        if (!srcMatch) return match;
-        const src = srcMatch[1].replace(/^\.\//, '').replace(/^\//, '');
-        if (virtualFS.has(src)) {
-          return `<script data-vfs-path="${src}">\n${virtualFS.get(src)}\n<\/script>`;
-        }
-        return match;
-      });
-
-      // Inline Images (Base64)
-      v = v.replace(/<img\s+([^>]*?)>/gi, (match, attrs) => {
-        const srcMatch = attrs.match(/src=["']([^"']+)["']/i);
-        if (!srcMatch) return match;
-        const src = srcMatch[1].replace(/^\.\//, '').replace(/^\//, '');
-        if (virtualFS.has(src)) {
-          const content = virtualFS.get(src);
-          if (content.startsWith('data:')) return match.replace(srcMatch[1], content);
-        }
-        return match;
-      });
-
-      // Inject default scripts (Console, Nav interception)
-      const scripts = `
-        <script>
-          (function() {
-            // Console Proxy
-            const sendToParent = (type, args) => {
-              window.parent.postMessage({
-                type: 'console', logType: type,
-                args: args.map(arg => {
-                  try { return typeof arg === 'object' ? JSON.parse(JSON.stringify(arg)) : arg; }
-                  catch(e) { return String(arg); }
-                })
-              }, '*');
-            };
-            const originalLog = console.log;
-            console.log = (...args) => { originalLog.apply(console, args); sendToParent('info', args); };
-            console.error = (...args) => { console.error.apply(console, args); sendToParent('error', args); };
-            window.onerror = (msg, url, line, col, error) => { sendToParent('error', [msg + ' (line ' + line + ')']); return false; };
-            
-            // Nav Interception
-            document.addEventListener('click', e => {
-              const a = e.target.closest('a');
-              if(a && a.href && !a.href.startsWith('http')) {
-                const path = a.getAttribute('href').replace(/^\.\//, '').replace(/^\//, '');
-                if(path) { e.preventDefault(); window.parent.postMessage({ type: 'navigate', path: path }, '*'); }
-              }
-            }, true);
-          })();
-        <\/script>
-      `;
-      if(v.includes('</head>')) v = v.replace('</head>', scripts + '</head>');
-      else v = scripts + v;
-      
-      iframeEl.srcdoc = v;
-    } else {
-      // Non-HTML files
-      v = `<pre style="color:var(--text); background:var(--bg); padding:20px; font-family:monospace;">${v.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`;
-      iframeEl.srcdoc = v;
+  // Handle image files directly - use VFS content, not editor value
+if (imgExts.includes(ext)) {
+    const imgContent = virtualFS.get(currentPath);
+    if (imgContent) {
+      const isDataUrl = imgContent.startsWith('data:image');
+      const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      const dataUrl = isDataUrl ? imgContent : `data:${mimeType};base64,${btoa(imgContent)}`;
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${currentPath}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${currentPath}"></body></html>`;
+      iframeEl.srcdoc = html;
+      setStatus('Preview: ' + currentPath);
+      return;
     }
-    setStatus('Preview: Compatibility Mode');
   }
   
+  if (!webExts.includes(ext)) return;
+
+  let v = editor.getValue();
+  const mimeTypes = { 'html': 'text/html', 'htm': 'text/html', 'css': 'text/css', 'js': 'application/javascript', 'json': 'application/json', 'svg': 'image/svg+xml', 'md': 'text/markdown', 'txt': 'text/plain' };
+  const mimeType = mimeTypes[ext] || 'text/plain';
+  
+  if (ext === 'html' || ext === 'htm') {
+    const baseTag = `<base href="blob:${currentPath}/">`;
+    if (v.includes('<head>')) v = v.replace('<head>', '<head>' + baseTag);
+    else if (v.includes('<!DOCTYPE html>')) v = v.replace('<!DOCTYPE html>', '<!DOCTYPE html><head>' + baseTag + '</head>');
+    else v = baseTag + v;
+  }
+  
+  const blob = new Blob([v], { type: mimeType });
+  const blobUrl = URL.createObjectURL(blob);
+  iframeEl.src = blobUrl;
+  setStatus('Preview: ' + ext.toUpperCase());
   setTimeout(updateBrowserUi, 500);
 }
 function openNewTab(){
@@ -3598,13 +3520,7 @@ function switchEditorTab(index) {
       }
       editor.setModel(model);
     }
-    
-    // Auto-run preview only for web files
-    const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
-    const ext = tab.name.split('.').pop().toLowerCase();
-    if (webExts.includes(ext)) {
-      runCode();
-    }
+    // Preview opens only when user clicks "Run Preview" button or right-click > Preview
   }
   updateEditorTabs();
   updateBrowserUi();
@@ -4063,6 +3979,16 @@ function handleCtxAction(action) {
   switch(action) {
     case 'rename': renameFileItem(path); break;
     case 'delete': deleteFileItem(path); break;
+    case 'preview': 
+      // Check if web-supported file
+      const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'ico', 'webp'];
+      if (webExts.includes(path.split('.').pop().toLowerCase())) {
+        navigateTo(path); 
+        toast('Preview: ' + path);
+      } else {
+        toast('Cannot preview: ' + path.split('.').pop() + ' not supported');
+      }
+      break;
     case 'download': downloadFile(path); break;
     case 'copyPath': copyToClipboard(path); toast('Path copied'); break;
     case 'collapseAll': collapseAllFileTree(); break;
