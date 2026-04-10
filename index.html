@@ -6133,9 +6133,11 @@ document.addEventListener('keydown',e=>{
       if(e.key==='z'||e.key==='Z'){
         if(e.shiftKey){
           if(visualRedoStack.length){ e.preventDefault(); visualRedoAction(); }
-        } else if(visualUndoStack.length){
+        } else {
           e.preventDefault();
-          visualUndoAction();
+          if(visualUndoStack.length){
+            visualUndoAction();
+          }
         }
         return;
       }
@@ -6152,6 +6154,14 @@ document.addEventListener('keydown',e=>{
     const inAuxTa=t.id==='cssEditorArea'||t.id==='jsEditorArea';
     if(!inMonaco && !inAuxTa){e.preventDefault();openShortcutsModal();}
   }
+  const t=e.target;
+  if(visualModeOn && selectedEl && !t.closest&&!t.closest('#propPanel') && !t.closest('.monaco-editor') && t.id!=='cssEditorArea' && t.id!=='jsEditorArea'){
+    if(e.key==='Delete' || e.key==='Backspace'){
+      e.preventDefault();
+      deleteEl();
+      return;
+    }
+  }
   if(e.key==='Escape' && visualModeOn && selectedEl)deselect();
 });
 
@@ -6165,13 +6175,15 @@ function deselect(){
 }
 
 function selectEl(el){
+  if(!el) return;
   selectedEl=el;
   savedStyles=el.getAttribute('style')||'';
   const r=getRect(el);
   positionSel(r,el);
   vHover.style.display='none';
   propPanel.classList.add('open');
-  fillProps(el);
+  try{attachVisualListeners();}catch(e){}
+  try{fillProps(el);}catch(e){console.warn('fillProps error:',e);}
   setStatus('Selected: <'+el.tagName.toLowerCase()+'>');
 }
 
