@@ -3848,6 +3848,11 @@ function createNewFile() {
   
   createFileItem(path, '');
   openTextInEditor(path.split('/').pop(), '', null, path);
+  // Sync to terminal/WebContainer
+  if(webcontainerInstance) syncFilesToWebContainer();
+  if(xtermTerminal){
+    xtermTerminal.writeln(`\x1b[32mCreated: ${path}\x1b[0m`);
+  }
 }
 
 function createNewFolder() {
@@ -3875,7 +3880,11 @@ function createNewFolder() {
   
   renderFileTree();
   saveProjectState();
+  if(webcontainerInstance) syncFilesToWebContainer();
   toast(`Folder created: ${path}`);
+  if(xtermTerminal){
+    xtermTerminal.writeln(`\x1b[32mCreated directory: ${path}\x1b[0m`);
+  }
 }
 
 function renameFileItem(oldPath, event) {
@@ -3976,6 +3985,10 @@ function createFileItem(path, content = "") {
   if(webcontainerInstance) syncFilesToWebContainer();
   saveProjectState();
   toast(`Created/Updated: ${path}`);
+  // Show in terminal
+  if(xtermTerminal){
+    xtermTerminal.writeln(`\x1b[32mCreated: ${path}\x1b[0m`);
+  }
 }
 
 function deleteFileItem(path, event) {
@@ -4008,6 +4021,10 @@ function deleteFileItem(path, event) {
   if(webcontainerInstance) syncFilesToWebContainer();
   saveProjectState();
   toast('Deleted');
+  // Show in terminal
+  if(xtermTerminal){
+    xtermTerminal.writeln(`\x1b[31mDeleted: ${path}\x1b[0m`);
+  }
 }
 
 let _ctxTarget = null;
@@ -5093,6 +5110,7 @@ async function handleTerminalCommand(cmdLine) {
       updateFileTreeFromVirtualFS();
       renderFileTree();
       updateBrowserUi();
+      if(webcontainerInstance) syncFilesToWebContainer();
     } else {
       xtermTerminal.writeln('\x1b[33mUsage: mkdir <directory_name>\x1b[0m');
     }
@@ -5110,6 +5128,7 @@ async function handleTerminalCommand(cmdLine) {
       updateFileTreeFromVirtualFS();
       renderFileTree();
       updateBrowserUi();
+      if(webcontainerInstance) syncFilesToWebContainer();
     } else {
       xtermTerminal.writeln('\x1b[33mUsage: touch <filename>\x1b[0m');
     }
@@ -5130,6 +5149,7 @@ async function handleTerminalCommand(cmdLine) {
       updateFileTreeFromVirtualFS();
       renderFileTree();
       updateBrowserUi();
+      if(webcontainerInstance) syncFilesToWebContainer();
     } else {
       xtermTerminal.writeln('\x1b[33mUsage: echo "content" > <filename>\x1b[0m');
     }
