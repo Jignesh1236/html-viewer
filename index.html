@@ -1635,7 +1635,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
       <div class="pp-row2" style="margin-bottom:8px">
         <div>
           <div class="pp-field-label">Display</div>
-          <select class="pp-inp" id="pp-display" oninput="applyLayout()">
+          <select class="pp-inp" id="pp-display2" oninput="applyLayout()">
             <option value="block">block</option>
             <option value="inline-block">inline-block</option>
             <option value="flex">flex</option>
@@ -5638,8 +5638,7 @@ function onCssEditorInput(){
   },400);
 }
 function markVisualUndoBeforeReplace(){
-  if(!editor){console.log('Undo: no editor');return;}
-  console.log('Undo mark, editor value length:', editor.getValue().length);
+  if(!editor)return;
   clearTimeout(_visualUndoGroupT);
   if(!_visualUndoGroup){
     visualUndoStack.push(editor.getValue());
@@ -6094,7 +6093,6 @@ function lockIframe(){ vOverlay.style.pointerEvents='all'; }
 function unlockIframe(){ vOverlay.style.pointerEvents=''; }
 
 document.addEventListener('keydown',e=>{
-  if(e.ctrlKey||e.metaKey) console.log('Keydown:', e.key, 'visualModeOn:', visualModeOn, 'stack:', visualUndoStack.length);
   const a11yModalEl=document.getElementById('a11yModal');
   if(a11yModalEl.classList.contains('show')){
     if(e.key==='Escape'){e.preventDefault();closeA11yModal();}
@@ -6629,7 +6627,7 @@ function clearProps(){
 
 function applyLayout(){
   if(!selectedEl) return;
-  const disp=document.getElementById('pp-display').value;
+  const disp=document.getElementById('pp-display2').value;
   const pos=document.getElementById('pp-pos').value;
   const x=parseInt(document.getElementById('pp-x').value)||0;
   const y=parseInt(document.getElementById('pp-y').value)||0;
@@ -6803,7 +6801,6 @@ function pushVisualDomToEditor(opts){
       return;
     }
     markVisualUndoBeforeReplace();
-    console.log('Visual push: stack now', visualUndoStack.length);
     _ignoreEditorChangeForLive=true;
     try{
       editor.setValue(html);
