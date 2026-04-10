@@ -2781,9 +2781,14 @@ require(['vs/editor/editor.main'], () => {
   if(cssArea) cssArea.remove();
   if(jsArea) jsArea.remove();
 
+  let _undoMarkTimer;
   editor.onDidChangeModelContent(()=>{
     updateStats();
     scheduleAutosave();
+    
+    // Debounced undo marking
+    clearTimeout(_undoMarkTimer);
+    _undoMarkTimer=setTimeout(markVisualUndoBeforeReplace,800);
     
     // Update VFS with current editor content
     if(currentPath) {
@@ -5633,7 +5638,8 @@ function onCssEditorInput(){
   },400);
 }
 function markVisualUndoBeforeReplace(){
-  if(!editor||!visualModeOn)return;
+  if(!editor){console.log('Undo: no editor');return;}
+  console.log('Undo mark, editor value length:', editor.getValue().length);
   clearTimeout(_visualUndoGroupT);
   if(!_visualUndoGroup){
     visualUndoStack.push(editor.getValue());
@@ -5647,7 +5653,7 @@ function resetVisualUndoGroup(){
   clearTimeout(_visualUndoGroupT);
   _visualUndoGroup=false;
 }
-function visualUndoAction(){
+async function visualUndoAction(){
   if(!editor||!visualUndoStack.length)return false;
   resetVisualUndoGroup();
   const cur=editor.getValue();
@@ -5656,15 +5662,15 @@ function visualUndoAction(){
   _ignoreEditorChangeForLive=true;
   try{editor.setValue(prev);}finally{_ignoreEditorChangeForLive=false;}
   syncActiveAuxPanel();
-  runCode();
+  await runCode();
   if(visualModeOn){
     setTimeout(function(){attachVisualListeners();},0);
     deselect();
   }
-  toast('Visual undo');
+  toast('Undo: code restored');
   return true;
 }
-function visualRedoAction(){
+async function visualRedoAction(){
   if(!editor||!visualRedoStack.length)return false;
   resetVisualUndoGroup();
   const cur=editor.getValue();
@@ -5673,12 +5679,12 @@ function visualRedoAction(){
   _ignoreEditorChangeForLive=true;
   try{editor.setValue(next);}finally{_ignoreEditorChangeForLive=false;}
   syncActiveAuxPanel();
-  runCode();
+  await runCode();
   if(visualModeOn){
     setTimeout(function(){attachVisualListeners();},0);
     deselect();
   }
-  toast('Visual redo');
+  toast('Redo: code restored');
   return true;
 }
 function insertImageAtCursor(){
@@ -6088,6 +6094,7 @@ function lockIframe(){ vOverlay.style.pointerEvents='all'; }
 function unlockIframe(){ vOverlay.style.pointerEvents=''; }
 
 document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey) console.log('Keydown:', e.key, 'visualModeOn:', visualModeOn, 'stack:', visualUndoStack.length);
   const a11yModalEl=document.getElementById('a11yModal');
   if(a11yModalEl.classList.contains('show')){
     if(e.key==='Escape'){e.preventDefault();closeA11yModal();}
@@ -6123,29 +6130,25 @@ document.addEventListener('keydown',e=>{
     togglePreviewFullscreen();
     return;
   }
-  if(visualModeOn && (e.ctrlKey||e.metaKey)){
-    const t=e.target;
-    const inMonaco=t.closest&&t.closest('.monaco-editor');
-    const inCssTa=t.id==='cssEditorArea'||(t.closest&&t.closest('#cssEditorArea'));
-    const inJsTa=t.id==='jsEditorArea'||(t.closest&&t.closest('#jsEditorArea'));
-    const inProp=t.closest&&t.closest('#propPanel');
-    if(!inMonaco && !inCssTa && !inJsTa && !inProp){
+  if(e.ctrlKey||e.metaKey){
+    if((e.key==='z'||e.key==='Z' || e.key==='y'||e.key==='Y') && (visualUndoStack.length || visualRedoStack.length)){
+      e.preventDefault();
+      e.stopPropagation();
       if(e.key==='z'||e.key==='Z'){
         if(e.shiftKey){
-          if(visualRedoStack.length){ e.preventDefault(); visualRedoAction(); }
-        } else {
-          e.preventDefault();
-          if(visualUndoStack.length){
-            visualUndoAction();
-          }
+          if(visualRedoStack.length){ visualRedoAction(); }
+        } else if(visualUndoStack.length){
+          visualUndoAction();
         }
-        return;
-      }
-      if((e.key==='y'||e.key==='Y') && visualRedoStack.length){
-        e.preventDefault();
+      } else if((e.key==='y'||e.key==='Y') && visualRedoStack.length){
         visualRedoAction();
-        return;
       }
+      return;
+    }
+    if((e.key==='y'||e.key==='Y') && visualRedoStack.length){
+      e.preventDefault();
+      visualRedoAction();
+      return;
     }
   }
   if(e.key==='?' && !e.ctrlKey && !e.metaKey && !e.altKey){
@@ -6799,7 +6802,8 @@ function pushVisualDomToEditor(opts){
       if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
       return;
     }
-    if(visualModeOn) markVisualUndoBeforeReplace();
+    markVisualUndoBeforeReplace();
+    console.log('Visual push: stack now', visualUndoStack.length);
     _ignoreEditorChangeForLive=true;
     try{
       editor.setValue(html);
