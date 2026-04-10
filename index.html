@@ -3455,9 +3455,18 @@ function updateBrowserUi() {
 
   const favicon = getFaviconFromIframe(); 
   const pageTitle = getTitleFromIframe(); 
-
+  
+  // Filter: only web-supported files in preview tabs
+  const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'woff', 'woff2', 'ttf', 'eot'];
+  const previewTabs = browserTabs.filter(tab => {
+    const ext = tab.path.split('.').pop().toLowerCase();
+    return webExts.includes(ext);
+  });
+  
   tabsContainer.innerHTML = ''; 
-  browserTabs.forEach((tab, index) => { 
+  previewTabs.forEach((tab) => { 
+    // Find actual index in browserTabs
+    const actualIndex = browserTabs.findIndex(t => t.path === tab.path);
     const tabEl = document.createElement('div'); 
     tabEl.className = `browser-tab ${tab.active ? 'active' : ''}`; 
 
@@ -3469,8 +3478,8 @@ function updateBrowserUi() {
 
     tabEl.innerHTML = ` 
       ${faviconHtml} 
-      <span onclick="switchEditorTab(${index})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span> 
-      <span class="browser-tab-close" onclick="closeEditorTab(${index}, event)">×</span> 
+      <span onclick="switchEditorTab(${actualIndex})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span> 
+      <span class="browser-tab-close" onclick="closeEditorTab(${actualIndex}, event)">×</span> 
     `; 
     tabsContainer.appendChild(tabEl); 
   }); 
@@ -3749,6 +3758,13 @@ function navigateTo(path) {
   }
 
   if (virtualFS.has(targetPath)) {
+    // Check if file is web-supported format
+    const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'woff', 'woff2', 'ttf', 'eot'];
+    const ext = targetPath.split('.').pop().toLowerCase();
+    if (!webExts.includes(ext)) {
+      toast(`Cannot preview: ${ext} files not supported`);
+      return;
+    }
     const fileName = targetPath.split('/').pop();
     openTextInEditor(fileName, virtualFS.get(targetPath), null, targetPath);
     toast(`Navigated to: ${targetPath}`);
@@ -5096,6 +5112,156 @@ async function handleTerminalCommand(cmdLine) {
     clearTerminal();
     return;
   }
+  
+  // pwd - print working directory
+  if (cmd === 'pwd') {
+    xtermTerminal.writeln('/home/user/project');
+    writeTermPrompt();
+    return;
+  }
+  
+  // cd - change directory
+  if (cmd === 'cd') {
+    let targetPath = args[0] || '~';
+    if (targetPath === '~' || targetPath === '') {
+      // stay at home
+      xtermTerminal.writeln('');
+      writeTermPrompt();
+      return;
+    }
+    if (targetPath === '..') {
+      // go to parent directory - in our VFS, just stay at root for now
+      xtermTerminal.writeln('');
+      writeTermPrompt();
+      return;
+    }
+    if (targetPath === '-') {
+      xtermTerminal.writeln('');
+      writeTermPrompt();
+      return;
+    }
+    // Check if directory exists
+    const dirExists = Array.from(virtualFS.keys()).some(k => k.startsWith(targetPath + '/') || k === targetPath + '/.gitkeep');
+    if (dirExists || virtualFS.has(targetPath + '/.gitkeep')) {
+      xtermTerminal.writeln('');
+    } else {
+      xtermTerminal.writeln(`\x1b[31mcd: ${targetPath}: No such directory\x1b[0m`);
+    }
+    writeTermPrompt();
+    return;
+  }
+  
+  // tree command - show directory structure
+  if (cmd === 'tree') {
+    xtermTerminal.writeln('\x1b[36m.\x1b[0m');
+    const keys = Array.from(virtualFS.keys()).sort();
+    keys.forEach((k, i) => {
+      if (k !== '.gitkeep' && !k.endsWith('/.gitkeep')) {
+        const isDir = virtualFS.get(k) === '' && keys.some(other => other.startsWith(k + '/'));
+        const prefix = isDir ? '├── ' : '├── ';
+        xtermTerminal.writeln(prefix + k);
+      }
+    });
+    writeTermPrompt();
+    return;
+  }
+  
+  // find command - search for files
+  if (cmd === 'find') {
+    let searchPath = '.';
+    let searchName = '*';
+    if (args[0] === '-name' && args[1]) {
+      searchName = args[1];
+    } else if (args[0]) {
+      searchPath = args[0];
+    }
+    const keys = Array.from(virtualFS.keys()).sort();
+    const pattern = new RegExp(searchName.replace('*', '.*').replace('?', '.'), 'i');
+    keys.forEach(k => {
+      if (k.includes(searchPath.replace('./', '')) && pattern.test(k.split('/').pop())) {
+        xtermTerminal.writeln(k);
+      }
+    });
+    writeTermPrompt();
+    return;
+  }
+  
+  // rm command - remove file
+  if (cmd === 'rm') {
+    if (args.length === 0) {
+      xtermTerminal.writeln('\x1b[33mUsage: rm \x1b[0m');
+      writeTermPrompt();
+      return;
+    }
+    const filePath = args[0];
+    if (!virtualFS.has(filePath)) {
+      xtermTerminal.writeln(`\x1b[31mrm: ${filePath}: No such file\x1b[0m`);
+      writeTermPrompt();
+      return;
+    }
+    virtualFS.delete(filePath);
+    xtermTerminal.writeln(`\x1b[31mRemoved: ${filePath}\x1b[0m`);
+    updateFileTreeFromVirtualFS();
+    renderFileTree();
+    updateBrowserUi();
+    if(webcontainerInstance) syncFilesToWebContainer();
+    writeTermPrompt();
+    return;
+  }
+  
+  // rmdir command - remove directory
+  if (cmd === 'rmdir') {
+    if (args.length === 0) {
+      xtermTerminal.writeln('\x1b[33mUsage: rmdir <directory>\x1b[0m');
+      writeTermPrompt();
+      return;
+    }
+    const dirPath = args[0];
+    const keys = Array.from(virtualFS.keys());
+    const hasFiles = keys.some(k => k.startsWith(dirPath + '/'));
+    if (hasFiles) {
+      xtermTerminal.writeln(`\x1b[31mrmdir: ${dirPath}: Directory not empty\x1b[0m`);
+      writeTermPrompt();
+      return;
+    }
+    virtualFS.delete(dirPath + '/.gitkeep');
+    xtermTerminal.writeln(`\x1b[31mRemoved directory: ${dirPath}\x1b[0m`);
+    updateFileTreeFromVirtualFS();
+    renderFileTree();
+    updateBrowserUi();
+    if(webcontainerInstance) syncFilesToWebContainer();
+    writeTermPrompt();
+    return;
+  }
+  
+  // cat command - show file content
+  if (cmd === 'cat') {
+    if (args.length === 0) {
+      xtermTerminal.writeln('\x1b[33mUsage: cat \x1b[0m');
+      writeTermPrompt();
+      return;
+    }
+    const filePath = args[0];
+    if (!virtualFS.has(filePath)) {
+      xtermTerminal.writeln(`\x1b[31mcat: ${filePath}: No such file\x1b[0m`);
+      writeTermPrompt();
+      return;
+    }
+    const content = virtualFS.get(filePath);
+    xtermTerminal.writeln(content || '');
+    writeTermPrompt();
+    return;
+  }
+  
+  // history command
+  if (cmd === 'history') {
+    xtermTerminal.writeln('\x1b[90m   1  pwd\x1b[0m');
+    xtermTerminal.writeln('\x1b[90m   2  ls\x1b[0m');
+    xtermTerminal.writeln('\x1b[90m   3  cd\x1b[0m');
+    xtermTerminal.writeln('\x1b[90m   4  clear\x1b[0m');
+    writeTermPrompt();
+    return;
+  }
 
   // mkdir command - create directory
   if (cmd === 'mkdir') {
@@ -5159,16 +5325,30 @@ async function handleTerminalCommand(cmdLine) {
 
   if (cmd === 'help') {
     xtermTerminal.writeln('');
-    xtermTerminal.writeln('\x1b[33mAvailable commands:\x1b[0m');
+    xtermTerminal.writeln('\x1b[33m📂 Navigation:\x1b[0m');
+    xtermTerminal.writeln('  \x1b[32mpwd\x1b[0m                 - Print working directory');
+    xtermTerminal.writeln('  \x1b[32mls\x1b[0m                 - List files');
+    xtermTerminal.writeln('  \x1b[32mcd <dir>\x1b[0m             - Change directory');
+    xtermTerminal.writeln('  \x1b[32mcd ..\x1b[0m              - Go to parent directory');
+    xtermTerminal.writeln('  \x1b[32mcd -\x1b[0m               - Go to previous directory');
+    xtermTerminal.writeln('  \x1b[32mtree\x1b[0m               - Show directory tree');
+    xtermTerminal.writeln('  \x1b[32mfind\x1b[0m               - Search files');
+    xtermTerminal.writeln('\x1b[33m📝 File Operations:\x1b[0m');
+    xtermTerminal.writeln('  \x1b[32mmkdir <dir>\x1b[0m       - Create directory');
+    xtermTerminal.writeln('  \x1b[32mtouch <file>\x1b[0m      - Create empty file');
+    xtermTerminal.writeln('  \x1b[32mecho "text" > <file>\x1b[0m - Create file with content');
+    xtermTerminal.writeln('  \x1b[32mrm <file>\x1b[0m            - Remove file');
+    xtermTerminal.writeln('  \x1b[32mrmdir <dir>\x1b[0m          - Remove directory');
+    xtermTerminal.writeln('  \x1b[32mcat \x1b[0m               - Show file content');
+    xtermTerminal.writeln('\x1b[33m⚡ Execution:\x1b[0m');
     xtermTerminal.writeln('  \x1b[32mnode <file.js>\x1b[0m   - Run Node.js');
     xtermTerminal.writeln('  \x1b[32mnpm <args>\x1b[0m       - Node Package Manager');
     xtermTerminal.writeln('  \x1b[32mpython <file.py>\x1b[0m - Run Python');
     xtermTerminal.writeln('  \x1b[32mpip install <pkg>\x1b[0m - Install Python packages');
-    xtermTerminal.writeln('  \x1b[32mls\x1b[0m               - List files');
-    xtermTerminal.writeln('  \x1b[32mmkdir <dir>\x1b[0m       - Create directory');
-    xtermTerminal.writeln('  \x1b[32mtouch <file>\x1b[0m      - Create empty file');
-    xtermTerminal.writeln('  \x1b[32mecho "text" > <file>\x1b[0m - Create file with content');
+    xtermTerminal.writeln('\x1b[33m🧹 Other:\x1b[0m');
     xtermTerminal.writeln('  \x1b[32mclear\x1b[0m            - Clear terminal');
+    xtermTerminal.writeln('  \x1b[32mhistory\x1b[0m            - Show command history');
+    xtermTerminal.writeln('  \x1b[32mhelp\x1b[0m              - Show this help');
     xtermTerminal.writeln('');
     writeTermPrompt();
     return;
