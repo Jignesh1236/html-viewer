@@ -1261,8 +1261,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
 }
 
 /* ── ANIMATION TIMELINE PANEL ── */
-.anim-timeline-panel{position:fixed;bottom:0;left:0;right:0;height:0;background:var(--panel);border-top:2px solid var(--border);z-index:900;display:flex;flex-direction:column;transition:height .25s ease;overflow:hidden}
-.anim-timeline-panel.open{height:220px}
+.anim-timeline-panel{position:fixed;bottom:24px;left:var(--sbW);right:0;height:0;background:var(--panel);border-top:2px solid var(--accent);z-index:1001;display:flex;flex-direction:column;transition:height .25s ease;overflow:hidden;box-shadow:0 -4px 20px rgba(0,0,0,0.3)}
+.anim-timeline-panel.open{height:280px}
+@media(max-width:768px){.anim-timeline-panel{left:0}}
 .anim-timeline-header{display:flex;align-items:center;justify-content:space-between;padding:4px 12px;background:var(--bg);border-bottom:1px solid var(--border);min-height:28px;flex-shrink:0}
 .anim-timeline-header .tl-title{font-size:11px;font-weight:700;color:var(--accent);font-family:'JetBrains Mono',monospace}
 .anim-timeline-header button{background:none;border:none;color:var(--text);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
@@ -1459,6 +1460,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
           </select> 
           <button type="button" class="tb-btn" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)" style="padding: 3px 8px; font-size: 10px; height: 24px;">⛶ Full</button> 
           <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="padding: 0 4px;"><i class="codicon codicon-terminal"></i></button>
+          <button type="button" class="tb-btn" id="timelineBtn" onclick="tlTogglePanel()" title="Animation Timeline" style="padding: 3px 8px; font-size: 10px; height: 24px; background:linear-gradient(135deg,var(--accent),#8b5cf6); color:#fff; border-color:var(--accent);">Timeline</button>
         </div>
       </div>
       <div class="visual-bar" id="visualBar">
@@ -1755,77 +1757,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
       </div>
     </div>
 
-    <!-- ANIMATION -->
-    <div class="pp-section">
-      <div class="pp-sec-label">Animation</div>
-      <div class="pp-field-label">Presets</div>
-      <div class="anim-preset-grid" id="animPresetGrid">
-        <button class="anim-preset-btn" onclick="applyAnimPreset('fade-in')">Fade In</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('fade-out')">Fade Out</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-left')">Slide Left</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-right')">Slide Right</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-up')">Slide Up</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-down')">Slide Down</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('bounce')">Bounce</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('scale-up')">Scale Up</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('rotate')">Rotate</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('pulse')">Pulse</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('shake')">Shake</button>
-        <button class="anim-preset-btn" onclick="applyAnimPreset('flip')">Flip</button>
-      </div>
-      <div class="pp-row2" style="margin-bottom:6px">
-        <div>
-          <div class="pp-field-label">Duration</div>
-          <div class="pp-unit-row"><input class="pp-inp" id="pp-anim-dur" type="number" min="0" step="0.1" value="1" oninput="applyAnimProps()"><span class="pp-unit">s</span></div>
-        </div>
-        <div>
-          <div class="pp-field-label">Delay</div>
-          <div class="pp-unit-row"><input class="pp-inp" id="pp-anim-delay" type="number" min="0" step="0.1" value="0" oninput="applyAnimProps()"><span class="pp-unit">s</span></div>
-        </div>
-      </div>
-      <div class="pp-row2" style="margin-bottom:6px">
-        <div>
-          <div class="pp-field-label">Iterations</div>
-          <select class="pp-inp pp-sel" id="pp-anim-iter" onchange="applyAnimProps()">
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="5">5</option>
-            <option value="infinite">Infinite</option>
-          </select>
-        </div>
-        <div>
-          <div class="pp-field-label">Timing</div>
-          <select class="pp-inp pp-sel" id="pp-anim-timing" onchange="applyAnimProps()">
-            <option value="ease">Ease</option>
-            <option value="ease-in">Ease In</option>
-            <option value="ease-out">Ease Out</option>
-            <option value="ease-in-out">Ease In-Out</option>
-            <option value="linear">Linear</option>
-            <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">Spring</option>
-          </select>
-        </div>
-      </div>
-      <div class="pp-field-label">Direction</div>
-      <select class="pp-inp pp-sel" id="pp-anim-dir" onchange="applyAnimProps()" style="margin-bottom:6px">
-        <option value="normal">Normal</option>
-        <option value="reverse">Reverse</option>
-        <option value="alternate">Alternate</option>
-        <option value="alternate-reverse">Alternate Reverse</option>
-      </select>
-      <div class="pp-field-label">Fill Mode</div>
-      <select class="pp-inp pp-sel" id="pp-anim-fill" onchange="applyAnimProps()" style="margin-bottom:6px">
-        <option value="none">None</option>
-        <option value="forwards">Forwards</option>
-        <option value="backwards">Backwards</option>
-        <option value="both">Both</option>
-      </select>
-      <div class="pp-field-label">Custom Keyframes</div>
-      <textarea class="anim-keyframe-editor" id="pp-anim-keyframes" placeholder="@keyframes myAnim {\n  0% { opacity: 0; }\n  100% { opacity: 1; }\n}" oninput="applyCustomKeyframes()"></textarea>
-      <button class="anim-preview-btn" onclick="previewAnimation()">▶ Preview Animation</button>
-      <button class="anim-remove-btn" onclick="removeAnimation()">✕ Remove Animation</button>
-      <button class="anim-preview-btn" onclick="tlOpenForSelected()" style="margin-top:4px;background:linear-gradient(135deg,var(--accent),#8b5cf6)">🎬 Open Timeline</button>
-    </div>
+
 
     <!-- CUSTOM CSS -->
     <div class="pp-section">
@@ -2268,37 +2200,6 @@ const TEMPLATES={
     <p>Switch to <strong style="color:#e96ece">Visual mode</strong> and click any element to select, drag to move, resize with handles.</p>
     <button class="btn" onclick="this.textContent='Clicked! ✅'">Get Started</button>
   </div>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`,
   form:`<!DOCTYPE html>
@@ -2329,37 +2230,6 @@ const TEMPLATES={
     <textarea id="m" name="msg" rows="4" placeholder="How can we help?"></textarea>
     <button type="submit">Send</button>
   </form>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`,
   cards:`<!DOCTYPE html>
@@ -2385,37 +2255,6 @@ const TEMPLATES={
     <div class="card"><h2>Beta</h2><p>Second card with sample text.</p></div>
     <div class="card"><h2>Gamma</h2><p>Third card — resize or restyle visually.</p></div>
   </div>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`,
   minimal:`<!DOCTYPE html>
@@ -2430,75 +2269,13 @@ const TEMPLATES={
 </head>
 <body>
   <p>Start editing in Code or Visual mode.</p>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`,
   sample:`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sample</title>
 <style>body{font-family:sans-serif;background:#f4f7ff;padding:40px;display:flex;justify-content:center}
 .box{background:#fff;padding:32px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:440px;width:100%}
 h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
-<body><div class="box"><h2>Sample 🔥</h2><p>Switch to Visual mode to edit elements visually!</p></div>
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
-</body></html>`,
+<body><div class="box"><h2>Sample 🔥</h2><p>Switch to Visual mode to edit elements visually!</p></div></body></html>`,
   blog:`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2525,37 +2302,6 @@ h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
   <hr>
   <p>Thanks for reading.</p>
 </article>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`,
   pricing:`<!DOCTYPE html>
@@ -2620,37 +2366,6 @@ h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
     <button type="button" class="btn outline">Contact</button>
   </div>
 </div>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`,
   dashboard:`<!DOCTYPE html>
@@ -2702,37 +2417,6 @@ h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
     <p style="font-size:13px;color:#9ca3af;line-height:1.6">Sample content area. Edit in Visual mode or replace with charts.</p>
   </div>
 </main>
-
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
 </body>
 </html>`
 };
@@ -3471,38 +3155,7 @@ if (imgExts.includes(ext)) {
       const isDataUrl = imgContent.startsWith('data:image');
       const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       const dataUrl = isDataUrl ? imgContent : `data:${mimeType};base64,${btoa(imgContent)}`;
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${currentPath}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${currentPath}">
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
-</body></html>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${currentPath}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${currentPath}"></body></html>`;
       iframeEl.srcdoc = html;
       setStatus('Preview: ' + currentPath);
       return;
@@ -6476,7 +6129,7 @@ function makeDraggable(el, handle){
   });
 })();
 
-/* ────────────��────────────────────────────
+/* ────────────���────────────────────────────
    PANEL RESIZE (Code | Preview)
 ───────────────────────────────────────── */
 (function(){
@@ -6514,7 +6167,7 @@ function makeDraggable(el, handle){
   });
 })();
 
-/* ═════════════════════════════════════════
+/* ════════════════════════���════════════════
    VISUAL EDITOR
 ═════════════════════════════════════════ */
 let isDragging=false, isResizing=false, isRotating=false;
@@ -9352,8 +9005,8 @@ setTimeout(updateUndoRedoUI, 100);
 /* ═══════════════════════════════════════════
    ANIMATION TIMELINE
    ═══════════════════════════════════════════ */
-let tlTracks = []; // [{el, name, preset, dur, delay, keyframes:[{time,props}]}]
-let tlDurationSec = 3;
+let tlTracks = []; // [{el, name, anim, dur, delay, timing, iter, dir, fill, keyframes:[{time,props}]}]
+let tlDurationSec = 5;
 let tlPixelsPerSec = 150;
 let tlPlaying = false;
 let tlPlayTimer = null;
@@ -9372,13 +9025,19 @@ function tlOpenForSelected() {
     if (!tlTracks.find(t => t.el === el)) {
       const tag = el.tagName.toLowerCase();
       const id = el.id ? '#' + el.id : '';
-      const cls = el.className ? '.' + el.className.split(' ')[0] : '';
+      const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '';
+      const existingAnim = el.style.animation || '';
+      const parts = existingAnim.split(' ');
       tlTracks.push({
         el: el,
         name: tag + id + cls,
-        anim: el.style.animation || '',
-        delay: 0,
-        dur: parseFloat(document.getElementById('pp-anim-dur').value) || 1,
+        anim: existingAnim,
+        delay: parseFloat(parts[3]) || 0,
+        dur: parseFloat(parts[1]) || 1,
+        timing: parts[2] || 'ease',
+        iter: parts[5] || '1',
+        dir: parts[6] || 'normal',
+        fill: parts[7] || 'forwards',
         keyframes: []
       });
     }
@@ -9388,16 +9047,23 @@ function tlOpenForSelected() {
 
 function tlAddTrack() {
   const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
-  if (!els.length) { toast('Select element(s) first'); return; }
+  if (!els.length) { toast('Select element(s) in the preview first'); return; }
+  let added = 0;
   els.forEach(el => {
     if (!tlTracks.find(t => t.el === el)) {
       const tag = el.tagName.toLowerCase();
       const id = el.id ? '#' + el.id : '';
-      const cls = el.className ? '.' + el.className.split(' ')[0] : '';
-      tlTracks.push({ el, name: tag + id + cls, anim: '', delay: 0, dur: 1, keyframes: [] });
+      const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '';
+      tlTracks.push({ el, name: tag + id + cls, anim: '', delay: 0, dur: 1, timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards', keyframes: [] });
+      added++;
     }
   });
-  tlRender();
+  if (added > 0) {
+    toast(added + ' track(s) added');
+    tlRender();
+  } else {
+    toast('Elements already in timeline');
+  }
 }
 
 function tlSetDuration(v) {
@@ -9436,13 +9102,23 @@ function tlRender() {
   rows.innerHTML = '';
   rows.style.width = totalW + 'px';
   
+  if (tlTracks.length === 0) {
+    sidebar.innerHTML = '<div style="padding:8px;font-size:9px;color:var(--muted);text-align:center;">Select elements and click "+ Track"</div>';
+  }
+  
   tlTracks.forEach((track, i) => {
     // Sidebar label
     const label = document.createElement('div');
-    label.className = 'tl-track-label';
-    label.textContent = track.name;
-    label.title = 'Click to select element';
+    label.className = 'tl-track-label' + (i === tlSelectedTrackIdx ? ' active' : '');
+    label.title = 'Click to edit track properties';
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = track.name;
+    nameSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;';
+    label.appendChild(nameSpan);
+    
     label.onclick = () => {
+      tlSelectTrack(i);
       if (track.el && track.el.isConnected) {
         clearMultiSelect();
         selectEl(track.el);
@@ -9451,8 +9127,8 @@ function tlRender() {
     // Remove button
     const rmBtn = document.createElement('button');
     rmBtn.textContent = '✕';
-    rmBtn.style.cssText = 'background:none;border:none;color:var(--accent2);cursor:pointer;margin-left:auto;font-size:10px;padding:0 4px';
-    rmBtn.onclick = (e) => { e.stopPropagation(); tlTracks.splice(i, 1); tlRender(); };
+    rmBtn.style.cssText = 'background:none;border:none;color:var(--accent2);cursor:pointer;font-size:10px;padding:0 4px;flex-shrink:0';
+    rmBtn.onclick = (e) => { e.stopPropagation(); tlTracks.splice(i, 1); if(tlSelectedTrackIdx >= tlTracks.length) tlSelectedTrackIdx = -1; tlRender(); };
     label.appendChild(rmBtn);
     sidebar.appendChild(label);
     
@@ -9651,18 +9327,32 @@ function tlRewind() {
 }
 
 function tlApplyAll() {
+  let applied = 0;
   tlTracks.forEach(track => {
     if (!track.el || !track.el.isConnected) return;
     const animName = track.anim ? track.anim.split(' ')[0] : '';
     if (!animName) return;
-    const timing = document.getElementById('pp-anim-timing')?.value || 'ease';
-    const iter = document.getElementById('pp-anim-iter')?.value || '1';
-    const dir = document.getElementById('pp-anim-dir')?.value || 'normal';
-    const fill = document.getElementById('pp-anim-fill')?.value || 'forwards';
+    const timing = track.timing || 'ease';
+    const iter = track.iter || '1';
+    const dir = track.dir || 'normal';
+    const fill = track.fill || 'forwards';
     track.el.style.animation = animName + ' ' + track.dur.toFixed(2) + 's ' + timing + ' ' + track.delay.toFixed(2) + 's ' + iter + ' ' + dir + ' ' + fill;
+    // Inject keyframes if needed
+    const preset = Object.values(ANIM_PRESETS).find(p => p.name === animName);
+    if (preset) {
+      const tag = ensureAnimStyleTag();
+      if (tag && !tag.textContent.includes(preset.keyframes)) {
+        tag.textContent += '\n' + preset.keyframes;
+      }
+    }
+    applied++;
   });
-  scheduleSyncToCodeFromVisual();
-  toast('Timeline animations applied ✅');
+  if (applied > 0) {
+    scheduleSyncToCodeFromVisual();
+    toast(applied + ' animation(s) applied to code');
+  } else {
+    toast('No animations to apply. Add tracks and set presets first.');
+  }
 }
 
 // Click on ruler/tracks area to scrub
@@ -9700,23 +9390,186 @@ applyAnimPreset = function(presetKey) {
   });
 };
 
+// Timeline helper functions
+let tlSelectedTrackIdx = -1;
+
+function tlDetectAnimations() {
+  const iframe = document.getElementById('preview');
+  if (!iframe || !iframe.contentDocument) { toast('No preview available'); return; }
+  const doc = iframe.contentDocument;
+  const allEls = doc.body.querySelectorAll('*');
+  let detected = 0;
+  allEls.forEach(el => {
+    const anim = el.style.animation || getComputedStyle(el).animation;
+    if (anim && anim !== 'none' && anim !== '' && !tlTracks.find(t => t.el === el)) {
+      const tag = el.tagName.toLowerCase();
+      const id = el.id ? '#' + el.id : '';
+      const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '';
+      const parts = anim.split(' ');
+      const dur = parseFloat(parts[1]) || 1;
+      const delay = parseFloat(parts[3]) || 0;
+      tlTracks.push({ el, name: tag + id + cls, anim: anim, delay: delay, dur: dur, timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards', keyframes: [] });
+      detected++;
+    }
+  });
+  if (detected > 0) {
+    toast(detected + ' animation(s) detected');
+    tlRender();
+  } else {
+    toast('No animations found. Select elements and add tracks manually.');
+  }
+}
+
+function tlClearAll() {
+  tlTracks = [];
+  tlSelectedTrackIdx = -1;
+  tlRender();
+  document.getElementById('tlTrackProps').style.display = 'none';
+  toast('Timeline cleared');
+}
+
+function tlSelectTrack(idx) {
+  tlSelectedTrackIdx = idx;
+  const track = tlTracks[idx];
+  if (!track) return;
+  document.getElementById('tlTrackProps').style.display = 'flex';
+  // Update controls
+  const animName = track.anim ? track.anim.split(' ')[0] : '';
+  const presetKey = Object.entries(ANIM_PRESETS).find(([k, v]) => v.name === animName)?.[0] || '';
+  document.getElementById('tlPresetSelect').value = presetKey;
+  document.getElementById('tlTimingSelect').value = track.timing || 'ease';
+  document.getElementById('tlIterSelect').value = track.iter || '1';
+  document.getElementById('tlDirSelect').value = track.dir || 'normal';
+  document.getElementById('tlFillSelect').value = track.fill || 'forwards';
+  // Highlight in sidebar
+  document.querySelectorAll('#tlSidebar .tl-track-label').forEach((lbl, i) => {
+    lbl.classList.toggle('active', i === idx);
+  });
+}
+
+function tlApplyPresetToTrack(presetKey) {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  const preset = ANIM_PRESETS[presetKey];
+  if (!preset) return;
+  const track = tlTracks[tlSelectedTrackIdx];
+  track.anim = preset.name + ' ' + track.dur + 's ' + (track.timing || 'ease') + ' ' + track.delay + 's ' + (track.iter || '1') + ' ' + (track.dir || 'normal') + ' ' + (track.fill || 'forwards');
+  // Inject keyframes
+  const tag = ensureAnimStyleTag();
+  if (tag && !tag.textContent.includes(preset.keyframes)) {
+    tag.textContent += '\n' + preset.keyframes;
+  }
+  tlRender();
+  toast('Applied: ' + preset.name);
+}
+
+function tlUpdateTrackTiming() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  const track = tlTracks[tlSelectedTrackIdx];
+  track.timing = document.getElementById('tlTimingSelect').value;
+  track.iter = document.getElementById('tlIterSelect').value;
+  track.dir = document.getElementById('tlDirSelect').value;
+  track.fill = document.getElementById('tlFillSelect').value;
+  const animName = track.anim ? track.anim.split(' ')[0] : '';
+  if (animName) {
+    track.anim = animName + ' ' + track.dur + 's ' + track.timing + ' ' + track.delay + 's ' + track.iter + ' ' + track.dir + ' ' + track.fill;
+  }
+  tlRender();
+}
+
+function tlPreviewTrack() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  const track = tlTracks[tlSelectedTrackIdx];
+  if (!track.el || !track.el.isConnected) { toast('Element not found'); return; }
+  const animName = track.anim ? track.anim.split(' ')[0] : '';
+  if (!animName) { toast('No animation set'); return; }
+  track.el.style.animation = 'none';
+  track.el.offsetHeight;
+  track.el.style.animation = track.anim;
+  toast('Previewing: ' + animName);
+}
+
+function tlRemoveTrackAnim() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  const track = tlTracks[tlSelectedTrackIdx];
+  track.anim = '';
+  if (track.el && track.el.isConnected) {
+    track.el.style.animation = '';
+  }
+  tlRender();
+  toast('Animation removed from track');
+}
+
 </script>
 
   <!-- ANIMATION TIMELINE PANEL -->
   <div class="anim-timeline-panel" id="animTimelinePanel">
     <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+      <span class="tl-title">Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="tlDetectAnimations()" title="Detect animations from preview" style="background:var(--btn);border:1px solid var(--border);color:var(--accent);padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;">Detect</button>
+        <button onclick="tlAddTrack()" title="Add selected elements as tracks">+ Track</button>
+        <button onclick="tlClearAll()" title="Clear all tracks" style="color:var(--accent2)">Clear</button>
         <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
       </div>
     </div>
     <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-sidebar" id="tlSidebar">
+        <div style="padding:8px;font-size:9px;color:var(--muted);text-align:center;">Select elements and click "+ Track"</div>
+      </div>
       <div class="anim-tl-tracks" id="tlTracksArea">
         <div class="anim-tl-ruler" id="tlRuler"></div>
         <div id="tlTrackRows"></div>
         <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+      <!-- TRACK PROPERTIES SIDEBAR -->
+      <div id="tlTrackProps" style="width:180px;border-left:1px solid var(--border);padding:8px;overflow-y:auto;display:none;flex-direction:column;gap:4px;background:var(--bg);">
+        <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:4px;">Track Properties</div>
+        <div style="font-size:9px;color:var(--muted);">Preset</div>
+        <select id="tlPresetSelect" onchange="tlApplyPresetToTrack(this.value)" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
+          <option value="">-- Select --</option>
+          <option value="fade-in">Fade In</option>
+          <option value="fade-out">Fade Out</option>
+          <option value="slide-left">Slide Left</option>
+          <option value="slide-right">Slide Right</option>
+          <option value="slide-up">Slide Up</option>
+          <option value="slide-down">Slide Down</option>
+          <option value="bounce">Bounce</option>
+          <option value="scale-up">Scale Up</option>
+          <option value="rotate">Rotate</option>
+          <option value="pulse">Pulse</option>
+          <option value="shake">Shake</option>
+          <option value="flip">Flip</option>
+        </select>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Timing</div>
+        <select id="tlTimingSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
+          <option value="ease">Ease</option>
+          <option value="ease-in">Ease In</option>
+          <option value="ease-out">Ease Out</option>
+          <option value="ease-in-out">Ease In-Out</option>
+          <option value="linear">Linear</option>
+          <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">Spring</option>
+        </select>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Iterations</div>
+        <select id="tlIterSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="infinite">Infinite</option>
+        </select>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Direction</div>
+        <select id="tlDirSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
+          <option value="normal">Normal</option>
+          <option value="reverse">Reverse</option>
+          <option value="alternate">Alternate</option>
+        </select>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Fill</div>
+        <select id="tlFillSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
+          <option value="none">None</option>
+          <option value="forwards" selected>Forwards</option>
+          <option value="both">Both</option>
+        </select>
+        <button onclick="tlPreviewTrack()" style="margin-top:6px;width:100%;background:var(--accent);border:none;color:#fff;padding:4px;border-radius:4px;cursor:pointer;font-size:10px;">Preview</button>
+        <button onclick="tlRemoveTrackAnim()" style="margin-top:2px;width:100%;background:transparent;border:1px solid var(--accent2);color:var(--accent2);padding:3px;border-radius:4px;cursor:pointer;font-size:9px;">Remove</button>
       </div>
     </div>
     <div class="anim-tl-controls">
@@ -9724,12 +9577,22 @@ applyAnimPreset = function(presetKey) {
       <button onclick="tlStop()">⏹ Stop</button>
       <button onclick="tlRewind()">⏮</button>
       <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <span style="color:var(--border)">|</span>
       <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <input type="range" id="tlDuration" min="1" max="20" step="0.5" value="5" oninput="tlSetDuration(this.value)" style="width:100px">
+      <span class="tl-time-display" id="tlDurLabel">5.0s</span>
       <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+      <button onclick="tlApplyAll()" style="background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-weight:600;cursor:pointer;">Apply to Code</button>
     </div>
+  </div>
+  <!-- Hidden inputs for compatibility -->
+  <div style="display:none">
+    <input id="pp-anim-dur" type="number" value="1">
+    <input id="pp-anim-delay" type="number" value="0">
+    <select id="pp-anim-timing"><option value="ease" selected>ease</option></select>
+    <select id="pp-anim-iter"><option value="1" selected>1</option></select>
+    <select id="pp-anim-dir"><option value="normal" selected>normal</option></select>
+    <select id="pp-anim-fill"><option value="forwards" selected>forwards</option></select>
   </div>
 
 </body>
