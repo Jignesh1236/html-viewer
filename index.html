@@ -6094,38 +6094,7 @@ function mergeFirstScriptIntoHtml(html,newJs){
 function syncJsFromHtml(){
   if(!editor || !jsEditor)return;
   const info=findFirstInlineScript(editor.getValue());
-  const val = info?info.body:'// Add JavaScript here — an inline <script> will be inserted before 
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">🎬 Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
-      </div>
-    </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-    </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
-      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
-      <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
-    </div>
-  </div>
-
-</body>\n';
+  const val = info?info.body:'// Add JavaScript here — an inline <script> will be inserted before </body>';
   if(jsEditor.getValue() !== val) {
     _ignoreEditorChangeForLive = true;
     jsEditor.setValue(val);
@@ -6507,7 +6476,7 @@ function makeDraggable(el, handle){
   });
 })();
 
-/* ─────────────────────────────────────────
+/* ────────────��────────────────────────────
    PANEL RESIZE (Code | Preview)
 ───────────────────────────────────────── */
 (function(){
@@ -7222,7 +7191,7 @@ function applyLayout(){
     if(pos!=='static'){ el.style.left=x+'px'; el.style.top=y+'px'; }
     if(!isNaN(w)) el.style.width=w+'px';
     if(!isNaN(h)) el.style.height=h+'px';
-    el.style.transform=\`rotate(\${rot}deg)\`;
+    el.style.transform=`rotate(${rot}deg)`;
   });
   if(selectedEl){ const r=getRect(selectedEl); positionSel(r,selectedEl); }
   refreshMultiSelBoxes();
