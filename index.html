@@ -357,6 +357,29 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .tb-btn:focus-visible,.mode-tab:focus-visible,.sb-btn:focus-visible,.mobile-nav-btn:focus-visible,.pp-icon-btn:focus-visible,.pp-align-btn:focus-visible,.pp-discard:focus-visible,.pp-save:focus-visible,.modal-close:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .pv-tools button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+
+/* ── MULTI-SELECT ── */
+.v-multi-sel{position:absolute;border:2px solid #ff5f87;border-radius:3px;pointer-events:none;display:block;background:rgba(255,95,135,0.06)}
+.multi-sel-count{position:absolute;top:-18px;right:0;background:var(--accent2);color:#fff;font-size:9px;padding:1px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;pointer-events:none}
+.v-sel-band{position:absolute;border:1px dashed var(--accent);background:rgba(108,99,255,0.08);pointer-events:none;display:none;z-index:60}
+
+/* ── ANIMATION BUILDER ── */
+.anim-preset-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px}
+.anim-preset-btn{background:var(--btn);border:1px solid var(--border);color:var(--text);font-size:10px;padding:5px 6px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;text-align:center}
+.anim-preset-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.08)}
+.anim-preset-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.12)}
+.anim-keyframe-editor{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text);width:100%;min-height:60px;resize:vertical;margin-top:4px}
+.anim-preview-btn{width:100%;margin-top:6px;background:var(--accent);border:none;color:#fff;padding:6px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600}
+.anim-preview-btn:hover{opacity:0.9}
+.anim-remove-btn{width:100%;margin-top:4px;background:transparent;border:1px solid var(--accent2);color:var(--accent2);padding:5px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:10px}
+.anim-remove-btn:hover{background:rgba(255,95,135,.1)}
+
+/* ── UNIFIED UNDO/REDO TOOLBAR ── */
+.undo-redo-group{display:flex;align-items:center;gap:2px;margin-right:4px}
+.undo-redo-group .tb-btn{padding:4px 8px;min-width:28px;font-size:12px}
+.undo-redo-group .tb-btn:disabled{opacity:0.3;cursor:default;pointer-events:none}
+.undo-redo-group .undo-count{font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:20px;text-align:center}
+
 /* ── TOPBAR ── */
 .topbar{
   position:fixed;top:0;left:0;right:0;
@@ -1257,6 +1280,11 @@ body.sidebar-hidden #paneResizer{display:none!important}
   </div>
 
   <div class="tb-right">
+    <div class="undo-redo-group" id="undoRedoGroup">
+      <button type="button" class="tb-btn icon-only" id="globalUndoBtn" onclick="globalUndo()" title="Undo (Ctrl+Z)" disabled><i class="codicon codicon-discard"></i></button>
+      <span class="undo-count" id="undoCountBadge"></span>
+      <button type="button" class="tb-btn icon-only" id="globalRedoBtn" onclick="globalRedo()" title="Redo (Ctrl+Shift+Z)" disabled><i class="codicon codicon-redo"></i></button>
+    </div>
     <div class="tb-layout-group" style="display:flex; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:2px; gap:2px; margin-right:8px;">
       <button type="button" class="tb-btn icon-only" id="tb-file-hamburger" onclick="toggleFileSidebar()" title="Toggle file sidebar (Left)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-layout-sidebar-left"></i></button>
       <button type="button" class="tb-btn icon-only" id="tb-terminal" onclick="toggleTerminal()" title="Toggle Terminal (Tab)" style="border:none; background:transparent; min-width:32px; height:28px;"><i class="codicon codicon-terminal"></i></button>
@@ -1430,6 +1458,8 @@ body.sidebar-hidden #paneResizer{display:none!important}
           <div class="v-handle w"  data-dir="w"></div>
           <div class="v-sel-inner" id="vSelInner"></div>
         </div>
+        <div id="vMultiSelContainer"></div>
+        <div class="v-sel-band" id="vSelBand"></div>
       </div>
         </div>
       </div>
@@ -1686,6 +1716,77 @@ body.sidebar-hidden #paneResizer{display:none!important}
         <div class="pp-2col-cell"><span>↔</span><input type="number" id="pp-px" placeholder="0" oninput="applySpacing()"></div>
         <div class="pp-2col-cell"><span>↕</span><input type="number" id="pp-py" placeholder="0" oninput="applySpacing()"></div>
       </div>
+    </div>
+
+    <!-- ANIMATION -->
+    <div class="pp-section">
+      <div class="pp-sec-label">Animation</div>
+      <div class="pp-field-label">Presets</div>
+      <div class="anim-preset-grid" id="animPresetGrid">
+        <button class="anim-preset-btn" onclick="applyAnimPreset('fade-in')">Fade In</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('fade-out')">Fade Out</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-left')">Slide Left</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-right')">Slide Right</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-up')">Slide Up</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('slide-down')">Slide Down</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('bounce')">Bounce</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('scale-up')">Scale Up</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('rotate')">Rotate</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('pulse')">Pulse</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('shake')">Shake</button>
+        <button class="anim-preset-btn" onclick="applyAnimPreset('flip')">Flip</button>
+      </div>
+      <div class="pp-row2" style="margin-bottom:6px">
+        <div>
+          <div class="pp-field-label">Duration</div>
+          <div class="pp-unit-row"><input class="pp-inp" id="pp-anim-dur" type="number" min="0" step="0.1" value="1" oninput="applyAnimProps()"><span class="pp-unit">s</span></div>
+        </div>
+        <div>
+          <div class="pp-field-label">Delay</div>
+          <div class="pp-unit-row"><input class="pp-inp" id="pp-anim-delay" type="number" min="0" step="0.1" value="0" oninput="applyAnimProps()"><span class="pp-unit">s</span></div>
+        </div>
+      </div>
+      <div class="pp-row2" style="margin-bottom:6px">
+        <div>
+          <div class="pp-field-label">Iterations</div>
+          <select class="pp-inp pp-sel" id="pp-anim-iter" onchange="applyAnimProps()">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="infinite">Infinite</option>
+          </select>
+        </div>
+        <div>
+          <div class="pp-field-label">Timing</div>
+          <select class="pp-inp pp-sel" id="pp-anim-timing" onchange="applyAnimProps()">
+            <option value="ease">Ease</option>
+            <option value="ease-in">Ease In</option>
+            <option value="ease-out">Ease Out</option>
+            <option value="ease-in-out">Ease In-Out</option>
+            <option value="linear">Linear</option>
+            <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">Spring</option>
+          </select>
+        </div>
+      </div>
+      <div class="pp-field-label">Direction</div>
+      <select class="pp-inp pp-sel" id="pp-anim-dir" onchange="applyAnimProps()" style="margin-bottom:6px">
+        <option value="normal">Normal</option>
+        <option value="reverse">Reverse</option>
+        <option value="alternate">Alternate</option>
+        <option value="alternate-reverse">Alternate Reverse</option>
+      </select>
+      <div class="pp-field-label">Fill Mode</div>
+      <select class="pp-inp pp-sel" id="pp-anim-fill" onchange="applyAnimProps()" style="margin-bottom:6px">
+        <option value="none">None</option>
+        <option value="forwards">Forwards</option>
+        <option value="backwards">Backwards</option>
+        <option value="both">Both</option>
+      </select>
+      <div class="pp-field-label">Custom Keyframes</div>
+      <textarea class="anim-keyframe-editor" id="pp-anim-keyframes" placeholder="@keyframes myAnim {\n  0% { opacity: 0; }\n  100% { opacity: 1; }\n}" oninput="applyCustomKeyframes()"></textarea>
+      <button class="anim-preview-btn" onclick="previewAnimation()">▶ Preview Animation</button>
+      <button class="anim-remove-btn" onclick="removeAnimation()">✕ Remove Animation</button>
     </div>
 
     <!-- CUSTOM CSS -->
@@ -8515,6 +8616,429 @@ function togglePreviewMode() {
   toast(`Preview Mode switched to: ${!current ? 'Compatibility' : 'VFS (Tree)'}`);
   runCode();
 }
+
+/* ═══════════════════════════════════════════
+   MULTI-ELEMENT SELECTION
+   ═══════════════════════════════════════════ */
+let multiSelectedEls = [];
+let multiSelBoxes = [];
+let isMarqueeSelecting = false;
+let marqueeStartX = 0, marqueeStartY = 0;
+
+function addToMultiSelect(el) {
+  if (!el || el.tagName === 'HTML' || el.tagName === 'BODY') return;
+  if (multiSelectedEls.includes(el)) {
+    // Toggle off
+    const idx = multiSelectedEls.indexOf(el);
+    multiSelectedEls.splice(idx, 1);
+    refreshMultiSelBoxes();
+    if (multiSelectedEls.length === 1) {
+      selectEl(multiSelectedEls[0]);
+      multiSelectedEls = [];
+      refreshMultiSelBoxes();
+    } else if (multiSelectedEls.length === 0) {
+      deselect();
+    }
+    return;
+  }
+  // If single selected, move it to multi
+  if (selectedEl && !multiSelectedEls.includes(selectedEl)) {
+    multiSelectedEls.push(selectedEl);
+  }
+  multiSelectedEls.push(el);
+  selectedEl = null;
+  vSel.style.display = 'none';
+  refreshMultiSelBoxes();
+  propPanel.classList.add('open');
+  document.getElementById('ppTag').textContent = multiSelectedEls.length + ' elements';
+  setStatus('Selected: ' + multiSelectedEls.length + ' elements');
+}
+
+function refreshMultiSelBoxes() {
+  const container = document.getElementById('vMultiSelContainer');
+  container.innerHTML = '';
+  multiSelBoxes = [];
+  multiSelectedEls.forEach(el => {
+    const r = getRect(el);
+    if (!r) return;
+    const box = document.createElement('div');
+    box.className = 'v-multi-sel';
+    box.style.left = r.left + 'px';
+    box.style.top = r.top + 'px';
+    box.style.width = r.width + 'px';
+    box.style.height = r.height + 'px';
+    container.appendChild(box);
+    multiSelBoxes.push(box);
+  });
+  // Show count badge
+  if (multiSelectedEls.length > 1) {
+    const badge = document.createElement('div');
+    badge.className = 'multi-sel-count';
+    badge.textContent = multiSelectedEls.length + ' selected';
+    if (container.lastChild) container.lastChild.appendChild(badge);
+  }
+}
+
+function clearMultiSelect() {
+  multiSelectedEls = [];
+  const container = document.getElementById('vMultiSelContainer');
+  if (container) container.innerHTML = '';
+  multiSelBoxes = [];
+}
+
+function deleteMultiSelected() {
+  if (!multiSelectedEls.length) return;
+  if (confirm('Delete ' + multiSelectedEls.length + ' elements?')) {
+    multiSelectedEls.forEach(el => el.remove());
+    clearMultiSelect();
+    deselect();
+    toast(multiSelectedEls.length + ' elements deleted 🗑');
+    pushVisualDomToEditor({silent: true});
+  }
+}
+
+function duplicateMultiSelected() {
+  if (!multiSelectedEls.length) return;
+  const newEls = [];
+  multiSelectedEls.forEach(el => {
+    const clone = el.cloneNode(true);
+    el.parentNode.insertBefore(clone, el.nextSibling);
+    newEls.push(clone);
+  });
+  clearMultiSelect();
+  multiSelectedEls = newEls;
+  refreshMultiSelBoxes();
+  toast(newEls.length + ' elements duplicated ⎘');
+  scheduleSyncToCodeFromVisual();
+}
+
+// Patch iOnClick for Shift+Click multi-select
+const _origIOnClick = iOnClick;
+iOnClick = function(e) {
+  if (aiPickMode || !visualModeOn) return;
+  if (isDragging || isResizing || isRotating) return;
+  e.preventDefault(); e.stopPropagation();
+  const el = e.target;
+  if (!el || el.tagName === 'HTML' || el.tagName === 'BODY') {
+    clearMultiSelect();
+    deselect();
+    return;
+  }
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {
+    addToMultiSelect(el);
+    return;
+  }
+  if (multiSelectedEls.length > 0) {
+    clearMultiSelect();
+  }
+  if (selectedEl !== null) { deselect(); return; }
+  selectEl(el);
+};
+
+// Override deselect to also clear multi
+const _origDeselect = deselect;
+deselect = function() {
+  clearMultiSelect();
+  _origDeselect();
+};
+
+// Override deleteEl to handle multi
+const _origDeleteEl = deleteEl;
+deleteEl = function() {
+  if (multiSelectedEls.length > 0) { deleteMultiSelected(); return; }
+  _origDeleteEl();
+};
+
+const _origDuplicateEl = duplicateEl;
+duplicateEl = function() {
+  if (multiSelectedEls.length > 0) { duplicateMultiSelected(); return; }
+  _origDuplicateEl();
+};
+
+/* ═══════════════════════════════════════════
+   CSS ANIMATION BUILDER
+   ═══════════════════════════════════════════ */
+const ANIM_PRESETS = {
+  'fade-in': { name: 'ppFadeIn', keyframes: '@keyframes ppFadeIn { from { opacity: 0; } to { opacity: 1; } }' },
+  'fade-out': { name: 'ppFadeOut', keyframes: '@keyframes ppFadeOut { from { opacity: 1; } to { opacity: 0; } }' },
+  'slide-left': { name: 'ppSlideLeft', keyframes: '@keyframes ppSlideLeft { from { transform: translateX(100%); } to { transform: translateX(0); } }' },
+  'slide-right': { name: 'ppSlideRight', keyframes: '@keyframes ppSlideRight { from { transform: translateX(-100%); } to { transform: translateX(0); } }' },
+  'slide-up': { name: 'ppSlideUp', keyframes: '@keyframes ppSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }' },
+  'slide-down': { name: 'ppSlideDown', keyframes: '@keyframes ppSlideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }' },
+  'bounce': { name: 'ppBounce', keyframes: '@keyframes ppBounce { 0%,20%,50%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-20px); } 60% { transform: translateY(-10px); } }' },
+  'scale-up': { name: 'ppScaleUp', keyframes: '@keyframes ppScaleUp { from { transform: scale(0); } to { transform: scale(1); } }' },
+  'rotate': { name: 'ppRotate', keyframes: '@keyframes ppRotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }' },
+  'pulse': { name: 'ppPulse', keyframes: '@keyframes ppPulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }' },
+  'shake': { name: 'ppShake', keyframes: '@keyframes ppShake { 0%,100% { transform: translateX(0); } 10%,30%,50%,70%,90% { transform: translateX(-5px); } 20%,40%,60%,80% { transform: translateX(5px); } }' },
+  'flip': { name: 'ppFlip', keyframes: '@keyframes ppFlip { from { transform: perspective(400px) rotateY(0); } to { transform: perspective(400px) rotateY(360deg); } }' },
+};
+
+let currentAnimPreset = null;
+
+function ensureAnimStyleTag() {
+  try {
+    const iDoc = iframeEl.contentDocument;
+    if (!iDoc) return null;
+    let tag = iDoc.getElementById('pp-anim-styles');
+    if (!tag) {
+      tag = iDoc.createElement('style');
+      tag.id = 'pp-anim-styles';
+      (iDoc.head || iDoc.documentElement).appendChild(tag);
+    }
+    return tag;
+  } catch(e) { return null; }
+}
+
+function applyAnimPreset(presetKey) {
+  if (!selectedEl && !multiSelectedEls.length) { toast('Select an element first'); return; }
+  const preset = ANIM_PRESETS[presetKey];
+  if (!preset) return;
+  currentAnimPreset = presetKey;
+  
+  // Highlight active preset button
+  document.querySelectorAll('.anim-preset-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.anim-preset-btn');
+  btns.forEach(b => { if (b.textContent.toLowerCase().replace(' ', '-') === presetKey || b.onclick.toString().includes(presetKey)) b.classList.add('active'); });
+  
+  // Inject keyframes into iframe
+  const tag = ensureAnimStyleTag();
+  if (tag) {
+    // Collect all preset keyframes that might be needed
+    let allKf = '';
+    Object.values(ANIM_PRESETS).forEach(p => { allKf += p.keyframes + '\n'; });
+    tag.textContent = allKf;
+  }
+  
+  applyAnimProps();
+}
+
+function applyAnimProps() {
+  const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+  if (!els.length) return;
+  const dur = document.getElementById('pp-anim-dur').value || '1';
+  const delay = document.getElementById('pp-anim-delay').value || '0';
+  const iter = document.getElementById('pp-anim-iter').value || '1';
+  const timing = document.getElementById('pp-anim-timing').value || 'ease';
+  const dir = document.getElementById('pp-anim-dir').value || 'normal';
+  const fill = document.getElementById('pp-anim-fill').value || 'none';
+  
+  if (!currentAnimPreset) return;
+  const preset = ANIM_PRESETS[currentAnimPreset];
+  if (!preset) return;
+  
+  const animStr = preset.name + ' ' + dur + 's ' + timing + ' ' + delay + 's ' + iter + ' ' + dir + ' ' + fill;
+  els.forEach(el => {
+    el.style.animation = animStr;
+  });
+  scheduleSyncToCodeFromVisual();
+}
+
+function applyCustomKeyframes() {
+  const kfText = document.getElementById('pp-anim-keyframes').value.trim();
+  if (!kfText) return;
+  const tag = ensureAnimStyleTag();
+  if (tag) {
+    // Append custom keyframes
+    const existing = tag.textContent || '';
+    // Extract animation name from @keyframes declaration
+    const nameMatch = kfText.match(/@keyframes\s+([\w-]+)/);
+    if (nameMatch) {
+      tag.textContent = existing + '\n' + kfText;
+      // Set custom animation name as current
+      currentAnimPreset = null;
+      const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+      const dur = document.getElementById('pp-anim-dur').value || '1';
+      const delay = document.getElementById('pp-anim-delay').value || '0';
+      const iter = document.getElementById('pp-anim-iter').value || '1';
+      const timing = document.getElementById('pp-anim-timing').value || 'ease';
+      const dir = document.getElementById('pp-anim-dir').value || 'normal';
+      const fill = document.getElementById('pp-anim-fill').value || 'none';
+      const animStr = nameMatch[1] + ' ' + dur + 's ' + timing + ' ' + delay + 's ' + iter + ' ' + dir + ' ' + fill;
+      els.forEach(el => { el.style.animation = animStr; });
+      scheduleSyncToCodeFromVisual();
+    }
+  }
+}
+
+function previewAnimation() {
+  const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+  if (!els.length) { toast('Select an element first'); return; }
+  // Restart animation by removing and re-adding
+  els.forEach(el => {
+    const anim = el.style.animation;
+    el.style.animation = 'none';
+    el.offsetHeight; // force reflow
+    setTimeout(() => { el.style.animation = anim; }, 10);
+  });
+  toast('▶ Animation preview');
+}
+
+function removeAnimation() {
+  const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+  if (!els.length) return;
+  els.forEach(el => { el.style.animation = ''; });
+  currentAnimPreset = null;
+  document.querySelectorAll('.anim-preset-btn').forEach(b => b.classList.remove('active'));
+  scheduleSyncToCodeFromVisual();
+  toast('Animation removed');
+}
+
+/* ═══════════════════════════════════════════
+   UNIFIED UNDO/REDO SYSTEM
+   ═══════════════════════════════════════════ */
+const GLOBAL_UNDO_CAP = 60;
+let globalUndoStack = [];
+let globalRedoStack = [];
+let _globalUndoGroup = false;
+let _globalUndoGroupT = null;
+
+function captureGlobalState() {
+  // Capture entire VFS state + current editor
+  const state = { vfs: new Map(virtualFS), currentPath: currentPath };
+  if (editor) {
+    // Make sure current file is saved to VFS
+    state.vfs.set(currentPath, editor.getValue());
+  }
+  return state;
+}
+
+function restoreGlobalState(state) {
+  if (!state) return;
+  // Restore VFS
+  virtualFS.clear();
+  state.vfs.forEach((content, path) => { virtualFS.set(path, content); });
+  currentPath = state.currentPath || currentPath;
+  
+  // Restore editor
+  if (editor && state.vfs.has(currentPath)) {
+    _ignoreEditorChangeForLive = true;
+    try { editor.setValue(state.vfs.get(currentPath)); } finally { _ignoreEditorChangeForLive = false; }
+  }
+  syncActiveAuxPanel();
+  renderFileTree();
+  updateBrowserUi();
+  updateEditorTabs();
+  runCode();
+  if (visualModeOn) {
+    setTimeout(function() { attachVisualListeners(); }, 0);
+    deselect();
+  }
+}
+
+function pushGlobalUndo() {
+  clearTimeout(_globalUndoGroupT);
+  if (!_globalUndoGroup) {
+    globalUndoStack.push(captureGlobalState());
+    if (globalUndoStack.length > GLOBAL_UNDO_CAP) globalUndoStack.shift();
+    globalRedoStack.length = 0;
+    _globalUndoGroup = true;
+  }
+  _globalUndoGroupT = setTimeout(function() { _globalUndoGroup = false; }, 650);
+  updateUndoRedoUI();
+}
+
+function globalUndo() {
+  if (!globalUndoStack.length) return;
+  clearTimeout(_globalUndoGroupT);
+  _globalUndoGroup = false;
+  globalRedoStack.push(captureGlobalState());
+  const prev = globalUndoStack.pop();
+  restoreGlobalState(prev);
+  updateUndoRedoUI();
+  toast('↶ Undo');
+}
+
+function globalRedo() {
+  if (!globalRedoStack.length) return;
+  clearTimeout(_globalUndoGroupT);
+  _globalUndoGroup = false;
+  globalUndoStack.push(captureGlobalState());
+  const next = globalRedoStack.pop();
+  restoreGlobalState(next);
+  updateUndoRedoUI();
+  toast('↷ Redo');
+}
+
+function updateUndoRedoUI() {
+  const undoBtn = document.getElementById('globalUndoBtn');
+  const redoBtn = document.getElementById('globalRedoBtn');
+  const badge = document.getElementById('undoCountBadge');
+  if (undoBtn) undoBtn.disabled = !globalUndoStack.length;
+  if (redoBtn) redoBtn.disabled = !globalRedoStack.length;
+  if (badge) badge.textContent = globalUndoStack.length ? globalUndoStack.length : '';
+}
+
+// Redirect old visual undo into global system
+const _origMarkVisualUndo = markVisualUndoBeforeReplace;
+markVisualUndoBeforeReplace = function() {
+  pushGlobalUndo();
+};
+
+// Hook the old visual undo/redo to global
+visualUndoAction = async function() {
+  globalUndo();
+  return true;
+};
+visualRedoAction = async function() {
+  globalRedo();
+  return true;
+};
+
+// Override the keyboard handler for unified undo
+const _origKeydownHandler = document.onkeydown;
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key === 'z' || e.key === 'Z') {
+      // Only intercept if not inside Monaco editor
+      const t = e.target;
+      const inMonaco = t.closest && t.closest('.monaco-editor');
+      if (!inMonaco) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.shiftKey) {
+          globalRedo();
+        } else {
+          globalUndo();
+        }
+        return;
+      }
+    }
+    if (e.key === 'y' || e.key === 'Y') {
+      const t = e.target;
+      const inMonaco = t.closest && t.closest('.monaco-editor');
+      if (!inMonaco) {
+        e.preventDefault();
+        e.stopPropagation();
+        globalRedo();
+        return;
+      }
+    }
+  }
+}, true);
+
+// Hook into AI code application for undo
+const _origApplyAiCode = typeof applyAiCode === 'function' ? applyAiCode : null;
+if (_origApplyAiCode) {
+  const _wrappedApplyAiCode = applyAiCode;
+  applyAiCode = function(lang, code, isAuto, filepath) {
+    pushGlobalUndo();
+    return _wrappedApplyAiCode(lang, code, isAuto, filepath);
+  };
+}
+
+// Also push undo state on editor changes (debounced)
+let _editorUndoTimer = null;
+if (typeof editor !== 'undefined' && editor) {
+  editor.onDidChangeModelContent(function() {
+    if (_ignoreEditorChangeForLive) return;
+    clearTimeout(_editorUndoTimer);
+    _editorUndoTimer = setTimeout(function() { pushGlobalUndo(); }, 1500);
+  });
+}
+
+// Initialize UI
+setTimeout(updateUndoRedoUI, 100);
+
 </script>
 </body>
 </html>
