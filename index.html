@@ -6476,7 +6476,7 @@ function makeDraggable(el, handle){
   });
 })();
 
-/* ─────────────────────────────────────────
+/* ────────────��────────────────────────────
    PANEL RESIZE (Code | Preview)
 ───────────────────────────────────────── */
 (function(){
@@ -7191,7 +7191,7 @@ function applyLayout(){
     if(pos!=='static'){ el.style.left=x+'px'; el.style.top=y+'px'; }
     if(!isNaN(w)) el.style.width=w+'px';
     if(!isNaN(h)) el.style.height=h+'px';
-    el.style.transform=\`rotate(\${rot}deg)\`;
+    el.style.transform=`rotate(${rot}deg)`;
   });
   if(selectedEl){ const r=getRect(selectedEl); positionSel(r,selectedEl); }
   refreshMultiSelBoxes();
