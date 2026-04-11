@@ -1259,6 +1259,43 @@ body.sidebar-hidden #paneResizer{display:none!important}
   opacity: 1;
   color: var(--accent2);
 }
+
+/* ── ANIMATION TIMELINE PANEL ── */
+.anim-timeline-panel{position:fixed;bottom:0;left:0;right:0;height:0;background:var(--panel);border-top:2px solid var(--border);z-index:900;display:flex;flex-direction:column;transition:height .25s ease;overflow:hidden}
+.anim-timeline-panel.open{height:220px}
+.anim-timeline-header{display:flex;align-items:center;justify-content:space-between;padding:4px 12px;background:var(--bg);border-bottom:1px solid var(--border);min-height:28px;flex-shrink:0}
+.anim-timeline-header .tl-title{font-size:11px;font-weight:700;color:var(--accent);font-family:'JetBrains Mono',monospace}
+.anim-timeline-header button{background:none;border:none;color:var(--text);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.anim-timeline-header button:hover{background:var(--btn)}
+.anim-tl-body{display:flex;flex:1;min-height:0;overflow:hidden}
+.anim-tl-sidebar{width:140px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:4px 0}
+.anim-tl-sidebar .tl-track-label{font-size:10px;color:var(--text);padding:4px 8px;height:32px;display:flex;align-items:center;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.anim-tl-sidebar .tl-track-label:hover{background:var(--btn)}
+.anim-tl-sidebar .tl-track-label.active{color:var(--accent);background:rgba(108,99,255,.08)}
+.anim-tl-tracks{flex:1;overflow:auto;position:relative}
+.anim-tl-ruler{height:20px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;display:flex;align-items:flex-end}
+.anim-tl-ruler .tl-tick{position:absolute;bottom:0;width:1px;height:8px;background:var(--muted)}
+.anim-tl-ruler .tl-tick-label{position:absolute;bottom:9px;font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;transform:translateX(-50%)}
+.anim-tl-ruler .tl-tick.major{height:14px;background:var(--text)}
+.anim-tl-track-row{height:32px;border-bottom:1px solid var(--border);position:relative}
+.anim-tl-track-row:hover{background:rgba(108,99,255,.03)}
+.anim-tl-bar{position:absolute;top:6px;height:20px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border-radius:4px;cursor:grab;min-width:20px;display:flex;align-items:center;justify-content:center}
+.anim-tl-bar:active{cursor:grabbing}
+.anim-tl-bar .tl-bar-label{font-size:8px;color:#fff;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.anim-tl-bar .tl-resize-handle{position:absolute;top:0;width:6px;height:100%;cursor:ew-resize}
+.anim-tl-bar .tl-resize-handle.left{left:0;border-radius:4px 0 0 4px}
+.anim-tl-bar .tl-resize-handle.right{right:0;border-radius:0 4px 4px 0}
+.anim-tl-keyframe{position:absolute;top:10px;width:10px;height:10px;background:var(--accent2);border:1px solid #fff;border-radius:2px;transform:rotate(45deg) translateX(-50%);cursor:pointer;z-index:3}
+.anim-tl-keyframe:hover{background:#ff3366;transform:rotate(45deg) translateX(-50%) scale(1.2)}
+.anim-tl-playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent2);z-index:10;pointer-events:none}
+.anim-tl-playhead::before{content:'';position:absolute;top:-2px;left:-5px;width:12px;height:8px;background:var(--accent2);clip-path:polygon(0 0,100% 0,50% 100%)}
+.anim-tl-controls{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0}
+.anim-tl-controls button{background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace}
+.anim-tl-controls button:hover{border-color:var(--accent);color:var(--accent)}
+.anim-tl-controls button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.anim-tl-controls .tl-time-display{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:60px;text-align:center}
+.anim-tl-controls input[type=range]{width:80px;accent-color:var(--accent)}
+
 </style>
 </head>
 <body>
@@ -1787,6 +1824,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
       <textarea class="anim-keyframe-editor" id="pp-anim-keyframes" placeholder="@keyframes myAnim {\n  0% { opacity: 0; }\n  100% { opacity: 1; }\n}" oninput="applyCustomKeyframes()"></textarea>
       <button class="anim-preview-btn" onclick="previewAnimation()">▶ Preview Animation</button>
       <button class="anim-remove-btn" onclick="removeAnimation()">✕ Remove Animation</button>
+      <button class="anim-preview-btn" onclick="tlOpenForSelected()" style="margin-top:4px;background:linear-gradient(135deg,var(--accent),#8b5cf6)">🎬 Open Timeline</button>
     </div>
 
     <!-- CUSTOM CSS -->
@@ -2230,6 +2268,37 @@ const TEMPLATES={
     <p>Switch to <strong style="color:#e96ece">Visual mode</strong> and click any element to select, drag to move, resize with handles.</p>
     <button class="btn" onclick="this.textContent='Clicked! ✅'">Get Started</button>
   </div>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`,
   form:`<!DOCTYPE html>
@@ -2260,6 +2329,37 @@ const TEMPLATES={
     <textarea id="m" name="msg" rows="4" placeholder="How can we help?"></textarea>
     <button type="submit">Send</button>
   </form>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`,
   cards:`<!DOCTYPE html>
@@ -2285,6 +2385,37 @@ const TEMPLATES={
     <div class="card"><h2>Beta</h2><p>Second card with sample text.</p></div>
     <div class="card"><h2>Gamma</h2><p>Third card — resize or restyle visually.</p></div>
   </div>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`,
   minimal:`<!DOCTYPE html>
@@ -2299,13 +2430,75 @@ const TEMPLATES={
 </head>
 <body>
   <p>Start editing in Code or Visual mode.</p>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`,
   sample:`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Sample</title>
 <style>body{font-family:sans-serif;background:#f4f7ff;padding:40px;display:flex;justify-content:center}
 .box{background:#fff;padding:32px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1);max-width:440px;width:100%}
 h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
-<body><div class="box"><h2>Sample 🔥</h2><p>Switch to Visual mode to edit elements visually!</p></div></body></html>`,
+<body><div class="box"><h2>Sample 🔥</h2><p>Switch to Visual mode to edit elements visually!</p></div>
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
+</body></html>`,
   blog:`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -2332,6 +2525,37 @@ h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
   <hr>
   <p>Thanks for reading.</p>
 </article>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`,
   pricing:`<!DOCTYPE html>
@@ -2396,6 +2620,37 @@ h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
     <button type="button" class="btn outline">Contact</button>
   </div>
 </div>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`,
   dashboard:`<!DOCTYPE html>
@@ -2447,6 +2702,37 @@ h2{color:#4f46e5;margin-bottom:10px}p{color:#666;line-height:1.7}</style></head>
     <p style="font-size:13px;color:#9ca3af;line-height:1.6">Sample content area. Edit in Visual mode or replace with charts.</p>
   </div>
 </main>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>`
 };
@@ -3185,7 +3471,38 @@ if (imgExts.includes(ext)) {
       const isDataUrl = imgContent.startsWith('data:image');
       const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       const dataUrl = isDataUrl ? imgContent : `data:${mimeType};base64,${btoa(imgContent)}`;
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${currentPath}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${currentPath}"></body></html>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${currentPath}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${currentPath}">
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
+</body></html>`;
       iframeEl.srcdoc = html;
       setStatus('Preview: ' + currentPath);
       return;
@@ -5777,7 +6094,38 @@ function mergeFirstScriptIntoHtml(html,newJs){
 function syncJsFromHtml(){
   if(!editor || !jsEditor)return;
   const info=findFirstInlineScript(editor.getValue());
-  const val = info?info.body:'// Add JavaScript here — an inline <script> will be inserted before </body>\n';
+  const val = info?info.body:'// Add JavaScript here — an inline <script> will be inserted before 
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
+</body>\n';
   if(jsEditor.getValue() !== val) {
     _ignoreEditorChangeForLive = true;
     jsEditor.setValue(val);
@@ -6852,8 +7200,15 @@ function clearProps(){
   document.getElementById('pp-grad-tools').style.display = 'none';
 }
 
+
+function getTargetEls() {
+  if (multiSelectedEls.length > 0) return multiSelectedEls;
+  if (selectedEl) return [selectedEl];
+  return [];
+}
+
 function applyLayout(){
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const disp=document.getElementById('pp-display2').value;
   const pos=document.getElementById('pp-pos').value;
   const x=parseInt(document.getElementById('pp-x').value)||0;
@@ -6861,123 +7216,106 @@ function applyLayout(){
   const w=parseInt(document.getElementById('pp-w').value);
   const h=parseInt(document.getElementById('pp-h').value);
   const rot=parseFloat(document.getElementById('pp-rot').value)||0;
-  
-  selectedEl.style.display=disp;
-  selectedEl.style.position=pos;
-  if(pos!=='static'){
-    selectedEl.style.left=x+'px'; selectedEl.style.top=y+'px';
-  }
-  if(!isNaN(w)) selectedEl.style.width=w+'px';
-  if(!isNaN(h)) selectedEl.style.height=h+'px';
-  selectedEl.style.transform=`rotate(${rot}deg)`;
-  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  els.forEach(el=>{
+    el.style.display=disp;
+    el.style.position=pos;
+    if(pos!=='static'){ el.style.left=x+'px'; el.style.top=y+'px'; }
+    if(!isNaN(w)) el.style.width=w+'px';
+    if(!isNaN(h)) el.style.height=h+'px';
+    el.style.transform=\`rotate(\${rot}deg)\`;
+  });
+  if(selectedEl){ const r=getRect(selectedEl); positionSel(r,selectedEl); }
+  refreshMultiSelBoxes();
   scheduleSyncToCodeFromVisual();
 }
 function applyZIndex(){
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const raw=document.getElementById('pp-z').value.trim();
-  if(raw==='') selectedEl.style.removeProperty('z-index');
-  else{
-    const n=parseInt(raw,10);
-    if(!isNaN(n)) selectedEl.style.zIndex=String(n);
-  }
-  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  els.forEach(el=>{
+    if(raw==='') el.style.removeProperty('z-index');
+    else{ const n=parseInt(raw,10); if(!isNaN(n)) el.style.zIndex=String(n); }
+  });
+  if(selectedEl){ const r=getRect(selectedEl); positionSel(r,selectedEl); }
   scheduleSyncToCodeFromVisual();
 }
 function layerForward(){
-  if(!selectedEl) return;
-  const z=parseInt(selectedEl.style.zIndex,10);
-  const n=(isNaN(z)?0:z)+1;
-  selectedEl.style.zIndex=String(n);
-  document.getElementById('pp-z').value=String(n);
-  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  const els=getTargetEls(); if(!els.length) return;
+  els.forEach(el=>{
+    const z=parseInt(el.style.zIndex,10);
+    el.style.zIndex=String((isNaN(z)?0:z)+1);
+  });
+  if(selectedEl) document.getElementById('pp-z').value=selectedEl.style.zIndex;
   scheduleSyncToCodeFromVisual();
 }
 function layerBack(){
-  if(!selectedEl) return;
-  const z=parseInt(selectedEl.style.zIndex,10);
-  const n=(isNaN(z)?0:z)-1;
-  selectedEl.style.zIndex=String(n);
-  document.getElementById('pp-z').value=String(n);
-  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  const els=getTargetEls(); if(!els.length) return;
+  els.forEach(el=>{
+    const z=parseInt(el.style.zIndex,10);
+    el.style.zIndex=String((isNaN(z)?0:z)-1);
+  });
+  if(selectedEl) document.getElementById('pp-z').value=selectedEl.style.zIndex;
   scheduleSyncToCodeFromVisual();
 }
 
 function applySpacing(){
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const mx=parseInt(document.getElementById('pp-mx').value)||0;
   const my=parseInt(document.getElementById('pp-my').value)||0;
   const px=parseInt(document.getElementById('pp-px').value)||0;
   const py=parseInt(document.getElementById('pp-py').value)||0;
-  selectedEl.style.margin=my+'px '+mx+'px';
-  selectedEl.style.padding=py+'px '+px+'px';
+  els.forEach(el=>{ el.style.margin=my+'px '+mx+'px'; el.style.padding=py+'px '+px+'px'; });
   scheduleSyncToCodeFromVisual();
 }
 
 function applyTypo(){
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const txt=document.getElementById('pp-text').value;
   const fs=document.getElementById('pp-fs').value;
   const col=document.getElementById('pp-color').value;
   const fw=document.getElementById('pp-fw').value;
-  if(txt){
-    const nodes=[...selectedEl.childNodes].filter(n=>n.nodeType===3);
-    if(nodes.length) nodes[0].textContent=txt; else selectedEl.textContent=txt;
-  }
-  if(fs) selectedEl.style.fontSize=fs+'px';
-  if(col) selectedEl.style.color=col;
-  if(fw) selectedEl.style.fontWeight=fw;
+  els.forEach(el=>{
+    if(txt){ const nodes=[...el.childNodes].filter(n=>n.nodeType===3); if(nodes.length) nodes[0].textContent=txt; else el.textContent=txt; }
+    if(fs) el.style.fontSize=fs+'px';
+    if(col) el.style.color=col;
+    if(fw) el.style.fontWeight=fw;
+  });
   scheduleSyncToCodeFromVisual();
 }
 
 function applyAlign(a){
-  if(!selectedEl) return;
-  selectedEl.style.textAlign=a;
+  const els=getTargetEls(); if(!els.length) return;
+  els.forEach(el=>{ el.style.textAlign=a; });
   document.querySelectorAll('.pp-align-btn').forEach(b=>b.classList.toggle('on',b.dataset.align===a));
   scheduleSyncToCodeFromVisual();
 }
 
 function applyBG(){
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const bgCol = document.getElementById('pp-bg').value;
   const gradType = document.getElementById('pp-grad-type').value;
   const op=parseFloat(document.getElementById('pp-opacity').value)||100;
   
   if(gradType === 'none') {
-    selectedEl.style.backgroundImage = 'none';
-    selectedEl.style.backgroundColor = bgCol;
+    els.forEach(el=>{ el.style.backgroundImage='none'; el.style.backgroundColor=bgCol; });
     document.getElementById('pp-grad-tools').style.display = 'none';
   } else {
     document.getElementById('pp-grad-tools').style.display = 'block';
     const angle = document.getElementById('pp-grad-angle').value || 180;
     let stopsList = [...document.querySelectorAll('.gradient-stop')];
-    
-    if(stopsList.length === 0) {
-      addGradientStop(); // add white
-      addGradientStop(); // add black
-      stopsList = [...document.querySelectorAll('.gradient-stop')];
-    }
-    
-    const stops = stopsList.map(s => {
-      const c = s.querySelector('input[type="color"]').value;
-      const p = s.querySelector('input[type="number"]').value;
-      return `${c} ${p}%`;
-    }).join(', ');
-    
+    if(stopsList.length === 0) { addGradientStop(); addGradientStop(); stopsList = [...document.querySelectorAll('.gradient-stop')]; }
+    const stops = stopsList.map(s => { const c=s.querySelector('input[type="color"]').value; const p=s.querySelector('input[type="number"]').value; return c+' '+p+'%'; }).join(', ');
     let gradStr = '';
-    if(gradType === 'linear-gradient') gradStr = `linear-gradient(${angle}deg, ${stops || '#ffffff 0%, #000000 100%'})`;
-    else gradStr = `radial-gradient(circle, ${stops || '#ffffff 0%, #000000 100%'})`;
-    
-    selectedEl.style.backgroundImage = gradStr;
+    if(gradType === 'linear-gradient') gradStr = 'linear-gradient('+angle+'deg, '+(stops || '#ffffff 0%, #000000 100%')+')';
+    else gradStr = 'radial-gradient(circle, '+(stops || '#ffffff 0%, #000000 100%')+')';
+    els.forEach(el=>{ el.style.backgroundImage=gradStr; });
     document.getElementById('pp-gradient-preview').style.background = gradStr;
   }
-  
-  selectedEl.style.opacity=op/100;
+  els.forEach(el=>{ el.style.opacity=op/100; });
   scheduleSyncToCodeFromVisual();
 }
 
 function applyBorder(){
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const t=document.getElementById('pp-bw-t').value||0;
   const ri=document.getElementById('pp-bw-r').value||0;
   const b=document.getElementById('pp-bw-b').value||0;
@@ -6987,18 +7325,22 @@ function applyBorder(){
   const cb=document.getElementById('pp-bc-b').value;
   const cl=document.getElementById('pp-bc-l').value;
   const br=document.getElementById('pp-br').value||0;
-  selectedEl.style.borderTopWidth=t+'px'; selectedEl.style.borderTopStyle='solid'; selectedEl.style.borderTopColor=ct;
-  selectedEl.style.borderRightWidth=ri+'px'; selectedEl.style.borderRightStyle='solid'; selectedEl.style.borderRightColor=cr;
-  selectedEl.style.borderBottomWidth=b+'px'; selectedEl.style.borderBottomStyle='solid'; selectedEl.style.borderBottomColor=cb;
-  selectedEl.style.borderLeftWidth=l+'px'; selectedEl.style.borderLeftStyle='solid'; selectedEl.style.borderLeftColor=cl;
-  selectedEl.style.borderRadius=br+'px';
+  els.forEach(el=>{
+    el.style.borderTopWidth=t+'px'; el.style.borderTopStyle='solid'; el.style.borderTopColor=ct;
+    el.style.borderRightWidth=ri+'px'; el.style.borderRightStyle='solid'; el.style.borderRightColor=cr;
+    el.style.borderBottomWidth=b+'px'; el.style.borderBottomStyle='solid'; el.style.borderBottomColor=cb;
+    el.style.borderLeftWidth=l+'px'; el.style.borderLeftStyle='solid'; el.style.borderLeftColor=cl;
+    el.style.borderRadius=br+'px';
+  });
   scheduleSyncToCodeFromVisual();
 }
 
 function applyCSS(){
-  if(!selectedEl) return;
-  selectedEl.setAttribute('style', document.getElementById('pp-css').value);
-  const r=getRect(selectedEl); positionSel(r,selectedEl);
+  const els=getTargetEls(); if(!els.length) return;
+  const css=document.getElementById('pp-css').value;
+  els.forEach(el=>{ el.setAttribute('style', css); });
+  if(selectedEl){ const r=getRect(selectedEl); positionSel(r,selectedEl); }
+  refreshMultiSelBoxes();
   scheduleSyncToCodeFromVisual();
 }
 
@@ -7571,43 +7913,40 @@ function insertComponent(id) {
 
 /* Advanced Visual Controls */
 function applyShadows() {
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const bsX = document.getElementById('pp-bs-x').value || 0;
   const bsY = document.getElementById('pp-bs-y').value || 0;
   const bsB = document.getElementById('pp-bs-b').value || 0;
   const bsS = document.getElementById('pp-bs-s').value || 0;
   const bsC = document.getElementById('pp-bs-c').value || '#000000';
-  
   const tsX = document.getElementById('pp-ts-x').value || 0;
   const tsY = document.getElementById('pp-ts-y').value || 0;
   const tsB = document.getElementById('pp-ts-b').value || 0;
   const tsC = document.getElementById('pp-ts-c').value || '#000000';
-  
-  selectedEl.style.boxShadow = `${bsX}px ${bsY}px ${bsB}px ${bsS}px ${bsC}`;
-  selectedEl.style.textShadow = `${tsX}px ${tsY}px ${tsB}px ${tsC}`;
+  els.forEach(el=>{
+    el.style.boxShadow = bsX+'px '+bsY+'px '+bsB+'px '+bsS+'px '+bsC;
+    el.style.textShadow = tsX+'px '+tsY+'px '+tsB+'px '+tsC;
+  });
   scheduleSyncToCodeFromVisual();
 }
 
 function applyFlexGrid() {
-  if(!selectedEl) return;
+  const els=getTargetEls(); if(!els.length) return;
   const disp = document.getElementById('pp-display').value;
-  selectedEl.style.display = disp;
-  
   const fgTools = document.getElementById('pp-flex-grid-tools');
+  els.forEach(el=>{ el.style.display=disp; });
   if(disp === 'flex' || disp === 'grid') {
     fgTools.style.display = 'block';
     const gap = document.getElementById('pp-gap').value || 0;
-    selectedEl.style.gap = gap + 'px';
-  } else {
-    fgTools.style.display = 'none';
-  }
+    els.forEach(el=>{ el.style.gap=gap+'px'; });
+  } else { fgTools.style.display = 'none'; }
   scheduleSyncToCodeFromVisual();
 }
 
 function setFlexProp(prop, val) {
-  if(!selectedEl) return;
-  selectedEl.style[prop] = val;
-  document.querySelectorAll(`.pp-grid-btn[data-prop="${prop}"]`).forEach(btn => {
+  const els=getTargetEls(); if(!els.length) return;
+  els.forEach(el=>{ el.style[prop]=val; });
+  document.querySelectorAll('.pp-grid-btn[data-prop="'+prop+'"]').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.val === val);
   });
   scheduleSyncToCodeFromVisual();
@@ -9039,6 +9378,390 @@ if (typeof editor !== 'undefined' && editor) {
 // Initialize UI
 setTimeout(updateUndoRedoUI, 100);
 
+
+
+/* ═══════════════════════════════════════════
+   ANIMATION TIMELINE
+   ═══════════════════════════════════════════ */
+let tlTracks = []; // [{el, name, preset, dur, delay, keyframes:[{time,props}]}]
+let tlDurationSec = 3;
+let tlPixelsPerSec = 150;
+let tlPlaying = false;
+let tlPlayTimer = null;
+let tlCurrentTime = 0;
+
+function tlTogglePanel() {
+  document.getElementById('animTimelinePanel').classList.toggle('open');
+}
+
+function tlOpenForSelected() {
+  const panel = document.getElementById('animTimelinePanel');
+  panel.classList.add('open');
+  // Auto-add tracks for selected elements
+  const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+  els.forEach(el => {
+    if (!tlTracks.find(t => t.el === el)) {
+      const tag = el.tagName.toLowerCase();
+      const id = el.id ? '#' + el.id : '';
+      const cls = el.className ? '.' + el.className.split(' ')[0] : '';
+      tlTracks.push({
+        el: el,
+        name: tag + id + cls,
+        anim: el.style.animation || '',
+        delay: 0,
+        dur: parseFloat(document.getElementById('pp-anim-dur').value) || 1,
+        keyframes: []
+      });
+    }
+  });
+  tlRender();
+}
+
+function tlAddTrack() {
+  const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+  if (!els.length) { toast('Select element(s) first'); return; }
+  els.forEach(el => {
+    if (!tlTracks.find(t => t.el === el)) {
+      const tag = el.tagName.toLowerCase();
+      const id = el.id ? '#' + el.id : '';
+      const cls = el.className ? '.' + el.className.split(' ')[0] : '';
+      tlTracks.push({ el, name: tag + id + cls, anim: '', delay: 0, dur: 1, keyframes: [] });
+    }
+  });
+  tlRender();
+}
+
+function tlSetDuration(v) {
+  tlDurationSec = parseFloat(v);
+  document.getElementById('tlDurLabel').textContent = tlDurationSec.toFixed(1) + 's';
+  tlRender();
+}
+
+function tlRender() {
+  const sidebar = document.getElementById('tlSidebar');
+  const rows = document.getElementById('tlTrackRows');
+  const ruler = document.getElementById('tlRuler');
+  
+  // Ruler
+  ruler.innerHTML = '';
+  const totalW = tlDurationSec * tlPixelsPerSec;
+  ruler.style.width = totalW + 'px';
+  for (let t = 0; t <= tlDurationSec; t += 0.5) {
+    const x = t * tlPixelsPerSec;
+    const isMajor = t % 1 === 0;
+    const tick = document.createElement('div');
+    tick.className = 'tl-tick' + (isMajor ? ' major' : '');
+    tick.style.left = x + 'px';
+    ruler.appendChild(tick);
+    if (isMajor) {
+      const lbl = document.createElement('span');
+      lbl.className = 'tl-tick-label';
+      lbl.style.left = x + 'px';
+      lbl.textContent = t + 's';
+      ruler.appendChild(lbl);
+    }
+  }
+  
+  // Sidebar + Track Rows
+  sidebar.innerHTML = '';
+  rows.innerHTML = '';
+  rows.style.width = totalW + 'px';
+  
+  tlTracks.forEach((track, i) => {
+    // Sidebar label
+    const label = document.createElement('div');
+    label.className = 'tl-track-label';
+    label.textContent = track.name;
+    label.title = 'Click to select element';
+    label.onclick = () => {
+      if (track.el && track.el.isConnected) {
+        clearMultiSelect();
+        selectEl(track.el);
+      }
+    };
+    // Remove button
+    const rmBtn = document.createElement('button');
+    rmBtn.textContent = '✕';
+    rmBtn.style.cssText = 'background:none;border:none;color:var(--accent2);cursor:pointer;margin-left:auto;font-size:10px;padding:0 4px';
+    rmBtn.onclick = (e) => { e.stopPropagation(); tlTracks.splice(i, 1); tlRender(); };
+    label.appendChild(rmBtn);
+    sidebar.appendChild(label);
+    
+    // Track row
+    const row = document.createElement('div');
+    row.className = 'anim-tl-track-row';
+    row.style.width = totalW + 'px';
+    
+    // Animation bar
+    const bar = document.createElement('div');
+    bar.className = 'anim-tl-bar';
+    const startX = track.delay * tlPixelsPerSec;
+    const barW = Math.max(track.dur * tlPixelsPerSec, 20);
+    bar.style.left = startX + 'px';
+    bar.style.width = barW + 'px';
+    
+    const barLabel = document.createElement('span');
+    barLabel.className = 'tl-bar-label';
+    barLabel.textContent = track.anim ? track.anim.split(' ')[0] : 'no anim';
+    bar.appendChild(barLabel);
+    
+    // Resize handles
+    const lHandle = document.createElement('div');
+    lHandle.className = 'tl-resize-handle left';
+    bar.appendChild(lHandle);
+    const rHandle = document.createElement('div');
+    rHandle.className = 'tl-resize-handle right';
+    bar.appendChild(rHandle);
+    
+    // Drag bar to change delay
+    let dragStart = 0, origLeft = 0;
+    bar.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('tl-resize-handle')) return;
+      e.preventDefault();
+      dragStart = e.clientX;
+      origLeft = parseFloat(bar.style.left);
+      const onMove = (ev) => {
+        const dx = ev.clientX - dragStart;
+        const newLeft = Math.max(0, origLeft + dx);
+        bar.style.left = newLeft + 'px';
+        track.delay = newLeft / tlPixelsPerSec;
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    
+    // Resize right handle to change duration
+    rHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const startX2 = e.clientX;
+      const origW = parseFloat(bar.style.width);
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX2;
+        const newW = Math.max(20, origW + dx);
+        bar.style.width = newW + 'px';
+        track.dur = newW / tlPixelsPerSec;
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    
+    // Resize left handle to change delay+duration
+    lHandle.addEventListener('mousedown', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const startX2 = e.clientX;
+      const origL = parseFloat(bar.style.left);
+      const origW = parseFloat(bar.style.width);
+      const onMove = (ev) => {
+        const dx = ev.clientX - startX2;
+        const newL = Math.max(0, origL + dx);
+        const newW = Math.max(20, origW - dx);
+        bar.style.left = newL + 'px';
+        bar.style.width = newW + 'px';
+        track.delay = newL / tlPixelsPerSec;
+        track.dur = newW / tlPixelsPerSec;
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+    
+    // Keyframes (diamond markers)
+    track.keyframes.forEach((kf, ki) => {
+      const marker = document.createElement('div');
+      marker.className = 'anim-tl-keyframe';
+      marker.style.left = (track.delay + kf.time * track.dur) * tlPixelsPerSec + 'px';
+      marker.title = (kf.time * 100).toFixed(0) + '%';
+      row.appendChild(marker);
+    });
+    
+    // Double-click row to add keyframe
+    row.addEventListener('dblclick', (e) => {
+      const rect = row.getBoundingClientRect();
+      const x = e.clientX - rect.left + row.parentElement.scrollLeft;
+      const timeSec = x / tlPixelsPerSec;
+      const relTime = Math.max(0, Math.min(1, (timeSec - track.delay) / track.dur));
+      track.keyframes.push({ time: relTime, props: {} });
+      track.keyframes.sort((a, b) => a.time - b.time);
+      tlRender();
+      toast('Keyframe added at ' + (relTime * 100).toFixed(0) + '%');
+    });
+    
+    row.appendChild(bar);
+    rows.appendChild(row);
+  });
+  
+  // Update playhead
+  tlUpdatePlayhead();
+}
+
+function tlUpdatePlayhead() {
+  const ph = document.getElementById('tlPlayhead');
+  ph.style.left = (tlCurrentTime * tlPixelsPerSec) + 'px';
+  document.getElementById('tlTimeDisplay').textContent = tlCurrentTime.toFixed(2) + 's';
+}
+
+function tlPlay() {
+  if (tlPlaying) { tlPause(); return; }
+  tlPlaying = true;
+  document.getElementById('tlPlayBtn').textContent = '⏸ Pause';
+  document.getElementById('tlPlayBtn').classList.add('active');
+  
+  // Apply animations to elements
+  tlTracks.forEach(track => {
+    if (!track.el || !track.el.isConnected) return;
+    const preset = Object.entries(ANIM_PRESETS).find(([k, v]) => {
+      const parts = (track.anim || '').split(' ');
+      return parts[0] === v.name;
+    });
+    if (preset) {
+      const tag = ensureAnimStyleTag();
+      if (tag && !tag.textContent.includes(preset[1].keyframes)) {
+        tag.textContent += '\n' + preset[1].keyframes;
+      }
+    }
+    const dur = track.dur.toFixed(2) + 's';
+    const delay = track.delay.toFixed(2) + 's';
+    const animName = track.anim ? track.anim.split(' ')[0] : '';
+    if (animName) {
+      track.el.style.animation = 'none';
+      track.el.offsetHeight;
+      track.el.style.animation = animName + ' ' + dur + ' ease ' + delay + ' 1 normal forwards';
+    }
+  });
+  
+  const startT = performance.now() - (tlCurrentTime * 1000);
+  const animate = () => {
+    if (!tlPlaying) return;
+    tlCurrentTime = (performance.now() - startT) / 1000;
+    if (tlCurrentTime >= tlDurationSec) {
+      tlCurrentTime = tlDurationSec;
+      tlPlaying = false;
+      document.getElementById('tlPlayBtn').textContent = '▶ Play';
+      document.getElementById('tlPlayBtn').classList.remove('active');
+    }
+    tlUpdatePlayhead();
+    if (tlPlaying) tlPlayTimer = requestAnimationFrame(animate);
+  };
+  tlPlayTimer = requestAnimationFrame(animate);
+}
+
+function tlPause() {
+  tlPlaying = false;
+  if (tlPlayTimer) cancelAnimationFrame(tlPlayTimer);
+  document.getElementById('tlPlayBtn').textContent = '▶ Play';
+  document.getElementById('tlPlayBtn').classList.remove('active');
+}
+
+function tlStop() {
+  tlPause();
+  tlCurrentTime = 0;
+  tlUpdatePlayhead();
+  // Reset element animations
+  tlTracks.forEach(track => {
+    if (track.el && track.el.isConnected) {
+      track.el.style.animation = track.anim || '';
+    }
+  });
+}
+
+function tlRewind() {
+  tlPause();
+  tlCurrentTime = 0;
+  tlUpdatePlayhead();
+}
+
+function tlApplyAll() {
+  tlTracks.forEach(track => {
+    if (!track.el || !track.el.isConnected) return;
+    const animName = track.anim ? track.anim.split(' ')[0] : '';
+    if (!animName) return;
+    const timing = document.getElementById('pp-anim-timing')?.value || 'ease';
+    const iter = document.getElementById('pp-anim-iter')?.value || '1';
+    const dir = document.getElementById('pp-anim-dir')?.value || 'normal';
+    const fill = document.getElementById('pp-anim-fill')?.value || 'forwards';
+    track.el.style.animation = animName + ' ' + track.dur.toFixed(2) + 's ' + timing + ' ' + track.delay.toFixed(2) + 's ' + iter + ' ' + dir + ' ' + fill;
+  });
+  scheduleSyncToCodeFromVisual();
+  toast('Timeline animations applied ✅');
+}
+
+// Click on ruler/tracks area to scrub
+document.getElementById('tlTracksArea')?.addEventListener('mousedown', function(e) {
+  if (e.target.closest('.anim-tl-bar') || e.target.closest('.anim-tl-keyframe')) return;
+  const rect = this.getBoundingClientRect();
+  const scrub = (ev) => {
+    const x = ev.clientX - rect.left + this.scrollLeft;
+    tlCurrentTime = Math.max(0, Math.min(tlDurationSec, x / tlPixelsPerSec));
+    tlUpdatePlayhead();
+  };
+  scrub(e);
+  const onMove = (ev) => scrub(ev);
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
+// When an animation preset is applied, update the track's anim field
+const _origApplyAnimPreset = applyAnimPreset;
+applyAnimPreset = function(presetKey) {
+  _origApplyAnimPreset(presetKey);
+  const preset = ANIM_PRESETS[presetKey];
+  if (!preset) return;
+  const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
+  els.forEach(el => {
+    const track = tlTracks.find(t => t.el === el);
+    if (track) {
+      track.anim = preset.name + ' ' + (track.dur || 1) + 's ease 0s 1 normal forwards';
+      tlRender();
+    }
+  });
+};
+
 </script>
+
+  <!-- ANIMATION TIMELINE PANEL -->
+  <div class="anim-timeline-panel" id="animTimelinePanel">
+    <div class="anim-timeline-header">
+      <span class="tl-title">🎬 Animation Timeline</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button onclick="tlAddTrack()" title="Add animation track">+ Track</button>
+        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+      </div>
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+    <div class="anim-tl-controls">
+      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
+      <button onclick="tlStop()">⏹ Stop</button>
+      <button onclick="tlRewind()">⏮</button>
+      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
+      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
+      <input type="range" id="tlDuration" min="0.5" max="10" step="0.5" value="3" oninput="tlSetDuration(this.value)" style="width:80px">
+      <span class="tl-time-display" id="tlDurLabel">3.0s</span>
+      <span style="flex:1"></span>
+      <button onclick="tlApplyAll()" style="background:var(--accent);color:#fff;border-color:var(--accent)">Apply to Code</button>
+    </div>
+  </div>
+
 </body>
 </html>
