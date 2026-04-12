@@ -263,6 +263,11 @@
   --seoFootH:30px;
   --glass: rgba(24, 24, 31, 0.75);
   --glass-border: rgba(255, 255, 255, 0.1);
+  --shadow-elevated: rgba(0, 0, 0, 0.45);
+  --tl-spacer-bg: rgba(0, 0, 0, 0.14);
+  --tl-ruler-bg: rgba(255, 255, 255, 0.04);
+  --tl-row-hover: rgba(255, 255, 255, 0.06);
+  --tl-keyframe-outline: #ffffff;
 }
 
 html[data-theme="light"]{
@@ -275,6 +280,13 @@ html[data-theme="light"]{
   --btn:#dfe2ec;
   --btnhov:#d0d4e4;
   --status-fg:rgba(255,255,255,.95);
+  --glass: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --shadow-elevated: rgba(0, 0, 0, 0.12);
+  --tl-spacer-bg: rgba(0, 0, 0, 0.06);
+  --tl-ruler-bg: rgba(0, 0, 0, 0.04);
+  --tl-row-hover: rgba(108, 99, 255, 0.08);
+  --tl-keyframe-outline: var(--panel);
 }
 
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif}
@@ -297,6 +309,7 @@ body.pv-fs #paneResizer{display:none!important}
 body.pv-fs #panels{flex:1;height:100%;min-height:0}
 body.pv-fs #previewPane{flex:1!important;width:100%!important;max-width:none!important;min-width:0!important}
 body.pv-fs .tb-hamburger,
+body.pv-fs .tb-mobile-tools,
 body.pv-fs .mobile-bottom-nav,
 body.pv-fs .mobile-sidebar-backdrop{display:none!important}
 body.pv-fs .workspace{padding-bottom:0!important}
@@ -312,6 +325,7 @@ body.shared-preview-only #paneResizer{display:none!important}
 body.shared-preview-only #panels{flex:1;height:100%;min-height:0}
 body.shared-preview-only #previewPane{flex:1!important;width:100%!important;max-width:none!important;min-width:0!important}
 body.shared-preview-only .tb-hamburger,
+body.shared-preview-only .tb-mobile-tools,
 body.shared-preview-only .mobile-bottom-nav,
 body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 
@@ -439,9 +453,10 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .file-tree { flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; scrollbar-width: thin; padding-right: 2px; }
 .file-tree::-webkit-scrollbar{ width: 6px; height: 6px; }
 .file-tree::-webkit-scrollbar-thumb{ background: var(--border); border-radius: 4px; }
-.file-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; border-radius: 6px; transition: all 0.2s; color: var(--text); opacity: 0.85; }
+.file-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; border-radius: 6px; transition: background 0.2s, opacity 0.2s; color: var(--text); opacity: 0.92; }
 .file-row:hover { background: var(--btnhov); opacity: 1; transform: translateX(2px); }
 .file-row.active { background: rgba(108, 99, 255, 0.1); color: var(--accent); opacity: 1; border-left: 2px solid var(--accent); }
+html[data-theme="light"] .file-row.active { background: rgba(108, 99, 255, 0.14); color: var(--accent); }
 .file-ic { font-size: 14px; width: 18px; text-align: center; display: flex; align-items: center; justify-content: center; }
 .file-children { margin-left: 14px; border-left: 1px solid var(--border); display: none; padding-left: 4px; }
 
@@ -731,6 +746,9 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .toast.show{opacity:1;transform:translateY(0)}
 
 .tb-hamburger{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.mob-menu-icon-mobile{display:none!important}
+.tb-mobile-tools{display:none!important}
+.mobile-drawer-close{display:none!important}
 .mobile-sidebar-backdrop{display:none}
 .mobile-bottom-nav{display:none}
 
@@ -748,7 +766,14 @@ body.sidebar-hidden #paneResizer{display:none!important}
 
   /* ── NARROW VIEWPORTS (phones / small tablets) ── */
 @media (max-width:900px){
-  :root{--mobileNavH:56px}
+  :root{
+    --mobileNavH:56px;
+    --mobileDockBottom:calc(24px + var(--mobileNavH) + 20px + env(safe-area-inset-bottom, 0px));
+  }
+  .mob-menu-icon-desktop{display:none!important}
+  .mob-menu-icon-mobile{display:inline!important}
+  .tb-mobile-tools{display:inline-flex!important;align-items:center;justify-content:center;flex-shrink:0}
+  .mobile-drawer-close{display:inline-flex!important;align-items:center;justify-content:center;min-width:40px;min-height:40px;font-size:16px;line-height:1;border-radius:10px;-webkit-tap-highlight-color:transparent}
   .tb-hamburger{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
   .mode-tabs{display:none!important}
   .mobile-bottom-nav{
@@ -809,7 +834,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
   .prop-panel {
     position: fixed !important;
     left: 0; right: 0;
-    bottom: var(--mobileNavH);
+    bottom: var(--mobileDockBottom);
     width: 100% !important; max-width: none; min-width: 0;
     border-left: none; border-top: 2px solid var(--accent);
     border-radius: 16px 16px 0 0;
@@ -845,10 +870,20 @@ body.sidebar-hidden #paneResizer{display:none!important}
   #browserTabs { margin-left: 4px !important; }
   .browser-tab { padding: 0 8px !important; font-size: 10px !important; }
 
+  .anim-timeline-panel{
+    left:0!important;
+    right:0!important;
+    bottom:var(--mobileDockBottom)!important;
+    z-index:10055!important;
+  }
+  body.prop-open .anim-timeline-panel,
+  body.chat-open .anim-timeline-panel{right:0!important}
+  .tl-anim-modal-overlay{z-index:10180!important;padding-bottom:max(16px,calc(var(--mobileDockBottom) + min(38vh,420px) + 12px))!important}
+  .sb-toolbar .sb-icbtn{min-width:44px;min-height:44px;padding:10px;-webkit-tap-highlight-color:transparent}
   #terminalPanel {
     position: fixed !important;
     left: 0 !important; right: 0 !important;
-    bottom: calc(var(--mobileNavH) + 20px) !important;
+    bottom: var(--mobileDockBottom) !important;
     width: 100% !important;
     height: 40vh !important;
     z-index: 10030;
@@ -864,7 +899,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
     z-index:100100;border-right:1px solid var(--border);border-bottom:none;
     transform:translateX(-100%);transition:transform .25s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow:none;
-    padding-top: 20px;
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
     display: none;
   }
   body.mobile-sidebar-open #sidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex;}
@@ -1304,9 +1339,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
   flex-direction:column;
   transition:all .25s ease;
   overflow:hidden;
-  box-shadow:0 -8px 30px rgba(0,0,0,0.4);
+  box-shadow:0 -8px 32px var(--shadow-elevated);
 }
-.anim-timeline-panel.open{height:min(52vh,560px)}
+.anim-timeline-panel.open{height:min(38vh,420px)}
 body.prop-open .anim-timeline-panel { right: var(--propW); }
 body.chat-open .anim-timeline-panel { right: var(--chatDockW, 380px); }
 body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(--chatDockW, 380px)); }
@@ -1317,7 +1352,7 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 .anim-timeline-header button:hover{background:var(--btn)}
 .anim-tl-body{display:flex;flex:1;min-height:0;overflow:hidden}
 .anim-tl-sidebar{width:168px;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;flex-shrink:0;padding:0;min-height:0;overscroll-behavior:contain}
-.anim-tl-sidebar .tl-sidebar-ruler-spacer{height:24px;flex-shrink:0;border-bottom:1px solid var(--border);background:rgba(0,0,0,.12)}
+.anim-tl-sidebar .tl-sidebar-ruler-spacer{height:24px;flex-shrink:0;border-bottom:1px solid var(--border);background:var(--tl-spacer-bg)}
 .anim-tl-sidebar .tl-track-label{
   font-size:10px;
   color:var(--text);
@@ -1337,10 +1372,10 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 .tl-track-label i { font-size:14px; opacity:0.7; flex-shrink:0; }
 .tl-track-flags{display:flex;align-items:center;gap:0;flex-shrink:0}
 .tl-track-flags button{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px;border-radius:4px;line-height:1;display:flex;align-items:center;justify-content:center}
-.tl-track-flags button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.tl-track-flags button:hover{color:var(--text);background:var(--tl-row-hover)}
 .tl-track-flags button.on{color:var(--accent)}
 .tl-track-flags button.tl-off{opacity:0.35}
-.anim-tl-sidebar .tl-track-label:hover{background:rgba(255,255,255,0.05)}
+.anim-tl-sidebar .tl-track-label:hover{background:var(--tl-row-hover)}
 .anim-tl-sidebar .tl-track-label.active{color:var(--accent);background:rgba(108,99,255,.08);border-left:2px solid var(--accent)}
 
 .anim-tl-tracks{
@@ -1372,9 +1407,9 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 .anim-tl-bar .tl-resize-handle{position:absolute;top:0;width:6px;height:100%;cursor:ew-resize}
 .anim-tl-bar .tl-resize-handle.left{left:0;border-radius:4px 0 0 4px}
 .anim-tl-bar .tl-resize-handle.right{right:0;border-radius:0 4px 4px 0}
-.anim-tl-keyframe{position:absolute;top:10px;width:10px;height:10px;background:var(--accent2);border:1px solid #fff;border-radius:2px;transform:rotate(45deg) translateX(-50%);cursor:pointer;z-index:3}
+.anim-tl-keyframe{position:absolute;top:10px;width:10px;height:10px;background:var(--accent2);border:1px solid var(--tl-keyframe-outline);border-radius:2px;transform:rotate(45deg) translateX(-50%);cursor:pointer;z-index:3}
 .anim-tl-keyframe:hover{background:#ff3366;transform:rotate(45deg) translateX(-50%) scale(1.2)}
-.anim-tl-ruler{height:24px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;display:flex;align-items:flex-end}
+.anim-tl-ruler{height:24px;background:var(--tl-ruler-bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;display:flex;align-items:flex-end}
 .anim-tl-ruler .tl-tick{position:absolute;bottom:0;width:1px;height:6px;background:var(--muted);opacity:0.3}
 .anim-tl-ruler .tl-tick.mid{height:10px;opacity:0.6}
 .anim-tl-ruler .tl-tick.major{height:16px;background:var(--accent);opacity:1}
@@ -1386,24 +1421,29 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 .anim-tl-playhead::before{content:'';position:absolute;top:0;left:-6px;width:14px;height:14px;background:var(--accent2);clip-path:polygon(0 0, 100% 0, 100% 30%, 50% 100%, 0 30%);box-shadow: 0 2px 4px rgba(0,0,0,0.3);pointer-events:none}
 .tl-playhead-hit{position:absolute;left:-12px;width:26px;top:0;bottom:0;cursor:ew-resize;pointer-events:auto;z-index:12;background:transparent}
 .anim-tl-snap-line{position:absolute;top:24px;width:1px;background:rgba(234,179,8,.85);z-index:9;pointer-events:none;display:none}
-.anim-tl-keyframe.selected{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
+.anim-tl-keyframe.selected{box-shadow:0 0 0 2px var(--tl-keyframe-outline),0 0 0 4px var(--accent)}
 .anim-tl-controls{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0}
 .anim-tl-controls button{background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace}
 .anim-tl-controls button:hover{border-color:var(--accent);color:var(--accent)}
 .anim-tl-controls button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .anim-tl-controls .tl-time-display{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:60px;text-align:center}
 .anim-tl-controls input[type=range]{width:80px;accent-color:var(--accent)}
-/* Timeline inspector (Premiere-style: clip row + sequence) */
-.tl-inspector{
-  flex-shrink:0;
-  border-bottom:1px solid var(--border);
-  background:linear-gradient(180deg,rgba(108,99,255,.08),transparent);
-  max-height:min(240px,38vh);
-  overflow:auto;
-  overscroll-behavior:contain;
+/* Animation config modal (above timeline) */
+.tl-anim-modal-overlay{
+  display:none;position:fixed;inset:0;z-index:10020;align-items:center;justify-content:center;padding:16px;padding-bottom:max(16px,calc(24px + min(38vh,420px) + 20px));
+  box-sizing:border-box;pointer-events:none;
 }
-.tl-inspector-empty{padding:10px 14px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
-.tl-inspector-body{padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
+.tl-anim-modal-overlay.open{pointer-events:auto}
+.tl-anim-modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
+.tl-anim-modal-box{
+  position:relative;z-index:1;width:min(420px,calc(100vw - 32px));max-height:min(72vh,calc(100dvh - 120px));overflow:auto;
+  background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  box-shadow:0 16px 48px var(--shadow-elevated);display:flex;flex-direction:column;
+}
+.tl-anim-modal-header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--sb)}
+.tl-anim-modal-header h2{margin:0;font-size:13px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace}
+.tl-inspector-body{padding:12px 14px 14px;display:none;flex-direction:column;gap:8px;flex:1;min-height:0;overflow:auto}
 .tl-inspector-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
 .tl-inspect-tag{font-size:10px;font-weight:700;background:var(--accent);color:#fff;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace}
 .tl-inspect-name{font-size:11px;color:var(--text);font-family:'JetBrains Mono',monospace;opacity:.9;word-break:break-all}
@@ -1435,7 +1475,11 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 <!-- TOPBAR -->
 <div class="topbar">
   <div class="tb-left">
-    <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileSidebar()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><i class="codicon codicon-menu"></i></button>
+    <button type="button" class="tb-btn icon-only tb-hamburger" id="mobileMenuBtn" onclick="toggleMobileMenuBtn()" aria-label="Open tools menu" aria-expanded="false" aria-controls="sidebar">
+      <i class="codicon codicon-menu mob-menu-icon-desktop" aria-hidden="true"></i>
+      <i class="codicon codicon-files mob-menu-icon-mobile" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="tb-btn icon-only tb-mobile-tools" id="mobileToolsBtn" onclick="toggleMobileSidebar()" title="Tools &amp; actions" aria-label="Tools and actions" aria-expanded="false" aria-controls="sidebar"><i class="codicon codicon-layout-panel"></i></button>
     <span class="logo">J-IDE</span>
   </div>
   
@@ -1484,9 +1528,12 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 
   <!-- FILE SIDEBAR (Explorer) -->
   <div class="sidebar" id="fileSidebar">
-    <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
+    <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px;gap:6px">
       <div class="sb-label" style="padding:0">Files</div>
-      <button class="pp-icon-btn" title="Float file sidebar" onclick="toggleFloat('fileSidebar')"><i class="codicon codicon-screen-full"></i></button>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button type="button" class="mobile-drawer-close pp-icon-btn" onclick="closeMobileSidebar()" title="Close" aria-label="Close file list">✕</button>
+        <button class="pp-icon-btn" title="Float file sidebar" onclick="toggleFloat('fileSidebar')"><i class="codicon codicon-screen-full"></i></button>
+      </div>
     </div>
     <div class="sb-toolbar">
       <button class="sb-icbtn" title="Open Folder" onclick="pickFolder()"><i class="codicon codicon-folder-opened"></i></button>
@@ -1502,9 +1549,12 @@ body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(-
 
   <!-- SIDEBAR (Features) -->
   <div class="sidebar" id="sidebar" style="display:none;">
-    <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px">
-      <div class="sb-label" style="padding:0">Sidebar</div>
-      <button class="pp-icon-btn" title="Float sidebar" onclick="toggleFloat('sidebar')"><i class="codicon codicon-screen-full"></i></button>
+    <div class="sb-header" style="display:flex;align-items:center;justify-content:space-between;padding:0 8px;gap:6px">
+      <div class="sb-label" style="padding:0">Tools</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button type="button" class="mobile-drawer-close pp-icon-btn" onclick="closeMobileSidebar()" title="Close" aria-label="Close tools menu">✕</button>
+        <button class="pp-icon-btn" title="Float sidebar" onclick="toggleFloat('sidebar')"><i class="codicon codicon-screen-full"></i></button>
+      </div>
     </div>
     <div class="sb-sep"></div>
     <div class="sb-label">Preview</div>
@@ -3106,6 +3156,8 @@ require(['vs/editor/editor.main'], () => {
   runCode();
   setStatus('Editor ready');
   syncMinimapButton();
+  syncMobileMenuAria();
+  syncMobileBottomNav();
   try{
     var edBtn=document.getElementById('ppEyeDropperBtn');
     if(edBtn && !window.EyeDropper) edBtn.style.display='none';
@@ -3119,13 +3171,26 @@ function isMobileLayout(){
   try{return window.matchMedia('(max-width:900px)').matches;}catch(e){return window.innerWidth<=900;}
 }
 function syncMobileMenuAria(){
-  var open = isMobileLayout() 
-    ? (document.body.classList.contains('mobile-sidebar-open') || document.body.classList.contains('mobile-file-sidebar-open'))
-    : !document.body.classList.contains('sidebar-hidden');
-  var btn=document.getElementById('mobileMenuBtn');
-  if(btn) btn.setAttribute('aria-expanded',open?'true':'false');
+  var mobile=isMobileLayout();
+  var menuBtn=document.getElementById('mobileMenuBtn');
+  var toolsBtn=document.getElementById('mobileToolsBtn');
+  var sb=document.getElementById('sidebar');
+  var fileOpen=mobile&&document.body.classList.contains('mobile-file-sidebar-open');
+  var toolsOpenMobile=mobile&&document.body.classList.contains('mobile-sidebar-open');
+  var toolsOpenDesktop=!mobile&&sb&&sb.style.display!=='none';
+  if(menuBtn){
+    menuBtn.setAttribute('aria-expanded',mobile?(fileOpen?'true':'false'):(toolsOpenDesktop?'true':'false'));
+    menuBtn.setAttribute('aria-controls',mobile?'fileSidebar':'sidebar');
+    menuBtn.setAttribute('aria-label',mobile?'Files and project':'Open tools menu');
+  }
+  if(toolsBtn) toolsBtn.setAttribute('aria-expanded',toolsOpenMobile?'true':'false');
+  var anyDrawer=mobile?(fileOpen||toolsOpenMobile):toolsOpenDesktop;
   var bd=document.getElementById('mobileSidebarBackdrop');
-  if(bd) bd.setAttribute('aria-hidden',open?'false':'true');
+  if(bd) bd.setAttribute('aria-hidden',anyDrawer?'false':'true');
+}
+function toggleMobileMenuBtn(){
+  if(isMobileLayout()) toggleFileSidebar();
+  else toggleMobileSidebar();
 }
 function toggleMobileSidebar(){
   const sb = document.getElementById('sidebar');
@@ -3139,6 +3204,7 @@ function toggleMobileSidebar(){
     if(editor) editor.layout();
   }
   syncMobileMenuAria();
+  syncMobileBottomNav();
 }
 function toggleFileSidebar(){
   const fsb = document.getElementById('fileSidebar');
@@ -3156,6 +3222,7 @@ function toggleFileSidebar(){
     if(editor) editor.layout();
   }
   syncMobileMenuAria();
+  syncMobileBottomNav();
 }
 function closeMobileSidebar(){
   document.body.classList.remove('mobile-sidebar-open');
@@ -3164,6 +3231,7 @@ function closeMobileSidebar(){
   syncMobileMenuAria();
   const btn = document.getElementById('tb-file-hamburger');
   if (btn) btn.classList.remove('active');
+  syncMobileBottomNav();
 }
 /** Bottom bar: split maps to Preview (live page focus). */
 function syncMobileBottomNav(){
@@ -3470,6 +3538,24 @@ function resolveVFSReferences(html, currentFilePath) {
   return html;
 }
 
+/* Preview: help external images (e.g. Discord CDN) load inside sandboxed srcdoc */
+function injectPreviewDocumentBoost(html) {
+  var h = html;
+  var refMeta = '<meta name="referrer" content="no-referrer">';
+  if (/<head[^>]*>/i.test(h)) {
+    h = h.replace(/<head[^>]*>/i, function(m) { return m + refMeta; });
+  } else if (/<html[\s>]/i.test(h)) {
+    h = h.replace(/<html([^>]*)>/i, function(_, a) { return '<html' + a + '><head><meta charset="UTF-8">' + refMeta + '</head>'; });
+  }
+  h = h.replace(/<img\b([^>]*?)\bsrc\s*=\s*(["'])([^"']+)\2/gi, function(full, pre, q, src) {
+    if (!/^https?:\/\//i.test(src) || /^data:/i.test(src) || /images\.weserv\.nl/i.test(src)) return full;
+    if (!/discordapp\.(com|net)/i.test(src)) return full;
+    var proxied = 'https://images.weserv.nl/?url=' + encodeURIComponent(src);
+    return '<img' + pre + 'src=' + q + proxied + q;
+  });
+  return h;
+}
+
 /* ─── PREVIEW INJECTION SCRIPT ─── */
 const PREVIEW_INJECT_SCRIPT = `<script data-injected="vfs-preview">
 (function(){
@@ -3532,6 +3618,7 @@ function renderPreview(path) {
   if (ext === 'html' || ext === 'htm') {
     // ═══ RESOLVE ALL VFS FILE REFERENCES ═══
     v = resolveVFSReferences(v, path);
+    v = injectPreviewDocumentBoost(v);
     
     // Inject console proxy & navigation helper
     if (v.includes('</head>')) {
@@ -6802,7 +6889,7 @@ document.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();closeDiffModal();}
     return;
   }
-  if(document.body.classList.contains('mobile-sidebar-open') && e.key==='Escape'){
+  if(isMobileLayout() && (document.body.classList.contains('mobile-sidebar-open')||document.body.classList.contains('mobile-file-sidebar-open')) && e.key==='Escape'){
     e.preventDefault();
     closeMobileSidebar();
     return;
@@ -9849,21 +9936,44 @@ function tlGhostSyncFromInspector() {
   } catch (e) {}
 }
 
-function tlInspectorVisibility() {
-  var empty = document.getElementById('tlInspectorEmpty');
+function tlCloseAnimConfigPopup() {
+  var o = document.getElementById('tlAnimConfigOverlay');
+  if (o) {
+    o.style.display = 'none';
+    o.classList.remove('open');
+    o.setAttribute('aria-hidden', 'true');
+  }
+}
+
+function tlOpenAnimConfigPopup() {
+  var o = document.getElementById('tlAnimConfigOverlay');
   var body = document.getElementById('tlInspectorBody');
   if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) {
-    if (empty) empty.style.display = 'block';
-    if (body) body.style.display = 'none';
+    tlCloseAnimConfigPopup();
     return;
   }
-  if (empty) empty.style.display = 'none';
+  var panel = document.getElementById('animTimelinePanel');
+  if (panel && !panel.classList.contains('open')) return;
+  if (o) {
+    o.style.display = 'flex';
+    o.classList.add('open');
+    o.setAttribute('aria-hidden', 'false');
+  }
   if (body) body.style.display = 'flex';
+}
+
+function tlTryOpenAnimConfigPopup() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) {
+    toast('Select a track in the timeline first');
+    return;
+  }
+  tlFillInspectorFromTrack(tlSelectedTrackIdx);
+  tlOpenAnimConfigPopup();
 }
 
 function tlFillInspectorFromTrack(idx) {
   if (idx < 0 || !tlTracks[idx]) {
-    tlInspectorVisibility();
+    tlCloseAnimConfigPopup();
     return;
   }
   var track = tlTracks[idx];
@@ -9910,7 +10020,6 @@ function tlFillInspectorFromTrack(idx) {
     if (tagEl) tagEl.textContent = '—';
     if (nameEl) nameEl.textContent = '(element missing)';
   }
-  tlInspectorVisibility();
   tlGhostSyncFromInspector();
 }
 
@@ -10081,6 +10190,8 @@ function tlTogglePanel() {
   if (document.getElementById('animTimelinePanel').classList.contains('open')) {
     tlUpdateChatDockInset();
     tlInitTimelineInteractions();
+  } else {
+    tlCloseAnimConfigPopup();
   }
 }
 
@@ -10481,9 +10592,17 @@ function tlInitTimelineInteractions() {
     });
   }
   document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var ov = document.getElementById('tlAnimConfigOverlay');
+      if (ov && ov.classList.contains('open')) {
+        e.preventDefault();
+        tlCloseAnimConfigPopup();
+        return;
+      }
+    }
     const panel = document.getElementById('animTimelinePanel');
     if (!panel || !panel.classList.contains('open')) return;
-    if (!e.target.closest('#animTimelinePanel')) return;
+    if (!e.target.closest('#animTimelinePanel') && !e.target.closest('#tlAnimConfigOverlay')) return;
     if (e.key === 'Delete' || e.key === 'Backspace') {
       if (tlSelectedKeyframeKeys.size) {
         e.preventDefault();
@@ -10664,8 +10783,10 @@ function tlRender() {
       else if (tlSelectedTrackIdx > was) tlSelectedTrackIdx--;
       if (tlSelectedTrackIdx >= tlTracks.length) tlSelectedTrackIdx = -1;
       tlRender();
-      if (tlSelectedTrackIdx >= 0) tlFillInspectorFromTrack(tlSelectedTrackIdx);
-      else tlInspectorVisibility();
+      if (tlSelectedTrackIdx >= 0) {
+        tlFillInspectorFromTrack(tlSelectedTrackIdx);
+        tlOpenAnimConfigPopup();
+      } else tlCloseAnimConfigPopup();
     };
     label.appendChild(rmBtn);
     sidebar.appendChild(label);
@@ -11014,7 +11135,10 @@ applyAnimPreset = function(presetKey) {
       track.anim = preset.name + ' ' + (track.dur || 1) + 's ' + (track.timing || 'ease') + ' ' + (track.delay || 0) + 's ' + (track.iter || '1') + ' ' + (track.dir || 'normal') + ' ' + (track.fill || 'forwards');
       tlSyncFirstClipFromLegacy(track);
       var idx = tlTracks.indexOf(track);
-      if (panel && panel.classList.contains('open') && idx >= 0) tlFillInspectorFromTrack(idx);
+      if (panel && panel.classList.contains('open') && idx >= 0) {
+        tlFillInspectorFromTrack(idx);
+        tlOpenAnimConfigPopup();
+      }
       tlRender();
     }
   });
@@ -11057,7 +11181,7 @@ function tlClearAll() {
   tlInspectorPresetKey = null;
   tlSelectedKeyframeKeys.clear();
   tlRender();
-  tlInspectorVisibility();
+  tlCloseAnimConfigPopup();
   toast('Timeline cleared');
 }
 
@@ -11065,11 +11189,12 @@ function tlSelectTrack(idx) {
   tlSelectedTrackIdx = idx;
   var track = tlTracks[idx];
   if (!track) {
-    tlInspectorVisibility();
+    tlCloseAnimConfigPopup();
     return;
   }
   tlEnsureTrackModel(track);
   tlFillInspectorFromTrack(idx);
+  tlOpenAnimConfigPopup();
   document.querySelectorAll('#tlSidebar .tl-track-label').forEach(function(lbl, i) {
     lbl.classList.toggle('active', i === idx);
   });
@@ -11127,10 +11252,11 @@ function applyBlockAlign(align) {
   <div class="anim-timeline-panel" id="animTimelinePanel" style="z-index: 10000;" tabindex="-1">
     <div class="anim-timeline-header" style="height:auto;min-height:40px;padding:8px 14px;flex-wrap:wrap;gap:8px">
       <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0">
-        <span class="tl-title" style="font-size:12px;letter-spacing:.06em;color:#fff">TIMELINE</span>
+        <span class="tl-title" style="font-size:12px;letter-spacing:.06em;color:var(--text)">TIMELINE</span>
         <span class="tl-sub">Sequence · clips · keyframes · CSS export</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto">
+        <button type="button" class="tb-btn" onclick="tlTryOpenAnimConfigPopup()" title="CSS animation (selected track)" style="gap:4px"><i class="codicon codicon-settings-gear"></i> Animation</button>
         <button class="tb-btn icon-only" onclick="tlDetectAnimations()" title="Detect animations from preview" style="background:rgba(108,99,255,0.15);border-color:var(--accent);color:var(--accent);"><i class="codicon codicon-search"></i></button>
         <button class="tb-btn" onclick="tlAddTrack()" title="Add selected preview element(s) as track(s)" style="gap:4px"><i class="codicon codicon-add"></i> Track</button>
         <button class="tb-btn" onclick="tlAddClipToSelected()" title="Add another clip segment on selected track" style="gap:4px"><i class="codicon codicon-git-commit"></i> Clip</button>
@@ -11139,8 +11265,62 @@ function applyBlockAlign(align) {
         <button class="tb-btn icon-only" onclick="tlTogglePanel()" title="Close"><i class="codicon codicon-close"></i></button>
       </div>
     </div>
-    <div class="tl-inspector" id="tlInspector">
-      <div class="tl-inspector-empty" id="tlInspectorEmpty">Select a track on the left, or add elements with <strong>+ Track</strong>, then edit CSS animation here.</div>
+    <div class="tl-timeline-hint" style="padding:7px 14px;font-size:10px;color:var(--muted);border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;line-height:1.35">
+      Click a <strong>track</strong> or use <strong>Animation</strong> — settings open in a popup above the dock.
+    </div>
+    <div class="anim-tl-body">
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
+      <div class="anim-tl-tracks" id="tlTracksArea">
+        <div class="anim-tl-ruler" id="tlRuler"></div>
+        <div id="tlTrackRows"></div>
+        <div class="anim-tl-snap-line" id="tlSnapLine"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0">
+          <div class="tl-playhead-hit" id="tlPlayheadHit" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <div class="anim-tl-controls" style="padding:8px 16px; min-height:46px; gap:12px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+        <button class="tb-btn" onclick="tlPlay()" id="tlPlayBtn" style="background:var(--green); color:#000; border:none; min-width:80px">▶ Play</button>
+        <button class="tb-btn" onclick="tlStop()"><i class="codicon codicon-debug-stop"></i></button>
+        <button class="tb-btn" onclick="tlRewind()"><i class="codicon codicon-debug-restart"></i></button>
+        <button type="button" class="tb-btn" id="tlLoopBtn" onclick="tlToggleLoop()" title="Loop"><i class="codicon codicon-sync"></i></button>
+        <label style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">Speed
+          <select id="tlSpeedSelect" onchange="tlPlaybackRate=parseFloat(this.value);if(tlPlaying){tlPause();tlPlay();}" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:10px;">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="2">2×</option>
+          </select>
+        </label>
+        <button type="button" class="tb-btn active" id="tlSnapBtn" onclick="tlToggleSnap()" title="Snap (hold Shift while dragging to bypass)"><i class="codicon codicon-magnet"></i></button>
+      </div>
+      <span class="tl-time-display" id="tlTimeDisplay" style="font-size:12px; font-weight:700; color:var(--accent)">0.00s</span>
+      <div class="tb-div"></div>
+      <div style="display:flex; align-items:center; gap:8px">
+        <label style="font-size:11px;color:var(--muted);font-weight:600">DURATION</label>
+        <input type="range" id="tlDuration" min="1" max="20" step="0.5" value="5" oninput="tlSetDuration(this.value)" style="width:80px; cursor:pointer">
+        <span id="tlDurLabel" style="font-size:11px; color:var(--text); width:35px">5.0s</span>
+      </div>
+      <div class="tb-div"></div>
+      <div style="display:flex; align-items:center; gap:8px">
+        <label style="font-size:11px;color:var(--muted);font-weight:600">ZOOM</label>
+        <input type="range" id="tlZoomRange" min="50" max="600" step="10" value="150" oninput="tlSetZoom(this.value)" style="width:80px; cursor:pointer">
+      </div>
+      <span style="flex:1"></span>
+      <button class="tb-btn primary" onclick="tlApplyAll()" style="padding: 8px 20px; font-size:12px">Sync to Code</button>
+    </div>
+  </div>
+
+  <!-- Animation config popup (detached from timeline dock) -->
+  <div id="tlAnimConfigOverlay" class="tl-anim-modal-overlay" aria-hidden="true">
+    <div class="tl-anim-modal-backdrop" onclick="tlCloseAnimConfigPopup()"></div>
+    <div class="tl-anim-modal-box" role="dialog" aria-modal="true" aria-labelledby="tlAnimModalTitle" onclick="event.stopPropagation()">
+      <div class="tl-anim-modal-header">
+        <h2 id="tlAnimModalTitle">CSS animation</h2>
+        <button type="button" class="pp-icon-btn" onclick="tlCloseAnimConfigPopup()" title="Close (Esc)"><i class="codicon codicon-close"></i></button>
+      </div>
       <div class="tl-inspector-body" id="tlInspectorBody" style="display:none">
         <div class="tl-inspector-head">
           <span class="tl-inspect-tag" id="tlInspectTag">—</span>
@@ -11228,49 +11408,7 @@ function applyBlockAlign(align) {
         </div>
       </div>
     </div>
-    <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar"></div>
-      <div class="anim-tl-tracks" id="tlTracksArea">
-        <div class="anim-tl-ruler" id="tlRuler"></div>
-        <div id="tlTrackRows"></div>
-        <div class="anim-tl-snap-line" id="tlSnapLine"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0">
-          <div class="tl-playhead-hit" id="tlPlayheadHit" aria-hidden="true"></div>
-        </div>
-      </div>
-    </div>
-    <div class="anim-tl-controls" style="padding:8px 16px; min-height:46px; gap:12px;">
-      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-        <button class="tb-btn" onclick="tlPlay()" id="tlPlayBtn" style="background:var(--green); color:#000; border:none; min-width:80px">▶ Play</button>
-        <button class="tb-btn" onclick="tlStop()"><i class="codicon codicon-debug-stop"></i></button>
-        <button class="tb-btn" onclick="tlRewind()"><i class="codicon codicon-debug-restart"></i></button>
-        <button type="button" class="tb-btn" id="tlLoopBtn" onclick="tlToggleLoop()" title="Loop"><i class="codicon codicon-sync"></i></button>
-        <label style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">Speed
-          <select id="tlSpeedSelect" onchange="tlPlaybackRate=parseFloat(this.value);if(tlPlaying){tlPause();tlPlay();}" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:10px;">
-            <option value="0.25">0.25×</option>
-            <option value="0.5">0.5×</option>
-            <option value="1" selected>1×</option>
-            <option value="1.5">1.5×</option>
-            <option value="2">2×</option>
-          </select>
-        </label>
-        <button type="button" class="tb-btn active" id="tlSnapBtn" onclick="tlToggleSnap()" title="Snap (hold Shift while dragging to bypass)"><i class="codicon codicon-magnet"></i></button>
-      </div>
-      <span class="tl-time-display" id="tlTimeDisplay" style="font-size:12px; font-weight:700; color:var(--accent)">0.00s</span>
-      <div class="tb-div"></div>
-      <div style="display:flex; align-items:center; gap:8px">
-        <label style="font-size:11px;color:var(--muted);font-weight:600">DURATION</label>
-        <input type="range" id="tlDuration" min="1" max="20" step="0.5" value="5" oninput="tlSetDuration(this.value)" style="width:80px; cursor:pointer">
-        <span id="tlDurLabel" style="font-size:11px; color:var(--text); width:35px">5.0s</span>
-      </div>
-      <div class="tb-div"></div>
-      <div style="display:flex; align-items:center; gap:8px">
-        <label style="font-size:11px;color:var(--muted);font-weight:600">ZOOM</label>
-        <input type="range" id="tlZoomRange" min="50" max="600" step="10" value="150" oninput="tlSetZoom(this.value)" style="width:80px; cursor:pointer">
-      </div>
-      <span style="flex:1"></span>
-      <button class="tb-btn primary" onclick="tlApplyAll()" style="padding: 8px 20px; font-size:12px">Sync to Code</button>
-    </div>
   </div>
+
 </body>
 </html>
