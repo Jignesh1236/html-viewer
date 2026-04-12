@@ -587,11 +587,16 @@ html[data-theme="light"] .file-row.active { background: rgba(108, 99, 255, 0.14)
 .v-sel-inner{touch-action:none}
 
 /* ── VISUAL INFO BAR ── */
-.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:4px 10px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;flex-shrink:0;align-items:center;gap:8px;flex-wrap:wrap}
+.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:4px 10px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;flex-shrink:0;align-items:center;gap:6px;flex-wrap:wrap}
 .visual-bar.show{display:flex}
 .vbar-btn{background:rgba(108,99,255,.15);border:1px solid var(--accent);color:var(--accent);font-size:10px;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0;pointer-events:all}
 .vbar-btn:hover{background:rgba(108,99,255,.28)}
 .vbar-btn.on{background:rgba(108,99,255,.35);border-color:var(--accent)}
+.vbar-align-group{display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.15);border:1px solid rgba(108,99,255,.25);border-radius:10px;padding:2px 5px;flex-shrink:0}
+.vbar-align-group .vbar-align-label{font-size:9px;color:var(--muted);margin-right:2px;white-space:nowrap}
+.vbar-align-btn{background:transparent;border:none;color:var(--muted);padding:3px 5px;border-radius:6px;cursor:pointer;font-size:12px;line-height:1;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.vbar-align-btn:hover{background:rgba(108,99,255,.2);color:var(--accent)}
+.vbar-align-sep{width:1px;height:14px;background:rgba(108,99,255,.3);margin:0 2px;flex-shrink:0}
 .ai-pick-btn{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:5px 11px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s;white-space:nowrap;flex-shrink:0}
 .ai-pick-btn:hover{background:var(--btnhov);border-color:var(--accent);color:var(--text)}
 .ai-pick-btn.active{border-color:var(--accent2);color:var(--accent2);background:rgba(255,95,135,.12);animation:pickPulse 1s infinite}
@@ -857,8 +862,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
   .v-rotate { width: 22px !important; height: 22px !important; top: -42px !important; left: calc(50% - 11px) !important; font-size: 12px !important; }
   .v-rot-line { top: -22px !important; height: 22px !important; }
   /* Compact visual bar */
-  .visual-bar { padding: 5px 10px; font-size: 10px; flex-wrap: wrap; gap: 5px; }
-  #domReorderBtnBar { display: none; }
+  .visual-bar { padding: 5px 8px; font-size: 10px; flex-wrap: wrap; gap: 4px; }
+  .vbar-align-group { padding: 2px 4px; gap: 2px; }
+  .vbar-align-btn { padding: 4px 4px; font-size: 13px; min-width:28px; min-height:28px; }
   .preview-viewport-wrap{min-height:200px}
   #preview{min-height:180px}
   .toast { bottom: calc(var(--mobileNavH) + 40px + env(safe-area-inset-bottom, 0px)) !important; }
@@ -890,7 +896,34 @@ body.sidebar-hidden #paneResizer{display:none!important}
     border-radius: 16px 16px 0 0;
     border-top: 2px solid var(--accent);
   }
-  #aiChatPanel { height: 60vh !important; }
+  #aiChatPanel {
+    position: fixed !important;
+    left: 0 !important; right: 0 !important;
+    bottom: var(--mobileDockBottom) !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    height: 65vh !important;
+    max-height: 70vh !important;
+    border-left: none !important;
+    border-top: 2px solid var(--accent) !important;
+    border-radius: 18px 18px 0 0 !important;
+    z-index: 10025 !important;
+    box-shadow: 0 -8px 32px rgba(0,0,0,.4) !important;
+  }
+  #aiChatPanel .ai-chat-input-area { padding: 10px 12px; gap: 8px; }
+  #aiChatPanel .ai-chat-input { height: 60px; font-size: 13px; padding: 10px 12px; }
+  #aiChatPanel .ai-chat-messages { padding: 12px; gap: 12px; }
+  #aiChatPanel .ai-msg { font-size: 13px; padding: 10px 14px; }
+  #aiChatPanel .ai-chat-header { padding: 8px 12px; gap: 6px; }
+  #aiChatPanel .ai-chat-modes { padding: 2px; }
+  #aiChatPanel .ai-chat-mode { font-size: 10px; padding: 4px 6px; }
+  #aiChatPanel .pp-resizer { width: 36px; height: 4px; background: var(--border); border-radius: 2px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); cursor: grab; z-index: 10; }
+  #aiChatPanel .ai-chat-send { padding: 8px 14px; font-size: 13px; }
+  #aiChatPanel .ai-pick-btn { font-size: 10px; padding: 6px 10px; }
+  #aiChatPanel.open { animation: slideUpPanel 0.3s ease-out; }
+  @keyframes slideUpPanel { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .vbar-hint-text { display: none; }
 
   .sidebar{
     position:fixed!important;top:0;
@@ -1654,8 +1687,29 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
         </div>
       </div>
       <div class="visual-bar" id="visualBar">
-        <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;"><i class="codicon codicon-symbol-color"></i> Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
-        <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure" style="display:flex;align-items:center;gap:4px;"><i class="codicon codicon-list-flat"></i> DOM Reorder: <span id="domReorderStatus">OFF</span></button>
+        <span id="visualBarText" style="flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;font-size:10px;"><i class="codicon codicon-symbol-color"></i> <span class="vbar-hint-text">Visual Mode — Click to select · Drag to move</span></span>
+
+        <!-- Horizontal Alignment Group -->
+        <div class="vbar-align-group" title="Horizontal Alignment">
+          <span class="vbar-align-label">H:</span>
+          <button class="vbar-align-btn" onclick="applyBlockAlign('left')" title="Align Left"><i class="codicon codicon-arrow-left"></i></button>
+          <button class="vbar-align-btn" onclick="applyBlockAlign('center')" title="Center Horizontally"><i class="codicon codicon-layout-centered"></i></button>
+          <button class="vbar-align-btn" onclick="applyBlockAlign('right')" title="Align Right"><i class="codicon codicon-arrow-right"></i></button>
+          <div class="vbar-align-sep"></div>
+          <button class="vbar-align-btn" onclick="distributeElements('h')" title="Distribute Horizontally (multi-select)"><i class="codicon codicon-split-horizontal"></i></button>
+        </div>
+
+        <!-- Vertical Alignment Group -->
+        <div class="vbar-align-group" title="Vertical Alignment">
+          <span class="vbar-align-label">V:</span>
+          <button class="vbar-align-btn" onclick="applyBlockAlign('top')" title="Align Top"><i class="codicon codicon-arrow-up"></i></button>
+          <button class="vbar-align-btn" onclick="applyBlockAlign('middle')" title="Center Vertically"><i class="codicon codicon-layout-panel-center"></i></button>
+          <button class="vbar-align-btn" onclick="applyBlockAlign('bottom')" title="Align Bottom"><i class="codicon codicon-arrow-down"></i></button>
+          <div class="vbar-align-sep"></div>
+          <button class="vbar-align-btn" onclick="distributeElements('v')" title="Distribute Vertically (multi-select)"><i class="codicon codicon-split-vertical"></i></button>
+        </div>
+
+        <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure" style="display:flex;align-items:center;gap:4px;"><i class="codicon codicon-list-flat"></i> DOM Reorder: <span id="domReorderStatus">ON</span></button>
       </div>
 
       <div class="preview-viewport-wrap" id="previewViewportWrap">
@@ -2063,10 +2117,11 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
 <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeMobileSidebar()" aria-hidden="true"></div>
 
 <nav class="mobile-bottom-nav" id="mobileBottomNav" role="tablist" aria-label="Editor view">
-  <button type="button" class="mobile-nav-btn" id="mnavExplorer" onclick="toggleFileSidebar()" aria-label="Toggle explorer"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-files" style="font-size:20px !important"></i></span>Explorer</button>
+  <button type="button" class="mobile-nav-btn" id="mnavExplorer" onclick="toggleFileSidebar()" aria-label="Toggle explorer"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-files" style="font-size:20px !important"></i></span>Files</button>
   <button type="button" class="mobile-nav-btn" id="mnavCode" role="tab" data-mnav="code" aria-selected="false" onclick="setMode('code');closeMobileSidebar();" aria-label="Code editor"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-code" style="font-size:20px !important"></i></span>Code</button>
   <button type="button" class="mobile-nav-btn" id="mnavPreview" role="tab" data-mnav="preview" aria-selected="false" onclick="setMode('preview');closeMobileSidebar();" aria-label="Live preview"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-play" style="font-size:20px !important"></i></span>Preview</button>
   <button type="button" class="mobile-nav-btn" id="mnavVisual" role="tab" data-mnav="visual" aria-selected="false" onclick="setMode('visual');closeMobileSidebar();" aria-label="Visual editor"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-eye" style="font-size:20px !important"></i></span>Visual</button>
+  <button type="button" class="mobile-nav-btn" id="mnavAiChat" onclick="toggleAiChat();closeMobileSidebar();" aria-label="AI Chat Builder"><span class="mn-icon" aria-hidden="true"><i class="codicon codicon-sparkle" style="font-size:20px !important"></i></span>AI</button>
 </nav>
 
 <!-- Footer: compact by default; full copy stays in DOM inside <details> for SEO -->
@@ -2357,7 +2412,7 @@ let sharedPreviewOnly=false;
 let _sharedPreviewUiApplied=false;
 let visualModeOn=false;
 let selectedEl=null;
-let domReorderMode=false;
+let domReorderMode=true;
 let aiPickedEl=null;
 let aiPickMode=false;
 let autosaveTimer;
@@ -6759,7 +6814,15 @@ function setVisualMode(on){
   visualBar.classList.toggle('show',on);
   if(on) {
     const vbt=document.getElementById('visualBarText');
-    if(vbt) vbt.textContent=isMobileLayout()?'🎨 Visual: Tap to select · Drag to move':'🎨 Visual Mode — Click element to select · Drag to move · Handles to resize/rotate';
+    if(vbt){
+      const hint=vbt.querySelector('.vbar-hint-text');
+      const txt=isMobileLayout()?'Visual: Tap · Drag':'Visual Mode — Click to select · Drag to move · Handles to resize/rotate';
+      if(hint) hint.textContent=txt; else vbt.textContent=txt;
+    }
+    const btn=document.getElementById('domReorderBtnBar');
+    const status=document.getElementById('domReorderStatus');
+    if(btn) btn.classList.toggle('on',domReorderMode);
+    if(status) status.textContent=domReorderMode?'ON':'OFF';
   }
   const ph = document.getElementById('previewHint');
   if(ph) ph.textContent=on?'🎨 Visual':'';
@@ -8483,9 +8546,11 @@ document.addEventListener('input', function (e) {
 function toggleAiChat() {
   const panel = document.getElementById('aiChatPanel');
   const btn = document.querySelector('.tb-layout-group button[onclick="toggleAiChat()"]');
+  const mobileBtn = document.getElementById('mnavAiChat');
   const open = panel.classList.toggle('open');
   document.body.classList.toggle('chat-open', open);
   if (btn) btn.classList.toggle('active', open);
+  if (mobileBtn) mobileBtn.classList.toggle('active', open);
   if(open) {
     document.getElementById('aiChatInput').focus();
     if (editor) editor.layout();
@@ -11217,7 +11282,7 @@ function applyBlockAlign(align) {
     if (align === 'center') {
       style.left = '50%';
       style.transform = (style.transform || '').replace(/translateX\([^)]*\)/g, '').trim() + ' translateX(-50%)';
-    } else if (align === 'center-v') {
+    } else if (align === 'center-v' || align === 'middle') {
       style.top = '50%';
       style.transform = (style.transform || '').replace(/translateY\([^)]*\)/g, '').trim() + ' translateY(-50%)';
     } else if (align === 'left') {
@@ -11228,6 +11293,14 @@ function applyBlockAlign(align) {
       style.right = '0';
       style.left = 'auto';
       style.transform = style.transform.replace(/translateX\([^)]*\)/g, '').trim();
+    } else if (align === 'top') {
+      style.top = '0';
+      style.bottom = 'auto';
+      style.transform = style.transform.replace(/translateY\([^)]*\)/g, '').trim();
+    } else if (align === 'bottom') {
+      style.bottom = '0';
+      style.top = 'auto';
+      style.transform = style.transform.replace(/translateY\([^)]*\)/g, '').trim();
     }
   } else {
     if (align === 'center') {
@@ -11240,8 +11313,38 @@ function applyBlockAlign(align) {
     } else if (align === 'right') {
       style.marginLeft = 'auto';
       style.marginRight = '0';
-    } else if (align === 'center-v') {
-      toast('Vertical centering works best on Absolute elements or Flex containers');
+    } else if (align === 'center-v' || align === 'middle') {
+      const parent = selectedEl.parentElement;
+      if (parent) {
+        const ps = window.getComputedStyle(parent);
+        if (ps.display === 'flex') {
+          parent.style.alignItems = 'center';
+          toast('Set parent flexbox to center vertically');
+        } else {
+          style.display = 'flex';
+          style.alignItems = 'center';
+          style.justifyContent = computed.textAlign === 'center' ? 'center' : style.justifyContent || '';
+          toast('Applied flex centering to element');
+        }
+      }
+    } else if (align === 'top') {
+      const parent = selectedEl.parentElement;
+      if (parent && window.getComputedStyle(parent).display === 'flex') {
+        parent.style.alignItems = 'flex-start';
+        toast('Set parent flexbox align: top');
+      } else {
+        style.verticalAlign = 'top';
+        toast('Aligned top — works best inside flex/table containers');
+      }
+    } else if (align === 'bottom') {
+      const parent = selectedEl.parentElement;
+      if (parent && window.getComputedStyle(parent).display === 'flex') {
+        parent.style.alignItems = 'flex-end';
+        toast('Set parent flexbox align: bottom');
+      } else {
+        style.verticalAlign = 'bottom';
+        toast('Aligned bottom — works best inside flex/table containers');
+      }
     }
   }
 
@@ -11249,6 +11352,54 @@ function applyBlockAlign(align) {
   positionSel(r, selectedEl);
   scheduleSyncToCodeFromVisual();
   toast('Element aligned: ' + align);
+}
+
+function distributeElements(direction) {
+  const els = (typeof multiSelectedEls !== 'undefined' && multiSelectedEls.length > 1) ? multiSelectedEls : null;
+  if (!els || els.length < 3) {
+    toast('Select 3+ elements to distribute — hold Shift and click elements');
+    return;
+  }
+  const rects = els.map(el => el.getBoundingClientRect());
+  if (direction === 'h') {
+    const sorted = els.map((el,i) => ({el, rect: rects[i]})).sort((a,b) => a.rect.left - b.rect.left);
+    const totalGap = sorted[sorted.length-1].rect.left - sorted[0].rect.left;
+    const step = totalGap / (sorted.length - 1);
+    const baseLeft = sorted[0].rect.left;
+    sorted.forEach((item, i) => {
+      if (i === 0 || i === sorted.length - 1) return;
+      const cs = window.getComputedStyle(item.el);
+      const pos = cs.position;
+      const newLeft = baseLeft + step * i;
+      if (pos === 'absolute' || pos === 'fixed') {
+        const parentRect = item.el.offsetParent ? item.el.offsetParent.getBoundingClientRect() : {left:0};
+        item.el.style.left = (newLeft - parentRect.left) + 'px';
+      } else {
+        item.el.style.marginLeft = (newLeft - item.rect.left + parseFloat(cs.marginLeft||0)) + 'px';
+      }
+    });
+    scheduleSyncToCodeFromVisual();
+    toast('Distributed horizontally ↔');
+  } else {
+    const sorted = els.map((el,i) => ({el, rect: rects[i]})).sort((a,b) => a.rect.top - b.rect.top);
+    const totalGap = sorted[sorted.length-1].rect.top - sorted[0].rect.top;
+    const step = totalGap / (sorted.length - 1);
+    const baseTop = sorted[0].rect.top;
+    sorted.forEach((item, i) => {
+      if (i === 0 || i === sorted.length - 1) return;
+      const cs = window.getComputedStyle(item.el);
+      const pos = cs.position;
+      const newTop = baseTop + step * i;
+      if (pos === 'absolute' || pos === 'fixed') {
+        const parentRect = item.el.offsetParent ? item.el.offsetParent.getBoundingClientRect() : {top:0};
+        item.el.style.top = (newTop - parentRect.top) + 'px';
+      } else {
+        item.el.style.marginTop = (newTop - item.rect.top + parseFloat(cs.marginTop||0)) + 'px';
+      }
+    });
+    scheduleSyncToCodeFromVisual();
+    toast('Distributed vertically ↕');
+  }
 }
 
 </script>
