@@ -803,7 +803,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
   .pane-header span:first-of-type { display: none; }
   .editor-doc-tabs{margin-left:0; gap: 4px;}
   .editor-doc-tab{padding: 5px 8px; font-size: 10px;}
-  
+
   .workspace { 
     flex: 1 !important;
     height: auto !important;
@@ -816,12 +816,12 @@ body.sidebar-hidden #paneResizer{display:none!important}
   .panels { flex: 1; display: flex; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .pane { flex: 1; min-height: 350px; display: flex; flex-direction: column; }
   #codePane { border-bottom: 1px solid var(--border); }
-  
+
   .seo-landing-summary { display: none !important; }
   .visual-bar { font-size: 11px; padding: 10px; line-height: 1.4; }
   .modal-box { padding: 20px; border-radius: 16px; width: 92%; max-height: 85vh; }
   .modal-box h3 { font-size: 16px; margin-bottom: 10px; }
-  
+
   .pp-section { padding: 12px; }
   .pp-sec-label { font-size: 10px; margin-bottom: 6px; }
   .pp-inp { padding: 8px; font-size: 12px; }
@@ -891,7 +891,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
     border-top: 2px solid var(--accent);
   }
   #aiChatPanel { height: 60vh !important; }
-  
+
   .sidebar{
     position:fixed!important;top:0;
     bottom:0;
@@ -902,8 +902,9 @@ body.sidebar-hidden #paneResizer{display:none!important}
     padding-top: max(12px, env(safe-area-inset-top, 0px));
     display: none;
   }
-  body.mobile-sidebar-open #sidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex;}
-  body.mobile-file-sidebar-open #fileSidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex;}
+  body.mobile-sidebar-open #sidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex!important;}
+  body.mobile-file-sidebar-open #fileSidebar{transform:translateX(0);box-shadow:12px 0 40px rgba(0,0,0,.3); display: flex!important;}
+  #fileSidebar{z-index:100100!important;}
   .sb-resizer{display:none}
   .panels-resizer{display:none}
   #codePane,#previewPane{width:100%!important;min-width:0!important;flex:1 0 auto!important}
@@ -1482,7 +1483,7 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
     <button type="button" class="tb-btn icon-only tb-mobile-tools" id="mobileToolsBtn" onclick="toggleMobileSidebar()" title="Tools &amp; actions" aria-label="Tools and actions" aria-expanded="false" aria-controls="sidebar"><i class="codicon codicon-layout-panel"></i></button>
     <span class="logo">J-IDE</span>
   </div>
-  
+
   <div class="tb-center">
     <div class="mode-tabs">
       <button class="mode-tab" id="tab-code" onclick="setMode('code')"><i class="codicon codicon-code"></i>Code</button>
@@ -1629,7 +1630,7 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
         <div class="pane-dot pd-preview"></div>
         <div id="previewTabs" style="display:flex; gap:2px; overflow-x:auto; height:100%; align-items:center; margin-left:8px; scrollbar-width:thin; min-width:0;">
         </div>
-        
+
         <!-- BROWSER URL BAR MOVED TO HEADER -->
         <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:2px 10px; font-family:'JetBrains Mono',monospace; font-size:11px; margin-left:8px; flex:1; min-width:0; height:auto;">
           <span style="color:var(--muted); font-size:12px;"><i class="codicon codicon-lock"></i></span>
@@ -1736,7 +1737,7 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
         <button class="pp-align-btn" data-align="right" onclick="applyAlign('right')" title="Right Alignment">&#8677;</button>
         <button class="pp-align-btn" data-align="justify" onclick="applyAlign('justify')" title="Justify Text">&#8644;</button>
       </div>
-      
+
       <div class="pp-field-label" style="margin-top:10px">Element Alignment</div>
       <div class="pp-align-row">
         <button class="pp-align-btn" onclick="applyBlockAlign('left')" title="Align Left (Block)">
@@ -2192,7 +2193,7 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
         <div class="pp-field-label">OG Image URL</div>
         <input class="pp-inp" id="seo-og-image" type="text" placeholder="https://example.com/image.png" oninput="updateSeoPreview()">
       </div>
-      
+
       <div class="pp-sec-label" style="margin-top:10px">Social Preview</div>
       <div class="seo-preview-card">
         <div class="seo-preview-img" id="seo-prev-img">📷 Preview Image</div>
@@ -2202,7 +2203,7 @@ html[data-theme="light"] .tl-anim-modal-backdrop{background:rgba(15,23,42,.28)}
           <div class="seo-preview-desc" id="seo-prev-desc">Your page description will appear here on social media platforms like Facebook and Twitter.</div>
         </div>
       </div>
-      
+
       <div style="display:flex; gap:8px; margin-top:10px;">
         <button class="pp-save" onclick="applySeoTags()">Apply Tags to HTML</button>
       </div>
@@ -2954,7 +2955,7 @@ try{
     appTheme = systemDark ? 'dark' : 'light';
   }
   document.documentElement.setAttribute('data-theme', appTheme);
-  
+
   // Also listen for system theme changes if no manual choice has been made
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
     if(!localStorage.getItem(THEME_KEY)) {
@@ -3077,11 +3078,11 @@ require(['vs/editor/editor.main'], () => {
   editor.onDidChangeModelContent(()=>{
     updateStats();
     scheduleAutosave();
-    
+
     // Debounced undo marking
     clearTimeout(_undoMarkTimer);
     _undoMarkTimer=setTimeout(markVisualUndoBeforeReplace,800);
-    
+
     // Update VFS with current editor content
     if(currentPath) {
       virtualFS.set(currentPath, editor.getValue());
@@ -3131,15 +3132,15 @@ require(['vs/editor/editor.main'], () => {
       const markers = monaco.editor.getModelMarkers({ resource: uri });
       const errors = markers.filter(m => m.severity === monaco.MarkerSeverity.Error).length;
       const warnings = markers.filter(m => m.severity === monaco.MarkerSeverity.Warning).length;
-      
+
       const errEl = document.getElementById('error-count');
       const warnEl = document.getElementById('warning-count');
       const errWrap = document.getElementById('status-errors');
       const warnWrap = document.getElementById('status-warnings');
-      
+
       if (errEl) errEl.textContent = errors;
       if (warnEl) warnEl.textContent = warnings;
-      
+
       if (errWrap) errWrap.style.color = errors > 0 ? '#ef4444' : 'var(--muted)';
       if (warnWrap) warnWrap.style.color = warnings > 0 ? '#facc15' : 'var(--muted)';
     }
@@ -3196,10 +3197,12 @@ function toggleMobileSidebar(){
   const sb = document.getElementById('sidebar');
   if(!sb) return;
   if(isMobileLayout()){
+    sb.style.display = '';
     document.body.classList.remove('mobile-file-sidebar-open');
     document.body.classList.toggle('mobile-sidebar-open');
   } else {
-    const isHidden = sb.style.display === 'none';
+    document.body.classList.remove('mobile-sidebar-open');
+    const isHidden = sb.style.display === 'none' || sb.style.display === '';
     sb.style.display = isHidden ? 'flex' : 'none';
     if(editor) editor.layout();
   }
@@ -3211,12 +3214,14 @@ function toggleFileSidebar(){
   const btn = document.getElementById('tb-file-hamburger');
   if(!fsb) return;
   if(isMobileLayout()){
+    fsb.style.display = '';
     document.body.classList.remove('mobile-sidebar-open');
     document.body.classList.toggle('mobile-file-sidebar-open');
     const isOpen = document.body.classList.contains('mobile-file-sidebar-open');
     if (btn) btn.classList.toggle('active', isOpen);
   } else {
-    const isHidden = fsb.style.display === 'none';
+    document.body.classList.remove('mobile-file-sidebar-open');
+    const isHidden = fsb.style.display === 'none' || fsb.style.display === '';
     fsb.style.display = isHidden ? 'flex' : 'none';
     if (btn) btn.classList.toggle('active', isHidden);
     if(editor) editor.layout();
@@ -3242,9 +3247,9 @@ function syncMobileBottomNav(){
   if(m==='code') key='code';
   else if(m==='visual') key='visual';
   else if(m==='preview'||m==='split') key='preview';
-  
+
   var fileSidebarOpen = document.body.classList.contains('mobile-file-sidebar-open');
-  
+
   nav.querySelectorAll('.mobile-nav-btn').forEach(function(b){
     var id=b.getAttribute('data-mnav');
     if(b.id === 'mnavExplorer') {
@@ -3259,11 +3264,11 @@ function syncMobileBottomNav(){
 function setMode(mode){
   if(document.body.classList.contains('pv-fs')) togglePreviewFullscreen();
   if(sharedPreviewOnly && mode!=='preview') mode='preview';
-  
+
   // Clear any pending visual mode activation
   clearTimeout(_visualModeTimer);
   _visualModeTimer = null;
-  
+
   currentMode=mode;
   const cp=document.getElementById('codePane');
   const pr=document.getElementById('paneResizer');
@@ -3367,12 +3372,12 @@ function setMode(mode){
 
 function syncVfsToServiceWorker() {
   if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
-  
+
   const files = {};
   virtualFS.forEach((content, path) => {
     files[path] = content;
   });
-  
+
   navigator.serviceWorker.controller.postMessage({
     type: 'SYNC_VFS',
     files: files
@@ -3426,7 +3431,7 @@ function resolveVFSPath(href, currentFilePath) {
 
 function resolveVFSReferences(html, currentFilePath) {
   const DIR_MARKER = '__DIR__';
-  
+
   function lookupVFS(href) {
     if (!href) return undefined;
     // Try exact path first
@@ -3594,7 +3599,7 @@ function renderPreview(path) {
   const ext = path.split('.').pop().toLowerCase();
   const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
   const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'svg'];
-  
+
   // Handle image files directly - use VFS content
   if (imgExts.includes(ext)) {
     const imgContent = virtualFS.get(path);
@@ -3608,18 +3613,18 @@ function renderPreview(path) {
       return;
     }
   }
-  
+
   if (!webExts.includes(ext)) return;
 
   // Prefer editor value if we're previewing the currently open file, otherwise use VFS
   let v = (path === currentPath && editor) ? editor.getValue() : virtualFS.get(path);
   if (v === undefined) return;
-  
+
   if (ext === 'html' || ext === 'htm') {
     // ═══ RESOLVE ALL VFS FILE REFERENCES ═══
     v = resolveVFSReferences(v, path);
     v = injectPreviewDocumentBoost(v);
-    
+
     // Inject console proxy & navigation helper
     if (v.includes('</head>')) {
       v = v.replace('</head>', PREVIEW_INJECT_SCRIPT + '\n</head>');
@@ -3628,7 +3633,7 @@ function renderPreview(path) {
     } else {
       v = v + '\n' + PREVIEW_INJECT_SCRIPT;
     }
-    
+
     // Use srcdoc for proper same-origin access
     iframeEl.srcdoc = v;
     setStatus('Preview: ' + ext.toUpperCase());
@@ -3645,7 +3650,7 @@ function renderPreview(path) {
     setTimeout(updateBrowserUi, 500);
     return;
   }
-  
+
   // Non-HTML files: wrap in appropriate viewer
   if (ext === 'css') {
     const resolved = resolveVFSReferences('<style>' + v + '</style>', path);
@@ -3803,21 +3808,21 @@ async function saveFileAs(){
 }
 function clearCode(){
   if(!confirm('Clear all code and reset project?')) return;
-  
+
   _ignoreEditorChangeForLive = true;
   editor.setValue('');
   _ignoreEditorChangeForLive = false;
-  
+
   virtualFS.clear();
   virtualFS.set('index.html', '');
   _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
   browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
   previewTabs = [{ name: 'index.html', path: 'index.html', active: true }];
   currentPath = 'index.html';
-  
+
   localStorage.removeItem(DRAFT_KEY);
   localStorage.removeItem(PROJECT_STATE_KEY);
-  
+
   renderFileTree();
   updateBrowserUi();
   runCode();
@@ -3939,7 +3944,7 @@ function updateBrowserUi() {
   if(tabsContainer) {
     const favicon = getFaviconFromIframe(); 
     const pageTitle = getTitleFromIframe(); 
-    
+
     tabsContainer.innerHTML = ''; 
     previewTabs.forEach((tab, index) => { 
       const tabEl = document.createElement('div'); 
@@ -4001,27 +4006,27 @@ function updateEditorTabs() {
     tabBtn.className = `editor-doc-tab ${tab.active ? 'active' : ''}`;
     tabBtn.role = 'tab';
     tabBtn.setAttribute('aria-selected', tab.active ? 'true' : 'false');
-    
+
     const iconUrl = getFileIcon(tab.name, 'file');
     const iconHtml = `<span class="tab-ic"><img src="${iconUrl}" style="width:14px;height:14px;object-fit:contain;"></span>`;
-    
+
     tabBtn.innerHTML = `
       ${iconHtml}
       <span>${tab.name}</span>
       <span class="tab-close" onclick="closeEditorTab(${index}, event)">×</span>
     `;
-    
+
     tabBtn.onclick = () => switchEditorTab(index);
     container.appendChild(tabBtn);
   });
-  
+
   // Re-render terminal tab if it's open
   renderTerminalTab();
 }
 
 function getLanguageByFilename(filename) {
   const ext = filename.split('.').pop().toLowerCase();
-  
+
   // Web Languages
   if(['html','htm','jsp','asp','aspx'].includes(ext)) return 'html';
   if(ext === 'css') return 'css';
@@ -4029,13 +4034,13 @@ function getLanguageByFilename(filename) {
   if(ext === 'less') return 'less';
   if(['js','javascript','mjs','cjs'].includes(ext)) return 'javascript';
   if(['ts','typescript','tsx'].includes(ext)) return 'typescript';
-  
+
   // Data / Config
   if(ext === 'json') return 'json';
   if(['xml','svg','xaml'].includes(ext)) return 'xml';
   if(['yaml','yml'].includes(ext)) return 'yaml';
   if(['md','markdown'].includes(ext)) return 'markdown';
-  
+
   // Programming Languages
   if(['c','h'].includes(ext)) return 'c';
   if(['cpp','hpp','cc','cxx'].includes(ext)) return 'cpp';
@@ -4045,7 +4050,7 @@ function getLanguageByFilename(filename) {
   if(ext === 'php') return 'php';
   if(['go','golang'].includes(ext)) return 'go';
   if(['rs','rust'].includes(ext)) return 'rust';
-  
+
   // Others
   if(ext === 'sql') return 'sql';
   if(ext === 'sh' || ext === 'bash') return 'shell';
@@ -4056,18 +4061,18 @@ function getLanguageByFilename(filename) {
   if(ext === 'swift') return 'swift';
   if(ext === 'dart') return 'dart';
   if(ext === 'kt' || ext === 'kotlin') return 'kotlin';
-  
+
   return 'plaintext';
 }
 
 function switchEditorTab(index) {
   // Don't close terminal - keep it running in background
   // Terminal tab stays visible even when viewing other tabs
-  
+
   browserTabs.forEach((t, i) => t.active = (i === index));
   const tab = browserTabs[index];
   previewCurrentPath = null; // reset preview path when user explicitly switches code tabs
-  
+
   // Show editor panel, but keep terminalOpen flag true so tab stays visible
   const codePaneBody = document.getElementById('codePaneBody');
   const terminalPanel = document.getElementById('terminalPanel');
@@ -4076,12 +4081,12 @@ function switchEditorTab(index) {
     terminalPanel.style.display = 'none';
   }
   codePaneBody.style.display = 'flex';
-  
+
   if(tab) {
     currentPath = tab.path;
     const content = virtualFS.get(currentPath) || '';
     const lang = getLanguageByFilename(tab.name);
-    
+
     if(editor) {
       // Manage Monaco models for better syntax highlighting
       let model = monaco.editor.getModels().find(m => m.uri.path === '/' + currentPath);
@@ -4097,7 +4102,7 @@ function switchEditorTab(index) {
       }
       editor.setModel(model);
     }
-    
+
     // No auto-preview on tab switch, just background-refresh associated previews if Live is ON
     if (liveOn) {
       _refreshLinkedHtmlPreview(tab.path);
@@ -4130,9 +4135,9 @@ function _refreshLinkedHtmlPreview(changedPath) {
 
 function closeEditorTab(index, event) {
   if(event) event.stopPropagation();
-  
+
   // Don't close terminal - keep it running
-  
+
   const closedTab = browserTabs.splice(index, 1)[0];
   if(closedTab.active && browserTabs.length > 0) {
     switchEditorTab(Math.max(0, index - 1));
@@ -4149,7 +4154,7 @@ function openTextInEditor(name, content, handle, path) {
   const actualPath = path || name;
   virtualFS.set(actualPath, content);
   currentFileHandle = handle;
-  
+
   // Show editor (hide terminal panel but keep terminalOpen for tab visibility)
   if (terminalOpen) {
     const codePaneBody = document.getElementById('codePaneBody');
@@ -4157,7 +4162,7 @@ function openTextInEditor(name, content, handle, path) {
     terminalPanel.style.display = 'none';
     codePaneBody.style.display = 'flex';
   }
-  
+
   // 1. Add to File Tree if not present
   const pathParts = actualPath.split('/').filter(Boolean);
   let currentItems = _fileTreeState.items;
@@ -4233,7 +4238,7 @@ function closeBrowserTab(index, event) {
 
 function navigateTo(path) {
   if (!path) return;
-  
+
   // Clean virtual prefix if present (can be anywhere in path if subfolder)
   let cleanPath = path;
   if (path.includes('/__vfs__/')) {
@@ -4272,11 +4277,11 @@ function navigateTo(path) {
       toast(`Cannot preview: ${ext} files not supported`);
       return;
     }
-    
+
     // Act like a local browser
     previewCurrentPath = targetPath;
     const fileName = targetPath.split('/').pop();
-    
+
     // Manage independent preview tabs
     let pIndex = previewTabs.findIndex(t => t.path === targetPath);
     if (pIndex === -1) {
@@ -4285,7 +4290,7 @@ function navigateTo(path) {
     } else {
       previewTabs.forEach((t, i) => t.active = (i === pIndex));
     }
-    
+
     renderPreview(targetPath);
     toast(`Navigated to: ${targetPath}`);
     updateBrowserUi();
@@ -4376,12 +4381,12 @@ function createNewFile() {
   const name = prompt('Enter file name (e.g. css/style.css):');
   if(!name) return;
   const path = name.replace(/^\//, ''); // Ensure no leading slash
-  
+
   if(virtualFS.has(path)) {
     toast('File already exists');
     return;
   }
-  
+
   createFileItem(path, '');
   openTextInEditor(path.split('/').pop(), '', null, path);
   // Sync to terminal/WebContainer
@@ -4395,14 +4400,14 @@ function createNewFolder() {
   const name = prompt('Enter folder path (e.g. assets/images):');
   if(!name) return;
   const path = name.replace(/^\//, '');
-  
+
   const DIR_MARKER = '__DIR__';
   virtualFS.set(path, DIR_MARKER);
-  
+
   const parts = path.split('/');
   let curPath = "";
   let curList = _fileTreeState.items;
-  
+
   for (let i = 0; i < parts.length; i++) {
     const part = parts[i];
     curPath += (curPath ? "/" : "") + part;
@@ -4413,7 +4418,7 @@ function createNewFolder() {
     }
     curList = dir.children;
   }
-  
+
   renderFileTree();
   saveProjectState();
   if(webcontainerInstance) syncFilesToWebContainer();
@@ -4427,22 +4432,22 @@ function renameFileItem(oldPath, event) {
   if(event) event.stopPropagation();
   const newName = prompt('Enter new name:', oldPath.split('/').pop());
   if(!newName) return;
-  
+
   const oldParts = oldPath.split('/');
   oldParts.pop();
   const newPath = oldParts.length ? [...oldParts, newName].join('/') : newName;
-  
+
   if(virtualFS.has(newPath)) {
     toast('File already exists');
     return;
   }
-  
+
   const content = virtualFS.get(oldPath);
   if(content !== undefined) {
     virtualFS.set(newPath, content);
     virtualFS.delete(oldPath);
   }
-  
+
   // Update browser tabs
   browserTabs.forEach(t => {
     if(t.path === oldPath) {
@@ -4450,7 +4455,7 @@ function renameFileItem(oldPath, event) {
       t.name = newName;
     }
   });
-  
+
   if(currentPath === oldPath) {
     currentPath = newPath;
   }
@@ -4483,13 +4488,13 @@ function createFileItem(path, content = "") {
     saveProjectState();
     return;
   }
-  
+
   virtualFS.set(path, content);
-  
+
   const parts = path.split('/');
   const fileName = parts.pop();
   let currentDirList = _fileTreeState.items;
-  
+
   // Simple creation for root-level files if path doesn't contain /
   if (parts.length === 0) {
     if(!currentDirList.find(i => i.name === fileName)) {
@@ -4514,7 +4519,7 @@ function createFileItem(path, content = "") {
       currentDirList.push({ name: fileName, kind: 'file', path: path });
     }
   }
-  
+
   renderFileTree();
   updateBrowserUi();
   updateEditorTabs();
@@ -4530,9 +4535,9 @@ function createFileItem(path, content = "") {
 function deleteFileItem(path, event) {
   if(event) event.stopPropagation();
   if(!confirm(`Delete ${path}?`)) return;
-  
+
   virtualFS.delete(path);
-  
+
   // Remove from browser tabs if open
   const tabIndex = browserTabs.findIndex(t => t.path === path);
     if(tabIndex !== -1) {
@@ -4579,7 +4584,7 @@ function showCtxMenu(e, item) {
 function handleCtxAction(action) {
   if (!_ctxTarget && action !== 'collapseAll') return;
   const path = _ctxTarget ? (_ctxTarget.path || _ctxTarget.name) : null;
-  
+
   switch(action) {
     case 'rename': renameFileItem(path); break;
     case 'delete': deleteFileItem(path); break;
@@ -4657,9 +4662,9 @@ function handleDrop(e, targetFolder) {
   e.stopPropagation();
   const targetRow = e.target.closest('.file-row') || e.target.closest('.file-tree');
   if (targetRow) targetRow.classList.remove('drag-over');
-  
+
   if (!_dragSource || targetFolder.kind !== 'directory') return;
-  
+
   const sourcePath = _dragSource.path || _dragSource.name;
   const fileName = _dragSource.name;
   const newPath = targetFolder.name === '/' ? fileName : (targetFolder.path || targetFolder.name) + '/' + fileName;
@@ -4748,11 +4753,11 @@ function getFileIcon(name, kind, expanded = false) {
     const folderIcon = expanded ? 'default_folder_opened.svg' : 'default_folder.svg';
     return `https://raw.githubusercontent.com/vscode-icons/vscode-icons/master/icons/${folderIcon}`;
   }
-  
+
   if (typeof vscodeIconsSVG !== 'undefined') {
     return vscodeIconsSVG.get(name);
   }
-  
+
   // Fallback to a basic file icon if API not loaded
   return 'https://raw.githubusercontent.com/vscode-icons/vscode-icons/master/icons/default_file.svg';
 }
@@ -4760,26 +4765,26 @@ function getFileIcon(name, kind, expanded = false) {
 function updateFileTreeFromVirtualFS() {
   // Clear and rebuild from scratch for proper structure
   _fileTreeState.items = [];
-  
+
   const DIR_MARKER = '__DIR__';
-  
+
   virtualFS.forEach((content, path) => {
     if (!path || path === '/') return;
-    
+
     const parts = path.split('/').filter(Boolean);
     let currentItems = _fileTreeState.items;
-    
+
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const currentPath = parts.slice(0, i + 1).join('/');
       const isLast = i === parts.length - 1;
-      
+
       // Check if this specific path is a directory marker
       const pathContent = virtualFS.get(currentPath);
       const isDirMarker = pathContent === DIR_MARKER;
-      
+
       let existing = currentItems.find(item => item.name === part);
-      
+
       if (!existing) {
         const newItem = {
           name: part,
@@ -4791,7 +4796,7 @@ function updateFileTreeFromVirtualFS() {
         currentItems.push(newItem);
         existing = newItem;
       }
-      
+
       if (i < parts.length - 1 || isDirMarker) {
         if (!existing.children) {
           existing.children = [];
@@ -4802,7 +4807,7 @@ function updateFileTreeFromVirtualFS() {
       }
     }
   });
-  
+
   sortFileTreeItems(_fileTreeState.items);
 }
 
@@ -4820,17 +4825,17 @@ function renderFileTree(){
   const host = document.getElementById('fileTree');
   if(!host) return;
   host.innerHTML = '';
-  
+
   // Create a pseudo-root folder for dropping files at the root
   const rootItem = { name: '/', kind: 'directory', children: _fileTreeState.items };
-  
+
   function renderNodes(list, container, parentFolder){
     list.forEach(item=>{
       const row = document.createElement('div');
       row.className='file-row';
       row.style.position = 'relative';
       row.draggable = true;
-      
+
       const caret = document.createElement('span');
       caret.className = 'file-caret';
       caret.style.display = 'inline-flex';
@@ -4840,16 +4845,16 @@ function renderFileTree(){
       if (item.kind === 'directory') {
         caret.innerHTML = `<i class="codicon codicon-chevron-${item.expanded ? 'down' : 'right'}" style="font-size:10px !important"></i>`;
       }
-      
+
       const icSpan = document.createElement('span');
       icSpan.className = 'file-ic';
       icSpan.style.marginRight = '6px';
       icSpan.style.display = 'inline-flex';
       icSpan.style.alignItems = 'center';
-      
+
       const iconUrl = getFileIcon(item.name, item.kind, item.expanded);
       icSpan.innerHTML = `<img src="${iconUrl}" style="width:16px;height:16px;object-fit:contain;">`;
-      
+
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       nameSpan.textContent = item.name;
@@ -4860,14 +4865,14 @@ function renderFileTree(){
       delBtn.title = 'Delete';
       delBtn.style.cssText = 'padding:2px 6px; font-size:12px; opacity:0; transition:opacity 0.2s;';
       delBtn.onclick = (e) => { e.stopPropagation(); deleteFileItem(item.path || item.name, e); };
-      
+
       const renBtn = document.createElement('button');
       renBtn.innerHTML = '<i class="codicon codicon-edit"></i>';
       renBtn.className = 'pp-icon-btn';
       renBtn.title = 'Rename';
       renBtn.style.cssText = 'padding:2px 6px; font-size:10px; opacity:0; transition:opacity 0.2s;';
       renBtn.onclick = (e) => { e.stopPropagation(); renameFileItem(item.path || item.name, e); };
-      
+
       row.onmouseenter = () => { delBtn.style.opacity = '1'; renBtn.style.opacity = '1'; };
       row.onmouseleave = () => { delBtn.style.opacity = '0'; renBtn.style.opacity = '0'; };
 
@@ -4892,7 +4897,7 @@ function renderFileTree(){
 
       // Context Menu Event
       row.addEventListener('contextmenu', (e) => showCtxMenu(e, item));
-      
+
       if(item.kind==='file'){
         row.addEventListener('click', async ()=>{
           const path = item.path || item.name;
@@ -4915,9 +4920,9 @@ function renderFileTree(){
         const children = document.createElement('div');
         children.className='file-children';
         container.appendChild(children);
-        
+
         if (item.expanded) children.style.display = 'block';
-        
+
         row.setAttribute('aria-expanded', item.expanded ? 'true' : 'false');
         row.addEventListener('click', ()=>{
           item.expanded = !item.expanded;
@@ -4939,7 +4944,7 @@ function renderFileTree(){
       }
     });
   }
-  
+
   if(_fileTreeState.items && _fileTreeState.items.length){
     renderNodes(_fileTreeState.items, host, rootItem);
   } else {
@@ -4968,7 +4973,7 @@ function loadProjectState() {
     updateFileTreeFromVirtualFS();
     browserTabs = state.browserTabs;
     currentPath = state.currentPath;
-    
+
     const activeTab = browserTabs.find(t => t.active);
     if (activeTab) {
       const content = virtualFS.get(activeTab.path);
@@ -4996,7 +5001,7 @@ let pyodideLoading = false;
 async function bootPyodide() {
   if (pyodideInstance || pyodideLoading) return pyodideInstance;
   pyodideLoading = true;
-  
+
   if (typeof loadPyodide === 'undefined') {
     termLog('⚠️ loadPyodide is not defined. Attempting to load script dynamically...', '#facc15');
     try {
@@ -5073,10 +5078,10 @@ async function runPythonCode(code) {
 async function bootWebContainer() {
   if (webcontainerInstance || webcontainerBooting) return;
   webcontainerBooting = true;
-  
+
   try {
     termLog('Loading WebContainer API...', '#facc15');
-    
+
     let WebContainerModule;
     try {
       // Try jsdelivr first
@@ -5086,14 +5091,14 @@ async function bootWebContainer() {
       // Fallback to unpkg
       WebContainerModule = await import('https://unpkg.com/@webcontainer/api@1.1.0/dist/index.js');
     }
-    
+
     const { WebContainer } = WebContainerModule;
-    
+
     // Check for Cross-Origin Isolation (Required for WebContainer)
     if (!window.crossOriginIsolated) {
       termLog('⚠️ Warning: Page is not Cross-Origin Isolated.', '#facc15');
       termLog('WebContainer requires specific security headers or a service worker to run.', '#facc15');
-      
+
       const fixBtn = document.createElement('button');
       fixBtn.textContent = 'Enable Real Execution (Reload)';
       fixBtn.className = 'tb-btn primary';
@@ -5113,22 +5118,22 @@ async function bootWebContainer() {
         }
       };
       document.getElementById('terminalOutput').appendChild(fixBtn);
-      
+
       termLog('If reloading doesn\'t help, you may need to host this on a server that supports COOP/COEP headers.', '#94a3b8');
     }
 
     termLog('Booting WebContainer...', '#facc15');
     webcontainerInstance = await WebContainer.boot();
     termLog('WebContainer booted! 🚀', '#00ff00');
-    
+
     // Initial file sync
     await syncFilesToWebContainer();
     webcontainerBooting = false;
-    
+
     // Listen for server-ready event from WebContainer - this gives the correct URL
     webcontainerInstance.on('server-ready', (port, url) => {
       termLog(`Server ready on port ${port}: ${url}`, '#facc15');
-      
+
       // The URL from server-ready should be the server URL
       if (url && !url.includes('/webcontainer/') && !url.includes('/connect/')) {
         // Use setTimeout to avoid popup blocker
@@ -5183,23 +5188,23 @@ async function writeToWebContainer(path, content) {
 
 async function syncFromWebContainer() {
   if (!webcontainerInstance) return;
-  
+
   // Track directories separately
   const dirPaths = new Set();
-  
+
   try {
     // Helper to recursively get all files and track directories
     async function getAllFilesAndDirs(dirPath = '/') {
       const entries = await webcontainerInstance.fs.readdir(dirPath);
-      
+
       for (const entry of entries) {
         const fullPath = dirPath === '/' ? entry : `${dirPath}/${entry}`;
         const isDir = entry.endsWith('/');
-        
+
         if (isDir) {
           // Track this directory
           dirPaths.add(fullPath.slice(0, -1)); // Remove trailing /
-          
+
           // Recurse into directory
           await getAllFilesAndDirs(fullPath);
         } else {
@@ -5210,9 +5215,9 @@ async function syncFromWebContainer() {
         }
       }
     }
-    
+
     await getAllFilesAndDirs();
-    
+
     // Add directories to virtualFS as empty markers (for tree building)
     // Use special marker to distinguish directories from empty files
     const DIR_MARKER = '__DIR__';
@@ -5221,13 +5226,13 @@ async function syncFromWebContainer() {
         virtualFS.set(dirPath, DIR_MARKER);
       }
     });
-    
+
     console.log('Dirs from WebContainer:', Array.from(dirPaths));
     console.log('virtualFS size:', virtualFS.size);
-    
+
     // Update sidebar with debug info
     updateFileTreeFromVirtualFS();
-    
+
     // Verify structure
     function countItems(items) {
       let count = 0;
@@ -5238,7 +5243,7 @@ async function syncFromWebContainer() {
       return count;
     }
     console.log('Sidebar tree items:', countItems(_fileTreeState.items));
-    
+
     // Force re-render
     const fileTreeEl = document.getElementById('fileTree');
     if (fileTreeEl) {
@@ -5246,7 +5251,7 @@ async function syncFromWebContainer() {
     }
     renderFileTree();
     updateBrowserUi();
-    
+
     if (xtermTerminal) {
       xtermTerminal.writeln(`\x1b[32m✅ Synced to sidebar.\x1b[0m`);
     }
@@ -5266,14 +5271,14 @@ function initXterm() {
     console.error('terminalContainer not found');
     return;
   }
-  
+
   try {
     if (typeof Terminal === 'undefined') {
       console.error('xterm.js not loaded - check CDN');
       alert('xterm.js not loaded! Check console for errors.');
       return;
     }
-    
+
     xtermTerminal = new Terminal({
       cursorBlink: true,
       convertEol: true,
@@ -5304,12 +5309,12 @@ function initXterm() {
       },
       allowProposedApi: true
     });
-    
+
     if (typeof FitAddon !== 'undefined') {
       xtermFitAddon = new FitAddon.FitAddon();
       xtermTerminal.loadAddon(xtermFitAddon);
     }
-    
+
     // Custom link handler for xterm - detect and open URLs
     xtermTerminal.linkHandler = {
       activate(e, text) {
@@ -5317,20 +5322,20 @@ function initXterm() {
         window.open(text, '_blank');
       }
     };
-    
+
     if (typeof WebLinksAddon !== 'undefined') {
       try {
         const webLinksAddon = new WebLinksAddon.WebLinksAddon();
         xtermTerminal.loadAddon(webLinksAddon);
       } catch(e) {}
     }
-    
+
     xtermTerminal.open(container);
-    
+
     if (xtermFitAddon) {
       try { xtermFitAddon.fit(); } catch(e) {}
     }
-    
+
     xtermTerminal.writeln('\x1b[36m╔═══════════════════════════════════════════════════╗\x1b[0m');
     xtermTerminal.writeln('\x1b[36m║\x1b[0m   \x1b[1;37mJignesh-IDE Terminal v1.0.0\x1b[0m                  \x1b[36m║\x1b[0m');
     xtermTerminal.writeln('\x1b[36m╠═══════════════════════════════════════════════════╣\x1b[0m');
@@ -5339,7 +5344,7 @@ function initXterm() {
     xtermTerminal.writeln('\x1b[36m╚═══════════════════════════════════════════════════╝\x1b[0m');
     xtermTerminal.writeln('');
     writeTermPrompt();
-    
+
     xtermTerminal.onData(handleTerminalInput);
     xtermInitialized = true;
   } catch (e) {
@@ -5361,9 +5366,9 @@ function fitXterm() {
 function renderTerminalTab() {
   const tabs = document.getElementById('editorTabs');
   if (!tabs) return;
-  
+
   let termTab = document.getElementById('terminal-tab');
-  
+
   if (terminalOpen) {
     if (!termTab) {
       termTab = document.createElement('button');
@@ -5399,20 +5404,20 @@ function renderTerminalTab() {
 function showTerminalTab() {
   const codePaneBody = document.getElementById('codePaneBody');
   const terminalPanel = document.getElementById('terminalPanel');
-  
+
   terminalOpen = true;
   codePaneBody.style.display = 'none';
   terminalPanel.style.display = 'flex';
-  
+
   if (!xtermInitialized) {
     initXterm();
   }
-  
+
   setTimeout(() => {
     fitXterm();
     if (xtermTerminal) xtermTerminal.focus();
   }, 100);
-  
+
   updateEditorTabs();
   updateTerminalBtn();
 }
@@ -5425,11 +5430,11 @@ function closeTerminalTab(event) {
 function closeTerminalAndShowEditor() {
   const codePaneBody = document.getElementById('codePaneBody');
   const terminalPanel = document.getElementById('terminalPanel');
-  
+
   terminalOpen = false;
   codePaneBody.style.display = 'flex';
   terminalPanel.style.display = 'none';
-  
+
   updateEditorTabs();
   updateTerminalBtn();
 }
@@ -5437,17 +5442,17 @@ function closeTerminalAndShowEditor() {
 function toggleTerminal() {
   const codePaneBody = document.getElementById('codePaneBody');
   const terminalPanel = document.getElementById('terminalPanel');
-  
+
   terminalOpen = !terminalOpen;
-  
+
   if (terminalOpen) {
     codePaneBody.style.display = 'none';
     terminalPanel.style.display = 'flex';
-    
+
     if (!xtermInitialized) {
       initXterm();
     }
-    
+
     setTimeout(() => {
       fitXterm();
       if (xtermTerminal) xtermTerminal.focus();
@@ -5456,7 +5461,7 @@ function toggleTerminal() {
     codePaneBody.style.display = 'flex';
     terminalPanel.style.display = 'none';
   }
-  
+
   updateEditorTabs();
   renderTerminalTab();
   updateTerminalBtn();
@@ -5495,9 +5500,9 @@ let termShellProcess = null;
 
 function handleTerminalInput(data) {
   if (!xtermTerminal) return;
-  
+
   const code = data.charCodeAt(0);
-  
+
   if (code === 13) {
     xtermTerminal.write('\r\n');
     if (termCmdBuffer.trim()) {
@@ -5533,32 +5538,32 @@ let detectedServerUrl = null;
 function detectAndOpenServerUrl(data) {
   // Extract server URLs from terminal output
   // Look for patterns like "Server running on http://localhost:3000" or webcontainer URLs
-  
+
   // Match server URLs in the output
   const urlPattern = /(?:Server (?:running|ready) on|listening on|running at) (https?:\/\/[^\s]+)|(https?:\/\/[a-zA-Z0-9]+--[0-9]+--[a-zA-Z0-9]+\.local-corp\.webcontainer-api\.io(?:\/)?)/gi;
-  
+
   let match;
   while ((match = urlPattern.exec(data)) !== null) {
     let url = match[1] || match[2];
-    
+
     if (!url) continue;
-    
+
     // Clean up URL
     url = url.replace(/[",;:\s]*$/, '');
-    
+
     // Skip internal paths
     if (url.includes('/webcontainer/') || url.includes('/connect/')) {
       continue;
     }
-    
+
     // Ensure URL has trailing slash for webcontainer URLs
     if (url.includes('.webcontainer-api.io') && !url.endsWith('/')) {
       url = url + '/';
     }
-    
+
     if (url !== detectedServerUrl) {
       detectedServerUrl = url;
-      
+
       if (xtermTerminal) {
         xtermTerminal.writeln('');
         xtermTerminal.writeln(`\x1b[32m🌐 Server ready: ${url}\x1b[0m`);
@@ -5572,27 +5577,27 @@ function detectAndOpenServerUrl(data) {
 
 function openInPreview(url) {
   if (!url) return;
-  
+
   console.log('Opening URL:', url);
-  
+
   // Validate URL is a proper server URL (not internal WebContainer path)
   if (url.includes('/webcontainer/') || url.includes('/connect/')) {
     console.error('Invalid URL - internal WebContainer path:', url);
     toast('Invalid server URL');
     return;
   }
-  
+
   // Make sure URL ends with / for webcontainer URLs
   if (url.includes('.webcontainer-api.io') && !url.endsWith('/')) {
     url = url + '/';
   }
-  
+
   console.log('Final URL to open:', url);
-  
+
   // Open in new tab
   try {
     const newTab = window.open(url, '_blank');
-    
+
     if (newTab) {
       toast(`Server opened: ${url}`);
     } else {
@@ -5607,10 +5612,10 @@ function openInPreview(url) {
 function showOpenPreviewButton(url) {
   // Create or update the server button in terminal panel
   let serverBtn = document.getElementById('serverPreviewBtn');
-  
+
   const terminalPanel = document.getElementById('terminalPanel');
   if (!terminalPanel) return;
-  
+
   // Create button if not exists
   if (!serverBtn) {
     serverBtn = document.createElement('button');
@@ -5619,7 +5624,7 @@ function showOpenPreviewButton(url) {
     serverBtn.style.cssText = 'margin: 4px 8px; background: var(--accent); color: #fff; font-size: 11px; display: flex; align-items: center; gap: 4px;';
     terminalPanel.insertBefore(serverBtn, terminalPanel.firstChild);
   }
-  
+
   // Update button with URL and click handler
   serverBtn.innerHTML = `<i class="codicon codicon-link"></i> Open in Browser`;
   serverBtn.onclick = (e) => {
@@ -5642,14 +5647,14 @@ async function handleTerminalCommand(cmdLine) {
     clearTerminal();
     return;
   }
-  
+
   // pwd - print working directory
   if (cmd === 'pwd') {
     xtermTerminal.writeln('/home/user/project');
     writeTermPrompt();
     return;
   }
-  
+
   // cd - change directory
   if (cmd === 'cd') {
     let targetPath = args[0] || '~';
@@ -5680,7 +5685,7 @@ async function handleTerminalCommand(cmdLine) {
     writeTermPrompt();
     return;
   }
-  
+
   // tree command - show directory structure
   if (cmd === 'tree') {
     xtermTerminal.writeln('\x1b[36m.\x1b[0m');
@@ -5695,7 +5700,7 @@ async function handleTerminalCommand(cmdLine) {
     writeTermPrompt();
     return;
   }
-  
+
   // find command - search for files
   if (cmd === 'find') {
     let searchPath = '.';
@@ -5715,7 +5720,7 @@ async function handleTerminalCommand(cmdLine) {
     writeTermPrompt();
     return;
   }
-  
+
   // rm command - remove file
   if (cmd === 'rm') {
     if (args.length === 0) {
@@ -5738,7 +5743,7 @@ async function handleTerminalCommand(cmdLine) {
     writeTermPrompt();
     return;
   }
-  
+
   // rmdir command - remove directory
   if (cmd === 'rmdir') {
     if (args.length === 0) {
@@ -5763,7 +5768,7 @@ async function handleTerminalCommand(cmdLine) {
     writeTermPrompt();
     return;
   }
-  
+
   // cat command - show file content
   if (cmd === 'cat') {
     if (args.length === 0) {
@@ -5782,7 +5787,7 @@ async function handleTerminalCommand(cmdLine) {
     writeTermPrompt();
     return;
   }
-  
+
   // history command
   if (cmd === 'history') {
     xtermTerminal.writeln('\x1b[90m   1  pwd\x1b[0m');
@@ -5799,10 +5804,10 @@ async function handleTerminalCommand(cmdLine) {
       const dirPath = args[0].replace(/\/$/, '');
       const currentDir = '~/project'.replace('~/project', '');
       const newPath = currentDir + dirPath;
-      
+
       virtualFS.set(newPath + '/.gitkeep', '');
       xtermTerminal.writeln(`\x1b[32mDirectory created: ${dirPath}\x1b[0m`);
-      
+
       updateFileTreeFromVirtualFS();
       renderFileTree();
       updateBrowserUi();
@@ -5820,7 +5825,7 @@ async function handleTerminalCommand(cmdLine) {
       const filePath = args[0];
       virtualFS.set(filePath, '');
       xtermTerminal.writeln(`\x1b[32mFile created: ${filePath}\x1b[0m`);
-      
+
       updateFileTreeFromVirtualFS();
       renderFileTree();
       updateBrowserUi();
@@ -5837,11 +5842,11 @@ async function handleTerminalCommand(cmdLine) {
     const redirectIdx = args.indexOf('>');
     const content = args.slice(0, redirectIdx).join(' ').replace(/^["']|["']$/g, '');
     const filePath = args[redirectIdx + 1];
-    
+
     if (filePath) {
       virtualFS.set(filePath, content);
       xtermTerminal.writeln(`\x1b[32mFile created: ${filePath}\x1b[0m`);
-      
+
       updateFileTreeFromVirtualFS();
       renderFileTree();
       updateBrowserUi();
@@ -5889,7 +5894,7 @@ async function handleTerminalCommand(cmdLine) {
       xtermTerminal.writeln('\x1b[33mStarting Python service (Pyodide)...\x1b[0m');
       await bootPyodide();
     }
-    
+
     if (pyodideLoading) {
       xtermTerminal.writeln('\x1b[33mPython is still loading, please wait...\x1b[0m');
       writeTermPrompt();
@@ -5964,7 +5969,7 @@ async function handleTerminalCommand(cmdLine) {
       const files = Array.from(virtualFS.entries());
       const total = files.length;
       xtermTerminal.writeln(`\x1b[90mSyncing ${total} files...\x1b[0m`);
-      
+
       for (let i = 0; i < total; i++) {
         const [path, content] = files[i];
         await writeToWebContainer(path, content);
@@ -5977,20 +5982,20 @@ async function handleTerminalCommand(cmdLine) {
       termShellProcess.output.pipeTo(new WritableStream({
         write(data) {
           if (xtermTerminal) xtermTerminal.write(data);
-          
+
           // Detect server URLs in output
           detectAndOpenServerUrl(data);
         }
       }));
-      
+
       // Get input writer properly
       const inputWriter = termShellProcess.input.getWriter();
       inputWriter.releaseLock();
-      
+
       const exitCode = await termShellProcess.exit;
       termShellProcess = null;
       xtermTerminal.writeln(`\x1b[90mProcess exited with code ${exitCode}\x1b[0m`);
-      
+
       // After command completes, sync files back to virtualFS and sidebar
       if (cmd === 'npm' || cmd === 'node' || cmd === 'mkdir' || cmd === 'touch') {
         await syncFromWebContainer();
@@ -6008,7 +6013,7 @@ async function handleTerminalCommand(cmdLine) {
 
 function handleMockCommand(cmd, args) {
   if (!xtermTerminal) return;
-  
+
   xtermTerminal.writeln('\x1b[90mSystem: Using mock mode (WebContainer failed to boot).\x1b[0m');
   switch (cmd) {
     case 'ls':
@@ -6151,7 +6156,7 @@ document.getElementById('folderInput').addEventListener('change', (e)=>{
     // Remove the top-level folder name if it's from webkitRelativePath
     if(f.webkitRelativePath) parts.shift();
     const internalPath = parts.join('/');
-    
+
     const r = new FileReader();
     r.onload = ev => {
       virtualFS.set(internalPath, ev.target.result);
@@ -6354,24 +6359,24 @@ function setDocTab(which){
   else if(currentDocTab==='js') applyJsFromPanel();
   if(which==='css') syncCssFromHtml();
   else if(which==='js') syncJsFromHtml();
-  
+
   const ed=document.getElementById('editor');
   const ced=document.getElementById('cssEditor');
   const jed=document.getElementById('jsEditor');
-  
+
   const hBtn=document.getElementById('tabDocHtml');
   const cBtn=document.getElementById('tabDocCss');
   const jBtn=document.getElementById('tabDocJs');
-  
+
   ed.style.display='none';
   ced.style.display='none';
   jed.style.display='none';
-  
+
   hBtn.classList.remove('active'); cBtn.classList.remove('active'); jBtn.classList.remove('active');
   hBtn.setAttribute('aria-selected','false');
   cBtn.setAttribute('aria-selected','false');
   jBtn.setAttribute('aria-selected','false');
-  
+
   if(which==='html'){
     ed.style.display='';
     hBtn.classList.add('active');
@@ -6540,7 +6545,7 @@ function toggleAiMinimize() {
   const el = document.getElementById('aiChatPanel');
   const btn = document.getElementById('aiMinimizeBtn');
   if(!el.classList.contains('floating')) return;
-  
+
   el.classList.toggle('minimized');
   if(el.classList.contains('minimized')) {
     el.style.height = '48px';
@@ -6573,13 +6578,13 @@ function toggleFloat(id){
       el.style.height = '600px';
       el.style.top = '100px';
     }
-    
+
     let handle;
     if(id === 'sidebar') handle = el.querySelector('.sb-header');
     else if(id === 'fileSidebar') handle = el.querySelector('.sb-header');
     else if(id === 'aiChatPanel') handle = el.querySelector('.ai-chat-header');
     else handle = el.querySelector('.pp-header');
-    
+
     el.style.left = id === 'sidebar' || id === 'fileSidebar' ? '100px' : (window.innerWidth - (id === 'aiChatPanel' ? 420 : 400)) + 'px';
     makeDraggable(el, handle);
   } else {
@@ -7009,23 +7014,23 @@ function discardChanges(){
 /* Reattach when iframe reloads and intercept unauthorized native navigations */
 iframeEl.addEventListener('load',()=>{ 
   if(visualModeOn) attachVisualListeners(); 
-  
+
   try {
     const href = iframeEl.contentWindow.location.href;
     // The preview should strictly stay inside the sandboxed srcdoc
     if (href !== 'about:srcdoc' && href !== 'about:blank') {
       const url = new URL(href);
-      
+
       // Safely extract the intended container file path by ripping off the IDE's root path
       let path = url.pathname;
       const baseDir = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
-      
+
       if (path.startsWith(baseDir)) {
         path = path.slice(baseDir.length);
       } else if (path.startsWith('/')) {
         path = path.slice(1);
       }
-      
+
       if (path && path !== '') {
         navigateTo(path);
       } else {
@@ -7199,10 +7204,10 @@ function refreshLayersList(){
   function traverse(el, depth){
     if(el.nodeType !== 1) return;
     if(['SCRIPT','STYLE','NOSCRIPT','LINK','META','TITLE','HEAD'].includes(el.tagName)) return;
-    
+
     // Add a unique ID for identification
     if(!el.hasAttribute('data-v-id')) el.setAttribute('data-v-id', Math.random().toString(36).substr(2, 9));
-    
+
     items.push({
       tag: el.tagName.toLowerCase(),
       id: el.id,
@@ -7210,31 +7215,31 @@ function refreshLayersList(){
       depth: depth,
       vId: el.getAttribute('data-v-id')
     });
-    
+
     for(let child of el.children) traverse(child, depth + 1);
   }
-  
+
   traverse(iDoc.body, 0);
-  
+
   list.innerHTML = '';
   if(!items.length){
     list.innerHTML = '<div class="outline-empty">No layers</div>';
     return;
   }
-  
+
   items.forEach(it => {
     const row = document.createElement('div');
     row.className = 'outline-item layer-item';
     row.draggable = true;
     row.style.paddingLeft = (8 + it.depth * 12) + 'px';
     row.dataset.vId = it.vId;
-    
+
     let label = it.tag;
     if(it.id) label += '#' + it.id;
     else if(it.cls && typeof it.cls === 'string') label += '.' + it.cls.split(' ')[0];
-    
+
     row.innerHTML = `<span class="oi-tag" style="user-select:none;pointer-events:none">${label}</span>`;
-    
+
     row.onclick = (e) => {
       const el = iDoc.querySelector(`[data-v-id="${it.vId}"]`);
       if(el){
@@ -7242,29 +7247,29 @@ function refreshLayersList(){
         setTimeout(() => selectEl(el), 50);
       }
     };
-    
+
     row.addEventListener('dragstart', (e) => {
       draggedLayerEl = iDoc.querySelector(`[data-v-id="${it.vId}"]`);
       e.dataTransfer.setData('text/plain', it.vId);
       e.dataTransfer.effectAllowed = 'move';
       row.style.opacity = '0.4';
     });
-    
+
     row.addEventListener('dragend', () => {
       row.style.opacity = '1';
       document.querySelectorAll('.layer-item').forEach(r => r.style.background = '');
     });
-    
+
     row.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       row.style.background = 'rgba(108,99,255,0.1)';
     });
-    
+
     row.addEventListener('dragleave', () => {
       row.style.background = '';
     });
-    
+
     row.addEventListener('drop', (e) => {
       e.preventDefault();
       row.style.background = '';
@@ -7282,7 +7287,7 @@ function refreshLayersList(){
         toast('Layer reordered');
       }
     });
-    
+
     list.appendChild(row);
   });
 }
@@ -7629,7 +7634,7 @@ function applyBG(){
   const bgCol = document.getElementById('pp-bg').value;
   const gradType = document.getElementById('pp-grad-type').value;
   const op=parseFloat(document.getElementById('pp-opacity').value)||100;
-  
+
   if(gradType === 'none') {
     els.forEach(el=>{ el.style.backgroundImage='none'; el.style.backgroundColor=bgCol; });
     document.getElementById('pp-grad-tools').style.display = 'none';
@@ -7695,11 +7700,11 @@ function pushVisualDomToEditor(opts){
     const doc=iframeEl.contentDocument;
     if(!doc||!doc.documentElement) return;
     ppPrepareAnimSerialization(doc);
-    
+
     // Clean up temporary attributes before syncing
     const cleanDoc = doc.documentElement.cloneNode(true);
     cleanDoc.querySelectorAll('[data-v-id]').forEach(el => el.removeAttribute('data-v-id'));
-    
+
     const html='<!DOCTYPE html>\n'+cleanDoc.outerHTML;
     if(editor.getValue()===html){
       if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
@@ -8021,7 +8026,7 @@ function openSeoModal() {
   const html = editor.getValue();
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  
+
   document.getElementById('seo-title').value = doc.title || '';
   const desc = doc.querySelector('meta[name="description"]');
   document.getElementById('seo-desc').value = desc ? desc.content : '';
@@ -8029,7 +8034,7 @@ function openSeoModal() {
   document.getElementById('seo-keywords').value = keywords ? keywords.content : '';
   const ogImg = doc.querySelector('meta[property="og:image"]');
   document.getElementById('seo-og-image').value = ogImg ? ogImg.content : '';
-  
+
   updateSeoPreview();
   const modal = document.getElementById('seoModal');
   if(modal) modal.classList.add('show');
@@ -8044,11 +8049,11 @@ function updateSeoPreview() {
   const title = document.getElementById('seo-title').value || 'Page Title Preview';
   const desc = document.getElementById('seo-desc').value || 'Your page description will appear here on social media platforms like Facebook and Twitter.';
   const img = document.getElementById('seo-og-image').value;
-  
+
   const pTitle = document.getElementById('seo-prev-title');
   const pDesc = document.getElementById('seo-prev-desc');
   const pImg = document.getElementById('seo-prev-img');
-  
+
   if(pTitle) pTitle.textContent = title;
   if(pDesc) pDesc.textContent = desc;
   if(pImg) {
@@ -8065,13 +8070,13 @@ function applySeoTags() {
   const desc = document.getElementById('seo-desc').value;
   const keywords = document.getElementById('seo-keywords').value;
   const ogImg = document.getElementById('seo-og-image').value;
-  
+
   let html = editor.getValue();
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
-  
+
   if(title) doc.title = title;
-  
+
   const updateMeta = (name, content, isProp = false) => {
     if(!content) return;
     let el = isProp ? doc.querySelector(`meta[property="${name}"]`) : doc.querySelector(`meta[name="${name}"]`);
@@ -8085,14 +8090,14 @@ function applySeoTags() {
     }
     el.setAttribute('content', content);
   };
-  
+
   updateMeta('description', desc);
   updateMeta('keywords', keywords);
   updateMeta('og:title', title, true);
   updateMeta('og:description', desc, true);
   updateMeta('og:image', ogImg, true);
   updateMeta('twitter:card', 'summary_large_image');
-  
+
   // Try to preserve DOCTYPE
   let newHtml = doc.documentElement.outerHTML;
   if(!html.toLowerCase().includes('<!doctype')) {
@@ -8101,7 +8106,7 @@ function applySeoTags() {
     const dt = html.match(/<!doctype[^>]*>/i);
     if(dt) newHtml = dt[0] + '\n' + newHtml;
   }
-  
+
   editor.setValue(newHtml);
   toast('SEO tags applied! ✅');
   closeSeoModal();
@@ -8301,7 +8306,7 @@ function addGradientStop() {
   const count = container.children.length;
   const defaultPos = count === 0 ? 0 : 100;
   const defaultCol = count === 0 ? '#ffffff' : '#000000';
-  
+
   stop.innerHTML = `
     <input type="color" value="${defaultCol}" oninput="applyBG()" style="width:24px; height:24px; border:none; padding:0; background:none;">
     <input type="number" value="${defaultPos}" min="0" max="100" oninput="applyBG()" class="pp-inp" style="width:50px;">
@@ -8333,17 +8338,17 @@ function deployToCodePen() {
     title: "Project from HTML Editor"
   };
   const JSONstring = JSON.stringify(data).replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-  
+
   const form = document.createElement('form');
   form.method = 'POST';
   form.action = 'https://codepen.io/pen/define';
   form.target = '_blank';
-  
+
   const input = document.createElement('input');
   input.type = 'hidden';
   input.name = 'data';
   input.value = JSONstring;
-  
+
   form.appendChild(input);
   document.body.appendChild(form);
   form.submit();
@@ -8410,14 +8415,14 @@ function setAiChatMode(mode) {
   document.querySelectorAll('.ai-chat-mode').forEach(btn => {
     btn.classList.toggle('active', btn.id === `aiMode${mode.charAt(0).toUpperCase() + mode.slice(1)}`);
   });
-  
+
   const placeholders = {
     chat: "Ask AI anything about your code or web development...",
     build: "Tell AI what feature or page you want to build...",
     debug: "Describe a bug or paste an error for AI to fix...",
     agent: "Enter a high-level goal (e.g. 'Build a complete Todo app with local storage'). Agent will handle everything autonomously."
   };
-  
+
   const input = document.getElementById('aiChatInput');
   if (input) input.placeholder = placeholders[mode] || "Ask AI...";
 
@@ -8425,7 +8430,7 @@ function setAiChatMode(mode) {
   if (agentPanel) {
     agentPanel.classList.toggle('active', mode === 'agent');
   }
-  
+
   toast(`AI Mode: ${mode.toUpperCase()}`);
 }
 let lastCodeState = null; // Snapshot before agent starts
@@ -8446,15 +8451,15 @@ function undoChanges(btn) {
     lastCodeState.forEach((content, path) => {
       virtualFS.set(path, content);
     });
-    
+
     // 2. Refresh UI
     renderFileTree();
     saveProjectState();
     runCode();
-    
+
     lastCodeState = null;
     agentChangesCount = 0;
-    
+
     const div = btn.parentElement;
     div.innerHTML = '<span style="color:var(--red); font-weight:bold; font-size:12px;"><i class="codicon codicon-discard"></i> Changes Undone</span>';
     toast('All changes reverted!');
@@ -8513,7 +8518,7 @@ async function sendAiChatMessage() {
   addAiChatMessage(message, 'user');
   input.value = '';
   input.style.height = '80px'; // Reset height
-  
+
   // Disable input and send button while thinking
   input.disabled = true;
   sendBtn.disabled = true;
@@ -8608,7 +8613,7 @@ BEHAVIOR:
 
   aiChatHistory.push({ role: "user", content: message });
   if (aiChatHistory.length > 20) aiChatHistory.shift(); 
-  
+
   try {
     const response = await fetch('https://text.pollinations.ai/', {
       method: 'POST',
@@ -8634,28 +8639,28 @@ BEHAVIOR:
     const decoder = new TextDecoder();
     let accumulatedText = "";
     let buffer = ""; // Buffer to handle partial chunks
-    
+
     // Create an empty message div for streaming
     const container = document.getElementById('aiChatMessages');
     const msgDiv = document.createElement('div');
     msgDiv.className = 'ai-msg ai-msg-bot';
     container.appendChild(msgDiv);
-    
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
+
       const chunk = decoder.decode(value, { stream: true });
       buffer += chunk;
-      
+
       const lines = buffer.split('\n');
       // Keep the last line in the buffer if it doesn't end with a newline (partial line)
       buffer = lines.pop();
-      
+
       for (const line of lines) {
         const trimmedLine = line.trim();
         if (!trimmedLine || trimmedLine === 'data: [DONE]') continue;
-        
+
         if (trimmedLine.startsWith('data: ')) {
           try {
             const jsonStr = trimmedLine.slice(6);
@@ -8681,7 +8686,7 @@ BEHAVIOR:
         }
       }
     }
-    
+
     // Final check for remaining buffer
     if (buffer) {
       const trimmedLine = buffer.trim();
@@ -8698,7 +8703,7 @@ BEHAVIOR:
         }
       }
     }
-    
+
     // Final render to process all code blocks and buttons
   if (accumulatedText) {
     processAiResponse(accumulatedText, msgDiv);
@@ -8708,7 +8713,7 @@ BEHAVIOR:
     if (currentAiMode === 'agent' && isAgentRunning) {
       if (accumulatedText.toUpperCase().includes('TASK COMPLETED')) {
         stopAgent('Completed! 🎉');
-        
+
         // Add Keep/Undo buttons at the end of task
         if (agentChangesCount > 0) {
           const confirmDiv = document.createElement('div');
@@ -8719,7 +8724,7 @@ BEHAVIOR:
           confirmDiv.style.alignItems = 'center';
           confirmDiv.style.border = '1px dashed var(--accent)';
           confirmDiv.style.padding = '15px';
-          
+
           confirmDiv.innerHTML = `
             <div style="font-weight:bold; margin-bottom:5px; color:var(--accent)">Agent finished ${agentChangesCount} changes.</div>
             <div style="display:flex; gap:10px">
@@ -8743,7 +8748,7 @@ BEHAVIOR:
 
   } catch (error) {
     console.error("AI Chat Error:", error);
-    
+
     // Fallback 1: Simplified GET to Pollinations (without huge system prompt if possible)
     try {
       const shortSystemPrompt = `You are an AI assistant. Help the user with their request.`;
@@ -8751,13 +8756,13 @@ BEHAVIOR:
       const fallbackResponse = await fetch(fallbackUrl);
       if (!fallbackResponse.ok) throw new Error("Pollinations fallback failed");
       const fallbackData = await fallbackResponse.text();
-      
+
       if (thinking) thinking.classList.remove('active');
       processAiResponse(fallbackData);
       aiChatHistory.push({ role: "assistant", content: fallbackData });
     } catch (fallbackError) {
       console.error("AI Chat Fallback Error:", fallbackError);
-      
+
       // Fallback 2: OpenRouter (if API key provided)
       const openRouterKey = typeof OPENROUTER_API_KEY !== 'undefined' ? OPENROUTER_API_KEY : null;
       if (openRouterKey) {
@@ -8776,7 +8781,7 @@ BEHAVIOR:
               ]
             })
           });
-          
+
           if (orResponse.ok) {
             const orData = await orResponse.json();
             const orContent = orData.choices[0].message.content;
@@ -8805,7 +8810,7 @@ function addAiChatMessage(content, type, id = null) {
   const msgDiv = document.createElement('div');
   msgDiv.className = `ai-msg ai-msg-${type}`;
   if (id) msgDiv.id = id;
-  
+
   if (content.includes('✅ Applied') || content.includes('❌ Error')) {
     const isOk = content.includes('✅');
     const msg = content.replace(/[✅❌]\s*/, '');
@@ -8817,7 +8822,7 @@ function addAiChatMessage(content, type, id = null) {
     // Basic formatting for user messages too
     msgDiv.innerText = content;
   }
-  
+
   container.appendChild(msgDiv);
   // Smooth scroll to bottom
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
@@ -8852,29 +8857,29 @@ function startAgentTask(goal) {
   agentGoal = goal;
   currentStepIndex = 0;
   agentPlan = [];
-  
+
   const statusEl = document.getElementById('aiAgentStatus');
   if (statusEl) {
     statusEl.innerHTML = `<div class="agent-pulse"></div><span>Thinking of a plan...</span>`;
   }
-  
+
   const statBar = document.getElementById('status-agent');
   if (statBar) statBar.style.display = 'flex';
-  
+
   const planEl = document.getElementById('aiAgentPlan');
   if (planEl) planEl.innerHTML = '<div class="ai-msg-bot" style="font-size:11px; padding:0">Analyzing goal...</div>';
-  
+
   // The first call to sendAiChatMessage is already done by handleAiChatKey -> sendAiChatMessage
 }
 
 async function continueAgentTask() {
   if (!isAgentRunning) return;
-  
+
   const statusEl = document.getElementById('aiAgentStatus');
   if (statusEl) {
     statusEl.innerHTML = `<div class="agent-pulse"></div><span>Executing next step...</span>`;
   }
-  
+
   // Manually trigger the next AI response
   const input = document.getElementById('aiChatInput');
   input.value = "Proceed with the next step of the plan.";
@@ -8891,7 +8896,7 @@ function updateAgentPlanUI(text) {
   // Extract a list from the text (e.g. "1. Step one", "- Step two")
   const lines = text.split('\n');
   const planLines = lines.filter(line => /^(\d+\.|\-|\*)\s/.test(line.trim()));
-  
+
   if (planLines.length > 0) {
     agentPlan = planLines.map(line => line.replace(/^(\d+\.|\-|\*)\s/, '').trim());
   }
@@ -8904,7 +8909,7 @@ function updateAgentPlanUI(text) {
         <span>${step}</span>
       </div>
     `).join('');
-    
+
     // Update status text
     const statusEl = document.getElementById('aiAgentStatus');
     if (statusEl && isAgentRunning) {
@@ -8916,7 +8921,7 @@ function updateAgentPlanUI(text) {
 function processAiResponse(text, existingMsgDiv = null) {
   const container = document.getElementById('aiChatMessages');
   let msgDiv;
-  
+
   if (existingMsgDiv) {
     msgDiv = existingMsgDiv;
     msgDiv.innerHTML = ''; // Clear partial text
@@ -8925,7 +8930,7 @@ function processAiResponse(text, existingMsgDiv = null) {
     msgDiv.className = 'ai-msg ai-msg-bot';
     container.appendChild(msgDiv);
   }
-  
+
   const formatText = (t) => {
     return t.trim()
       .replace(/\n/g, '<br>')
@@ -8950,11 +8955,11 @@ function processAiResponse(text, existingMsgDiv = null) {
       const lines = part.split('\n');
       const headerLine = lines[0].trim().toLowerCase() || 'code';
       const code = lines.slice(1).join('\n').trim();
-      
+
       // Parse lang and filepath (e.g., html:index.html)
       let lang = 'text';
       let filepath = '';
-      
+
       if (headerLine.includes(':')) {
         [lang, filepath] = headerLine.split(':');
       } else {
@@ -8982,11 +8987,11 @@ function processAiResponse(text, existingMsgDiv = null) {
 
       const codeContainer = document.createElement('div');
       codeContainer.className = 'ai-msg-code-change';
-      
+
       const header = document.createElement('div');
       header.className = 'ai-msg-code-header';
       header.innerHTML = `<span>${lang.toUpperCase()} ${filepath ? `(${filepath})` : ''} ${autoApplied ? '(Auto-Applied)' : ''}</span>`;
-      
+
       const btnGroup = document.createElement('div');
       btnGroup.style.display = 'flex';
       btnGroup.style.gap = '8px';
@@ -9017,12 +9022,12 @@ function processAiResponse(text, existingMsgDiv = null) {
         applyBtn.title = "Switch to BUILD or DEBUG mode to apply changes";
       }
       applyBtn.onclick = () => applyAiCode(lang, code, false, filepath);
-      
+
       btnGroup.appendChild(diffBtn);
       btnGroup.appendChild(applyBtn);
       header.appendChild(btnGroup);
       codeContainer.appendChild(header);
-      
+
       const diffContainer = document.createElement('div');
       diffContainer.className = 'ai-diff-container';
       diffContainer.style.display = 'none';
@@ -9038,7 +9043,7 @@ function processAiResponse(text, existingMsgDiv = null) {
       codePre.style.wordBreak = 'break-all';
       codePre.innerText = code.length > 500 ? code.substring(0, 500) + '\n\n... (code truncated)' : code;
       codeContainer.appendChild(codePre);
-      
+
       msgDiv.appendChild(codeContainer);
     }
   });
@@ -9050,14 +9055,14 @@ function processAiResponse(text, existingMsgDiv = null) {
     confirmDiv.style.gap = '10px';
     confirmDiv.style.marginTop = '15px';
     confirmDiv.style.justifyContent = 'center';
-    
+
     confirmDiv.innerHTML = `
       <button onclick="keepChanges(this)" class="ai-apply-btn" style="background:var(--green); color:#000; padding:8px 25px; border-radius:20px;">Keep</button>
       <button onclick="undoChanges(this)" class="ai-clear-btn" style="padding:8px 25px; border-radius:20px; border-color:var(--red); color:var(--red)">Undo</button>
     `;
     msgDiv.appendChild(confirmDiv);
   }
-  
+
   if (!existingMsgDiv) container.appendChild(msgDiv);
   container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
 }
@@ -9075,7 +9080,7 @@ function undoChanges(btn) {
     lastCodeState.files.forEach((content, path) => {
       virtualFS.set(path, content);
     });
-    
+
     // 2. Rebuild the file tree state from scratch to reflect the old VFS
     // This is the simplest way to ensure the UI matches the restored VFS
     const restoredFiles = Array.from(lastCodeState.files.keys());
@@ -9164,18 +9169,18 @@ function applyAiCode(lang, code, isAuto = false, filepath = '') {
       let currentContent = oldVal;
       let successCount = 0;
       let failCount = 0;
-      
+
       for (let i = 1; i < parts.length; i++) {
         const subPart = parts[i];
         const innerParts = subPart.split('====');
         if (innerParts.length < 2) continue;
-        
+
         const searchStr = innerParts[0].replace(/^\s*[\r\n]/, '').replace(/[\r\n]\s*$/, '');
         const replacePart = innerParts[1].split('>>>>');
         if (replacePart.length < 1) continue;
-        
+
         const replaceStr = replacePart[0].replace(/^\s*[\r\n]/, '').replace(/[\r\n]\s*$/, '');
-        
+
         if (currentContent.includes(searchStr)) {
           currentContent = currentContent.replace(searchStr, replaceStr);
           successCount++;
@@ -9196,7 +9201,7 @@ function applyAiCode(lang, code, isAuto = false, filepath = '') {
         toast(`Partial update: ${successCount} applied, ${failCount} failed in ${targetPath}`);
       }
     }
-    
+
     // Update VFS
     createFileItem(targetPath, newVal);
 
@@ -9206,7 +9211,7 @@ function applyAiCode(lang, code, isAuto = false, filepath = '') {
       toast(`⚠️ Potential bugs found in ${targetPath}!`);
       addAiChatMessage(`⚠️ I found some potential issues in ${targetPath}:\n${errors.join('\n')}\nPlease fix these or ask me to fix them.`, 'bot');
     }
-    
+
     if (!isAuto) {
       // Log manual changes
       const diff = Diff.diffLines(oldVal, newVal);
@@ -9220,7 +9225,7 @@ function applyAiCode(lang, code, isAuto = false, filepath = '') {
     } else {
       toast(`AI auto-applied to ${targetPath}`);
     }
-    
+
     runCode();
   } catch (e) {
     toast('Failed to apply changes');
@@ -9263,7 +9268,7 @@ function registerServiceWorker(){
 
   navigator.serviceWorker.register(swPath, { scope: './' }).then(registration => {
     console.log('SW registered with scope:', registration.scope);
-    
+
     // Check for controller
     if (navigator.serviceWorker.controller) {
       console.log('SW already controlling page');
@@ -9583,12 +9588,12 @@ function applyAnimPreset(presetKey) {
   const preset = ANIM_PRESETS[presetKey];
   if (!preset) return;
   currentAnimPreset = presetKey;
-  
+
   // Highlight active preset button
   document.querySelectorAll('.anim-preset-btn').forEach(b => b.classList.remove('active'));
   const btns = document.querySelectorAll('.anim-preset-btn');
   btns.forEach(b => { if (b.textContent.toLowerCase().replace(' ', '-') === presetKey || b.onclick.toString().includes(presetKey)) b.classList.add('active'); });
-  
+
   // Inject keyframes into iframe
   const tag = ensureAnimStyleTag();
   if (tag) {
@@ -9597,7 +9602,7 @@ function applyAnimPreset(presetKey) {
     Object.values(ANIM_PRESETS).forEach(p => { allKf += p.keyframes + '\n'; });
     tag.textContent = allKf;
   }
-  
+
   applyAnimProps();
 }
 
@@ -9610,7 +9615,7 @@ function applyAnimProps() {
   const timing = document.getElementById('pp-anim-timing').value || 'ease';
   const dir = document.getElementById('pp-anim-dir').value || 'normal';
   const fill = document.getElementById('pp-anim-fill').value || 'none';
-  
+
   if (!currentAnimPreset) {
     var probe = els[0];
     var ah = probe && Array.prototype.slice.call(probe.classList || []).find(function(c) { return c.indexOf('ppah_') === 0; });
@@ -9624,7 +9629,7 @@ function applyAnimProps() {
   if (!currentAnimPreset) return;
   const preset = ANIM_PRESETS[currentAnimPreset];
   if (!preset) return;
-  
+
   const animStr = preset.name + ' ' + dur + 's ' + timing + ' ' + delay + 's ' + iter + ' ' + dir + ' ' + fill;
   const trigEl = document.getElementById('pp-anim-trigger');
   const trigger = trigEl ? trigEl.value : 'load';
@@ -9761,7 +9766,7 @@ function restoreGlobalState(state) {
   virtualFS.clear();
   state.vfs.forEach((content, path) => { virtualFS.set(path, content); });
   currentPath = state.currentPath || currentPath;
-  
+
   // Restore editor
   if (editor && state.vfs.has(currentPath)) {
     _ignoreEditorChangeForLive = true;
@@ -11239,7 +11244,7 @@ function applyBlockAlign(align) {
       toast('Vertical centering works best on Absolute elements or Flex containers');
     }
   }
-  
+
   const r = getRect(selectedEl);
   positionSel(r, selectedEl);
   scheduleSyncToCodeFromVisual();
