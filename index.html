@@ -257,9 +257,12 @@
   --btnhov:#28273a;
   --topH:46px;
   --sbW:210px;
-  --propW:240px;
+  --propW:260px;
+  --chatDockW:0px;
   --status-fg:rgba(255,255,255,.9);
   --seoFootH:30px;
+  --glass: rgba(24, 24, 31, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 html[data-theme="light"]{
@@ -391,9 +394,9 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
   z-index:1000;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
-.tb-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
-.tb-center{display:flex;justify-content:center;flex:1}
-.tb-right{display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end;min-width:0}
+.tb-left{display:flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0;max-width:42%}
+.tb-center{display:flex;justify-content:center;flex:1;min-width:0;overflow:hidden}
+.tb-right{display:flex;align-items:center;gap:8px;flex:0 1 auto;justify-content:flex-end;min-width:0;flex-wrap:wrap;max-width:48%}
 .logo{
   font-size:16px;font-weight:800;letter-spacing:-0.5px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
@@ -411,8 +414,11 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .tb-btn.on{border-color:var(--accent);color:var(--accent);background:rgba(108,99,255,.08)}
 .tb-btn.icon-only{padding:6px;min-width:32px;justify-content:center}
 
-.mode-tabs{display:flex;background:var(--btn);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px}
-.mode-tab{padding:5px 14px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 0.2s;border:none;background:transparent;color:var(--muted);border-radius:7px;font-weight:600;display:flex;align-items:center;gap:6px}
+.mode-tabs{display:flex;background:var(--btn);border:1px solid var(--border);border-radius:10px;padding:3px;gap:2px;min-width:0;flex-shrink:1}
+.mode-tab{padding:5px 14px;font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all 0.2s;border:none;background:transparent;color:var(--muted);border-radius:7px;font-weight:600;display:flex;align-items:center;gap:6px;flex-shrink:0}
+@media(max-width:900px){
+  .mode-tab{padding:5px 8px;font-size:10px}
+}
 .mode-tab:hover{color:var(--text)}
 .mode-tab.active{background:var(--panel);color:var(--accent);box-shadow: 0 2px 6px rgba(0,0,0,0.2)}
 
@@ -426,12 +432,13 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 /* ── SIDEBAR ── */
 .sidebar{width:var(--sbW);min-width:140px;max-width:340px;background:var(--sb);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px;gap:3px;flex-shrink:0;overflow-y:auto;position:relative;user-select:none;transition: transform 0.3s ease, width 0.3s ease;scrollbar-width:none}
 .sidebar::-webkit-scrollbar{display:none}
-#fileSidebar { border-right: 1px solid var(--border); z-index: 100; }
+#fileSidebar { border-right: 1px solid var(--border); z-index: 100; min-height: 0; display: flex; flex-direction: column; flex-shrink: 0; }
 .sidebar-hidden #sidebar { display: none !important; }
 .sidebar-hidden #fileSidebar { display: none !important; }
 
-.file-tree { flex: 1; overflow-y: auto; margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; scrollbar-width: none}
-.file-tree::-webkit-scrollbar{display:none}
+.file-tree { flex: 1; min-height: 0; overflow-y: auto; margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; scrollbar-width: thin; padding-right: 2px; }
+.file-tree::-webkit-scrollbar{ width: 6px; height: 6px; }
+.file-tree::-webkit-scrollbar-thumb{ background: var(--border); border-radius: 4px; }
 .file-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; border-radius: 6px; transition: all 0.2s; color: var(--text); opacity: 0.85; }
 .file-row:hover { background: var(--btnhov); opacity: 1; transform: translateX(2px); }
 .file-row.active { background: rgba(108, 99, 255, 0.1); color: var(--accent); opacity: 1; border-left: 2px solid var(--accent); }
@@ -457,7 +464,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .tb-layout-group .tb-btn.active{background:rgba(108,99,255,0.1) !important; color:var(--accent) !important;}
 
 /* ── PANELS ── */
-.panels{flex:1;display:flex;min-width:0;overflow:hidden;position:relative;background:var(--bg)}
+.panels{flex:1;display:flex;min-width:0;min-height:0;overflow:hidden;position:relative;background:var(--bg)}
 
 .pane{display:flex;flex-direction:column;min-width:80px;overflow:hidden;background:var(--panel);transition:flex 0.2s ease}
 .pane-header{min-height:36px;background:var(--sb);border-bottom:1px solid var(--border);display:flex;align-items:center;flex-wrap:nowrap;padding:0 12px;gap:8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted);flex-shrink:0;user-select:none}
@@ -494,10 +501,15 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .panels-resizer:hover,.panels-resizer.active{background:var(--accent);opacity:.6}
 
 /* ── PREVIEW PANE ── */
-.preview-pane{display:flex;flex-direction:column;min-width:80px;position:relative}
-.preview-viewport-wrap{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;overflow:auto;background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 8px,var(--panel) 8px,var(--panel) 16px)}
-.preview-viewport-inner{position:relative;width:100%;max-width:var(--pv-max,100%);min-height:0;flex:1;display:flex;flex-direction:column;box-shadow:0 0 0 1px var(--border)}
-#preview{flex:1;min-height:0;border:none;background:#fff;display:block;width:100%}
+.preview-pane{display:flex;flex-direction:column;min-width:80px;position:relative;background:var(--bg)}
+.preview-pane > .pane-header{display:flex;flex-wrap:wrap;align-items:center;gap:8px;row-gap:6px;min-height:40px;padding:6px 10px;border-bottom:1px solid var(--border)}
+.preview-pane #browserUrlBar{flex:1 1 140px;min-width:0;max-width:none;height:auto;min-height:30px;padding:4px 10px}
+.preview-pane #browserUrlInput{min-width:0}
+.preview-pane #previewTabs{flex:0 1 auto;max-width:min(280px,38vw);min-width:0}
+.preview-pane .pv-tools{flex:0 1 auto;min-width:0;margin-left:auto}
+.preview-viewport-wrap{flex:1;min-height:0;display:flex;justify-content:center;align-items:stretch;overflow:auto;padding:10px;background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%)}
+.preview-viewport-inner{position:relative;width:100%;max-width:var(--pv-max,100%);min-height:min(280px,55vh);flex:1;display:flex;flex-direction:column;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.18),0 0 0 1px var(--border)}
+#preview{flex:1;min-height:280px;border:none;background:#fff;display:block;width:100%;border-radius:0}
 .pv-tools{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-left:8px}
 .pv-tools button{background:var(--btn);border:1px solid var(--border);color:var(--muted);font-size:9px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:'JetBrains Mono',monospace;transition:all .15s}
 .pv-tools button:hover{color:var(--text);border-color:var(--accent)}
@@ -560,7 +572,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .v-sel-inner{touch-action:none}
 
 /* ── VISUAL INFO BAR ── */
-.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:4px 10px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;flex-shrink:0;align-items:center;gap:8px}
+.visual-bar{display:none;background:rgba(255,95,135,.1);border-bottom:1px solid var(--accent2);padding:4px 10px;font-size:11px;color:var(--accent2);font-family:'JetBrains Mono',monospace;z-index:40;flex-shrink:0;align-items:center;gap:8px;flex-wrap:wrap}
 .visual-bar.show{display:flex}
 .vbar-btn{background:rgba(108,99,255,.15);border:1px solid var(--accent);color:var(--accent);font-size:10px;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:'JetBrains Mono',monospace;white-space:nowrap;flex-shrink:0;pointer-events:all}
 .vbar-btn:hover{background:rgba(108,99,255,.28)}
@@ -572,10 +584,27 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 @keyframes pickPulse{0%,100%{opacity:1}50%{opacity:.65}}
 
 /* ── PROPERTY PANEL ── */
-.prop-panel{width:260px;min-width:220px;max-width:300px;background:var(--sb);border-left:1px solid var(--border);display:none;flex-direction:column;overflow-y:auto;flex-shrink:0;font-family:'JetBrains Mono',monospace;position:relative}
+.prop-panel{
+  width:var(--propW);
+  min-width:240px;
+  max-width:min(360px, 92vw);
+  background:var(--glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-left:1px solid var(--glass-border);
+  display:none;
+  flex-direction:column;
+  overflow-y:auto;
+  flex-shrink:0;
+  font-family:'JetBrains Mono',monospace;
+  position:relative;
+  z-index: 1002;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.2);
+}
 .prop-panel.open{display:flex}
 .pp-resizer{position:absolute;left:0;top:0;bottom:0;width:4px;cursor:col-resize;z-index:10}
 .pp-resizer:hover{background:var(--accent);opacity:0.5}
+.prop-panel select:focus-visible,.prop-panel input:focus-visible,.prop-panel textarea:focus-visible,.prop-panel button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 
 /* Floating panels */
 .floating{
@@ -642,10 +671,10 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .pp-del-btn:hover{color:var(--accent2)}
 .pp-section{padding:10px 12px;border-bottom:1px solid var(--border)}
 .pp-sec-label{font-size:10px;font-weight:700;color:var(--text);margin-bottom:8px;letter-spacing:.3px}
-.pp-field{margin-bottom:7px}
-.pp-field-label{font-size:10px;color:var(--muted);margin-bottom:3px}
-.pp-inp{width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:border .15s;box-sizing:border-box}
-.pp-inp:focus{border-color:var(--accent)}
+.pp-field{margin-bottom:10px}
+.pp-field-label{font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.pp-inp{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:10px;font-size:12px;font-family:'JetBrains Mono',monospace;outline:none;transition:all .2s;box-sizing:border-box}
+.pp-inp:focus{border-color:var(--accent);background:rgba(255,255,255,0.08);box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);}
 .pp-sel{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a5770'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:calc(100% - 8px) center}
 .pp-row2{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px}
 .pp-align-row{display:flex;gap:4px;margin-bottom:7px}
@@ -694,7 +723,7 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 .pp-save:hover{filter:brightness(1.2)}
 
 /* ── STATUSBAR ── */
-.statusbar{position:fixed;bottom:0;left:0;right:0;height:24px;background:var(--sb);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);z-index:999;box-shadow: 0 -2px 10px rgba(0,0,0,0.1);}
+.statusbar{position:fixed;bottom:0;left:0;right:0;height:24px;min-height:calc(24px + env(safe-area-inset-bottom,0px));padding-bottom:env(safe-area-inset-bottom,0px);background:var(--sb);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted);z-index:999;box-shadow: 0 -2px 10px rgba(0,0,0,0.1);}
 #status-msg{font-weight:700;color:var(--accent)}
 
 /* ── TOAST ── */
@@ -709,8 +738,8 @@ body.shared-preview-only .mobile-sidebar-backdrop{display:none!important}
 body.sidebar-hidden .sidebar{display:none!important}
 body.sidebar-hidden #paneResizer{display:none!important}
 
-/* File explorer */
-.file-tree{border:none;border-radius:0;background:transparent;overflow:auto;max-height:none}
+/* File explorer (nested rules — keep in sync with .file-tree above) */
+.file-tree{border:none;border-radius:0;background:transparent}
 .file-caret{width:10px;display:inline-block;color:var(--muted)}
 .file-row{display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text);border-radius:6px}
 .file-row:hover{background:var(--btnhov)}
@@ -1260,42 +1289,143 @@ body.sidebar-hidden #paneResizer{display:none!important}
   color: var(--accent2);
 }
 
-/* ── ANIMATION TIMELINE PANEL ── */
-.anim-timeline-panel{position:fixed;bottom:24px;left:var(--sbW);right:0;height:0;background:var(--panel);border-top:2px solid var(--accent);z-index:1001;display:flex;flex-direction:column;transition:height .25s ease;overflow:hidden;box-shadow:0 -4px 20px rgba(0,0,0,0.3)}
-.anim-timeline-panel.open{height:280px}
+.anim-timeline-panel{
+  position:fixed;
+  bottom:24px;
+  left:var(--sbW);
+  right:0;
+  height:0;
+  background:var(--glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top:2px solid var(--accent);
+  z-index:2000;
+  display:flex;
+  flex-direction:column;
+  transition:all .25s ease;
+  overflow:hidden;
+  box-shadow:0 -8px 30px rgba(0,0,0,0.4);
+}
+.anim-timeline-panel.open{height:min(52vh,560px)}
+body.prop-open .anim-timeline-panel { right: var(--propW); }
+body.chat-open .anim-timeline-panel { right: var(--chatDockW, 380px); }
+body.prop-open.chat-open .anim-timeline-panel { right: calc(var(--propW) + var(--chatDockW, 380px)); }
 @media(max-width:768px){.anim-timeline-panel{left:0}}
 .anim-timeline-header{display:flex;align-items:center;justify-content:space-between;padding:4px 12px;background:var(--bg);border-bottom:1px solid var(--border);min-height:28px;flex-shrink:0}
 .anim-timeline-header .tl-title{font-size:11px;font-weight:700;color:var(--accent);font-family:'JetBrains Mono',monospace}
 .anim-timeline-header button{background:none;border:none;color:var(--text);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
 .anim-timeline-header button:hover{background:var(--btn)}
 .anim-tl-body{display:flex;flex:1;min-height:0;overflow:hidden}
-.anim-tl-sidebar{width:140px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:4px 0}
-.anim-tl-sidebar .tl-track-label{font-size:10px;color:var(--text);padding:4px 8px;height:32px;display:flex;align-items:center;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.anim-tl-sidebar .tl-track-label:hover{background:var(--btn)}
-.anim-tl-sidebar .tl-track-label.active{color:var(--accent);background:rgba(108,99,255,.08)}
-.anim-tl-tracks{flex:1;overflow:auto;position:relative}
-.anim-tl-ruler{height:20px;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;display:flex;align-items:flex-end}
-.anim-tl-ruler .tl-tick{position:absolute;bottom:0;width:1px;height:8px;background:var(--muted)}
-.anim-tl-ruler .tl-tick-label{position:absolute;bottom:9px;font-size:8px;color:var(--muted);font-family:'JetBrains Mono',monospace;transform:translateX(-50%)}
-.anim-tl-ruler .tl-tick.major{height:14px;background:var(--text)}
-.anim-tl-track-row{height:32px;border-bottom:1px solid var(--border);position:relative}
+.anim-tl-sidebar{width:168px;border-right:1px solid var(--border);overflow-y:auto;overflow-x:hidden;flex-shrink:0;padding:0;min-height:0;overscroll-behavior:contain}
+.anim-tl-sidebar .tl-sidebar-ruler-spacer{height:24px;flex-shrink:0;border-bottom:1px solid var(--border);background:rgba(0,0,0,.12)}
+.anim-tl-sidebar .tl-track-label{
+  font-size:10px;
+  color:var(--text);
+  padding:0 6px 0 4px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  border-bottom:1px solid var(--border);
+  font-family:'JetBrains Mono',monospace;
+  cursor:pointer;
+  white-space:nowrap;
+  overflow:hidden;
+  transition:all .15s;
+}
+.anim-tl-sidebar .tl-track-label.tl-row-dim{opacity:0.38}
+.tl-track-label i { font-size:14px; opacity:0.7; flex-shrink:0; }
+.tl-track-flags{display:flex;align-items:center;gap:0;flex-shrink:0}
+.tl-track-flags button{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px;border-radius:4px;line-height:1;display:flex;align-items:center;justify-content:center}
+.tl-track-flags button:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.tl-track-flags button.on{color:var(--accent)}
+.tl-track-flags button.tl-off{opacity:0.35}
+.anim-tl-sidebar .tl-track-label:hover{background:rgba(255,255,255,0.05)}
+.anim-tl-sidebar .tl-track-label.active{color:var(--accent);background:rgba(108,99,255,.08);border-left:2px solid var(--accent)}
+
+.anim-tl-tracks{
+  flex:1;
+  min-width:0;
+  min-height:0;
+  overflow:auto;
+  position:relative;
+  overscroll-behavior:contain;
+}
+.anim-tl-track-row{height:36px;border-bottom:1px solid var(--border);position:relative;flex-shrink:0}
 .anim-tl-track-row:hover{background:rgba(108,99,255,.03)}
-.anim-tl-bar{position:absolute;top:6px;height:20px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border-radius:4px;cursor:grab;min-width:20px;display:flex;align-items:center;justify-content:center}
-.anim-tl-bar:active{cursor:grabbing}
-.anim-tl-bar .tl-bar-label{font-size:8px;color:#fff;font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.anim-tl-track-row.tl-row-dim{opacity:0.4}
+.anim-tl-bar{
+  position:absolute;
+  top:8px;
+  height:20px;
+  background:linear-gradient(90deg, var(--accent), #8b5cf6);
+  border-radius:6px;
+  cursor:grab;
+  min-width:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: 0 2px 8px rgba(108,99,255,0.3);
+}
+.anim-tl-bar:active{cursor:grabbing; box-shadow: 0 4px 12px rgba(108,99,255,0.5);}
+.anim-tl-bar .tl-bar-label{font-size:9px; font-weight:700; color:#fff; font-family:'JetBrains Mono',monospace; padding:0 6px}
 .anim-tl-bar .tl-resize-handle{position:absolute;top:0;width:6px;height:100%;cursor:ew-resize}
 .anim-tl-bar .tl-resize-handle.left{left:0;border-radius:4px 0 0 4px}
 .anim-tl-bar .tl-resize-handle.right{right:0;border-radius:0 4px 4px 0}
 .anim-tl-keyframe{position:absolute;top:10px;width:10px;height:10px;background:var(--accent2);border:1px solid #fff;border-radius:2px;transform:rotate(45deg) translateX(-50%);cursor:pointer;z-index:3}
 .anim-tl-keyframe:hover{background:#ff3366;transform:rotate(45deg) translateX(-50%) scale(1.2)}
-.anim-tl-playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent2);z-index:10;pointer-events:none}
-.anim-tl-playhead::before{content:'';position:absolute;top:-2px;left:-5px;width:12px;height:8px;background:var(--accent2);clip-path:polygon(0 0,100% 0,50% 100%)}
+.anim-tl-ruler{height:24px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;display:flex;align-items:flex-end}
+.anim-tl-ruler .tl-tick{position:absolute;bottom:0;width:1px;height:6px;background:var(--muted);opacity:0.3}
+.anim-tl-ruler .tl-tick.mid{height:10px;opacity:0.6}
+.anim-tl-ruler .tl-tick.major{height:16px;background:var(--accent);opacity:1}
+.anim-tl-ruler .tl-tick-label{position:absolute;bottom:10px;font-size:8px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;transform:translateX(-50%);pointer-events:none}
+.anim-tl-ruler .tl-ruler-marker{position:absolute;top:2px;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid #eab308;transform:translateX(-50%);cursor:ew-resize;z-index:4;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
+.anim-tl-ruler .tl-ruler-marker:hover{border-bottom-color:#facc15}
+
+.anim-tl-playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent2);z-index:11;pointer-events:none;box-shadow: 0 0 10px rgba(255,95,135,0.4)}
+.anim-tl-playhead::before{content:'';position:absolute;top:0;left:-6px;width:14px;height:14px;background:var(--accent2);clip-path:polygon(0 0, 100% 0, 100% 30%, 50% 100%, 0 30%);box-shadow: 0 2px 4px rgba(0,0,0,0.3);pointer-events:none}
+.tl-playhead-hit{position:absolute;left:-12px;width:26px;top:0;bottom:0;cursor:ew-resize;pointer-events:auto;z-index:12;background:transparent}
+.anim-tl-snap-line{position:absolute;top:24px;width:1px;background:rgba(234,179,8,.85);z-index:9;pointer-events:none;display:none}
+.anim-tl-keyframe.selected{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--accent)}
 .anim-tl-controls{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0}
 .anim-tl-controls button{background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-family:'JetBrains Mono',monospace}
 .anim-tl-controls button:hover{border-color:var(--accent);color:var(--accent)}
 .anim-tl-controls button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .anim-tl-controls .tl-time-display{font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;min-width:60px;text-align:center}
 .anim-tl-controls input[type=range]{width:80px;accent-color:var(--accent)}
+/* Timeline inspector (Premiere-style: clip row + sequence) */
+.tl-inspector{
+  flex-shrink:0;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(108,99,255,.08),transparent);
+  max-height:min(240px,38vh);
+  overflow:auto;
+  overscroll-behavior:contain;
+}
+.tl-inspector-empty{padding:10px 14px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.tl-inspector-body{padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
+.tl-inspector-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.tl-inspect-tag{font-size:10px;font-weight:700;background:var(--accent);color:#fff;padding:2px 8px;border-radius:4px;font-family:'JetBrains Mono',monospace}
+.tl-inspect-name{font-size:11px;color:var(--text);font-family:'JetBrains Mono',monospace;opacity:.9;word-break:break-all}
+.tl-inspector-row{display:grid;grid-template-columns:100px 1fr;gap:8px;align-items:center}
+.tl-inspector-row label{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-family:'JetBrains Mono',monospace}
+.tl-inspector-row .tl-inp,.tl-inspector-row select{
+  width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);
+  padding:5px 8px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;box-sizing:border-box
+}
+.tl-preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:5px;margin-top:4px}
+.tl-preset-btn{
+  background:var(--btn);border:1px solid var(--border);color:var(--text);
+  padding:5px 4px;border-radius:6px;font-size:9px;font-weight:600;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:border .15s,color .15s
+}
+.tl-preset-btn:hover{border-color:var(--accent);color:var(--accent)}
+.tl-preset-btn.active{border-color:var(--accent);background:rgba(108,99,255,.2);color:var(--accent)}
+.tl-inspector-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.tl-inspector-actions button{flex:1;min-width:88px;padding:7px 10px;border-radius:8px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;cursor:pointer;border:1px solid var(--border);background:var(--btn);color:var(--text)}
+.tl-inspector-actions .tl-btn-preview{background:linear-gradient(135deg,var(--accent),#6b5bd4);border:none;color:#fff}
+.tl-inspector-actions .tl-btn-remove{background:transparent;border-color:var(--accent2);color:var(--accent2)}
+.anim-timeline-header .tl-sub{font-size:9px;color:var(--muted);font-weight:600;letter-spacing:.12em;text-transform:uppercase;margin-left:8px}
+.pp-anim-ghost-wrap{position:absolute!important;left:-9999px!important;top:0!important;width:4px!important;height:4px!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}
 
 </style>
 </head>
@@ -1364,6 +1494,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
       <button class="sb-icbtn" title="New File" onclick="createNewFile()"><i class="codicon codicon-new-file"></i></button>
       <button class="sb-icbtn" title="New Folder" onclick="createNewFolder()"><i class="codicon codicon-new-folder"></i></button>
       <button class="sb-icbtn" title="Refresh" onclick="renderFileTree()"><i class="codicon codicon-refresh"></i></button>
+      <button class="sb-icbtn" title="Reset IDE / Clear Project" onclick="clearCode()" style="color:#ef4444; margin-left:auto;"><i class="codicon codicon-trash"></i></button>
     </div>
     <div id="fileTree" class="file-tree" ondragover="handleDragOver(event, this)" ondragleave="handleDragLeave(event, this)" ondrop="handleDrop(event, {name:'/', kind:'directory'})"></div>
     <div class="sb-resizer" id="fileSbResizer"></div>
@@ -1388,7 +1519,7 @@ body.sidebar-hidden #paneResizer{display:none!important}
     <div class="sb-label">Tools</div>
     <button class="sb-btn" onclick="toggleLayersPanel()"><span class="sb-icon"><i class="codicon codicon-layers"></i></span>Layers</button>
     <button class="sb-btn" onclick="formatCode()"><span class="sb-icon"><i class="codicon codicon-check-all"></i></span>Format</button>
-    <button class="sb-btn" onclick="clearCode()"><span class="sb-icon"><i class="codicon codicon-trash"></i></span>Clear</button>
+    <button class="sb-btn" onclick="clearCode()" style="color:#ef4444;"><span class="sb-icon"><i class="codicon codicon-trash"></i></span>Reset IDE</button>
     <button class="sb-btn" onclick="insertImageAtCursor()" title="Insert base64 image at cursor in HTML"><span class="sb-icon"><i class="codicon codicon-file-media"></i></span>Insert image</button>
     <button class="sb-btn" onclick="openA11yModal()" aria-label="Open accessibility check"><span class="sb-icon"><i class="codicon codicon-accessibility"></i></span>A11y check</button>
     <div class="sb-sep"></div>
@@ -1446,10 +1577,17 @@ body.sidebar-hidden #paneResizer{display:none!important}
     <div class="preview-pane pane" id="previewPane" style="flex:1">
       <div class="pane-header">
         <div class="pane-dot pd-preview"></div>
-        <div id="browserTabs" style="display:flex; gap:2px; overflow-x:auto; height: 100%; align-items: center; margin-left: 8px; scrollbar-width: none;">
-          <!-- Tabs will be injected here -->
+        <div id="previewTabs" style="display:flex; gap:2px; overflow-x:auto; height:100%; align-items:center; margin-left:8px; scrollbar-width:thin; min-width:0;">
         </div>
-        <div class="pv-tools" id="viewportTools" title="Preview width" style="margin-left:auto; display: flex; align-items: center; gap: 4px; height: 100%;"> 
+        
+        <!-- BROWSER URL BAR MOVED TO HEADER -->
+        <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:2px 10px; font-family:'JetBrains Mono',monospace; font-size:11px; margin-left:8px; flex:1; min-width:0; height:auto;">
+          <span style="color:var(--muted); font-size:12px;"><i class="codicon codicon-lock"></i></span>
+          <input id="browserUrlInput" type="text" style="flex:1; background:transparent; border:none; color:var(--text); outline:none; height: 24px;" value="about:blank" onkeydown="if(event.key==='Enter') navigateTo(this.value)">
+          <button class="pp-icon-btn" onclick="runCode()" title="Reload Preview" style="font-size: 12px; padding: 0;"><i class="codicon codicon-refresh"></i></button>
+        </div>
+
+        <div class="pv-tools" id="viewportTools" title="Preview width" style="display:flex;align-items:center;gap:4px;height:100%;min-width:0;"> 
           <select id="viewportSelect" onchange="setViewport(this.value)" title="Preview size" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:3px 8px;border-radius:6px;font-size:10px;font-family:'JetBrains Mono',monospace;cursor:pointer;outline:none;height: 24px;"> 
             <option value="full" selected>Full</option> 
             <option value="390">Mobile (390px)</option> 
@@ -1461,21 +1599,12 @@ body.sidebar-hidden #paneResizer{display:none!important}
           <button type="button" class="tb-btn" id="previewFsBtn" onclick="togglePreviewFullscreen()" title="Fullscreen preview (Esc to exit)" style="padding: 3px 8px; font-size: 10px; height: 24px;">⛶ Full</button> 
           <button class="pp-icon-btn" onclick="toggleConsole()" title="Toggle Console" style="padding: 0 4px;"><i class="codicon codicon-terminal"></i></button>
           <button type="button" class="tb-btn" id="timelineBtn" onclick="tlTogglePanel()" title="Animation Timeline" style="padding: 3px 8px; font-size: 10px; height: 24px; background:linear-gradient(135deg,var(--accent),#8b5cf6); color:#fff; border-color:var(--accent);">Timeline</button>
+          <button class="pp-icon-btn" onclick="openNewTab()" title="Open in New Tab" style="font-size: 12px; padding: 0 4px;"><i class="codicon codicon-link-external"></i></button>
         </div>
       </div>
       <div class="visual-bar" id="visualBar">
         <span id="visualBarText" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;gap:6px;"><i class="codicon codicon-symbol-color"></i> Visual Mode — Click element to select · Drag to move · Handles to resize/rotate</span>
         <button class="vbar-btn" id="domReorderBtnBar" onclick="toggleDomReorder()" title="Toggle DOM Reorder: drag moves element in HTML structure" style="display:flex;align-items:center;gap:4px;"><i class="codicon codicon-list-flat"></i> DOM Reorder: <span id="domReorderStatus">OFF</span></button>
-      </div>
-
-      <!-- BROWSER UI -->
-      <div id="browserHeader" style="background:var(--sb); border-bottom:1px solid var(--border); display:flex; flex-direction:column; padding:6px 12px; gap:4px;">
-        <div id="browserUrlBar" style="display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:2px 12px; font-family:'JetBrains Mono',monospace; font-size:11px;">
-          <span style="color:var(--muted); font-size:12px;"><i class="codicon codicon-lock"></i></span>
-          <input id="browserUrlInput" type="text" style="flex:1; background:transparent; border:none; color:var(--text); outline:none; height: 24px;" value="about:blank" onkeydown="if(event.key==='Enter') navigateTo(this.value)">
-          <button class="pp-icon-btn" onclick="runCode()" title="Reload" style="font-size: 12px;"><i class="codicon codicon-refresh"></i></button>
-          <button class="pp-icon-btn" onclick="openNewTab()" title="Open in New Tab" style="font-size: 12px;"><i class="codicon codicon-link-external"></i></button>
-        </div>
       </div>
 
       <div class="preview-viewport-wrap" id="previewViewportWrap">
@@ -1550,12 +1679,28 @@ body.sidebar-hidden #paneResizer{display:none!important}
           </select>
         </div>
       </div>
-      <div class="pp-field-label">Alignment</div>
+      <div class="pp-field-label">Text Alignment</div>
       <div class="pp-align-row">
-        <button class="pp-align-btn" data-align="left" onclick="applyAlign('left')" title="Left">&#8676;</button>
-        <button class="pp-align-btn" data-align="center" onclick="applyAlign('center')" title="Center">&#8660;</button>
-        <button class="pp-align-btn" data-align="right" onclick="applyAlign('right')" title="Right">&#8677;</button>
-        <button class="pp-align-btn" data-align="justify" onclick="applyAlign('justify')" title="Justify">&#8644;</button>
+        <button class="pp-align-btn" data-align="left" onclick="applyAlign('left')" title="Left Alignment">&#8676;</button>
+        <button class="pp-align-btn" data-align="center" onclick="applyAlign('center')" title="Center Text">&#8660;</button>
+        <button class="pp-align-btn" data-align="right" onclick="applyAlign('right')" title="Right Alignment">&#8677;</button>
+        <button class="pp-align-btn" data-align="justify" onclick="applyAlign('justify')" title="Justify Text">&#8644;</button>
+      </div>
+      
+      <div class="pp-field-label" style="margin-top:10px">Element Alignment</div>
+      <div class="pp-align-row">
+        <button class="pp-align-btn" onclick="applyBlockAlign('left')" title="Align Left (Block)">
+          <i class="codicon codicon-indent"></i>
+        </button>
+        <button class="pp-align-btn" onclick="applyBlockAlign('center')" title="Center Horizontal (Block)">
+          <i class="codicon codicon-snap-to-grid"></i>
+        </button>
+        <button class="pp-align-btn" onclick="applyBlockAlign('right')" title="Align Right (Block)">
+          <i class="codicon codicon-list-selection"></i>
+        </button>
+        <button class="pp-align-btn" onclick="applyBlockAlign('center-v')" title="Center Vertical (Block)">
+          <i class="codicon codicon-move"></i>
+        </button>
       </div>
     </div>
 
@@ -1758,6 +1903,29 @@ body.sidebar-hidden #paneResizer{display:none!important}
     </div>
 
 
+
+    <!-- CSS animation: full UI lives in Timeline panel -->
+    <div class="pp-section">
+      <div class="pp-sec-label">CSS animation</div>
+      <p class="pp-field-label" style="text-transform:none;line-height:1.45;font-weight:500;color:var(--text)">
+        Presets, when to play (load / hover / click), duration, easing, custom <code>@keyframes</code>, preview and sync are all in the <strong>Timeline</strong> dock below.
+      </p>
+      <button type="button" class="pp-save" style="margin-top:6px;width:100%" onclick="tlOpenForSelected()">Open Timeline</button>
+    </div>
+    <div class="pp-anim-ghost-wrap" aria-hidden="true">
+      <select id="pp-anim-trigger"><option value="load">load</option><option value="hover">hover</option><option value="click">click</option></select>
+      <input id="pp-anim-dur" type="number" value="1" step="0.1">
+      <input id="pp-anim-delay" type="number" value="0" step="0.1">
+      <select id="pp-anim-timing">
+        <option value="ease">ease</option><option value="linear">linear</option><option value="ease-in">ease-in</option>
+        <option value="ease-out">ease-out</option><option value="ease-in-out">ease-in-out</option>
+        <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">cubic-bezier(0.68,-0.55,0.27,1.55)</option>
+      </select>
+      <select id="pp-anim-iter"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="infinite">infinite</option></select>
+      <select id="pp-anim-dir"><option value="normal">normal</option><option value="reverse">reverse</option><option value="alternate">alternate</option><option value="alternate-reverse">alternate-reverse</option></select>
+      <select id="pp-anim-fill"><option value="none">none</option><option value="forwards">forwards</option><option value="backwards">backwards</option><option value="both">both</option></select>
+      <textarea id="pp-anim-keyframes"></textarea>
+    </div>
 
     <!-- CUSTOM CSS -->
     <div class="pp-section">
@@ -2147,7 +2315,9 @@ let currentFilePath = null; // New global variable for current file path
 const _fileTreeState = { root: null, items: [] };
 const virtualFS = new Map();
 let currentPath = 'index.html';
+let previewCurrentPath = null;
 let browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
+let previewTabs = [{ name: 'index.html', path: 'index.html', active: true }];
 const DRAFT_KEY='html-editor-by-jignesh-draft';
 const THEME_KEY='html-editor-theme';
 const FONT_KEY='html-editor-font-size';
@@ -2790,7 +2960,7 @@ require(['vs/editor/editor.main'], () => {
     // Set initial path and VFS
     currentPath = 'index.html';
     virtualFS.set('index.html', initial);
-    _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
+    updateFileTreeFromVirtualFS();
   } else {
     if (!loadProjectState()) {
       try{
@@ -2800,7 +2970,7 @@ require(['vs/editor/editor.main'], () => {
       // Set initial path and VFS
       currentPath = 'index.html';
       virtualFS.set('index.html', initial);
-      _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
+      updateFileTreeFromVirtualFS();
     } else {
       const activeTab = browserTabs.find(t => t.active);
       if (activeTab) {
@@ -2872,7 +3042,15 @@ require(['vs/editor/editor.main'], () => {
 
     if(liveOn && !_ignoreEditorChangeForLive){
       clearTimeout(liveTimer);
-      liveTimer=setTimeout(runCode,350);
+      liveTimer=setTimeout(() => {
+        const ext = currentPath.split('.').pop().toLowerCase();
+        if (ext === 'html' || ext === 'htm') {
+          runCode();
+        } else {
+          // For CSS/JS changes, refresh the linked HTML preview
+          _refreshLinkedHtmlPreview(currentPath);
+        }
+      },350);
     }
     clearTimeout(_outlineTimer);
     _outlineTimer=setTimeout(() => {
@@ -2881,7 +3059,13 @@ require(['vs/editor/editor.main'], () => {
   });
 
   editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.KeyS,()=>{
-    runCode();
+    const ext = currentPath.split('.').pop().toLowerCase();
+    if (ext === 'html' || ext === 'htm') {
+      runCode();
+    } else {
+      // For CSS/JS, refresh the linked HTML preview
+      _refreshLinkedHtmlPreview(currentPath);
+    }
     toast('Preview updated ▶');
   });
   editor.addCommand(monaco.KeyMod.CtrlCmd|monaco.KeyCode.Slash,()=>{
@@ -3080,6 +3264,16 @@ function setMode(mode){
     setVisualMode(false);
   }
 
+  // Ensure Timeline visibility matches mode
+  if(mode !== 'visual') {
+    const panel = document.getElementById('animTimelinePanel');
+    if(panel && panel.classList.contains('open')) {
+      panel.classList.remove('open');
+      const btn = document.querySelector('button[title="Toggle Timeline"]');
+      if(btn) btn.classList.remove('active');
+    }
+  }
+
   var tabMode=(mode==='preview' || mode==='split')?'split':mode;
   ['code','visual','split'].forEach(function(t){
     var el=document.getElementById('tab-'+t);
@@ -3141,45 +3335,256 @@ async function checkSwStatus() {
   }
 }
 
-async function runCode(){
-  if(!editor) return;
+/* ─── VFS PATH RESOLUTION ─── */
+function resolveVFSPath(href, currentFilePath) {
+  if (!href) return '';
+  let cleanHref = href.split('?')[0].split('#')[0];
+  if (cleanHref.startsWith('/')) cleanHref = cleanHref.slice(1);
+  // If href has no directory component and currentFile is at root, return as-is
+  const currentDir = currentFilePath.includes('/') 
+    ? currentFilePath.substring(0, currentFilePath.lastIndexOf('/') + 1) 
+    : '';
+  let resolved = currentDir + cleanHref;
+  // Normalize path (handle ../ and ./)
+  const parts = resolved.split('/');
+  const normalized = [];
+  for (const part of parts) {
+    if (part === '.' || part === '') continue;
+    if (part === '..') { normalized.pop(); }
+    else { normalized.push(part); }
+  }
+  return normalized.join('/');
+}
+
+function resolveVFSReferences(html, currentFilePath) {
+  const DIR_MARKER = '__DIR__';
   
-  const ext = currentPath.split('.').pop().toLowerCase();
+  function lookupVFS(href) {
+    if (!href) return undefined;
+    // Try exact path first
+    let content = virtualFS.get(href);
+    if (content !== undefined && content !== DIR_MARKER) return content;
+    // Try resolved relative path
+    const resolved = resolveVFSPath(href, currentFilePath);
+    content = virtualFS.get(resolved);
+    if (content !== undefined && content !== DIR_MARKER) return content;
+    return undefined;
+  }
+
+  // Process CSS content to resolve @import and url() references
+  function resolveCSS(cssText, cssFilePath) {
+    // Resolve @import url("...") or @import "..."
+    cssText = cssText.replace(/@import\s+(?:url\(\s*)?["']([^"']+)["']\s*\)?\s*;/gi, (match, importPath) => {
+      if (importPath.startsWith('http://') || importPath.startsWith('https://') || importPath.startsWith('//')) return match;
+      const resolvedImport = resolveVFSPath(importPath, cssFilePath);
+      const importContent = virtualFS.get(resolvedImport) || virtualFS.get(importPath);
+      if (importContent !== undefined && importContent !== DIR_MARKER) {
+        return '/* @import ' + importPath + ' */\n' + resolveCSS(importContent, resolvedImport) + '\n';
+      }
+      return match;
+    });
+    // Resolve url(...) for images/fonts
+    cssText = cssText.replace(/url\(\s*["']?([^"')]+)["']?\s*\)/gi, (match, urlPath) => {
+      if (urlPath.startsWith('http://') || urlPath.startsWith('https://') || urlPath.startsWith('//') || urlPath.startsWith('data:')) return match;
+      const resolvedUrl = resolveVFSPath(urlPath, cssFilePath);
+      const fileContent = virtualFS.get(resolvedUrl) || virtualFS.get(urlPath);
+      if (fileContent !== undefined && fileContent !== DIR_MARKER) {
+        const urlExt = urlPath.split('.').pop().toLowerCase();
+        if (fileContent.startsWith('data:')) return 'url("' + fileContent + '")';
+        const mimeMap = { 'png':'image/png', 'jpg':'image/jpeg', 'jpeg':'image/jpeg', 'gif':'image/gif', 'webp':'image/webp', 'svg':'image/svg+xml', 'woff':'font/woff', 'woff2':'font/woff2', 'ttf':'font/ttf', 'eot':'application/vnd.ms-fontobject' };
+        const mime = mimeMap[urlExt] || 'application/octet-stream';
+        try { return 'url("data:' + mime + ';base64,' + btoa(fileContent) + '")'; } catch(e) {}
+      }
+      return match;
+    });
+    return cssText;
+  }
+
+  // 1. Resolve <link rel="stylesheet" href="...">
+  html = html.replace(/<link\b([^>]*?)>/gi, (match, attrs) => {
+    if (!/rel\s*=\s*["']stylesheet["']/i.test(attrs)) return match;
+    const hrefMatch = attrs.match(/href\s*=\s*["']([^"']+)["']/i);
+    if (!hrefMatch) return match;
+    const href = hrefMatch[1];
+    if (href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//')) return match;
+    const content = lookupVFS(href);
+    if (content !== undefined) {
+      const cssFilePath = resolveVFSPath(href, currentFilePath);
+      const resolvedCSS = resolveCSS(content, cssFilePath);
+      return '<style data-vfs-src="' + href + '">\n' + resolvedCSS + '\n</style>';
+    }
+    return match;
+  });
+
+  // 2. Resolve <script src="...">
+  html = html.replace(/<script\b([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*?)>\s*<\/script>/gi, (match, before, src, after) => {
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//')) return match;
+    const content = lookupVFS(src);
+    if (content !== undefined) {
+      const typeMatch = (before + after).match(/type\s*=\s*["']([^"']+)["']/i);
+      const typeAttr = typeMatch ? ' type="' + typeMatch[1] + '"' : '';
+      return '<script' + typeAttr + ' data-vfs-src="' + src + '">\n' + content + '\n<\/script>';
+    }
+    return match;
+  });
+
+  // 3. Resolve <img src="..."> for VFS images
+  html = html.replace(/<img\b([^>]*?)>/gi, (match, attrs) => {
+    const srcMatch = attrs.match(/src\s*=\s*["']([^"']+)["']/i);
+    if (!srcMatch) return match;
+    const src = srcMatch[1];
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//') || src.startsWith('data:')) return match;
+    const content = lookupVFS(src);
+    if (content !== undefined) {
+      const imgExt = src.split('.').pop().toLowerCase();
+      if (content.startsWith('data:image')) return match.replace(src, content);
+      const mimeMap = { 'png':'image/png', 'jpg':'image/jpeg', 'jpeg':'image/jpeg', 'gif':'image/gif', 'webp':'image/webp', 'svg':'image/svg+xml', 'ico':'image/x-icon' };
+      const mime = mimeMap[imgExt] || 'image/png';
+      try { return match.replace(src, 'data:' + mime + ';base64,' + btoa(content)); } catch(e) {}
+    }
+    return match;
+  });
+
+  // 4. Resolve <audio src="...">, <video src="...">, <source src="...">
+  html = html.replace(/<(?:audio|video|source)\b([^>]*?)>/gi, (match, attrs) => {
+    const srcMatch = attrs.match(/src\s*=\s*["']([^"']+)["']/i);
+    if (!srcMatch) return match;
+    const src = srcMatch[1];
+    if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('//') || src.startsWith('data:')) return match;
+    const content = lookupVFS(src);
+    if (content !== undefined && content.startsWith('data:')) {
+      return match.replace(src, content);
+    }
+    return match;
+  });
+
+  // 5. Resolve inline <style> @import
+  html = html.replace(/<style\b([^>]*)>([\s\S]*?)<\/style>/gi, (match, attrs, cssContent) => {
+    if (attrs.includes('data-vfs-src')) return match; // Already resolved
+    if (cssContent.includes('@import') || cssContent.includes('url(')) {
+      return '<style' + attrs + '>' + resolveCSS(cssContent, currentFilePath) + '</style>';
+    }
+    return match;
+  });
+
+  return html;
+}
+
+/* ─── PREVIEW INJECTION SCRIPT ─── */
+const PREVIEW_INJECT_SCRIPT = `<script data-injected="vfs-preview">
+(function(){
+  // Console proxy
+  var sendToParent=function(type,args){
+    try{window.parent.postMessage({type:'console',logType:type,args:args.map(function(a){try{return typeof a==='object'?JSON.parse(JSON.stringify(a)):a;}catch(e){return String(a);}})},\"*\");}catch(e){}
+  };
+  var _log=console.log,_err=console.error,_warn=console.warn;
+  console.log=function(){_log.apply(console,arguments);sendToParent('info',Array.from(arguments));};
+  console.error=function(){_err.apply(console,arguments);sendToParent('error',Array.from(arguments));};
+  console.warn=function(){_warn.apply(console,arguments);sendToParent('warn',Array.from(arguments));};
+  window.onerror=function(msg,url,line){sendToParent('error',[msg+' (line '+line+')']);return false;};
+  // Link click interception
+  document.addEventListener('click',function(e){
+    var a=e.target.closest('a');
+    if(a&&a.href&&!a.href.startsWith('javascript:')){
+      var url;try{url=new URL(a.href);}catch(ex){return;}
+      if(url.origin===location.origin||url.protocol==='about:'){
+        e.preventDefault();
+        window.parent.postMessage({type:'navigate',path:a.getAttribute('href')},'*');
+      }
+    }
+  },true);
+  // Form interception
+  document.addEventListener('submit',function(e){
+    var action=e.target.getAttribute('action');
+    if(action&&!action.startsWith('http')){
+      e.preventDefault();
+      window.parent.postMessage({type:'navigate',path:action},'*');
+    }
+  },true);
+})();
+<\/script>`;
+
+function renderPreview(path) {
+  const ext = path.split('.').pop().toLowerCase();
   const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md'];
   const imgExts = ['png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'svg'];
   
-  // Handle image files directly - use VFS content, not editor value
-if (imgExts.includes(ext)) {
-    const imgContent = virtualFS.get(currentPath);
+  // Handle image files directly - use VFS content
+  if (imgExts.includes(ext)) {
+    const imgContent = virtualFS.get(path);
     if (imgContent) {
       const isDataUrl = imgContent.startsWith('data:image');
       const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
       const dataUrl = isDataUrl ? imgContent : `data:${mimeType};base64,${btoa(imgContent)}`;
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${currentPath}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${currentPath}"></body></html>`;
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${path}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#1a1a1a}img{max-width:100%;max-height:100vh;object-fit:contain}</style></head><body><img src="${dataUrl}" alt="${path}"></body></html>`;
       iframeEl.srcdoc = html;
-      setStatus('Preview: ' + currentPath);
+      setStatus('Preview: ' + path);
       return;
     }
   }
   
   if (!webExts.includes(ext)) return;
 
-  let v = editor.getValue();
-  const mimeTypes = { 'html': 'text/html', 'htm': 'text/html', 'css': 'text/css', 'js': 'application/javascript', 'json': 'application/json', 'svg': 'image/svg+xml', 'md': 'text/markdown', 'txt': 'text/plain' };
-  const mimeType = mimeTypes[ext] || 'text/plain';
+  // Prefer editor value if we're previewing the currently open file, otherwise use VFS
+  let v = (path === currentPath && editor) ? editor.getValue() : virtualFS.get(path);
+  if (v === undefined) return;
   
   if (ext === 'html' || ext === 'htm') {
-    const baseTag = `<base href="blob:${currentPath}/">`;
-    if (v.includes('<head>')) v = v.replace('<head>', '<head>' + baseTag);
-    else if (v.includes('<!DOCTYPE html>')) v = v.replace('<!DOCTYPE html>', '<!DOCTYPE html><head>' + baseTag + '</head>');
-    else v = baseTag + v;
+    // ═══ RESOLVE ALL VFS FILE REFERENCES ═══
+    v = resolveVFSReferences(v, path);
+    
+    // Inject console proxy & navigation helper
+    if (v.includes('</head>')) {
+      v = v.replace('</head>', PREVIEW_INJECT_SCRIPT + '\n</head>');
+    } else if (v.includes('</body>')) {
+      v = v.replace('</body>', PREVIEW_INJECT_SCRIPT + '\n</body>');
+    } else {
+      v = v + '\n' + PREVIEW_INJECT_SCRIPT;
+    }
+    
+    // Use srcdoc for proper same-origin access
+    iframeEl.srcdoc = v;
+    setStatus('Preview: ' + ext.toUpperCase());
+    setTimeout(function() {
+      try {
+        var d = iframeEl.contentDocument;
+        if (d) {
+          ensurePpAnimHoverSysStyles(d);
+          ensurePpAnimClickRuntimeInDoc(d);
+        }
+      } catch (e1) {}
+      updateBrowserUi();
+    }, 0);
+    setTimeout(updateBrowserUi, 500);
+    return;
   }
   
-  const blob = new Blob([v], { type: mimeType });
-  const blobUrl = URL.createObjectURL(blob);
-  iframeEl.src = blobUrl;
+  // Non-HTML files: wrap in appropriate viewer
+  if (ext === 'css') {
+    const resolved = resolveVFSReferences('<style>' + v + '</style>', path);
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + path + '</title>' + resolved + '</head><body><pre style="font-family:monospace;padding:20px;color:#e2e8f0;background:#0f172a;min-height:100vh;margin:0;white-space:pre-wrap;word-break:break-word">' + v.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre></body></html>';
+    iframeEl.srcdoc = html;
+  } else if (ext === 'js') {
+    const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + path + '</title>' + PREVIEW_INJECT_SCRIPT + '</head><body><pre style="font-family:monospace;padding:20px;color:#e2e8f0;background:#0f172a;min-height:100vh;margin:0;white-space:pre-wrap;word-break:break-word">' + v.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre><script>' + v + '<\/script></body></html>';
+    iframeEl.srcdoc = html;
+  } else {
+    const mimeTypes = { 'json': 'application/json', 'svg': 'image/svg+xml', 'md': 'text/markdown', 'txt': 'text/plain' };
+    const mimeType = mimeTypes[ext] || 'text/plain';
+    if (ext === 'svg') {
+      iframeEl.srcdoc = v;
+    } else {
+      const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + path + '</title></head><body><pre style="font-family:monospace;padding:20px;color:#e2e8f0;background:#0f172a;min-height:100vh;margin:0;white-space:pre-wrap;word-break:break-word">' + v.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</pre></body></html>';
+      iframeEl.srcdoc = html;
+    }
+  }
   setStatus('Preview: ' + ext.toUpperCase());
   setTimeout(updateBrowserUi, 500);
+}
+
+async function runCode(){
+  if(!editor) return;
+  const target = previewCurrentPath || 'index.html';
+  renderPreview(target);
 }
 function openNewTab(){
   const w=window.open('','_blank');
@@ -3314,14 +3719,13 @@ function clearCode(){
   
   _ignoreEditorChangeForLive = true;
   editor.setValue('');
-  cssEditor.setValue('');
-  jsEditor.setValue('');
   _ignoreEditorChangeForLive = false;
   
   virtualFS.clear();
   virtualFS.set('index.html', '');
   _fileTreeState.items = [{ name: 'index.html', kind: 'file', path: 'index.html' }];
   browserTabs = [{ name: 'index.html', path: 'index.html', active: true }];
+  previewTabs = [{ name: 'index.html', path: 'index.html', active: true }];
   currentPath = 'index.html';
   
   localStorage.removeItem(DRAFT_KEY);
@@ -3442,45 +3846,59 @@ function getTitleFromIframe(){
 } 
 
 function updateBrowserUi() { 
-  const tabsContainer = document.getElementById('browserTabs'); 
+  const tabsContainer = document.getElementById('previewTabs'); 
   const urlInput = document.getElementById('browserUrlInput'); 
-  if(!tabsContainer || !urlInput) return; 
 
-  const favicon = getFaviconFromIframe(); 
-  const pageTitle = getTitleFromIframe(); 
-  
-  // Filter: only web-supported files in preview tabs
-  const webExts = ['html', 'htm', 'css', 'js', 'json', 'svg', 'md', 'txt', 'png', 'jpg', 'jpeg', 'gif', 'ico', 'webp', 'woff', 'woff2', 'ttf', 'eot'];
-  const previewTabs = browserTabs.filter(tab => {
-    const ext = tab.path.split('.').pop().toLowerCase();
-    return webExts.includes(ext);
-  });
-  
-  tabsContainer.innerHTML = ''; 
-  previewTabs.forEach((tab) => { 
-    // Find actual index in browserTabs
-    const actualIndex = browserTabs.findIndex(t => t.path === tab.path);
-    const tabEl = document.createElement('div'); 
-    tabEl.className = `browser-tab ${tab.active ? 'active' : ''}`; 
+  if(tabsContainer) {
+    const favicon = getFaviconFromIframe(); 
+    const pageTitle = getTitleFromIframe(); 
+    
+    tabsContainer.innerHTML = ''; 
+    previewTabs.forEach((tab, index) => { 
+      const tabEl = document.createElement('div'); 
+      tabEl.className = `browser-tab ${tab.active ? 'active' : ''}`; 
 
-    const faviconHtml = (tab.active && favicon) 
-      ? `<img src="${favicon}" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;border-radius:2px;" onerror="this.style.display='none'">` 
-      : `<span style="width:10px;height:10px;border-radius:2px;background:var(--border);display:inline-block;flex-shrink:0;"></span>`; 
+      const faviconHtml = (tab.active && favicon) 
+        ? `<img src="${favicon}" style="width:12px;height:12px;object-fit:contain;flex-shrink:0;border-radius:2px;" onerror="this.style.display='none'">` 
+        : `<span style="width:10px;height:10px;border-radius:2px;background:var(--border);display:inline-block;flex-shrink:0;"></span>`; 
 
-    const displayName = (tab.active && pageTitle) ? pageTitle.slice(0,22)+(pageTitle.length>22?'…':'') : tab.name; 
+      const displayName = (tab.active && pageTitle) ? pageTitle.slice(0,22)+(pageTitle.length>22?'…':'') : tab.name; 
 
-    tabEl.innerHTML = ` 
-      ${faviconHtml} 
-      <span onclick="switchEditorTab(${actualIndex})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span> 
-      <span class="browser-tab-close" onclick="closeEditorTab(${actualIndex}, event)">×</span> 
-    `; 
-    tabsContainer.appendChild(tabEl); 
-  }); 
+      tabEl.innerHTML = ` 
+        ${faviconHtml} 
+        <span onclick="switchPreviewTab(${index})" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;">${displayName}</span> 
+        <span class="browser-tab-close" onclick="closePreviewTab(${index}, event)">×</span> 
+      `; 
+      tabsContainer.appendChild(tabEl); 
+    }); 
+  }
 
   // Format URL for display, but keep it editable
-  const displayUrl = currentPath.startsWith('http') ? currentPath : `http://localhost/${currentPath}`;
-  if (document.activeElement !== urlInput) {
+  const activePreviewPath = previewCurrentPath || currentPath;
+  const displayUrl = activePreviewPath.startsWith('http') ? activePreviewPath : `http://localhost/${activePreviewPath}`;
+  if (urlInput && document.activeElement !== urlInput) {
     urlInput.value = displayUrl;
+  }
+}
+
+function switchPreviewTab(index) {
+  if (index < 0 || index >= previewTabs.length) return;
+  previewTabs.forEach((t, i) => t.active = (i === index));
+  const tab = previewTabs[index];
+  previewCurrentPath = tab.path;
+  renderPreview(tab.path);
+  updateBrowserUi();
+}
+
+function closePreviewTab(index, event) {
+  if(event) event.stopPropagation();
+  if(previewTabs.length <= 1) return;
+  const wasActive = previewTabs[index].active;
+  previewTabs.splice(index, 1);
+  if(wasActive) {
+    switchPreviewTab(Math.max(0, index - 1));
+  } else {
+    updateBrowserUi();
   }
 }
 
@@ -3561,6 +3979,7 @@ function switchEditorTab(index) {
   
   browserTabs.forEach((t, i) => t.active = (i === index));
   const tab = browserTabs[index];
+  previewCurrentPath = null; // reset preview path when user explicitly switches code tabs
   
   // Show editor panel, but keep terminalOpen flag true so tab stays visible
   const codePaneBody = document.getElementById('codePaneBody');
@@ -3591,11 +4010,35 @@ function switchEditorTab(index) {
       }
       editor.setModel(model);
     }
-    // Preview opens only when user clicks "Run Preview" button or right-click > Preview
+    
+    // No auto-preview on tab switch, just background-refresh associated previews if Live is ON
+    if (liveOn) {
+      _refreshLinkedHtmlPreview(tab.path);
+    }
   }
   updateEditorTabs();
   updateBrowserUi();
   saveProjectState();
+}
+
+/* Find the primary HTML file that links to the given CSS/JS path and refresh preview */
+function _refreshLinkedHtmlPreview(changedPath) {
+  const fileName = changedPath.split('/').pop();
+  // Look through all HTML files in the VFS
+  for (const [path, content] of virtualFS.entries()) {
+    if (content === '__DIR__') continue;
+    const ext = path.split('.').pop().toLowerCase();
+    if (ext !== 'html' && ext !== 'htm') continue;
+    // Check if this HTML file references the changed file
+    if (content.includes(fileName) || content.includes(changedPath)) {
+      // Temporarily switch to this HTML for preview, then switch back
+      const savedPath = currentPath;
+      currentPath = path;
+      runCode();
+      currentPath = savedPath;
+      return;
+    }
+  }
 }
 
 function closeEditorTab(index, event) {
@@ -3716,19 +4159,9 @@ function navigateTo(path) {
   if (cleanPath.endsWith('/')) cleanPath += 'index.html';
   if (cleanPath === '') cleanPath = 'index.html';
 
-  // Check for external/server URLs
-  const isWebContainerUrl = cleanPath.includes('.webcontainer-api.io') || cleanPath.startsWith('http://localhost');
-  
-  if (isWebContainerUrl) {
-    window.open(cleanPath.endsWith('/') ? cleanPath : cleanPath + '/', '_blank');
-    return;
-  }
-  
-  if (cleanPath.startsWith('https://')) {
-    const iframeEl = document.getElementById('preview');
-    if (iframeEl) iframeEl.src = cleanPath;
-    const browserUrlInput = document.getElementById('browserUrlInput');
-    if (browserUrlInput) browserUrlInput.value = cleanPath;
+  // Check for isolated files
+  if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://') || cleanPath.startsWith('//') || cleanPath.includes('.webcontainer-api.io')) {
+    toast('External URLs are disabled. Only container files are supported in this preview format.', 'error');
     updateBrowserUi();
     return;
   }
@@ -3752,14 +4185,27 @@ function navigateTo(path) {
       toast(`Cannot preview: ${ext} files not supported`);
       return;
     }
+    
+    // Act like a local browser
+    previewCurrentPath = targetPath;
     const fileName = targetPath.split('/').pop();
-    openTextInEditor(fileName, virtualFS.get(targetPath), null, targetPath);
+    
+    // Manage independent preview tabs
+    let pIndex = previewTabs.findIndex(t => t.path === targetPath);
+    if (pIndex === -1) {
+      previewTabs.forEach(t => t.active = false);
+      previewTabs.push({ name: fileName, path: targetPath, active: true });
+    } else {
+      previewTabs.forEach((t, i) => t.active = (i === pIndex));
+    }
+    
+    renderPreview(targetPath);
     toast(`Navigated to: ${targetPath}`);
     updateBrowserUi();
-    runCode();
   } else {
     console.warn("Path not found in VFS:", cleanPath);
     toast(`404: ${cleanPath}`, 'error');
+    runCode(); // Force revert to safe srcdoc to block accessing real host missing paths
     updateBrowserUi(); // Reset URL bar
   }
 }
@@ -4432,7 +4878,7 @@ function loadProjectState() {
     const state = JSON.parse(saved);
     virtualFS.clear();
     state.virtualFS.forEach(([path, content]) => virtualFS.set(path, content));
-    _fileTreeState.items = state.fileTreeItems;
+    updateFileTreeFromVirtualFS();
     browserTabs = state.browserTabs;
     currentPath = state.currentPath;
     
@@ -5482,13 +5928,52 @@ function handleMockCommand(cmd, args) {
       xtermTerminal.writeln('\x1b[37m' + Array.from(virtualFS.keys()).join('  ') + '\x1b[0m');
       break;
     case 'help':
-      xtermTerminal.writeln('\x1b[90mMock commands: ls, clear, help, npm, node.\x1b[0m');
+      xtermTerminal.writeln('\x1b[90mMock commands: ls, clear, help, npm, node, cat, rm, mv, cp.\x1b[0m');
       break;
     case 'npm':
       xtermTerminal.writeln('\x1b[33mMock: Simulating npm install...\x1b[0m');
       setTimeout(() => {
         if (xtermTerminal) xtermTerminal.writeln('\x1b[32mMock: Dependencies "simulated" successfully.\x1b[0m');
       }, 1000);
+      break;
+    case 'cat':
+      if (args[0]) {
+        if (virtualFS.has(args[0])) {
+           xtermTerminal.writeln(virtualFS.get(args[0]));
+        } else {
+           xtermTerminal.writeln(`\x1b[31mcat: ${args[0]}: No such file\x1b[0m`);
+        }
+      } else { xtermTerminal.writeln('\x1b[33mUsage: cat <filename>\x1b[0m'); }
+      break;
+    case 'rm':
+      if (args[0]) {
+        if (virtualFS.has(args[0])) {
+           virtualFS.delete(args[0]);
+           xtermTerminal.writeln(`\x1b[32mFile deleted: ${args[0]}\x1b[0m`);
+           updateFileTreeFromVirtualFS(); renderFileTree(); updateBrowserUi();
+        } else {
+           xtermTerminal.writeln(`\x1b[31mrm: ${args[0]}: No such file\x1b[0m`);
+        }
+      } else { xtermTerminal.writeln('\x1b[33mUsage: rm <filename>\x1b[0m'); }
+      break;
+    case 'cp':
+      if (args[0] && args[1]) {
+        if (virtualFS.has(args[0])) {
+           virtualFS.set(args[1], virtualFS.get(args[0]));
+           xtermTerminal.writeln(`\x1b[32mCopied ${args[0]} to ${args[1]}\x1b[0m`);
+           updateFileTreeFromVirtualFS(); renderFileTree(); updateBrowserUi();
+        } else { xtermTerminal.writeln(`\x1b[31mcp: ${args[0]}: No such file\x1b[0m`); }
+      } else { xtermTerminal.writeln('\x1b[33mUsage: cp <source> <dest>\x1b[0m'); }
+      break;
+    case 'mv':
+      if (args[0] && args[1]) {
+        if (virtualFS.has(args[0])) {
+           virtualFS.set(args[1], virtualFS.get(args[0]));
+           virtualFS.delete(args[0]);
+           xtermTerminal.writeln(`\x1b[32mMoved ${args[0]} to ${args[1]}\x1b[0m`);
+           updateFileTreeFromVirtualFS(); renderFileTree(); updateBrowserUi();
+        } else { xtermTerminal.writeln(`\x1b[31mmv: ${args[0]}: No such file\x1b[0m`); }
+      } else { xtermTerminal.writeln('\x1b[33mUsage: mv <source> <dest>\x1b[0m'); }
       break;
     case 'node':
       if (args[0]) {
@@ -5550,6 +6035,7 @@ document.getElementById('anyFileInput').addEventListener('change', (e)=>{
 
 window.addEventListener('resize', () => {
   setTimeout(fitXterm, 100);
+  if (typeof tlUpdateChatDockInset === 'function') tlUpdateChatDockInset();
 });
 
 const terminalPanel = document.getElementById('terminalPanel');
@@ -6019,6 +6505,7 @@ function toggleFloat(id){
     if(id === 'sidebar' || id === 'fileSidebar') el.style.width = 'var(--sbW)';
   }
   if(editor) editor.layout();
+  if (typeof tlUpdateChatDockInset === 'function') tlUpdateChatDockInset();
 }
 
 function makeDraggable(el, handle){
@@ -6370,6 +6857,7 @@ function deselect(){
   vHover.style.display='none';
   /* Keep panel open — just clear values */
   clearProps();
+  document.body.classList.remove('prop-open');
 }
 
 function selectEl(el){
@@ -6380,9 +6868,23 @@ function selectEl(el){
   positionSel(r,el);
   vHover.style.display='none';
   propPanel.classList.add('open');
+  document.body.classList.add('prop-open');
   try{attachVisualListeners();}catch(e){}
   try{fillProps(el);}catch(e){console.warn('fillProps error:',e);}
   setStatus('Selected: <'+el.tagName.toLowerCase()+'>');
+  try { tlFocusTrackForEl(el); } catch (e) {}
+}
+
+function tlFocusTrackForEl(el) {
+  const panel = document.getElementById('animTimelinePanel');
+  if (!panel || !panel.classList.contains('open') || !el) return;
+  const idx = tlTracks.findIndex(function(t) { return t.el === el; });
+  if (idx < 0) return;
+  tlSelectTrack(idx);
+  const rowsArea = document.getElementById('tlTrackRows');
+  if (rowsArea && rowsArea.children[idx]) {
+    rowsArea.children[idx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 function closePropPanel(){if(selectedEl)deselect();}
@@ -6417,9 +6919,37 @@ function discardChanges(){
   scheduleSyncToCodeFromVisual();
 }
 
-/* Reattach when iframe reloads */
+/* Reattach when iframe reloads and intercept unauthorized native navigations */
 iframeEl.addEventListener('load',()=>{ 
   if(visualModeOn) attachVisualListeners(); 
+  
+  try {
+    const href = iframeEl.contentWindow.location.href;
+    // The preview should strictly stay inside the sandboxed srcdoc
+    if (href !== 'about:srcdoc' && href !== 'about:blank') {
+      const url = new URL(href);
+      
+      // Safely extract the intended container file path by ripping off the IDE's root path
+      let path = url.pathname;
+      const baseDir = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+      
+      if (path.startsWith(baseDir)) {
+        path = path.slice(baseDir.length);
+      } else if (path.startsWith('/')) {
+        path = path.slice(1);
+      }
+      
+      if (path && path !== '') {
+        navigateTo(path);
+      } else {
+        runCode(); // Fallback re-render
+      }
+    }
+  } catch(e) {
+    // Cross-origin exception (navigated forcefully to another website)
+    toast('External site navigation blocked. Only container files permitted.', 'error');
+    runCode(); // Force reset to valid VFS
+  }
 });
 
 /* ─── Helpers ─── */
@@ -6792,6 +7322,96 @@ function fillProps(el){
   // CSS
   document.getElementById('pp-css').value=el.getAttribute('style')||'';
   renderRecentColorSwatches();
+
+  // CSS animation (preset / trigger / timing)
+  try {
+    var tr = document.getElementById('pp-anim-trigger');
+    var trigAttr = el.getAttribute('data-pp-anim-trigger');
+    var ppah = Array.prototype.slice.call(el.classList || []).find(function(c) { return c.indexOf('ppah_') === 0; });
+    if (tr) {
+      if (trigAttr) tr.value = trigAttr;
+      else if (ppah) tr.value = 'hover';
+      else tr.value = 'load';
+    }
+    var animInline = (el.getAttribute('style') || '').match(/animation\s*:\s*([^;]+)/i);
+    var animName = '';
+    if (animInline) {
+      var p0 = animInline[1].trim().split(/\s+/);
+      animName = p0[0] || '';
+    }
+    if (!animName && cs.animation && cs.animation !== 'none' && cs.animationName) {
+      animName = cs.animationName.split(',')[0].trim();
+    }
+    document.querySelectorAll('.anim-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    currentAnimPreset = null;
+    var presetKey = null;
+    if (ppah) {
+      var slug = ppah.replace(/^ppah_/, '');
+      for (var pk2 in ANIM_PRESETS) {
+        if (pk2.replace(/[^a-z0-9]+/gi, '_') === slug) { presetKey = pk2; break; }
+      }
+    }
+    if (!presetKey && animName) {
+      for (var pk in ANIM_PRESETS) {
+        if (ANIM_PRESETS[pk].name === animName) { presetKey = pk; break; }
+      }
+    }
+    if (presetKey) {
+      currentAnimPreset = presetKey;
+      document.querySelectorAll('.anim-preset-btn').forEach(function(b) {
+        if (b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'" + presetKey + "'") !== -1) b.classList.add('active');
+      });
+    }
+    var durEl = document.getElementById('pp-anim-dur');
+    var delEl = document.getElementById('pp-anim-delay');
+    var timEl = document.getElementById('pp-anim-timing');
+    var itEl = document.getElementById('pp-anim-iter');
+    var dirEl = document.getElementById('pp-anim-dir');
+    var fillEl = document.getElementById('pp-anim-fill');
+    var durVar = el.style.getPropertyValue('--pp-a-dur').trim();
+    var delVar = el.style.getPropertyValue('--pp-a-del').trim();
+    if (durEl) {
+      if (durVar) durEl.value = String(parseFloat(durVar) || 1);
+      else {
+        var dNum = parseFloat(cs.animationDuration) || 1;
+        durEl.value = String(Math.round(dNum * 10) / 10);
+      }
+    }
+    if (delEl) {
+      if (delVar) delEl.value = String(parseFloat(delVar) || 0);
+      else {
+        var delNum = parseFloat(cs.animationDelay) || 0;
+        delEl.value = String(Math.round(delNum * 10) / 10);
+      }
+    }
+    if (timEl) {
+      var tv = el.style.getPropertyValue('--pp-a-tim').trim();
+      if (tv) {
+        if (['ease','linear','ease-in','ease-out','ease-in-out'].indexOf(tv) !== -1) timEl.value = tv;
+      } else if (cs.animationTimingFunction) {
+        var tf = cs.animationTimingFunction.split(',')[0].trim() || 'ease';
+        if (['ease','linear','ease-in','ease-out','ease-in-out'].indexOf(tf) !== -1) timEl.value = tf;
+      }
+    }
+    if (itEl) {
+      var iv = el.style.getPropertyValue('--pp-a-it').trim();
+      if (iv) itEl.value = (iv === 'infinite' ? 'infinite' : String(parseInt(iv, 10) || 1));
+      else {
+        var it = cs.animationIterationCount;
+        itEl.value = (it === 'infinite' ? 'infinite' : String(parseInt(it, 10) || 1));
+      }
+    }
+    if (dirEl) {
+      var dv = el.style.getPropertyValue('--pp-a-dir').trim();
+      if (dv) dirEl.value = dv;
+      else if (cs.animationDirection) dirEl.value = cs.animationDirection.split(',')[0].trim() || 'normal';
+    }
+    if (fillEl) {
+      var fv = el.style.getPropertyValue('--pp-a-fill').trim();
+      if (fv) fillEl.value = fv;
+      else if (cs.animationFillMode) fillEl.value = cs.animationFillMode.split(',')[0].trim() || 'none';
+    }
+  } catch (animEx) {}
 }
 
 function clearProps(){
@@ -6820,6 +7440,12 @@ function clearProps(){
   document.getElementById('pp-flex-grid-tools').style.display = 'none';
   document.getElementById('pp-grad-type').value = 'none';
   document.getElementById('pp-grad-tools').style.display = 'none';
+  var trg = document.getElementById('pp-anim-trigger');
+  if (trg) trg.value = 'load';
+  var kfTa = document.getElementById('pp-anim-keyframes');
+  if (kfTa) kfTa.value = '';
+  document.querySelectorAll('.anim-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+  currentAnimPreset = null;
 }
 
 
@@ -6967,7 +7593,7 @@ function applyCSS(){
 }
 
 function scheduleSyncToCodeFromVisual(){
-  if(!visualModeOn||!editor) return;
+  if(!editor) return;
   clearTimeout(_visualSyncTimer);
   _visualSyncTimer=setTimeout(()=>{
     _visualSyncTimer=null;
@@ -6981,6 +7607,7 @@ function pushVisualDomToEditor(opts){
     if(!editor) return;
     const doc=iframeEl.contentDocument;
     if(!doc||!doc.documentElement) return;
+    ppPrepareAnimSerialization(doc);
     
     // Clean up temporary attributes before syncing
     const cleanDoc = doc.documentElement.cloneNode(true);
@@ -7000,6 +7627,12 @@ function pushVisualDomToEditor(opts){
     }
     syncActiveAuxPanel();
     if(selectedEl) savedStyles=selectedEl.getAttribute('style')||'';
+    try{
+      if(currentPath) {
+        virtualFS.set(currentPath, editor.getValue());
+        saveProjectState();
+      }
+    }catch(e){}
     if(opts.silent) setStatus('Code synced from visual');
     else{
       toast('Saved to code ✅');
@@ -7759,11 +8392,13 @@ function toggleAiChat() {
   const panel = document.getElementById('aiChatPanel');
   const btn = document.querySelector('.tb-layout-group button[onclick="toggleAiChat()"]');
   const open = panel.classList.toggle('open');
+  document.body.classList.toggle('chat-open', open);
   if (btn) btn.classList.toggle('active', open);
   if(open) {
     document.getElementById('aiChatInput').focus();
     if (editor) editor.layout();
   }
+  if (typeof tlUpdateChatDockInset === 'function') tlUpdateChatDockInset();
 }
 
 function clearAiChat() {
@@ -8750,6 +9385,112 @@ function ensureAnimStyleTag() {
   } catch(e) { return null; }
 }
 
+function ensurePpAnimHoverSysStyles(doc) {
+  try {
+    if (!doc) return;
+    if (doc.getElementById('pp-anim-hover-sys')) return;
+    const st = doc.createElement('style');
+    st.id = 'pp-anim-hover-sys';
+    let css = '';
+    Object.keys(ANIM_PRESETS).forEach(function(key) {
+      const p = ANIM_PRESETS[key];
+      const slug = key.replace(/[^a-z0-9]+/gi, '_');
+      css += '.ppah_' + slug + ':hover { animation: ' + p.name + ' var(--pp-a-dur,1s) var(--pp-a-tim,ease) var(--pp-a-del,0s) var(--pp-a-it,1) var(--pp-a-dir,normal) var(--pp-a-fill,forwards) !important; }\n';
+    });
+    st.textContent = css;
+    (doc.head || doc.documentElement).appendChild(st);
+  } catch (e) {}
+}
+
+function clearPpAnimBindings(el) {
+  if (!el) return;
+  el.removeAttribute('data-pp-anim-trigger');
+  el.removeAttribute('data-pp-anim-click');
+  Array.prototype.slice.call(el.classList || []).filter(function(c) { return c.indexOf('ppah_') === 0; }).forEach(function(c) { el.classList.remove(c); });
+  if (el._ppAnimClick) {
+    try { el.removeEventListener('click', el._ppAnimClick); } catch (e) {}
+    delete el._ppAnimClick;
+  }
+  ['--pp-a-dur', '--pp-a-tim', '--pp-a-del', '--pp-a-it', '--pp-a-dir', '--pp-a-fill'].forEach(function(p) {
+    try { el.style.removeProperty(p); } catch (e) {}
+  });
+}
+
+function ppDocNeedsPresetAnimAssets(doc) {
+  try {
+    if (!doc || !doc.body) return false;
+    if (doc.querySelector('[data-pp-anim-trigger]')) return true;
+    if (doc.body.querySelector('[class*="ppah_"]')) return true;
+    var nodes = doc.body.querySelectorAll('[style*="animation"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var s = nodes[i].getAttribute('style') || '';
+      if (/pp(FadeIn|FadeOut|SlideLeft|SlideRight|SlideUp|SlideDown|Bounce|ScaleUp|Rotate|Pulse|Shake|Flip)\b/.test(s)) return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+function ppMergePresetKeyframesIntoDoc(doc) {
+  try {
+    if (!doc) return;
+    var head = doc.head || doc.documentElement;
+    var tag = doc.getElementById('pp-anim-styles');
+    if (!tag) {
+      tag = doc.createElement('style');
+      tag.id = 'pp-anim-styles';
+      head.appendChild(tag);
+    }
+    var blob = tag.textContent || '';
+    Object.keys(ANIM_PRESETS).forEach(function(k) {
+      var nm = ANIM_PRESETS[k].name;
+      var kf = ANIM_PRESETS[k].keyframes;
+      if (blob.indexOf('@keyframes ' + nm) === -1) blob += '\n' + kf;
+    });
+    tag.textContent = blob;
+  } catch (e) {}
+}
+
+function ensurePpAnimClickRuntimeInDoc(doc) {
+  try {
+    if (!doc || !doc.body) return;
+    var hasClick = doc.querySelector('[data-pp-anim-trigger="click"]');
+    var existing = doc.getElementById('pp-anim-click-runtime');
+    if (!hasClick) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    var s = doc.createElement('script');
+    s.id = 'pp-anim-click-runtime';
+    s.textContent = '(function(){document.addEventListener("click",function(e){var el=e.target.closest(\'[data-pp-anim-trigger="click"]\');if(!el)return;var anim=el.getAttribute("data-pp-anim-click");if(!anim)return;el.style.animation="none";void el.offsetWidth;el.style.animation=anim;},true);})();';
+    (doc.head || doc.documentElement).appendChild(s);
+  } catch (e) {}
+}
+
+function ppPrepareAnimSerialization(doc) {
+  try {
+    if (!doc || !doc.body) return;
+    if (!ppDocNeedsPresetAnimAssets(doc)) {
+      ensurePpAnimClickRuntimeInDoc(doc);
+      return;
+    }
+    ppMergePresetKeyframesIntoDoc(doc);
+    ensurePpAnimHoverSysStyles(doc);
+    ensurePpAnimClickRuntimeInDoc(doc);
+  } catch (e) {}
+}
+
+function syncAnimChangesToSourceNow() {
+  clearTimeout(_visualSyncTimer);
+  _visualSyncTimer = null;
+  try {
+    pushVisualDomToEditor({ silent: true });
+    if (currentPath && editor) virtualFS.set(currentPath, editor.getValue());
+    saveProjectState();
+    runCode();
+  } catch (e) {}
+}
+
 function applyAnimPreset(presetKey) {
   if (!selectedEl && !multiSelectedEls.length) { toast('Select an element first'); return; }
   const preset = ANIM_PRESETS[presetKey];
@@ -8783,14 +9524,54 @@ function applyAnimProps() {
   const dir = document.getElementById('pp-anim-dir').value || 'normal';
   const fill = document.getElementById('pp-anim-fill').value || 'none';
   
+  if (!currentAnimPreset) {
+    var probe = els[0];
+    var ah = probe && Array.prototype.slice.call(probe.classList || []).find(function(c) { return c.indexOf('ppah_') === 0; });
+    if (ah) {
+      var sl = ah.replace(/^ppah_/, '');
+      for (var pk0 in ANIM_PRESETS) {
+        if (pk0.replace(/[^a-z0-9]+/gi, '_') === sl) { currentAnimPreset = pk0; break; }
+      }
+    }
+  }
   if (!currentAnimPreset) return;
   const preset = ANIM_PRESETS[currentAnimPreset];
   if (!preset) return;
   
   const animStr = preset.name + ' ' + dur + 's ' + timing + ' ' + delay + 's ' + iter + ' ' + dir + ' ' + fill;
-  els.forEach(el => {
-    el.style.animation = animStr;
+  const trigEl = document.getElementById('pp-anim-trigger');
+  const trigger = trigEl ? trigEl.value : 'load';
+  const tag = ensureAnimStyleTag();
+  if (tag) {
+    let blob = tag.textContent || '';
+    Object.values(ANIM_PRESETS).forEach(function(p) {
+      if (blob.indexOf(p.keyframes) === -1) blob += '\n' + p.keyframes;
+    });
+    tag.textContent = blob;
+  }
+  const iDoc = iframeEl.contentDocument;
+  ensurePpAnimHoverSysStyles(iDoc);
+  const slug = currentAnimPreset.replace(/[^a-z0-9]+/gi, '_');
+  els.forEach(function(el) {
+    clearPpAnimBindings(el);
+    el.setAttribute('data-pp-anim-trigger', trigger);
+    if (trigger === 'hover') {
+      el.style.animation = 'none';
+      el.classList.add('ppah_' + slug);
+      el.style.setProperty('--pp-a-dur', dur + 's');
+      el.style.setProperty('--pp-a-tim', timing);
+      el.style.setProperty('--pp-a-del', delay + 's');
+      el.style.setProperty('--pp-a-it', iter);
+      el.style.setProperty('--pp-a-dir', dir);
+      el.style.setProperty('--pp-a-fill', fill);
+    } else if (trigger === 'click') {
+      el.style.animation = 'none';
+      el.setAttribute('data-pp-anim-click', animStr);
+    } else {
+      el.style.animation = animStr;
+    }
   });
+  ensurePpAnimClickRuntimeInDoc(iDoc);
   scheduleSyncToCodeFromVisual();
 }
 
@@ -8804,9 +9585,9 @@ function applyCustomKeyframes() {
     // Extract animation name from @keyframes declaration
     const nameMatch = kfText.match(/@keyframes\s+([\w-]+)/);
     if (nameMatch) {
-      tag.textContent = existing + '\n' + kfText;
-      // Set custom animation name as current
+      if (existing.indexOf('@keyframes ' + nameMatch[1]) === -1) tag.textContent = existing + '\n' + kfText;
       currentAnimPreset = null;
+      document.querySelectorAll('.anim-preset-btn').forEach(function(b) { b.classList.remove('active'); });
       const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
       const dur = document.getElementById('pp-anim-dur').value || '1';
       const delay = document.getElementById('pp-anim-delay').value || '0';
@@ -8815,7 +9596,24 @@ function applyCustomKeyframes() {
       const dir = document.getElementById('pp-anim-dir').value || 'normal';
       const fill = document.getElementById('pp-anim-fill').value || 'none';
       const animStr = nameMatch[1] + ' ' + dur + 's ' + timing + ' ' + delay + 's ' + iter + ' ' + dir + ' ' + fill;
-      els.forEach(el => { el.style.animation = animStr; });
+      const trigEl = document.getElementById('pp-anim-trigger');
+      const trigger = trigEl ? trigEl.value : 'load';
+      if (trigger === 'hover') {
+        toast('Custom keyframes: use Page load or On click (hover supports presets only)');
+        if (trigEl) trigEl.value = 'load';
+      }
+      const useTrigger = trigger === 'hover' ? 'load' : trigger;
+      els.forEach(function(el) {
+        clearPpAnimBindings(el);
+        el.setAttribute('data-pp-anim-trigger', useTrigger);
+        if (useTrigger === 'click') {
+          el.style.animation = 'none';
+          el.setAttribute('data-pp-anim-click', animStr);
+        } else {
+          el.style.animation = animStr;
+        }
+      });
+      ensurePpAnimClickRuntimeInDoc(iframeEl.contentDocument);
       scheduleSyncToCodeFromVisual();
     }
   }
@@ -8824,12 +9622,14 @@ function applyCustomKeyframes() {
 function previewAnimation() {
   const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
   if (!els.length) { toast('Select an element first'); return; }
-  // Restart animation by removing and re-adding
-  els.forEach(el => {
-    const anim = el.style.animation;
+  els.forEach(function(el) {
+    var trig = el.getAttribute('data-pp-anim-trigger');
+    var anim = el.style.animation;
+    if (trig === 'click') anim = el.getAttribute('data-pp-anim-click') || anim;
+    if (!anim || anim === 'none') return;
     el.style.animation = 'none';
-    el.offsetHeight; // force reflow
-    setTimeout(() => { el.style.animation = anim; }, 10);
+    void el.offsetHeight;
+    setTimeout(function() { el.style.animation = anim; }, 10);
   });
   toast('▶ Animation preview');
 }
@@ -8837,9 +9637,14 @@ function previewAnimation() {
 function removeAnimation() {
   const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
   if (!els.length) return;
-  els.forEach(el => { el.style.animation = ''; });
+  els.forEach(function(el) {
+    el.style.animation = '';
+    clearPpAnimBindings(el);
+  });
   currentAnimPreset = null;
   document.querySelectorAll('.anim-preset-btn').forEach(b => b.classList.remove('active'));
+  const tr = document.getElementById('pp-anim-trigger');
+  if (tr) tr.value = 'load';
   scheduleSyncToCodeFromVisual();
   toast('Animation removed');
 }
@@ -8999,27 +9804,507 @@ if (typeof editor !== 'undefined' && editor) {
 
 // Initialize UI
 setTimeout(updateUndoRedoUI, 100);
+setTimeout(function() { if (typeof tlUpdateChatDockInset === 'function') tlUpdateChatDockInset(); }, 300);
 
 
 
 /* ═══════════════════════════════════════════
    ANIMATION TIMELINE
    ═══════════════════════════════════════════ */
-let tlTracks = []; // [{el, name, anim, dur, delay, timing, iter, dir, fill, keyframes:[{time,props}]}]
+let tlTracks = [];
 let tlDurationSec = 5;
 let tlPixelsPerSec = 150;
+const TL_MIN_PX_PER_SEC = 40;
+const TL_MAX_PX_PER_SEC = 800;
 let tlPlaying = false;
 let tlPlayTimer = null;
+let tlPlayStartWall = 0;
+let tlPlayStartTime = 0;
 let tlCurrentTime = 0;
+let tlSelectedTrackIdx = -1;
+let tlMarkers = [];
+let tlLoop = false;
+let tlPlaybackRate = 1;
+let tlSnapEnabled = true;
+const TL_SNAP_GRID = 1 / 60;
+let tlScrollSyncBound = false;
+let tlTimelineInit = false;
+let tlSelectedKeyframeKeys = new Set();
+let tlInspectorPresetKey = null;
+let _tlInspectorCommitTimer = null;
+
+function tlGhostSyncFromInspector() {
+  try {
+    var map = [['pp-anim-trigger', 'tl-anim-trigger'], ['pp-anim-dur', 'tl-anim-dur'], ['pp-anim-delay', 'tl-anim-delay'],
+      ['pp-anim-timing', 'tl-anim-timing'], ['pp-anim-iter', 'tl-anim-iter'], ['pp-anim-dir', 'tl-anim-dir'], ['pp-anim-fill', 'tl-anim-fill'],
+      ['pp-anim-keyframes', 'tl-anim-keyframes']];
+    map.forEach(function(pair) {
+      var dst = document.getElementById(pair[0]);
+      var src = document.getElementById(pair[1]);
+      if (dst && src) {
+        if (src.tagName === 'SELECT') dst.value = src.value;
+        else dst.value = src.value;
+      }
+    });
+  } catch (e) {}
+}
+
+function tlInspectorVisibility() {
+  var empty = document.getElementById('tlInspectorEmpty');
+  var body = document.getElementById('tlInspectorBody');
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) {
+    if (empty) empty.style.display = 'block';
+    if (body) body.style.display = 'none';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (body) body.style.display = 'flex';
+}
+
+function tlFillInspectorFromTrack(idx) {
+  if (idx < 0 || !tlTracks[idx]) {
+    tlInspectorVisibility();
+    return;
+  }
+  var track = tlTracks[idx];
+  tlEnsureTrackModel(track);
+  if (typeof track.animTrigger !== 'string') {
+    track.animTrigger = (track.el && track.el.getAttribute('data-pp-anim-trigger')) || 'load';
+  }
+  if (typeof track.customKeyframes !== 'string') track.customKeyframes = '';
+  var c0 = track.clips[0];
+  var trg = document.getElementById('tl-anim-trigger');
+  if (trg) trg.value = track.animTrigger || 'load';
+  var durEl = document.getElementById('tl-anim-dur');
+  if (durEl) durEl.value = String(c0.dur != null ? c0.dur : track.dur || 1);
+  var delEl = document.getElementById('tl-anim-delay');
+  if (delEl) delEl.value = String(c0.start != null ? c0.start : track.delay || 0);
+  var timEl = document.getElementById('tl-anim-timing');
+  if (timEl) timEl.value = c0.timing || track.timing || 'ease';
+  var itEl = document.getElementById('tl-anim-iter');
+  if (itEl) itEl.value = String(c0.iter || track.iter || '1');
+  var dirEl = document.getElementById('tl-anim-dir');
+  if (dirEl) dirEl.value = c0.dir || track.dir || 'normal';
+  var fillEl = document.getElementById('tl-anim-fill');
+  if (fillEl) fillEl.value = c0.fill || track.fill || 'forwards';
+  var animSrc = (c0 && c0.anim) ? c0.anim : (track.anim || '');
+  var firstAnim = animSrc ? animSrc.split(',')[0].trim() : '';
+  var animName = firstAnim ? firstAnim.split(/\s+/)[0] : '';
+  tlInspectorPresetKey = null;
+  if (animName) {
+    for (var pk in ANIM_PRESETS) {
+      if (ANIM_PRESETS[pk].name === animName) { tlInspectorPresetKey = pk; break; }
+    }
+  }
+  document.querySelectorAll('.tl-preset-btn').forEach(function(b) {
+    b.classList.toggle('active', tlInspectorPresetKey && b.getAttribute('data-preset') === tlInspectorPresetKey);
+  });
+  var kfTa = document.getElementById('tl-anim-keyframes');
+  if (kfTa) kfTa.value = track.customKeyframes || '';
+  var tagEl = document.getElementById('tlInspectTag');
+  var nameEl = document.getElementById('tlInspectName');
+  if (track.el && track.el.isConnected) {
+    if (tagEl) tagEl.textContent = track.el.tagName.toLowerCase();
+    if (nameEl) nameEl.textContent = track.name || '';
+  } else {
+    if (tagEl) tagEl.textContent = '—';
+    if (nameEl) nameEl.textContent = '(element missing)';
+  }
+  tlInspectorVisibility();
+  tlGhostSyncFromInspector();
+}
+
+function tlInspectorScheduleCommit() {
+  clearTimeout(_tlInspectorCommitTimer);
+  _tlInspectorCommitTimer = setTimeout(tlInspectorCommit, 220);
+}
+
+function tlInspectorCommit() {
+  _tlInspectorCommitTimer = null;
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  var track = tlTracks[tlSelectedTrackIdx];
+  if (track.locked) return;
+  tlEnsureTrackModel(track);
+  var c = track.clips[0];
+  var dur = parseFloat(document.getElementById('tl-anim-dur').value) || 1;
+  var del = parseFloat(document.getElementById('tl-anim-delay').value) || 0;
+  var tim = document.getElementById('tl-anim-timing').value || 'ease';
+  var it = document.getElementById('tl-anim-iter').value || '1';
+  var dir = document.getElementById('tl-anim-dir').value || 'normal';
+  var fill = document.getElementById('tl-anim-fill').value || 'forwards';
+  track.animTrigger = document.getElementById('tl-anim-trigger').value || 'load';
+  if (track.animTrigger === 'hover' && document.getElementById('tl-anim-keyframes').value.trim() && !tlInspectorPresetKey) {
+    toast('Hover needs a built-in preset; switching to page load');
+    track.animTrigger = 'load';
+    document.getElementById('tl-anim-trigger').value = 'load';
+  }
+  var nm = '';
+  if (tlInspectorPresetKey && ANIM_PRESETS[tlInspectorPresetKey]) nm = ANIM_PRESETS[tlInspectorPresetKey].name;
+  else {
+    var tok = (c.anim || track.anim || '').trim().split(/\s+/);
+    nm = tok[0] || '';
+  }
+  if (!nm) {
+    tlRender();
+    return;
+  }
+  c.anim = nm + ' ' + dur + 's ' + tim + ' ' + del + 's ' + it + ' ' + dir + ' ' + fill;
+  c.dur = dur;
+  c.start = del;
+  c.timing = tim;
+  c.iter = it;
+  c.dir = dir;
+  c.fill = fill;
+  track.customKeyframes = document.getElementById('tl-anim-keyframes').value;
+  tlSyncLegacyFromClips(track);
+  tlGhostSyncFromInspector();
+  tlRender();
+  tlPushTrackToDom(track);
+  scheduleSyncToCodeFromVisual();
+}
+
+function tlInspectorApplyPreset(presetKey) {
+  if (tlSelectedTrackIdx < 0 || !ANIM_PRESETS[presetKey]) return;
+  tlInspectorPresetKey = presetKey;
+  document.querySelectorAll('.tl-preset-btn').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-preset') === presetKey);
+  });
+  tlInspectorCommit();
+}
+
+function tlInspectorOnKeyframesChange() {
+  if (tlSelectedTrackIdx < 0) return;
+  tlTracks[tlSelectedTrackIdx].customKeyframes = document.getElementById('tl-anim-keyframes').value;
+}
+
+function tlInspectorApplyCustomKeyframes() {
+  if (tlSelectedTrackIdx < 0) return;
+  var raw = document.getElementById('tl-anim-keyframes').value.trim();
+  if (!raw) return;
+  var m = raw.match(/@keyframes\s+([\w-]+)/);
+  if (!m) { toast('Invalid: need @keyframes name'); return; }
+  var trgEl = document.getElementById('tl-anim-trigger');
+  if (trgEl && trgEl.value === 'hover') {
+    toast('Custom keyframes: use page load or click');
+    trgEl.value = 'load';
+  }
+  tlInspectorPresetKey = null;
+  document.querySelectorAll('.tl-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+  var track = tlTracks[tlSelectedTrackIdx];
+  tlEnsureTrackModel(track);
+  var c = track.clips[0];
+  var dur = parseFloat(document.getElementById('tl-anim-dur').value) || 1;
+  var del = parseFloat(document.getElementById('tl-anim-delay').value) || 0;
+  var tim = document.getElementById('tl-anim-timing').value || 'ease';
+  var it = document.getElementById('tl-anim-iter').value || '1';
+  var dir = document.getElementById('tl-anim-dir').value || 'normal';
+  var fill = document.getElementById('tl-anim-fill').value || 'forwards';
+  c.anim = m[1] + ' ' + dur + 's ' + tim + ' ' + del + 's ' + it + ' ' + dir + ' ' + fill;
+  c.dur = dur;
+  c.start = del;
+  c.timing = tim;
+  c.iter = it;
+  c.dir = dir;
+  c.fill = fill;
+  track.customKeyframes = raw;
+  track.animTrigger = document.getElementById('tl-anim-trigger').value || 'load';
+  tlSyncLegacyFromClips(track);
+  var tag = ensureAnimStyleTag();
+  if (tag && tag.textContent.indexOf('@keyframes ' + m[1]) === -1) tag.textContent += '\n' + raw;
+  tlGhostSyncFromInspector();
+  tlRender();
+  tlPushTrackToDom(track);
+  scheduleSyncToCodeFromVisual();
+  toast('Custom keyframes applied');
+}
+
+function tlInspectorPreview() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  tlInspectorCommit();
+  var track = tlTracks[tlSelectedTrackIdx];
+  if (!track.el || !track.el.isConnected) { toast('Element not found'); return; }
+  var trig = track.animTrigger || 'load';
+  if (trig === 'click') {
+    var a = track.el.getAttribute('data-pp-anim-click');
+    if (!a) return;
+    track.el.style.animation = 'none';
+    void track.el.offsetWidth;
+    track.el.style.animation = a;
+    toast('Preview (click mode)');
+    return;
+  }
+  var css = tlBuildAnimationCSSTrack(track);
+  if (!css) { toast('No animation'); return; }
+  track.el.style.animation = 'none';
+  track.el.style.animationDelay = '';
+  void track.el.offsetHeight;
+  track.el.style.animation = css;
+  toast('Preview');
+}
+
+function tlInspectorRemoveAnim() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
+  var track = tlTracks[tlSelectedTrackIdx];
+  track.anim = '';
+  track.animTrigger = 'load';
+  track.customKeyframes = '';
+  tlInspectorPresetKey = null;
+  tlEnsureTrackModel(track);
+  track.clips.forEach(function(cl) { cl.anim = ''; });
+  if (track.el && track.el.isConnected) {
+    clearPpAnimBindings(track.el);
+    track.el.style.animation = '';
+    track.el.style.animationDelay = '';
+  }
+  var kfTa = document.getElementById('tl-anim-keyframes');
+  if (kfTa) kfTa.value = '';
+  var trg = document.getElementById('tl-anim-trigger');
+  if (trg) trg.value = 'load';
+  document.querySelectorAll('.tl-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+  tlFillInspectorFromTrack(tlSelectedTrackIdx);
+  tlRender();
+  scheduleSyncToCodeFromVisual();
+  toast('Animation removed');
+}
+
+function tlUpdateChatDockInset() {
+  const p = document.getElementById('aiChatPanel');
+  let w = '0px';
+  if (p && p.classList.contains('open') && !p.classList.contains('floating')) {
+    w = (Math.round(p.getBoundingClientRect().width) || 380) + 'px';
+  }
+  document.documentElement.style.setProperty('--chatDockW', w);
+}
 
 function tlTogglePanel() {
   document.getElementById('animTimelinePanel').classList.toggle('open');
+  if (document.getElementById('animTimelinePanel').classList.contains('open')) {
+    tlUpdateChatDockInset();
+    tlInitTimelineInteractions();
+  }
+}
+
+function tlEnsureTrackModel(track) {
+  if (!track) return;
+  if (typeof track.hidden !== 'boolean') track.hidden = false;
+  if (typeof track.locked !== 'boolean') track.locked = false;
+  if (typeof track.muted !== 'boolean') track.muted = false;
+  if (!track.clips || !track.clips.length) {
+    track.clips = [{
+      start: typeof track.delay === 'number' ? track.delay : 0,
+      dur: (typeof track.dur === 'number' && track.dur > 0) ? track.dur : 1,
+      anim: track.anim || '',
+      timing: track.timing || 'ease',
+      iter: track.iter || '1',
+      dir: track.dir || 'normal',
+      fill: track.fill || 'forwards'
+    }];
+    tlSyncLegacyFromClips(track);
+  }
+}
+
+function tlSyncLegacyFromClips(track) {
+  const c = track.clips && track.clips[0];
+  if (!c) return;
+  track.delay = c.start;
+  track.dur = c.dur;
+  track.anim = c.anim;
+  track.timing = c.timing;
+  track.iter = c.iter;
+  track.dir = c.dir;
+  track.fill = c.fill;
+}
+
+function tlSyncFirstClipFromLegacy(track) {
+  tlEnsureTrackModel(track);
+  const c = track.clips[0];
+  c.start = track.delay;
+  c.dur = track.dur;
+  c.anim = track.anim;
+  c.timing = track.timing;
+  c.iter = track.iter;
+  c.dir = track.dir;
+  c.fill = track.fill;
+  const toks = (track.anim && String(track.anim).trim().split(/\s+/)) || [];
+  if (toks.length >= 2) {
+    const d = parseFloat(toks[1]);
+    if (!isNaN(d) && d > 0) c.dur = d;
+    if (toks.length >= 3 && !/^[\d.]+m?s$/i.test(toks[2])) c.timing = toks[2];
+  }
+}
+
+function tlKfGetAbsTime(track, kf) {
+  if (kf.tAbs != null && isFinite(kf.tAbs)) return Math.max(0, Math.min(tlDurationSec, kf.tAbs));
+  const d = track.delay != null ? track.delay : (track.clips && track.clips[0] ? track.clips[0].start : 0);
+  const du = track.dur != null ? track.dur : (track.clips && track.clips[0] ? track.clips[0].dur : 1);
+  return Math.max(0, Math.min(tlDurationSec, d + (kf.time || 0) * du));
+}
+
+function tlKfSetAbsTime(track, kf, tAbs) {
+  kf.tAbs = Math.max(0, Math.min(tlDurationSec, tAbs));
+  delete kf.time;
+}
+
+function tlPickTickStep() {
+  const minPx = 9;
+  const cands = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30, 60];
+  for (let i = 0; i < cands.length; i++) {
+    if (cands[i] * tlPixelsPerSec >= minPx) return cands[i];
+  }
+  return 1;
+}
+
+function tlSnapTime(t, opts) {
+  if (!tlSnapEnabled || (opts && opts.noSnap)) return Math.max(0, Math.min(tlDurationSec, t));
+  let best = t;
+  let bestDist = TL_SNAP_GRID * tlPixelsPerSec * 2;
+  const trySnap = (cand) => {
+    const d = Math.abs(cand - t) * tlPixelsPerSec;
+    if (d < bestDist) { bestDist = d; best = cand; }
+  };
+  for (let g = 0; g <= tlDurationSec + 1e-6; g += TL_SNAP_GRID) trySnap(Math.min(tlDurationSec, g));
+  tlMarkers.forEach(m => trySnap(Math.min(tlDurationSec, m.t)));
+  tlTracks.forEach(tr => {
+    tlEnsureTrackModel(tr);
+    (tr.keyframes || []).forEach(kf => {
+      if (opts && opts.excludeTrack === tr && opts.excludeKf === kf) return;
+      trySnap(tlKfGetAbsTime(tr, kf));
+    });
+    (tr.clips || []).forEach(c => {
+      trySnap(Math.min(tlDurationSec, c.start));
+      trySnap(Math.min(tlDurationSec, c.start + c.dur));
+    });
+  });
+  return Math.max(0, Math.min(tlDurationSec, best));
+}
+
+function tlBuildAnimationCSSTrack(track) {
+  tlEnsureTrackModel(track);
+  const parts = [];
+  track.clips.forEach(c => {
+    if (!c.anim) return;
+    const nm = String(c.anim).trim().split(/\s+/)[0];
+    if (!nm || nm === 'none') return;
+    const dur = (c.dur || 0.01).toFixed(3) + 's';
+    const tim = c.timing || 'ease';
+    const del = (c.start || 0).toFixed(3) + 's';
+    const it = c.iter || '1';
+    const di = c.dir || 'normal';
+    const fi = c.fill || 'forwards';
+    parts.push(nm + ' ' + dur + ' ' + tim + ' ' + del + ' ' + it + ' ' + di + ' ' + fi);
+  });
+  return parts.join(', ');
+}
+
+function tlInjectPresetsForTrack(track) {
+  const tag = ensureAnimStyleTag();
+  if (!tag) return;
+  let blob = tag.textContent || '';
+  track.clips.forEach(c => {
+    if (!c.anim) return;
+    const nm = String(c.anim).trim().split(/\s+/)[0];
+    const preset = Object.values(ANIM_PRESETS).find(p => p.name === nm);
+    if (preset && !blob.includes(preset.keyframes)) blob += '\n' + preset.keyframes;
+  });
+  tag.textContent = blob;
+}
+
+function tlPushTrackToDom(track) {
+  if (!track || !track.el || !track.el.isConnected) return;
+  tlEnsureTrackModel(track);
+  var trig = track.animTrigger || track.el.getAttribute('data-pp-anim-trigger') || 'load';
+  if (trig !== 'load' && track.clips && track.clips.length > 1) trig = 'load';
+  track.animTrigger = trig;
+  var css = tlBuildAnimationCSSTrack(track);
+  if (track.customKeyframes && String(track.customKeyframes).trim()) {
+    var kfRaw = String(track.customKeyframes).trim();
+    var km = kfRaw.match(/@keyframes\s+([\w-]+)/);
+    var tagK = ensureAnimStyleTag();
+    if (tagK && km && tagK.textContent.indexOf('@keyframes ' + km[1]) === -1) tagK.textContent += '\n' + kfRaw;
+  }
+  var iDoc = typeof iframeEl !== 'undefined' && iframeEl ? iframeEl.contentDocument : null;
+  if (!css || !String(css).trim()) {
+    track.el.style.animation = '';
+    track.el.style.animationDelay = '';
+    clearPpAnimBindings(track.el);
+    if (iDoc) ensurePpAnimClickRuntimeInDoc(iDoc);
+    return;
+  }
+  tlInjectPresetsForTrack(track);
+  var tag = ensureAnimStyleTag();
+  if (tag) {
+    var blob = tag.textContent || '';
+    Object.keys(ANIM_PRESETS).forEach(function(k) {
+      var p = ANIM_PRESETS[k];
+      if (blob.indexOf('@keyframes ' + p.name) === -1) blob += '\n' + p.keyframes;
+    });
+    tag.textContent = blob;
+  }
+  if (iDoc) ensurePpAnimHoverSysStyles(iDoc);
+  clearPpAnimBindings(track.el);
+  track.el.setAttribute('data-pp-anim-trigger', trig);
+  var firstPart = String(css).split(',')[0].trim();
+  var nm = firstPart ? firstPart.split(/\s+/)[0] : '';
+  var presetKey = null;
+  if (nm) {
+    for (var pk in ANIM_PRESETS) {
+      if (ANIM_PRESETS[pk].name === nm) { presetKey = pk; break; }
+    }
+  }
+  if (trig === 'hover' && presetKey) {
+    track.el.style.animation = 'none';
+    var slug = presetKey.replace(/[^a-z0-9]+/gi, '_');
+    track.el.classList.add('ppah_' + slug);
+    var c = track.clips[0];
+    track.el.style.setProperty('--pp-a-dur', (c.dur || 1) + 's');
+    track.el.style.setProperty('--pp-a-tim', c.timing || 'ease');
+    track.el.style.setProperty('--pp-a-del', (c.start || 0) + 's');
+    track.el.style.setProperty('--pp-a-it', String(c.iter || '1'));
+    track.el.style.setProperty('--pp-a-dir', c.dir || 'normal');
+    track.el.style.setProperty('--pp-a-fill', c.fill || 'forwards');
+  } else if (trig === 'click') {
+    track.el.style.animation = 'none';
+    if (firstPart) track.el.setAttribute('data-pp-anim-click', firstPart);
+  } else {
+    track.el.style.animation = css;
+    track.el.style.animationDelay = '';
+  }
+  if (iDoc) ensurePpAnimClickRuntimeInDoc(iDoc);
+}
+
+function tlScrubPreview() {
+  if (tlPlaying) return;
+  tlTracks.forEach(track => {
+    if (!track.el || !track.el.isConnected || track.muted || track.hidden) return;
+    tlEnsureTrackModel(track);
+    const t = tlCurrentTime;
+    const clip = track.clips.find(c => c.anim && t >= c.start && t < c.start + c.dur);
+    if (!clip) {
+      track.el.style.animation = '';
+      track.el.style.animationDelay = '';
+      if (track.animTrigger && track.animTrigger !== 'load') tlPushTrackToDom(track);
+      return;
+    }
+    const nm = String(clip.anim).trim().split(/\s+/)[0];
+    if (!nm) { track.el.style.animation = ''; return; }
+    const preset = Object.entries(ANIM_PRESETS).find(([k, v]) => v.name === nm);
+    if (preset) {
+      const tag = ensureAnimStyleTag();
+      if (tag && !tag.textContent.includes(preset[1].keyframes)) tag.textContent += '\n' + preset[1].keyframes;
+    }
+    const local = Math.max(0, t - clip.start);
+    const tim = clip.timing || 'ease';
+    const dur = clip.dur || 1;
+    track.el.style.animation = nm + ' ' + dur + 's ' + tim + ' 0s 1 normal forwards paused';
+    track.el.style.animationDelay = (-local) + 's';
+  });
 }
 
 function tlOpenForSelected() {
   const panel = document.getElementById('animTimelinePanel');
   panel.classList.add('open');
-  // Auto-add tracks for selected elements
+  tlUpdateChatDockInset();
+  tlInitTimelineInteractions();
   const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
   els.forEach(el => {
     if (!tlTracks.find(t => t.el === el)) {
@@ -9028,7 +10313,7 @@ function tlOpenForSelected() {
       const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '';
       const existingAnim = el.style.animation || '';
       const parts = existingAnim.split(' ');
-      tlTracks.push({
+      const tr = {
         el: el,
         name: tag + id + cls,
         anim: existingAnim,
@@ -9038,11 +10323,19 @@ function tlOpenForSelected() {
         iter: parts[5] || '1',
         dir: parts[6] || 'normal',
         fill: parts[7] || 'forwards',
-        keyframes: []
-      });
+        keyframes: [],
+        animTrigger: el.getAttribute('data-pp-anim-trigger') || 'load',
+        customKeyframes: ''
+      };
+      tlEnsureTrackModel(tr);
+      tlTracks.push(tr);
     }
   });
   tlRender();
+  if (els.length === 1) {
+    var li = tlTracks.findIndex(function(t) { return t.el === els[0]; });
+    if (li >= 0) tlSelectTrack(li);
+  }
 }
 
 function tlAddTrack() {
@@ -9054,16 +10347,33 @@ function tlAddTrack() {
       const tag = el.tagName.toLowerCase();
       const id = el.id ? '#' + el.id : '';
       const cls = el.className && typeof el.className === 'string' ? '.' + el.className.split(' ')[0] : '';
-      tlTracks.push({ el, name: tag + id + cls, anim: '', delay: 0, dur: 1, timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards', keyframes: [] });
+      const tr = { el, name: tag + id + cls, anim: '', delay: 0, dur: 1, timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards', keyframes: [], animTrigger: 'load', customKeyframes: '' };
+      tlEnsureTrackModel(tr);
+      tlTracks.push(tr);
       added++;
     }
   });
   if (added > 0) {
     toast(added + ' track(s) added');
     tlRender();
+    tlSelectTrack(tlTracks.length - 1);
   } else {
     toast('Elements already in timeline');
   }
+}
+
+function tlSetZoom(val, anchorPxInView) {
+  const prev = tlPixelsPerSec;
+  tlPixelsPerSec = Math.max(TL_MIN_PX_PER_SEC, Math.min(TL_MAX_PX_PER_SEC, parseInt(val, 10)));
+  const zr = document.getElementById('tlZoomRange');
+  if (zr) zr.value = String(tlPixelsPerSec);
+  const ta = document.getElementById('tlTracksArea');
+  if (ta && anchorPxInView != null && prev > 0) {
+    const ratio = tlPixelsPerSec / prev;
+    const newScrollLeft = anchorPxInView * ratio - (anchorPxInView - ta.scrollLeft);
+    requestAnimationFrame(() => { ta.scrollLeft = Math.max(0, newScrollLeft); });
+  }
+  tlRender();
 }
 
 function tlSetDuration(v) {
@@ -9072,188 +10382,504 @@ function tlSetDuration(v) {
   tlRender();
 }
 
+function tlToggleLoop() {
+  tlLoop = !tlLoop;
+  const b = document.getElementById('tlLoopBtn');
+  if (b) b.classList.toggle('active', tlLoop);
+  toast(tlLoop ? 'Loop on' : 'Loop off');
+}
+
+function tlToggleSnap() {
+  tlSnapEnabled = !tlSnapEnabled;
+  const b = document.getElementById('tlSnapBtn');
+  if (b) b.classList.toggle('active', tlSnapEnabled);
+  toast(tlSnapEnabled ? 'Snapping on' : 'Snapping off');
+}
+
+function tlAddMarkerAtPlayhead() {
+  tlMarkers.push({ id: Date.now(), t: tlCurrentTime, label: '' });
+  tlRender();
+  toast('Marker at ' + tlCurrentTime.toFixed(2) + 's');
+}
+
+function tlAddClipToSelected() {
+  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) { toast('Select a track in the timeline'); return; }
+  const track = tlTracks[tlSelectedTrackIdx];
+  if (track.locked) { toast('Track is locked'); return; }
+  tlEnsureTrackModel(track);
+  const last = track.clips[track.clips.length - 1];
+  const start = Math.min(Math.max(0, tlDurationSec - 0.2), (last.start + last.dur) + 0.05);
+  track.clips.push({ start, dur: 1, anim: '', timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards' });
+  tlSyncLegacyFromClips(track);
+  tlRender();
+  toast('Clip added');
+}
+
+function tlBindScrollSync() {
+  if (tlScrollSyncBound) return;
+  const sb = document.getElementById('tlSidebar');
+  const ta = document.getElementById('tlTracksArea');
+  if (!sb || !ta) return;
+  tlScrollSyncBound = true;
+  let lock = false;
+  sb.addEventListener('scroll', function() {
+    if (lock) return;
+    lock = true;
+    ta.scrollTop = sb.scrollTop;
+    lock = false;
+  });
+  ta.addEventListener('scroll', function() {
+    if (lock) return;
+    lock = true;
+    sb.scrollTop = ta.scrollTop;
+    lock = false;
+  });
+}
+
+function tlInitTimelineInteractions() {
+  if (tlTimelineInit) return;
+  const ta = document.getElementById('tlTracksArea');
+  if (!ta) return;
+  tlTimelineInit = true;
+  tlBindScrollSync();
+  const panel = document.getElementById('animTimelinePanel');
+  if (panel) {
+    panel.addEventListener('mousedown', function() {
+      try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
+    });
+  }
+  ta.addEventListener('wheel', function(e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const rect = ta.getBoundingClientRect();
+    const anchorPx = e.clientX - rect.left + ta.scrollLeft;
+    const prev = tlPixelsPerSec;
+    const delta = e.deltaY > 0 ? -15 : 15;
+    tlSetZoom(String(Math.max(TL_MIN_PX_PER_SEC, Math.min(TL_MAX_PX_PER_SEC, prev + delta))), anchorPx);
+  }, { passive: false });
+  if (typeof GestureEvent !== 'undefined') {
+    ta.addEventListener('gesturestart', function(e) { e.preventDefault(); }, { passive: false });
+  }
+  const phHit = document.getElementById('tlPlayheadHit');
+  if (phHit) {
+    phHit.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const ta2 = document.getElementById('tlTracksArea');
+      const move = function(ev) {
+        const r = ta2.getBoundingClientRect();
+        const x = ev.clientX - r.left + ta2.scrollLeft;
+        tlCurrentTime = tlSnapTime(x / tlPixelsPerSec, { noSnap: ev.shiftKey });
+        tlUpdatePlayhead();
+      };
+      const up = function() {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+  }
+  document.addEventListener('keydown', function(e) {
+    const panel = document.getElementById('animTimelinePanel');
+    if (!panel || !panel.classList.contains('open')) return;
+    if (!e.target.closest('#animTimelinePanel')) return;
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (tlSelectedKeyframeKeys.size) {
+        e.preventDefault();
+        const toDel = [];
+        tlSelectedKeyframeKeys.forEach(key => {
+          const [ti, ki] = key.split('-').map(Number);
+          toDel.push({ ti, ki });
+        });
+        toDel.sort((a, b) => b.ki - a.ki);
+        toDel.forEach(({ ti, ki }) => {
+          if (tlTracks[ti] && tlTracks[ti].keyframes[ki] != null) tlTracks[ti].keyframes.splice(ki, 1);
+        });
+        tlSelectedKeyframeKeys.clear();
+        tlRender();
+      }
+    }
+    if (e.code === 'Space' && !e.target.closest('input,textarea,select')) {
+      e.preventDefault();
+      tlPlay();
+    }
+  });
+}
+
 function tlRender() {
   const sidebar = document.getElementById('tlSidebar');
   const rows = document.getElementById('tlTrackRows');
   const ruler = document.getElementById('tlRuler');
-  
-  // Ruler
+  const validK = new Set();
+  tlTracks.forEach(function(tr, ti) {
+    (tr.keyframes || []).forEach(function(kf, ki) { validK.add(ti + '-' + ki); });
+  });
+  Array.from(tlSelectedKeyframeKeys).forEach(function(k) {
+    if (!validK.has(k)) tlSelectedKeyframeKeys.delete(k);
+  });
+  const lb = document.getElementById('tlLoopBtn');
+  if (lb) lb.classList.toggle('active', tlLoop);
+  tlBindScrollSync();
+
   ruler.innerHTML = '';
   const totalW = tlDurationSec * tlPixelsPerSec;
   ruler.style.width = totalW + 'px';
-  for (let t = 0; t <= tlDurationSec; t += 0.5) {
+
+  const step = tlPickTickStep();
+  const maxTicks = 600;
+  let n = 0;
+  for (let t = 0; t <= tlDurationSec + 1e-9 && n < maxTicks; t += step, n++) {
     const x = t * tlPixelsPerSec;
-    const isMajor = t % 1 === 0;
+    const nearWholeSec = Math.abs(t - Math.round(t)) < step * 0.35;
+    const isMajor = nearWholeSec || step >= 0.5;
+    const isMid = !isMajor && step < 0.5 && Math.abs((t * 2) % 1) < step * 0.35;
+
     const tick = document.createElement('div');
-    tick.className = 'tl-tick' + (isMajor ? ' major' : '');
+    tick.className = 'tl-tick' + (isMajor ? ' major' : (isMid ? ' mid' : ''));
     tick.style.left = x + 'px';
     ruler.appendChild(tick);
+
     if (isMajor) {
       const lbl = document.createElement('span');
       lbl.className = 'tl-tick-label';
       lbl.style.left = x + 'px';
-      lbl.textContent = t + 's';
+      lbl.textContent = step < 0.02 ? t.toFixed(3) + 's' : (nearWholeSec ? Math.round(t) + 's' : t.toFixed(2) + 's');
       ruler.appendChild(lbl);
     }
   }
-  
-  // Sidebar + Track Rows
+
+  tlMarkers.forEach(m => {
+    const mk = document.createElement('div');
+    mk.className = 'tl-ruler-marker';
+    mk.style.left = (m.t * tlPixelsPerSec) + 'px';
+    mk.title = (m.label || 'Marker') + ' — drag';
+    let sx = 0, origT = m.t;
+    mk.addEventListener('mousedown', function(ev) {
+      ev.stopPropagation();
+      ev.preventDefault();
+      sx = ev.clientX;
+      origT = m.t;
+      const move = function(ev2) {
+        const dx = (ev2.clientX - sx) / tlPixelsPerSec;
+        m.t = tlSnapTime(Math.max(0, Math.min(tlDurationSec, origT + dx)), { noSnap: ev2.shiftKey });
+        tlRender();
+      };
+      const up = function() {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+      };
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+    mk.addEventListener('dblclick', function(ev) {
+      ev.stopPropagation();
+      const lab = prompt('Marker label', m.label || '');
+      if (lab != null) m.label = lab;
+      tlRender();
+    });
+    ruler.appendChild(mk);
+  });
+
   sidebar.innerHTML = '';
+  const spacer = document.createElement('div');
+  spacer.className = 'tl-sidebar-ruler-spacer';
+  sidebar.appendChild(spacer);
+
   rows.innerHTML = '';
   rows.style.width = totalW + 'px';
-  
+
   if (tlTracks.length === 0) {
-    sidebar.innerHTML = '<div style="padding:8px;font-size:9px;color:var(--muted);text-align:center;">Select elements and click "+ Track"</div>';
+    const hint = document.createElement('div');
+    hint.style.cssText = 'padding:8px;font-size:9px;color:var(--muted);text-align:center;';
+    hint.textContent = 'Select elements and click "+ Track"';
+    sidebar.appendChild(hint);
   }
-  
+
+  const dimOthers = selectedEl && tlTracks.some(t => t.el === selectedEl);
+
   tlTracks.forEach((track, i) => {
-    // Sidebar label
+    tlEnsureTrackModel(track);
+
     const label = document.createElement('div');
-    label.className = 'tl-track-label' + (i === tlSelectedTrackIdx ? ' active' : '');
+    const rowDim = dimOthers && track.el !== selectedEl;
+    label.className = 'tl-track-label' + (i === tlSelectedTrackIdx ? ' active' : '') + (rowDim ? ' tl-row-dim' : '');
     label.title = 'Click to edit track properties';
-    
+
+    const flags = document.createElement('div');
+    flags.className = 'tl-track-flags';
+    const btnEye = document.createElement('button');
+    btnEye.type = 'button';
+    btnEye.innerHTML = '<i class="codicon codicon-' + (track.hidden ? 'eye-closed' : 'eye') + '"></i>';
+    btnEye.className = track.hidden ? 'tl-off' : '';
+    btnEye.title = 'Visibility';
+    btnEye.onclick = function(e) { e.stopPropagation(); track.hidden = !track.hidden; tlRender(); };
+    const btnLock = document.createElement('button');
+    btnLock.type = 'button';
+    btnLock.innerHTML = '<i class="codicon codicon-' + (track.locked ? 'lock' : 'unlock') + '"></i>';
+    btnLock.classList.toggle('on', track.locked);
+    btnLock.title = 'Lock';
+    btnLock.onclick = function(e) { e.stopPropagation(); track.locked = !track.locked; tlRender(); };
+    const btnMute = document.createElement('button');
+    btnMute.type = 'button';
+    btnMute.innerHTML = '<i class="codicon codicon-mute"></i>';
+    btnMute.className = track.muted ? 'on tl-off' : '';
+    btnMute.title = 'Mute (skip preview / apply)';
+    btnMute.onclick = function(e) { e.stopPropagation(); track.muted = !track.muted; tlRender(); };
+    flags.appendChild(btnEye);
+    flags.appendChild(btnLock);
+    flags.appendChild(btnMute);
+
+    const icon = document.createElement('i');
+    const tag = (track.el ? track.el.tagName.toLowerCase() : 'div');
+    if (tag === 'img') icon.className = 'codicon codicon-device-camera';
+    else if (tag === 'button') icon.className = 'codicon codicon-symbol-method';
+    else if (tag === 'a') icon.className = 'codicon codicon-link';
+    else icon.className = 'codicon codicon-symbol-field';
+
     const nameSpan = document.createElement('span');
     nameSpan.textContent = track.name;
-    nameSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;';
+    nameSpan.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;min-width:0';
+
+    label.appendChild(flags);
+    label.appendChild(icon);
     label.appendChild(nameSpan);
-    
-    label.onclick = () => {
+
+    label.onclick = function() {
       tlSelectTrack(i);
       if (track.el && track.el.isConnected) {
         clearMultiSelect();
         selectEl(track.el);
       }
     };
-    // Remove button
     const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
     rmBtn.textContent = '✕';
-    rmBtn.style.cssText = 'background:none;border:none;color:var(--accent2);cursor:pointer;font-size:10px;padding:0 4px;flex-shrink:0';
-    rmBtn.onclick = (e) => { e.stopPropagation(); tlTracks.splice(i, 1); if(tlSelectedTrackIdx >= tlTracks.length) tlSelectedTrackIdx = -1; tlRender(); };
+    rmBtn.style.cssText = 'background:none;border:none;color:var(--accent2);cursor:pointer;font-size:10px;padding:0 2px;flex-shrink:0';
+    rmBtn.onclick = function(e) {
+      e.stopPropagation();
+      var was = i;
+      tlTracks.splice(i, 1);
+      if (tlSelectedTrackIdx === was) tlSelectedTrackIdx = -1;
+      else if (tlSelectedTrackIdx > was) tlSelectedTrackIdx--;
+      if (tlSelectedTrackIdx >= tlTracks.length) tlSelectedTrackIdx = -1;
+      tlRender();
+      if (tlSelectedTrackIdx >= 0) tlFillInspectorFromTrack(tlSelectedTrackIdx);
+      else tlInspectorVisibility();
+    };
     label.appendChild(rmBtn);
     sidebar.appendChild(label);
-    
-    // Track row
+
     const row = document.createElement('div');
-    row.className = 'anim-tl-track-row';
+    row.className = 'anim-tl-track-row' + (rowDim ? ' tl-row-dim' : '');
     row.style.width = totalW + 'px';
-    
-    // Animation bar
-    const bar = document.createElement('div');
-    bar.className = 'anim-tl-bar';
-    const startX = track.delay * tlPixelsPerSec;
-    const barW = Math.max(track.dur * tlPixelsPerSec, 20);
-    bar.style.left = startX + 'px';
-    bar.style.width = barW + 'px';
-    
-    const barLabel = document.createElement('span');
-    barLabel.className = 'tl-bar-label';
-    barLabel.textContent = track.anim ? track.anim.split(' ')[0] : 'no anim';
-    bar.appendChild(barLabel);
-    
-    // Resize handles
-    const lHandle = document.createElement('div');
-    lHandle.className = 'tl-resize-handle left';
-    bar.appendChild(lHandle);
-    const rHandle = document.createElement('div');
-    rHandle.className = 'tl-resize-handle right';
-    bar.appendChild(rHandle);
-    
-    // Drag bar to change delay
-    let dragStart = 0, origLeft = 0;
-    bar.addEventListener('mousedown', (e) => {
-      if (e.target.classList.contains('tl-resize-handle')) return;
-      e.preventDefault();
-      dragStart = e.clientX;
-      origLeft = parseFloat(bar.style.left);
-      const onMove = (ev) => {
-        const dx = ev.clientX - dragStart;
-        const newLeft = Math.max(0, origLeft + dx);
-        bar.style.left = newLeft + 'px';
-        track.delay = newLeft / tlPixelsPerSec;
-      };
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+    if (track.hidden) row.style.opacity = '0.25';
+
+    function wireClipBar(bar, clip, ci) {
+      const barLabel = document.createElement('span');
+      barLabel.className = 'tl-bar-label';
+      barLabel.textContent = clip.anim ? clip.anim.split(' ')[0] : '—';
+      bar.appendChild(barLabel);
+      const lHandle = document.createElement('div');
+      lHandle.className = 'tl-resize-handle left';
+      bar.appendChild(lHandle);
+      const rHandle = document.createElement('div');
+      rHandle.className = 'tl-resize-handle right';
+      bar.appendChild(rHandle);
+
+      bar.addEventListener('mousedown', function(e) {
+        if (track.locked || e.target.classList.contains('tl-resize-handle')) return;
+        e.preventDefault();
+        tlSelectTrack(i);
+        const dragStart = e.clientX;
+        const origLeft = clip.start * tlPixelsPerSec;
+        const onMove = function(ev) {
+          const dx = ev.clientX - dragStart;
+          let ns = (origLeft + dx) / tlPixelsPerSec;
+          ns = tlSnapTime(ns, { noSnap: ev.shiftKey });
+          const wSec = clip.dur;
+          clip.start = Math.max(0, Math.min(tlDurationSec - wSec, ns));
+          bar.style.left = (clip.start * tlPixelsPerSec) + 'px';
+          if (ci === 0) tlSyncLegacyFromClips(track);
+        };
+        const onUp = function() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          tlRender();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      rHandle.addEventListener('mousedown', function(e) {
+        if (track.locked) return;
+        e.preventDefault(); e.stopPropagation();
+        const startX2 = e.clientX;
+        const origW = clip.dur * tlPixelsPerSec;
+        const onMove = function(ev) {
+          const dx = ev.clientX - startX2;
+          let nw = Math.max(20 / tlPixelsPerSec, (origW + dx) / tlPixelsPerSec);
+          nw = Math.min(nw, tlDurationSec - clip.start);
+          clip.dur = nw;
+          bar.style.width = Math.max(20, clip.dur * tlPixelsPerSec) + 'px';
+          if (ci === 0) tlSyncLegacyFromClips(track);
+        };
+        const onUp = function() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          tlRender();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
+      lHandle.addEventListener('mousedown', function(e) {
+        if (track.locked) return;
+        e.preventDefault(); e.stopPropagation();
+        const startX2 = e.clientX;
+        const origL = clip.start * tlPixelsPerSec;
+        const origW = clip.dur * tlPixelsPerSec;
+        const onMove = function(ev) {
+          const dx = ev.clientX - startX2;
+          let newL = (origL + dx) / tlPixelsPerSec;
+          newL = tlSnapTime(newL, { noSnap: ev.shiftKey });
+          newL = Math.max(0, newL);
+          let newW = (origW - dx) / tlPixelsPerSec;
+          newW = Math.max(20 / tlPixelsPerSec, newW);
+          if (newL + newW > tlDurationSec) newW = tlDurationSec - newL;
+          clip.start = newL;
+          clip.dur = newW;
+          bar.style.left = (clip.start * tlPixelsPerSec) + 'px';
+          bar.style.width = Math.max(20, clip.dur * tlPixelsPerSec) + 'px';
+          if (ci === 0) tlSyncLegacyFromClips(track);
+        };
+        const onUp = function() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          tlRender();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+    }
+
+    track.clips.forEach(function(clip, ci) {
+      const bar = document.createElement('div');
+      bar.className = 'anim-tl-bar';
+      const barW = Math.max(clip.dur * tlPixelsPerSec, 20);
+      bar.style.left = (clip.start * tlPixelsPerSec) + 'px';
+      bar.style.width = barW + 'px';
+      wireClipBar(bar, clip, ci);
+      row.appendChild(bar);
     });
-    
-    // Resize right handle to change duration
-    rHandle.addEventListener('mousedown', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      const startX2 = e.clientX;
-      const origW = parseFloat(bar.style.width);
-      const onMove = (ev) => {
-        const dx = ev.clientX - startX2;
-        const newW = Math.max(20, origW + dx);
-        bar.style.width = newW + 'px';
-        track.dur = newW / tlPixelsPerSec;
-      };
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-    
-    // Resize left handle to change delay+duration
-    lHandle.addEventListener('mousedown', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      const startX2 = e.clientX;
-      const origL = parseFloat(bar.style.left);
-      const origW = parseFloat(bar.style.width);
-      const onMove = (ev) => {
-        const dx = ev.clientX - startX2;
-        const newL = Math.max(0, origL + dx);
-        const newW = Math.max(20, origW - dx);
-        bar.style.left = newL + 'px';
-        bar.style.width = newW + 'px';
-        track.delay = newL / tlPixelsPerSec;
-        track.dur = newW / tlPixelsPerSec;
-      };
-      const onUp = () => {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      };
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
-    });
-    
-    // Keyframes (diamond markers)
-    track.keyframes.forEach((kf, ki) => {
+
+    (track.keyframes || []).forEach(function(kf, ki) {
+      const tAbs = tlKfGetAbsTime(track, kf);
       const marker = document.createElement('div');
       marker.className = 'anim-tl-keyframe';
-      marker.style.left = (track.delay + kf.time * track.dur) * tlPixelsPerSec + 'px';
-      marker.title = (kf.time * 100).toFixed(0) + '%';
+      const kkey = i + '-' + ki;
+      if (tlSelectedKeyframeKeys.has(kkey)) marker.classList.add('selected');
+      marker.style.left = (tAbs * tlPixelsPerSec) + 'px';
+      marker.title = tAbs.toFixed(3) + 's — drag · Shift bypass snap · Del removes';
+      marker.dataset.ti = String(i);
+      marker.dataset.ki = String(ki);
+      marker.dataset.kkey = kkey;
+
+      marker.addEventListener('dblclick', function(ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!ev.altKey) return;
+        const v = prompt('CSS timing-function after this keyframe (hint for future export)', kf.easing || 'ease');
+        if (v !== null) {
+          kf.easing = v.trim() || undefined;
+          toast(kf.easing ? ('Easing: ' + kf.easing) : 'Easing cleared');
+        }
+        tlRender();
+      });
+      marker.addEventListener('mousedown', function(e) {
+        if (track.locked) return;
+        e.stopPropagation();
+        e.preventDefault();
+        if (e.ctrlKey || e.metaKey) {
+          if (tlSelectedKeyframeKeys.has(kkey)) {
+            tlSelectedKeyframeKeys.delete(kkey);
+            marker.classList.remove('selected');
+          } else {
+            tlSelectedKeyframeKeys.add(kkey);
+            marker.classList.add('selected');
+          }
+          return;
+        }
+        if (!tlSelectedKeyframeKeys.has(kkey)) {
+          tlSelectedKeyframeKeys.clear();
+          document.querySelectorAll('.anim-tl-keyframe.selected').forEach(function(el) { el.classList.remove('selected'); });
+          tlSelectedKeyframeKeys.add(kkey);
+          marker.classList.add('selected');
+        }
+        const keys = Array.from(tlSelectedKeyframeKeys);
+        const baseT = {};
+        keys.forEach(function(key) {
+          const p = key.split('-').map(Number);
+          const tr = tlTracks[p[0]];
+          const k = tr.keyframes[p[1]];
+          baseT[key] = tlKfGetAbsTime(tr, k);
+        });
+        const sx = e.clientX;
+        const rowsHost = document.getElementById('tlTrackRows');
+        const onMove = function(ev) {
+          const dt = (ev.clientX - sx) / tlPixelsPerSec;
+          keys.forEach(function(key) {
+            const p = key.split('-').map(Number);
+            const tr = tlTracks[p[0]];
+            const k = tr.keyframes[p[1]];
+            if (!k) return;
+            const nt = tlSnapTime(baseT[key] + dt, { noSnap: ev.shiftKey, excludeTrack: tr, excludeKf: k });
+            tlKfSetAbsTime(tr, k, nt);
+            const elmk = rowsHost && rowsHost.querySelector('.anim-tl-keyframe[data-kkey="' + key + '"]');
+            if (elmk) elmk.style.left = (nt * tlPixelsPerSec) + 'px';
+          });
+        };
+        const onUp = function() {
+          document.removeEventListener('mousemove', onMove);
+          document.removeEventListener('mouseup', onUp);
+          tlTracks.forEach(function(tr) {
+            if (tr.keyframes) tr.keyframes.sort(function(a, b) { return tlKfGetAbsTime(tr, a) - tlKfGetAbsTime(tr, b); });
+          });
+          tlRender();
+        };
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+      });
+
       row.appendChild(marker);
     });
-    
-    // Double-click row to add keyframe
-    row.addEventListener('dblclick', (e) => {
+
+    row.addEventListener('dblclick', function(e) {
+      if (track.locked) return;
+      if (e.target.closest('.anim-tl-bar') || e.target.closest('.anim-tl-keyframe')) return;
+      const taEl = document.getElementById('tlTracksArea');
       const rect = row.getBoundingClientRect();
-      const x = e.clientX - rect.left + row.parentElement.scrollLeft;
-      const timeSec = x / tlPixelsPerSec;
-      const relTime = Math.max(0, Math.min(1, (timeSec - track.delay) / track.dur));
-      track.keyframes.push({ time: relTime, props: {} });
-      track.keyframes.sort((a, b) => a.time - b.time);
+      const x = e.clientX - rect.left + taEl.scrollLeft;
+      let timeSec = x / tlPixelsPerSec;
+      timeSec = tlSnapTime(timeSec, { noSnap: e.shiftKey });
+      track.keyframes.push({ tAbs: timeSec, props: {} });
+      track.keyframes.sort(function(a, b) { return tlKfGetAbsTime(track, a) - tlKfGetAbsTime(track, b); });
       tlRender();
-      toast('Keyframe added at ' + (relTime * 100).toFixed(0) + '%');
+      toast('Keyframe at ' + timeSec.toFixed(3) + 's');
     });
-    
-    row.appendChild(bar);
+
     rows.appendChild(row);
   });
-  
-  // Update playhead
+
   tlUpdatePlayhead();
 }
 
 function tlUpdatePlayhead() {
   const ph = document.getElementById('tlPlayhead');
-  ph.style.left = (tlCurrentTime * tlPixelsPerSec) + 'px';
-  document.getElementById('tlTimeDisplay').textContent = tlCurrentTime.toFixed(2) + 's';
+  if (ph) ph.style.left = (tlCurrentTime * tlPixelsPerSec) + 'px';
+  const td = document.getElementById('tlTimeDisplay');
+  if (td) td.textContent = tlCurrentTime.toFixed(3) + 's';
+  if (!tlPlaying) tlScrubPreview();
 }
 
 function tlPlay() {
@@ -9261,39 +10887,43 @@ function tlPlay() {
   tlPlaying = true;
   document.getElementById('tlPlayBtn').textContent = '⏸ Pause';
   document.getElementById('tlPlayBtn').classList.add('active');
-  
-  // Apply animations to elements
-  tlTracks.forEach(track => {
-    if (!track.el || !track.el.isConnected) return;
-    const preset = Object.entries(ANIM_PRESETS).find(([k, v]) => {
-      const parts = (track.anim || '').split(' ');
-      return parts[0] === v.name;
-    });
-    if (preset) {
-      const tag = ensureAnimStyleTag();
-      if (tag && !tag.textContent.includes(preset[1].keyframes)) {
-        tag.textContent += '\n' + preset[1].keyframes;
-      }
-    }
-    const dur = track.dur.toFixed(2) + 's';
-    const delay = track.delay.toFixed(2) + 's';
-    const animName = track.anim ? track.anim.split(' ')[0] : '';
-    if (animName) {
-      track.el.style.animation = 'none';
-      track.el.offsetHeight;
-      track.el.style.animation = animName + ' ' + dur + ' ease ' + delay + ' 1 normal forwards';
-    }
+
+  tlTracks.forEach(function(track) {
+    if (!track.el || !track.el.isConnected || track.muted || track.hidden) return;
+    tlEnsureTrackModel(track);
+    tlInjectPresetsForTrack(track);
+    const css = tlBuildAnimationCSSTrack(track);
+    track.el.style.animation = 'none';
+    track.el.style.animationDelay = '';
+    track.el.offsetHeight;
+    if (css) track.el.style.animation = css;
   });
-  
-  const startT = performance.now() - (tlCurrentTime * 1000);
-  const animate = () => {
+
+  tlPlayStartWall = performance.now();
+  tlPlayStartTime = tlCurrentTime;
+  const animate = function() {
     if (!tlPlaying) return;
-    tlCurrentTime = (performance.now() - startT) / 1000;
+    const wall = (performance.now() - tlPlayStartWall) / 1000;
+    tlCurrentTime = tlPlayStartTime + wall * tlPlaybackRate;
     if (tlCurrentTime >= tlDurationSec) {
-      tlCurrentTime = tlDurationSec;
-      tlPlaying = false;
-      document.getElementById('tlPlayBtn').textContent = '▶ Play';
-      document.getElementById('tlPlayBtn').classList.remove('active');
+      if (tlLoop) {
+        tlCurrentTime = 0;
+        tlPlayStartWall = performance.now();
+        tlPlayStartTime = 0;
+        tlTracks.forEach(function(track) {
+          if (!track.el || !track.el.isConnected || track.muted || track.hidden) return;
+          const css = tlBuildAnimationCSSTrack(track);
+          track.el.style.animation = 'none';
+          track.el.style.animationDelay = '';
+          track.el.offsetHeight;
+          if (css) track.el.style.animation = css;
+        });
+      } else {
+        tlCurrentTime = tlDurationSec;
+        tlPlaying = false;
+        document.getElementById('tlPlayBtn').textContent = '▶ Play';
+        document.getElementById('tlPlayBtn').classList.remove('active');
+      }
     }
     tlUpdatePlayhead();
     if (tlPlaying) tlPlayTimer = requestAnimationFrame(animate);
@@ -9306,18 +10936,20 @@ function tlPause() {
   if (tlPlayTimer) cancelAnimationFrame(tlPlayTimer);
   document.getElementById('tlPlayBtn').textContent = '▶ Play';
   document.getElementById('tlPlayBtn').classList.remove('active');
+  tlScrubPreview();
 }
 
 function tlStop() {
   tlPause();
   tlCurrentTime = 0;
-  tlUpdatePlayhead();
-  // Reset element animations
-  tlTracks.forEach(track => {
+  tlTracks.forEach(function(track) {
     if (track.el && track.el.isConnected) {
-      track.el.style.animation = track.anim || '';
+      track.el.style.animation = '';
+      track.el.style.animationDelay = '';
+      tlPushTrackToDom(track);
     }
   });
+  tlUpdatePlayhead();
 }
 
 function tlRewind() {
@@ -9328,51 +10960,45 @@ function tlRewind() {
 
 function tlApplyAll() {
   let applied = 0;
-  tlTracks.forEach(track => {
-    if (!track.el || !track.el.isConnected) return;
-    const animName = track.anim ? track.anim.split(' ')[0] : '';
-    if (!animName) return;
-    const timing = track.timing || 'ease';
-    const iter = track.iter || '1';
-    const dir = track.dir || 'normal';
-    const fill = track.fill || 'forwards';
-    track.el.style.animation = animName + ' ' + track.dur.toFixed(2) + 's ' + timing + ' ' + track.delay.toFixed(2) + 's ' + iter + ' ' + dir + ' ' + fill;
-    // Inject keyframes if needed
-    const preset = Object.values(ANIM_PRESETS).find(p => p.name === animName);
-    if (preset) {
-      const tag = ensureAnimStyleTag();
-      if (tag && !tag.textContent.includes(preset.keyframes)) {
-        tag.textContent += '\n' + preset.keyframes;
-      }
-    }
+  tlTracks.forEach(function(track) {
+    if (!track.el || !track.el.isConnected || track.muted || track.hidden) return;
+    tlEnsureTrackModel(track);
+    var css = tlBuildAnimationCSSTrack(track);
+    var hasKf = track.customKeyframes && String(track.customKeyframes).trim();
+    if (!css && !hasKf) return;
+    tlPushTrackToDom(track);
     applied++;
   });
   if (applied > 0) {
-    scheduleSyncToCodeFromVisual();
-    toast(applied + ' animation(s) applied to code');
+    syncAnimChangesToSourceNow();
+    toast(applied + ' track(s) pushed to page & code');
   } else {
-    toast('No animations to apply. Add tracks and set presets first.');
+    toast('No clips to apply. Add tracks, presets, or custom @keyframes.');
   }
 }
 
-// Click on ruler/tracks area to scrub
-document.getElementById('tlTracksArea')?.addEventListener('mousedown', function(e) {
-  if (e.target.closest('.anim-tl-bar') || e.target.closest('.anim-tl-keyframe')) return;
-  const rect = this.getBoundingClientRect();
-  const scrub = (ev) => {
-    const x = ev.clientX - rect.left + this.scrollLeft;
-    tlCurrentTime = Math.max(0, Math.min(tlDurationSec, x / tlPixelsPerSec));
-    tlUpdatePlayhead();
-  };
-  scrub(e);
-  const onMove = (ev) => scrub(ev);
-  const onUp = () => {
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  };
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-});
+(function tlSetupScrubArea() {
+  const area = document.getElementById('tlTracksArea');
+  if (!area || area.dataset.tlScrub) return;
+  area.dataset.tlScrub = '1';
+  area.addEventListener('mousedown', function(e) {
+    if (e.target.closest('.anim-tl-bar') || e.target.closest('.anim-tl-keyframe') || e.target.closest('.tl-ruler-marker') || e.target.closest('.tl-playhead-hit')) return;
+    const rect = this.getBoundingClientRect();
+    const scrub = function(ev) {
+      const x = ev.clientX - rect.left + area.scrollLeft;
+      tlCurrentTime = tlSnapTime(Math.max(0, Math.min(tlDurationSec, x / tlPixelsPerSec)), { noSnap: ev.shiftKey });
+      tlUpdatePlayhead();
+    };
+    scrub(e);
+    const onMove = function(ev) { scrub(ev); };
+    const onUp = function() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+})();
 
 // When an animation preset is applied, update the track's anim field
 const _origApplyAnimPreset = applyAnimPreset;
@@ -9381,18 +11007,20 @@ applyAnimPreset = function(presetKey) {
   const preset = ANIM_PRESETS[presetKey];
   if (!preset) return;
   const els = multiSelectedEls.length ? multiSelectedEls : (selectedEl ? [selectedEl] : []);
-  els.forEach(el => {
-    const track = tlTracks.find(t => t.el === el);
+  const panel = document.getElementById('animTimelinePanel');
+  els.forEach(function(el) {
+    const track = tlTracks.find(function(t) { return t.el === el; });
     if (track) {
-      track.anim = preset.name + ' ' + (track.dur || 1) + 's ease 0s 1 normal forwards';
+      track.anim = preset.name + ' ' + (track.dur || 1) + 's ' + (track.timing || 'ease') + ' ' + (track.delay || 0) + 's ' + (track.iter || '1') + ' ' + (track.dir || 'normal') + ' ' + (track.fill || 'forwards');
+      tlSyncFirstClipFromLegacy(track);
+      var idx = tlTracks.indexOf(track);
+      if (panel && panel.classList.contains('open') && idx >= 0) tlFillInspectorFromTrack(idx);
       tlRender();
     }
   });
 };
 
 // Timeline helper functions
-let tlSelectedTrackIdx = -1;
-
 function tlDetectAnimations() {
   const iframe = document.getElementById('preview');
   if (!iframe || !iframe.contentDocument) { toast('No preview available'); return; }
@@ -9408,7 +11036,9 @@ function tlDetectAnimations() {
       const parts = anim.split(' ');
       const dur = parseFloat(parts[1]) || 1;
       const delay = parseFloat(parts[3]) || 0;
-      tlTracks.push({ el, name: tag + id + cls, anim: anim, delay: delay, dur: dur, timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards', keyframes: [] });
+      const tr = { el, name: tag + id + cls, anim: anim, delay: delay, dur: dur, timing: 'ease', iter: '1', dir: 'normal', fill: 'forwards', keyframes: [], animTrigger: el.getAttribute('data-pp-anim-trigger') || 'load', customKeyframes: '' };
+      tlEnsureTrackModel(tr);
+      tlTracks.push(tr);
       detected++;
     }
   });
@@ -9422,178 +11052,225 @@ function tlDetectAnimations() {
 
 function tlClearAll() {
   tlTracks = [];
+  tlMarkers = [];
   tlSelectedTrackIdx = -1;
+  tlInspectorPresetKey = null;
+  tlSelectedKeyframeKeys.clear();
   tlRender();
-  document.getElementById('tlTrackProps').style.display = 'none';
+  tlInspectorVisibility();
   toast('Timeline cleared');
 }
 
 function tlSelectTrack(idx) {
   tlSelectedTrackIdx = idx;
-  const track = tlTracks[idx];
-  if (!track) return;
-  document.getElementById('tlTrackProps').style.display = 'flex';
-  // Update controls
-  const animName = track.anim ? track.anim.split(' ')[0] : '';
-  const presetKey = Object.entries(ANIM_PRESETS).find(([k, v]) => v.name === animName)?.[0] || '';
-  document.getElementById('tlPresetSelect').value = presetKey;
-  document.getElementById('tlTimingSelect').value = track.timing || 'ease';
-  document.getElementById('tlIterSelect').value = track.iter || '1';
-  document.getElementById('tlDirSelect').value = track.dir || 'normal';
-  document.getElementById('tlFillSelect').value = track.fill || 'forwards';
-  // Highlight in sidebar
-  document.querySelectorAll('#tlSidebar .tl-track-label').forEach((lbl, i) => {
+  var track = tlTracks[idx];
+  if (!track) {
+    tlInspectorVisibility();
+    return;
+  }
+  tlEnsureTrackModel(track);
+  tlFillInspectorFromTrack(idx);
+  document.querySelectorAll('#tlSidebar .tl-track-label').forEach(function(lbl, i) {
     lbl.classList.toggle('active', i === idx);
   });
 }
 
-function tlApplyPresetToTrack(presetKey) {
-  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
-  const preset = ANIM_PRESETS[presetKey];
-  if (!preset) return;
-  const track = tlTracks[tlSelectedTrackIdx];
-  track.anim = preset.name + ' ' + track.dur + 's ' + (track.timing || 'ease') + ' ' + track.delay + 's ' + (track.iter || '1') + ' ' + (track.dir || 'normal') + ' ' + (track.fill || 'forwards');
-  // Inject keyframes
-  const tag = ensureAnimStyleTag();
-  if (tag && !tag.textContent.includes(preset.keyframes)) {
-    tag.textContent += '\n' + preset.keyframes;
-  }
-  tlRender();
-  toast('Applied: ' + preset.name);
-}
+/* Phase3 scrub: CSS paused + negative animation-delay (tlScrubPreview). Multi-clip: comma-separated animation on element. Optional future: WAAPI element.animate for richer property curves; per-keyframe kf.easing (Alt+double-click diamond) hints segment timing. */
 
-function tlUpdateTrackTiming() {
-  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
-  const track = tlTracks[tlSelectedTrackIdx];
-  track.timing = document.getElementById('tlTimingSelect').value;
-  track.iter = document.getElementById('tlIterSelect').value;
-  track.dir = document.getElementById('tlDirSelect').value;
-  track.fill = document.getElementById('tlFillSelect').value;
-  const animName = track.anim ? track.anim.split(' ')[0] : '';
-  if (animName) {
-    track.anim = animName + ' ' + track.dur + 's ' + track.timing + ' ' + track.delay + 's ' + track.iter + ' ' + track.dir + ' ' + track.fill;
-  }
-  tlRender();
-}
+function applyBlockAlign(align) {
+  if (!selectedEl) return;
+  const style = selectedEl.style;
+  const computed = window.getComputedStyle(selectedEl);
+  const position = computed.position;
 
-function tlPreviewTrack() {
-  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
-  const track = tlTracks[tlSelectedTrackIdx];
-  if (!track.el || !track.el.isConnected) { toast('Element not found'); return; }
-  const animName = track.anim ? track.anim.split(' ')[0] : '';
-  if (!animName) { toast('No animation set'); return; }
-  track.el.style.animation = 'none';
-  track.el.offsetHeight;
-  track.el.style.animation = track.anim;
-  toast('Previewing: ' + animName);
-}
-
-function tlRemoveTrackAnim() {
-  if (tlSelectedTrackIdx < 0 || !tlTracks[tlSelectedTrackIdx]) return;
-  const track = tlTracks[tlSelectedTrackIdx];
-  track.anim = '';
-  if (track.el && track.el.isConnected) {
-    track.el.style.animation = '';
+  if (position === 'absolute' || position === 'fixed') {
+    if (align === 'center') {
+      style.left = '50%';
+      style.transform = (style.transform || '').replace(/translateX\([^)]*\)/g, '').trim() + ' translateX(-50%)';
+    } else if (align === 'center-v') {
+      style.top = '50%';
+      style.transform = (style.transform || '').replace(/translateY\([^)]*\)/g, '').trim() + ' translateY(-50%)';
+    } else if (align === 'left') {
+      style.left = '0';
+      style.right = 'auto';
+      style.transform = style.transform.replace(/translateX\([^)]*\)/g, '').trim();
+    } else if (align === 'right') {
+      style.right = '0';
+      style.left = 'auto';
+      style.transform = style.transform.replace(/translateX\([^)]*\)/g, '').trim();
+    }
+  } else {
+    if (align === 'center') {
+      style.marginLeft = 'auto';
+      style.marginRight = 'auto';
+      style.display = (computed.display === 'inline' || computed.display === 'inline-block') ? 'block' : computed.display;
+    } else if (align === 'left') {
+      style.marginLeft = '0';
+      style.marginRight = 'auto';
+    } else if (align === 'right') {
+      style.marginLeft = 'auto';
+      style.marginRight = '0';
+    } else if (align === 'center-v') {
+      toast('Vertical centering works best on Absolute elements or Flex containers');
+    }
   }
-  tlRender();
-  toast('Animation removed from track');
+  
+  const r = getRect(selectedEl);
+  positionSel(r, selectedEl);
+  scheduleSyncToCodeFromVisual();
+  toast('Element aligned: ' + align);
 }
 
 </script>
 
-  <!-- ANIMATION TIMELINE PANEL -->
-  <div class="anim-timeline-panel" id="animTimelinePanel">
-    <div class="anim-timeline-header">
-      <span class="tl-title">Animation Timeline</span>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button onclick="tlDetectAnimations()" title="Detect animations from preview" style="background:var(--btn);border:1px solid var(--border);color:var(--accent);padding:3px 8px;border-radius:4px;font-size:10px;cursor:pointer;">Detect</button>
-        <button onclick="tlAddTrack()" title="Add selected elements as tracks">+ Track</button>
-        <button onclick="tlClearAll()" title="Clear all tracks" style="color:var(--accent2)">Clear</button>
-        <button onclick="tlTogglePanel()" title="Close timeline">✕</button>
+  <!-- ANIMATION TIMELINE PANEL — z: docked UI below ad modal (99999), above props (1002) -->
+  <div class="anim-timeline-panel" id="animTimelinePanel" style="z-index: 10000;" tabindex="-1">
+    <div class="anim-timeline-header" style="height:auto;min-height:40px;padding:8px 14px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0">
+        <span class="tl-title" style="font-size:12px;letter-spacing:.06em;color:#fff">TIMELINE</span>
+        <span class="tl-sub">Sequence · clips · keyframes · CSS export</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto">
+        <button class="tb-btn icon-only" onclick="tlDetectAnimations()" title="Detect animations from preview" style="background:rgba(108,99,255,0.15);border-color:var(--accent);color:var(--accent);"><i class="codicon codicon-search"></i></button>
+        <button class="tb-btn" onclick="tlAddTrack()" title="Add selected preview element(s) as track(s)" style="gap:4px"><i class="codicon codicon-add"></i> Track</button>
+        <button class="tb-btn" onclick="tlAddClipToSelected()" title="Add another clip segment on selected track" style="gap:4px"><i class="codicon codicon-git-commit"></i> Clip</button>
+        <button class="tb-btn" onclick="tlAddMarkerAtPlayhead()" title="Marker at playhead" style="gap:4px"><i class="codicon codicon-bookmark"></i></button>
+        <button class="tb-btn" onclick="tlClearAll()" title="Clear timeline" style="border-color:var(--accent2);color:var(--accent2);background:rgba(255,95,135,0.1)"><i class="codicon codicon-trash"></i></button>
+        <button class="tb-btn icon-only" onclick="tlTogglePanel()" title="Close"><i class="codicon codicon-close"></i></button>
+      </div>
+    </div>
+    <div class="tl-inspector" id="tlInspector">
+      <div class="tl-inspector-empty" id="tlInspectorEmpty">Select a track on the left, or add elements with <strong>+ Track</strong>, then edit CSS animation here.</div>
+      <div class="tl-inspector-body" id="tlInspectorBody" style="display:none">
+        <div class="tl-inspector-head">
+          <span class="tl-inspect-tag" id="tlInspectTag">—</span>
+          <span class="tl-inspect-name" id="tlInspectName"></span>
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-trigger">When to play</label>
+          <select id="tl-anim-trigger" class="tl-inp" onchange="tlInspectorScheduleCommit()" title="Hover = presets only. Custom @keyframes: use load or click.">
+            <option value="load">Page load</option>
+            <option value="hover">On hover</option>
+            <option value="click">On click</option>
+          </select>
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-dur">Duration (s)</label>
+          <input type="number" id="tl-anim-dur" class="tl-inp" value="1" min="0.1" step="0.1" oninput="tlInspectorScheduleCommit()">
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-delay">Delay (s)</label>
+          <input type="number" id="tl-anim-delay" class="tl-inp" value="0" min="0" step="0.1" oninput="tlInspectorScheduleCommit()">
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-timing">Timing</label>
+          <select id="tl-anim-timing" class="tl-inp" onchange="tlInspectorScheduleCommit()">
+            <option value="ease">ease</option>
+            <option value="linear">linear</option>
+            <option value="ease-in">ease-in</option>
+            <option value="ease-out">ease-out</option>
+            <option value="ease-in-out">ease-in-out</option>
+            <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">spring</option>
+          </select>
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-iter">Iterations</label>
+          <select id="tl-anim-iter" class="tl-inp" onchange="tlInspectorScheduleCommit()">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="infinite">infinite</option>
+          </select>
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-dir">Direction</label>
+          <select id="tl-anim-dir" class="tl-inp" onchange="tlInspectorScheduleCommit()">
+            <option value="normal">normal</option>
+            <option value="reverse">reverse</option>
+            <option value="alternate">alternate</option>
+            <option value="alternate-reverse">alternate-reverse</option>
+          </select>
+        </div>
+        <div class="tl-inspector-row">
+          <label for="tl-anim-fill">Fill</label>
+          <select id="tl-anim-fill" class="tl-inp" onchange="tlInspectorScheduleCommit()">
+            <option value="none">none</option>
+            <option value="forwards" selected>forwards</option>
+            <option value="backwards">backwards</option>
+            <option value="both">both</option>
+          </select>
+        </div>
+        <div style="margin-top:4px">
+          <label style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Presets</label>
+          <div class="tl-preset-grid" id="tlPresetGrid">
+            <button type="button" class="tl-preset-btn" data-preset="fade-in" onclick="tlInspectorApplyPreset('fade-in')">Fade In</button>
+            <button type="button" class="tl-preset-btn" data-preset="fade-out" onclick="tlInspectorApplyPreset('fade-out')">Fade Out</button>
+            <button type="button" class="tl-preset-btn" data-preset="slide-left" onclick="tlInspectorApplyPreset('slide-left')">Slide L</button>
+            <button type="button" class="tl-preset-btn" data-preset="slide-right" onclick="tlInspectorApplyPreset('slide-right')">Slide R</button>
+            <button type="button" class="tl-preset-btn" data-preset="slide-up" onclick="tlInspectorApplyPreset('slide-up')">Slide Up</button>
+            <button type="button" class="tl-preset-btn" data-preset="slide-down" onclick="tlInspectorApplyPreset('slide-down')">Slide Dn</button>
+            <button type="button" class="tl-preset-btn" data-preset="bounce" onclick="tlInspectorApplyPreset('bounce')">Bounce</button>
+            <button type="button" class="tl-preset-btn" data-preset="scale-up" onclick="tlInspectorApplyPreset('scale-up')">Scale</button>
+            <button type="button" class="tl-preset-btn" data-preset="rotate" onclick="tlInspectorApplyPreset('rotate')">Rotate</button>
+            <button type="button" class="tl-preset-btn" data-preset="pulse" onclick="tlInspectorApplyPreset('pulse')">Pulse</button>
+            <button type="button" class="tl-preset-btn" data-preset="shake" onclick="tlInspectorApplyPreset('shake')">Shake</button>
+            <button type="button" class="tl-preset-btn" data-preset="flip" onclick="tlInspectorApplyPreset('flip')">Flip</button>
+          </div>
+        </div>
+        <div style="margin-top:4px">
+          <label for="tl-anim-keyframes" style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">Custom @keyframes</label>
+          <textarea id="tl-anim-keyframes" class="anim-keyframe-editor" placeholder="@keyframes myAnim { ... }" onchange="tlInspectorOnKeyframesChange()"></textarea>
+          <button type="button" class="pp-grid-btn" style="width:100%;margin-top:4px" onclick="tlInspectorApplyCustomKeyframes()">Apply custom keyframes</button>
+        </div>
+        <div class="tl-inspector-actions">
+          <button type="button" class="tl-btn-preview" onclick="tlInspectorPreview()">Preview</button>
+          <button type="button" class="tl-btn-remove" onclick="tlInspectorRemoveAnim()">Remove</button>
+        </div>
       </div>
     </div>
     <div class="anim-tl-body">
-      <div class="anim-tl-sidebar" id="tlSidebar">
-        <div style="padding:8px;font-size:9px;color:var(--muted);text-align:center;">Select elements and click "+ Track"</div>
-      </div>
+      <div class="anim-tl-sidebar" id="tlSidebar"></div>
       <div class="anim-tl-tracks" id="tlTracksArea">
         <div class="anim-tl-ruler" id="tlRuler"></div>
         <div id="tlTrackRows"></div>
-        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0"></div>
-      </div>
-      <!-- TRACK PROPERTIES SIDEBAR -->
-      <div id="tlTrackProps" style="width:180px;border-left:1px solid var(--border);padding:8px;overflow-y:auto;display:none;flex-direction:column;gap:4px;background:var(--bg);">
-        <div style="font-size:10px;font-weight:700;color:var(--accent);margin-bottom:4px;">Track Properties</div>
-        <div style="font-size:9px;color:var(--muted);">Preset</div>
-        <select id="tlPresetSelect" onchange="tlApplyPresetToTrack(this.value)" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
-          <option value="">-- Select --</option>
-          <option value="fade-in">Fade In</option>
-          <option value="fade-out">Fade Out</option>
-          <option value="slide-left">Slide Left</option>
-          <option value="slide-right">Slide Right</option>
-          <option value="slide-up">Slide Up</option>
-          <option value="slide-down">Slide Down</option>
-          <option value="bounce">Bounce</option>
-          <option value="scale-up">Scale Up</option>
-          <option value="rotate">Rotate</option>
-          <option value="pulse">Pulse</option>
-          <option value="shake">Shake</option>
-          <option value="flip">Flip</option>
-        </select>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Timing</div>
-        <select id="tlTimingSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
-          <option value="ease">Ease</option>
-          <option value="ease-in">Ease In</option>
-          <option value="ease-out">Ease Out</option>
-          <option value="ease-in-out">Ease In-Out</option>
-          <option value="linear">Linear</option>
-          <option value="cubic-bezier(0.68,-0.55,0.27,1.55)">Spring</option>
-        </select>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Iterations</div>
-        <select id="tlIterSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="infinite">Infinite</option>
-        </select>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Direction</div>
-        <select id="tlDirSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
-          <option value="normal">Normal</option>
-          <option value="reverse">Reverse</option>
-          <option value="alternate">Alternate</option>
-        </select>
-        <div style="font-size:9px;color:var(--muted);margin-top:4px;">Fill</div>
-        <select id="tlFillSelect" onchange="tlUpdateTrackTiming()" style="width:100%;background:var(--btn);border:1px solid var(--border);color:var(--text);padding:4px;border-radius:4px;font-size:10px;">
-          <option value="none">None</option>
-          <option value="forwards" selected>Forwards</option>
-          <option value="both">Both</option>
-        </select>
-        <button onclick="tlPreviewTrack()" style="margin-top:6px;width:100%;background:var(--accent);border:none;color:#fff;padding:4px;border-radius:4px;cursor:pointer;font-size:10px;">Preview</button>
-        <button onclick="tlRemoveTrackAnim()" style="margin-top:2px;width:100%;background:transparent;border:1px solid var(--accent2);color:var(--accent2);padding:3px;border-radius:4px;cursor:pointer;font-size:9px;">Remove</button>
+        <div class="anim-tl-snap-line" id="tlSnapLine"></div>
+        <div class="anim-tl-playhead" id="tlPlayhead" style="left:0">
+          <div class="tl-playhead-hit" id="tlPlayheadHit" aria-hidden="true"></div>
+        </div>
       </div>
     </div>
-    <div class="anim-tl-controls">
-      <button onclick="tlPlay()" id="tlPlayBtn">▶ Play</button>
-      <button onclick="tlStop()">⏹ Stop</button>
-      <button onclick="tlRewind()">⏮</button>
-      <span class="tl-time-display" id="tlTimeDisplay">0.00s</span>
-      <span style="color:var(--border)">|</span>
-      <label style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace">Duration:</label>
-      <input type="range" id="tlDuration" min="1" max="20" step="0.5" value="5" oninput="tlSetDuration(this.value)" style="width:100px">
-      <span class="tl-time-display" id="tlDurLabel">5.0s</span>
+    <div class="anim-tl-controls" style="padding:8px 16px; min-height:46px; gap:12px;">
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+        <button class="tb-btn" onclick="tlPlay()" id="tlPlayBtn" style="background:var(--green); color:#000; border:none; min-width:80px">▶ Play</button>
+        <button class="tb-btn" onclick="tlStop()"><i class="codicon codicon-debug-stop"></i></button>
+        <button class="tb-btn" onclick="tlRewind()"><i class="codicon codicon-debug-restart"></i></button>
+        <button type="button" class="tb-btn" id="tlLoopBtn" onclick="tlToggleLoop()" title="Loop"><i class="codicon codicon-sync"></i></button>
+        <label style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:4px">Speed
+          <select id="tlSpeedSelect" onchange="tlPlaybackRate=parseFloat(this.value);if(tlPlaying){tlPause();tlPlay();}" style="background:var(--btn);border:1px solid var(--border);color:var(--text);padding:2px 4px;border-radius:4px;font-size:10px;">
+            <option value="0.25">0.25×</option>
+            <option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.5">1.5×</option>
+            <option value="2">2×</option>
+          </select>
+        </label>
+        <button type="button" class="tb-btn active" id="tlSnapBtn" onclick="tlToggleSnap()" title="Snap (hold Shift while dragging to bypass)"><i class="codicon codicon-magnet"></i></button>
+      </div>
+      <span class="tl-time-display" id="tlTimeDisplay" style="font-size:12px; font-weight:700; color:var(--accent)">0.00s</span>
+      <div class="tb-div"></div>
+      <div style="display:flex; align-items:center; gap:8px">
+        <label style="font-size:11px;color:var(--muted);font-weight:600">DURATION</label>
+        <input type="range" id="tlDuration" min="1" max="20" step="0.5" value="5" oninput="tlSetDuration(this.value)" style="width:80px; cursor:pointer">
+        <span id="tlDurLabel" style="font-size:11px; color:var(--text); width:35px">5.0s</span>
+      </div>
+      <div class="tb-div"></div>
+      <div style="display:flex; align-items:center; gap:8px">
+        <label style="font-size:11px;color:var(--muted);font-weight:600">ZOOM</label>
+        <input type="range" id="tlZoomRange" min="50" max="600" step="10" value="150" oninput="tlSetZoom(this.value)" style="width:80px; cursor:pointer">
+      </div>
       <span style="flex:1"></span>
-      <button onclick="tlApplyAll()" style="background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-weight:600;cursor:pointer;">Apply to Code</button>
+      <button class="tb-btn primary" onclick="tlApplyAll()" style="padding: 8px 20px; font-size:12px">Sync to Code</button>
     </div>
   </div>
-  <!-- Hidden inputs for compatibility -->
-  <div style="display:none">
-    <input id="pp-anim-dur" type="number" value="1">
-    <input id="pp-anim-delay" type="number" value="0">
-    <select id="pp-anim-timing"><option value="ease" selected>ease</option></select>
-    <select id="pp-anim-iter"><option value="1" selected>1</option></select>
-    <select id="pp-anim-dir"><option value="normal" selected>normal</option></select>
-    <select id="pp-anim-fill"><option value="forwards" selected>forwards</option></select>
-  </div>
-
 </body>
 </html>
