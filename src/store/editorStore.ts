@@ -112,6 +112,12 @@ interface EditorStore {
 
   timelineAnimationStyle: string;
   setTimelineAnimationStyle: (css: string) => void;
+
+  timelineRestartKey: number;
+  triggerTimelineRestart: () => void;
+
+  pendingFileDialog: { type: 'create' | 'rename'; fileId?: string } | null;
+  setPendingFileDialog: (d: { type: 'create' | 'rename'; fileId?: string } | null) => void;
 }
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -418,4 +424,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   timelineAnimationStyle: '',
   setTimelineAnimationStyle: (css: string) => set({ timelineAnimationStyle: css }),
+
+  timelineRestartKey: 0,
+  triggerTimelineRestart: () => set((s) => ({ timelineRestartKey: s.timelineRestartKey + 1 })),
+
+  pendingFileDialog: null,
+  setPendingFileDialog: (d) => set({ pendingFileDialog: d }),
 }));

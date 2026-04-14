@@ -37,7 +37,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, mode, setMode, showNotification, clearConsole } = useEditorStore();
+  const { files, mode, setMode, showNotification, clearConsole, setPendingFileDialog } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,14 +51,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   const close = () => setOpenMenu(null);
 
   const newFile = () => {
-    const name = prompt('File name (e.g. about.html, extra.css):');
-    if (!name) return close();
-    const ext = name.split('.').pop()?.toLowerCase();
-    const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : ext === 'js' ? 'js' : 'other';
-    useEditorStore.getState().addFile({
-      id: name, name, type,
-      content: type === 'html' ? '<!DOCTYPE html>\n<html>\n<head><title>New Page</title></head>\n<body>\n\n</body>\n</html>' : '',
-    });
+    setPendingFileDialog({ type: 'create' });
     close();
   };
 
