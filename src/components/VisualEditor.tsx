@@ -226,7 +226,9 @@ const VisualEditor: React.FC = () => {
 
   const refreshSelectedSnapshot = useCallback((el: HTMLElement) => {
     const iframe = iframeRef.current;
-    setSelectedElement(prev => prev ? {
+    const prev = useEditorStore.getState().selectedElement;
+    if (!prev) return;
+    setSelectedElement({
       ...prev,
       tagName: el.tagName.toLowerCase(),
       id: el.id,
@@ -234,7 +236,7 @@ const VisualEditor: React.FC = () => {
       styles: collectStyles(el, iframe?.contentWindow),
       innerHTML: el.innerHTML,
       textContent: el.textContent || '',
-    } : prev);
+    });
   }, [setSelectedElement]);
 
   const getSelectedDomEl = useCallback((): HTMLElement | null => {
@@ -290,6 +292,44 @@ const VisualEditor: React.FC = () => {
     if (!doc) return;
     injectAnimStyle(doc, timelineAnimationStyle);
   }, [timelineAnimationStyle, tick, injectAnimStyle]);
+
+  /* ── Select element ── */
+  const selectElement = useCallback((el: HTMLElement) => {
+    const selector = elementSelector(el);
+    selectedSelectorRef.current = selector;
+    setSelectedSelector(selector);
+    setSelEl(el);
+    setHovEl(null);
+    setTick(t => t + 1);
+
+    const iframe = iframeRef.current;
+    const cs = iframe?.contentWindow?.getComputedStyle(el) ?? {} as CSSStyleDeclaration;
+
+    const tr = (cs as any).transform || 'none';
+    let rot = 0;
+    if (tr !== 'none') {
+      const m = tr.match(/matrix\((-?[\d.]+),\s*(-?[\d.]+)/);
+      if (m) rot = Math.round(Math.atan2(parseFloat(m[2]), parseFloat(m[1])) * (180 / Math.PI));
+    }
+    setRotation(rot);
+
+    const styles = collectStyles(el, iframe?.contentWindow);
+
+    setSelectedElement({
+      tagName: el.tagName.toLowerCase(),
+      id: el.id,
+      className: el.className || '',
+      styles,
+      innerHTML: el.innerHTML,
+      textContent: el.textContent || '',
+    });
+
+    addConsoleEntry({
+      type: 'info',
+      message: `Selected <${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${el.className ? '.' + el.className.trim().split(/\s+/).join('.') : ''}>`,
+      timestamp: new Date(),
+    });
+  }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
   /* ── Attach iframe events ── */
   const attachEvents = useCallback(() => {
@@ -372,44 +412,6 @@ const VisualEditor: React.FC = () => {
       doc.removeEventListener('contextmenu', onContextMenu, true);
     };
   }, [injectAnimStyle, interaction, selectElement, setSelectedSelector, setSelectedElement, showCtx, syncToSource]);
-
-  /* ── Select element ── */
-  const selectElement = useCallback((el: HTMLElement) => {
-    const selector = elementSelector(el);
-    selectedSelectorRef.current = selector;
-    setSelectedSelector(selector);
-    setSelEl(el);
-    setHovEl(null);
-    setTick(t => t + 1);
-
-    const iframe = iframeRef.current;
-    const cs = iframe?.contentWindow?.getComputedStyle(el) ?? {} as CSSStyleDeclaration;
-
-    const tr = (cs as any).transform || 'none';
-    let rot = 0;
-    if (tr !== 'none') {
-      const m = tr.match(/matrix\((-?[\d.]+),\s*(-?[\d.]+)/);
-      if (m) rot = Math.round(Math.atan2(parseFloat(m[2]), parseFloat(m[1])) * (180 / Math.PI));
-    }
-    setRotation(rot);
-
-    const styles = collectStyles(el, iframe?.contentWindow);
-
-    setSelectedElement({
-      tagName: el.tagName.toLowerCase(),
-      id: el.id,
-      className: el.className || '',
-      styles,
-      innerHTML: el.innerHTML,
-      textContent: el.textContent || '',
-    });
-
-    addConsoleEntry({
-      type: 'info',
-      message: `Selected <${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${el.className ? '.' + el.className.trim().split(/\s+/).join('.') : ''}>`,
-      timestamp: new Date(),
-    });
-  }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
   /* ── Drag move / resize ── */
   const dragRef = useRef<{

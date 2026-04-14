@@ -11,6 +11,17 @@ import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/
 import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
+/* ─── mobile hook ─── */
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
+
 /* ─────────────────────────────────────────
    Types
    ───────────────────────────────────────── */
@@ -255,9 +266,105 @@ function SnapZonesOverlay({
 }
 
 /* ─────────────────────────────────────────
-   App
+   Mobile App
+   ───────────────────────────────────────── */
+type MobileTab = 'code' | 'preview' | 'files' | 'props';
+
+function MobileApp() {
+  const [tab, setTab] = useState<MobileTab>('code');
+  const { files, mode, setMode, notification, showNotification } = useEditorStore();
+
+  const TABS: { id: MobileTab; icon: React.ReactNode; label: string }[] = [
+    { id: 'files',   icon: <FiFolder size={18} />,  label: 'Files'   },
+    { id: 'code',    icon: <FiCode size={18} />,    label: 'Code'    },
+    { id: 'preview', icon: <FiEye size={18} />,     label: 'Preview' },
+    { id: 'props',   icon: <FiSliders size={18} />, label: 'Props'   },
+  ];
+
+  const accent = '#e5a45a';
+  const bg = '#1e1e1e';
+  const bar = '#252526';
+  const border = '#3a3a3a';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100vw', background: bg, color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", overflow: 'hidden' }}>
+
+      {/* ── Top header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 46, flexShrink: 0, background: '#323233', borderBottom: `1px solid ${border}`, padding: '0 12px', gap: 10, zIndex: 100 }}>
+        <div style={{ width: 20, height: 20, borderRadius: 4, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#fff' }}>H</div>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#ccc', flex: 1 }}>HTML Editor</span>
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: 2, background: '#1e1e1e', borderRadius: 6, padding: 2 }}>
+          {([['split', 'View'], ['visual', 'Visual']] as [Mode, string][]).map(([m, label]) => (
+            <button key={m} onClick={() => { setMode(m); setTab('preview'); }}
+              style={{ padding: '3px 10px', fontSize: 10, borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', border: 'none', background: mode === m ? accent : 'transparent', color: mode === m ? '#111' : '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))}
+          style={{ padding: '5px 10px', fontSize: 11, borderRadius: 5, cursor: 'pointer', background: 'rgba(229,164,90,0.12)', border: `1px solid rgba(229,164,90,0.35)`, color: accent, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <FiDownload size={12} /> ZIP
+        </button>
+      </div>
+
+      {/* ── Panel area ── */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ display: tab === 'files' ? 'flex' : 'none', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
+          <FilePanel hideHeader />
+        </div>
+        <div style={{ display: tab === 'code' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+          <CodeEditor />
+        </div>
+        <div style={{ display: tab === 'preview' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+          {mode === 'visual' ? <VisualEditor /> : <PreviewPane />}
+        </div>
+        <div style={{ display: tab === 'props' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+          <PropertiesPanel hideHeader />
+        </div>
+      </div>
+
+      {/* ── Bottom tab bar ── */}
+      <div style={{ display: 'flex', height: 58, flexShrink: 0, background: bar, borderTop: `1px solid ${border}`, paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 100 }}>
+        {TABS.map(t => {
+          const active = t.id === tab;
+          return (
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 3, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              background: active ? 'rgba(229,164,90,0.08)' : 'transparent',
+              borderTop: `2px solid ${active ? accent : 'transparent'}`,
+              color: active ? accent : '#666',
+              transition: 'all 0.15s',
+            }}>
+              {t.icon}
+              <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Toast */}
+      {notification && (
+        <div style={{ position: 'fixed', bottom: 70, left: '50%', transform: 'translateX(-50%)', zIndex: 1000000, background: '#3c3c3c', border: '1px solid #555', borderRadius: 8, padding: '8px 18px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
+          {notification}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   App (detects mobile)
    ───────────────────────────────────────── */
 export default function App() {
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileApp />;
+  return <DesktopApp />;
+}
+
+function DesktopApp() {
   const { mode, setMode, notification, files, showNotification } = useEditorStore();
 
   const wsRef = useRef<HTMLDivElement>(null);
