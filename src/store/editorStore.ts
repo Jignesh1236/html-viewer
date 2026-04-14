@@ -16,9 +16,7 @@ export interface SelectedElement {
   styles: Record<string, string>;
   innerHTML: string;
   textContent: string;
-  // callback to apply a CSS style to the live element + update source
   applyStyle: (property: string, value: string) => void;
-  // callback to update innerHTML
   applyContent: (html: string) => void;
 }
 
@@ -59,6 +57,8 @@ export interface PreviewTab {
   title: string;
   favicon: string;
   active: boolean;
+  previewType: 'page' | 'image';
+  imageFileId?: string;
 }
 
 interface EditorStore {
@@ -87,7 +87,7 @@ interface EditorStore {
 
   previewTabs: PreviewTab[];
   activePreviewTabId: string;
-  addPreviewTab: () => void;
+  addPreviewTab: (opts?: { fileId?: string; title?: string; previewType?: 'page' | 'image'; imageFileId?: string }) => void;
   closePreviewTab: (id: string) => void;
   setActivePreviewTab: (id: string) => void;
   updatePreviewTab: (id: string, update: Partial<PreviewTab>) => void;
@@ -97,6 +97,9 @@ interface EditorStore {
 
   previewRefreshKey: number;
   refreshPreview: () => void;
+
+  timelineAnimationStyle: string;
+  setTimelineAnimationStyle: (css: string) => void;
 }
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -339,12 +342,20 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   clearConsole: () => set({ consoleEntries: [] }),
 
-  previewTabs: [{ id: 'tab-1', title: 'My Page', favicon: '', active: true }],
+  previewTabs: [{ id: 'tab-1', title: 'My Page', favicon: '', active: true, previewType: 'page' }],
   activePreviewTabId: 'tab-1',
-  addPreviewTab: () => {
+  addPreviewTab: (opts) => {
     const id = `tab-${Date.now()}`;
+    const newTab: PreviewTab = {
+      id,
+      title: opts?.title ?? 'New Tab',
+      favicon: '',
+      active: true,
+      previewType: opts?.previewType ?? 'page',
+      imageFileId: opts?.imageFileId,
+    };
     set((s) => ({
-      previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), { id, title: 'New Tab', favicon: '', active: true }],
+      previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), newTab],
       activePreviewTabId: id,
     }));
   },
@@ -374,4 +385,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   previewRefreshKey: 0,
   refreshPreview: () => set((s) => ({ previewRefreshKey: s.previewRefreshKey + 1 })),
+
+  timelineAnimationStyle: '',
+  setTimelineAnimationStyle: (css: string) => set({ timelineAnimationStyle: css }),
 }));

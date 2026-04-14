@@ -27,14 +27,24 @@ Single-package React + Vite app. All code lives at the project root with one sha
 - VS Code-style dark theme (amber accent)
 - Monaco code editor for HTML/CSS/JS with syntax highlighting
 - Visual editor with element selection, move, resize, rotate
-- Live preview panel with viewport switching (desktop/tablet/mobile)
-- DevTools panel (console + elements inspector)
+- Properties panel with full CSS editing (typography, layout, background, borders, shadows, animations)
+- Timeline panel with draggable animation tracks, Play previews animations in iframe, "Apply to Page" button
+- Floating + dockable window system with distinct per-window default sizes
+- MenuBar dropdowns properly z-indexed above all panels (z-index: 9999)
+- Live preview panel with viewport switching
 - File Explorer with upload support
 - Export to ZIP (jszip + file-saver)
-- Resizable panels
+- Resizable docked panels via drag dividers
 
 ## Key Commands
 
-- `pnpm run dev` — start development server
+- `PORT=5000 BASE_PATH=/ pnpm run dev` — start development server
 - `pnpm run build` — production build
 - `pnpm run typecheck` — TypeScript typecheck
+
+## Architecture Notes
+
+- Timeline animations stored in Zustand (`timelineAnimationStyle`) and injected into VisualEditor iframe via `<style id="__timeline-anim-style">`
+- Menu bar z-index fixed: wrapper div has `position: relative, z-index: 9999`
+- PropertiesPanel uses `flex: 1, minHeight: 0` for proper scrolling in flex layout
+- Window layout localStorage key: `html-editor-win-layout-v4`

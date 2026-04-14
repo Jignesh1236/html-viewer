@@ -54,34 +54,40 @@ function getDockRect(id: WinId, wsW: number, wsH: number, mode: Mode, sizes: Doc
   const cw = Math.max(160, wsW - leftW - rightW);
 
   if (mode === 'visual') {
-    if (id === 'files')      return { x: 0,          y: 0,          w: leftW, h: wsH };
-    if (id === 'preview')    return { x: leftW,       y: 0,          w: cw,    h: wsH - bottomH };
-    if (id === 'timeline')   return { x: leftW,       y: wsH - bottomH, w: cw, h: bottomH };
-    if (id === 'properties') return { x: leftW + cw,  y: 0,          w: rightW, h: wsH };
+    if (id === 'files')      return { x: 0,          y: 0,             w: leftW,  h: wsH };
+    if (id === 'preview')    return { x: leftW,       y: 0,             w: cw,     h: wsH - bottomH };
+    if (id === 'timeline')   return { x: leftW,       y: wsH - bottomH, w: cw,     h: bottomH };
+    if (id === 'properties') return { x: leftW + cw,  y: 0,             w: rightW, h: wsH };
+    return null;
+  } else if (mode === 'code') {
+    if (id === 'files') return { x: 0,      y: 0, w: leftW,       h: wsH };
+    if (id === 'code')  return { x: leftW,  y: 0, w: wsW - leftW, h: wsH };
     return null;
   } else {
-    if (id === 'files')   return { x: 0,          y: 0, w: leftW, h: wsH };
-    if (id === 'code')    return { x: leftW,       y: 0, w: cw,    h: wsH };
-    if (id === 'preview') return { x: leftW + cw,  y: 0, w: rightW, h: wsH };
+    // split
+    if (id === 'files')   return { x: 0,           y: 0, w: leftW,  h: wsH };
+    if (id === 'code')    return { x: leftW,        y: 0, w: cw,     h: wsH };
+    if (id === 'preview') return { x: leftW + cw,   y: 0, w: rightW, h: wsH };
     return null;
   }
 }
 
 /** All slots that exist in this mode (for snap zones) */
 function getSnapSlots(wsW: number, wsH: number, mode: Mode, sizes: DockSizes): { id: WinId; rect: WinRect }[] {
-  const ids: WinId[] = mode === 'visual'
-    ? ['files', 'preview', 'timeline', 'properties']
-    : ['files', 'code', 'preview'];
+  const ids: WinId[] =
+    mode === 'visual' ? ['files', 'preview', 'timeline', 'properties'] :
+    mode === 'code'   ? ['files', 'code'] :
+                        ['files', 'code', 'preview'];
   return ids.map(id => ({ id, rect: getDockRect(id, wsW, wsH, mode, sizes)! }));
 }
 
 function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
   const defaults: Record<WinId, WinRect> = {
-    files:      { x: 40,  y: 60, w: 220, h: Math.min(560, wsH - 80) },
-    code:       { x: 280, y: 60, w: Math.max(360, wsW * 0.35), h: Math.min(560, wsH - 80) },
-    preview:    { x: 640, y: 60, w: Math.max(320, wsW * 0.32), h: Math.min(560, wsH - 80) },
-    properties: { x: Math.max(0, wsW - 320), y: 80, w: 300, h: Math.min(480, wsH - 120) },
-    timeline:   { x: 280, y: Math.max(100, wsH - 220), w: Math.max(400, wsW * 0.55), h: 180 },
+    files:      { x: 20,  y: 20,  w: 200, h: Math.min(520, wsH - 60) },
+    code:       { x: 240, y: 20,  w: Math.max(420, wsW * 0.4),  h: Math.min(580, wsH - 60) },
+    preview:    { x: Math.max(240, wsW - Math.max(380, wsW * 0.38) - 20), y: 20, w: Math.max(380, wsW * 0.38), h: Math.min(500, wsH - 80) },
+    properties: { x: Math.max(0, wsW - 280), y: 60, w: 265, h: Math.min(440, wsH - 100) },
+    timeline:   { x: 20, y: Math.max(80, wsH - 200), w: Math.max(460, wsW * 0.6), h: 185 },
   };
   return defaults[id];
 }
@@ -90,7 +96,7 @@ const DEFAULT_DOCK: DockSizes = { leftW: 220, rightW: 280, bottomH: 160 };
 
 function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState[] {
   const dockedPerMode: Record<Mode, WinId[]> = {
-    code:   ['files', 'code', 'preview'],
+    code:   ['files', 'code'],
     split:  ['files', 'code', 'preview'],
     visual: ['files', 'preview', 'timeline', 'properties'],
   };
@@ -106,7 +112,7 @@ function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState
   }));
 }
 
-const LS_KEY = 'html-editor-win-layout-v3';
+const LS_KEY = 'html-editor-win-layout-v5';
 const LS_DOCK = 'html-editor-dock-sizes';
 function loadLayout(wsW: number, wsH: number): WinState[] {
   try {
@@ -307,7 +313,7 @@ export default function App() {
   const applyModePreset = useCallback((m: Mode) => {
     setMode(m);
     const dockMap: Record<Mode, WinId[]> = {
-      code:   ['files', 'code', 'preview'],
+      code:   ['files', 'code'],
       split:  ['files', 'code', 'preview'],
       visual: ['files', 'preview', 'timeline', 'properties'],
     };
@@ -425,7 +431,7 @@ export default function App() {
       <div id="__drag-capture" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 999999, background: 'transparent' }} />
 
       {/* ── Menu Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 30, flexShrink: 0, background: '#323233', borderBottom: '1px solid #3e3e3e', zIndex: 200 }}>
+      <div style={{ display: 'flex', alignItems: 'center', height: 30, flexShrink: 0, background: '#323233', borderBottom: '1px solid #3e3e3e', position: 'relative', zIndex: 9999 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', flexShrink: 0 }}>
           <div style={{ width: 16, height: 16, borderRadius: 3, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: '#fff' }}>H</div>
           <span style={{ fontSize: 12, fontWeight: 600, color: '#ccc' }}>HTML Editor</span>
@@ -444,7 +450,7 @@ export default function App() {
       </div>
 
       {/* ── Toolbar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 36, flexShrink: 0, background: '#2d2d2d', borderBottom: '1px solid #3e3e3e', padding: '0 10px', gap: 4, zIndex: 200 }}>
+      <div style={{ display: 'flex', alignItems: 'center', height: 36, flexShrink: 0, background: '#2d2d2d', borderBottom: '1px solid #3e3e3e', padding: '0 10px', gap: 4, position: 'relative', zIndex: 9998 }}>
         <span style={{ fontSize: 11, color: '#555', marginRight: 2 }}>Layout:</span>
         {([['split', 'Split', FiLayout, 'Ctrl+3'], ['code', 'Code', FiCode, 'Ctrl+1'], ['visual', 'Visual', FiEye, 'Ctrl+2']] as const).map(([m, label, Icon, sc]) => (
           <button key={m} title={`${label} layout (${sc})`} onClick={() => applyModePreset(m)}

@@ -33,8 +33,9 @@ function hideDragCapture() {
 }
 
 const VisualEditor: React.FC = () => {
-  const { files, updateFileContent, setSelectedElement, addConsoleEntry } = useEditorStore();
+  const { files, updateFileContent, setSelectedElement, addConsoleEntry, timelineAnimationStyle } = useEditorStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const animStyleRef = useRef(timelineAnimationStyle);
   const [selEl, setSelEl] = useState<HTMLElement | null>(null);
   const [hovEl, setHovEl] = useState<HTMLElement | null>(null);
   const [iframeOff, setIframeOff] = useState({ left: 0, top: 0 });
@@ -134,10 +135,33 @@ a,button,input,select,textarea{pointer-events:none!important}
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
   }, [files, updateFileContent]);
 
+  /* ── Keep animStyleRef current ── */
+  useEffect(() => { animStyleRef.current = timelineAnimationStyle; }, [timelineAnimationStyle]);
+
+  /* ── Helper: inject timeline animation styles into iframe doc ── */
+  const injectAnimStyle = useCallback((doc: Document, css: string) => {
+    let styleEl = doc.getElementById('__timeline-anim-style') as HTMLStyleElement | null;
+    if (!styleEl) {
+      styleEl = doc.createElement('style');
+      styleEl.id = '__timeline-anim-style';
+      doc.head?.appendChild(styleEl);
+    }
+    styleEl.textContent = css;
+  }, []);
+
+  /* ── Inject timeline animation styles into iframe ── */
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    injectAnimStyle(doc, timelineAnimationStyle);
+  }, [timelineAnimationStyle, tick, injectAnimStyle]);
+
   /* ── Attach iframe events ── */
   const attachEvents = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
+    /* Re-inject timeline animations after iframe reloads */
+    if (animStyleRef.current) injectAnimStyle(doc, animStyleRef.current);
 
     const onMove = (e: MouseEvent) => {
       const target = e.target as HTMLElement;

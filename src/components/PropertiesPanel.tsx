@@ -117,9 +117,9 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
 
   if (!selectedElement) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {!hideHeader && <div style={{
-          height: 35, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          height: 35, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 10px', borderBottom: '1px solid #3e3e3e', background: '#252526',
           fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#888',
         }}>
@@ -127,13 +127,16 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </div>}
         <div style={{
           flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          gap: 10, color: '#555', padding: 24, textAlign: 'center',
+          gap: 12, color: '#555', padding: 24, textAlign: 'center',
         }}>
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1">
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
             <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18M15 3v18M3 9h18M3 15h18" />
           </svg>
-          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.6 }}>
-            Switch to <strong style={{ color: '#888' }}>Visual mode</strong>, then click any element to edit its properties here
+          <div style={{ fontSize: 12, color: '#555', lineHeight: 1.7 }}>
+            Switch to <strong style={{ color: '#888' }}>Visual mode</strong> and click any element to edit its properties here
+          </div>
+          <div style={{ fontSize: 10, color: '#444', lineHeight: 1.5 }}>
+            Supports typography, layout, background, borders, shadows, animations and more
           </div>
         </div>
       </div>
@@ -141,7 +144,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
       {/* Header */}
       {!hideHeader && <div style={{
         height: 35, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
@@ -156,14 +159,19 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </code>
       </div>}
       {hideHeader && selectedElement && (
-        <div style={{ padding: '4px 10px', background: 'rgba(229,164,90,0.05)', borderBottom: '1px solid #3e3e3e', flexShrink: 0 }}>
+        <div style={{ padding: '5px 10px', background: 'rgba(229,164,90,0.06)', borderBottom: '1px solid #3e3e3e', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
           <code style={{ fontSize: 11, color: '#e5a45a' }}>
             &lt;{selectedElement.tagName}{selectedElement.id ? '#' + selectedElement.id : ''}&gt;
           </code>
+          {selectedElement.className && (
+            <span style={{ fontSize: 10, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              .{selectedElement.className.trim().split(/\s+/).join(' .')}
+            </span>
+          )}
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
         {/* Content */}
         <Section title="Content">
