@@ -41,11 +41,6 @@ function elementSelector(el: HTMLElement) {
   let node: HTMLElement | null = el;
   while (node && node.parentElement && node.tagName.toLowerCase() !== 'body') {
     const tag = node.tagName.toLowerCase();
-    const classList = Array.from(node.classList).filter(Boolean);
-    if (classList.length) {
-      parts.unshift(`${tag}.${classList.map(cssEscape).join('.')}`);
-      break;
-    }
     const siblings = Array.from(node.parentElement.children).filter(child => child.tagName === node!.tagName);
     const index = siblings.indexOf(node) + 1;
     parts.unshift(`${tag}:nth-of-type(${Math.max(1, index)})`);
@@ -85,7 +80,16 @@ function hideDragCapture() {
 }
 
 const VisualEditor: React.FC = () => {
-  const { files, updateFileContent, setSelectedElement, addConsoleEntry, timelineAnimationStyle } = useEditorStore();
+  const {
+    files,
+    updateFileContent,
+    setSelectedElement,
+    addConsoleEntry,
+    timelineAnimationStyle,
+    setSelectedSelector,
+    setVisualBridge,
+    selectedSelector,
+  } = useEditorStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const animStyleRef = useRef(timelineAnimationStyle);
   const selectedSelectorRef = useRef<string | null>(null);
@@ -93,10 +97,25 @@ const VisualEditor: React.FC = () => {
   const [selEl, setSelEl] = useState<HTMLElement | null>(null);
   const [hovEl, setHovEl] = useState<HTMLElement | null>(null);
   const [iframeOff, setIframeOff] = useState({ left: 0, top: 0 });
+  const iframeOffRef = useRef({ left: 0, top: 0 });
+  const hovElRef = useRef<HTMLElement | null>(null);
+  const selElRef = useRef<HTMLElement | null>(null);
   const [rotation, setRotation] = useState(0);
   const [tick, setTick] = useState(0);
   const [activeOp, setActiveOp] = useState<'move' | Handle | 'rotate' | null>(null);
   const { show: showCtx, element: ctxEl } = useContextMenu();
+  const eventsCleanupRef = useRef<null | (() => void)>(null);
+  const [interaction, setInteraction] = useState<'select' | 'interact'>('select');
+
+  useEffect(() => { iframeOffRef.current = iframeOff; }, [iframeOff]);
+  useEffect(() => { hovElRef.current = hovEl; }, [hovEl]);
+  useEffect(() => { selElRef.current = selEl; }, [selEl]);
+  useEffect(() => {
+    return () => {
+      eventsCleanupRef.current?.();
+      eventsCleanupRef.current = null;
+    };
+  }, []);
 
   /* ── Build srcdoc ── */
   const buildSrcDoc = useCallback(() => {
@@ -106,18 +125,28 @@ const VisualEditor: React.FC = () => {
     files.filter(f => f.type === 'css').forEach(css => {
       const tag = `<style data-src="${css.name}">${css.content}</style>`;
       const re = new RegExp(`<link[^>]*href=["']${css.name.replace('.', '\\.')}["'][^>]*/?>`, 'gi');
-      html = re.test(html) ? html.replace(re, tag) : html.replace('</head>', `${tag}\n</head>`);
+      if (re.test(html)) {
+        html = html.replace(re, tag);
+      } else if (html.toLowerCase().includes('</head>')) {
+        html = html.replace(/<\/head>/i, `${tag}\n</head>`);
+      } else {
+        html = `${tag}\n${html}`;
+      }
     });
     files.filter(f => f.type === 'image' && f.url).forEach(img => {
       const esc = img.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       html = html.replace(new RegExp(`(src|href)=["']${esc}["']`, 'gi'), `$1="${img.url}"`);
     });
-    html = html.replace('</head>', `<style>
-*{cursor:crosshair!important;user-select:none!important}
-a,button,input,select,textarea{pointer-events:none!important}
-</style></head>`);
+    const editorCss = `<style>
+*{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}
+</style>`;
+    if (html.toLowerCase().includes('</head>')) {
+      html = html.replace(/<\/head>/i, `${editorCss}</head>`);
+    } else {
+      html = `${editorCss}\n${html}`;
+    }
     return html;
-  }, [files]);
+  }, [files, interaction]);
 
   /* ── Reload iframe ── */
   useEffect(() => {
@@ -129,9 +158,10 @@ a,button,input,select,textarea{pointer-events:none!important}
       if (!selector) {
         setSelEl(null);
         setSelectedElement(null);
+        setSelectedSelector(null);
       }
     }
-  }, [buildSrcDoc]);
+  }, [buildSrcDoc, setSelectedSelector, setSelectedElement]);
 
   /* ── Track iframe offset ── */
   useEffect(() => {
@@ -194,8 +224,54 @@ a,button,input,select,textarea{pointer-events:none!important}
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
   }, [files, updateFileContent]);
 
+  const refreshSelectedSnapshot = useCallback((el: HTMLElement) => {
+    const iframe = iframeRef.current;
+    setSelectedElement(prev => prev ? {
+      ...prev,
+      tagName: el.tagName.toLowerCase(),
+      id: el.id,
+      className: el.className || '',
+      styles: collectStyles(el, iframe?.contentWindow),
+      innerHTML: el.innerHTML,
+      textContent: el.textContent || '',
+    } : prev);
+  }, [setSelectedElement]);
+
+  const getSelectedDomEl = useCallback((): HTMLElement | null => {
+    const current = selElRef.current;
+    if (current?.isConnected) return current;
+    const doc = iframeRef.current?.contentDocument;
+    const selector = selectedSelectorRef.current || selectedSelector;
+    if (!doc || !selector) return null;
+    const el = doc.querySelector(selector) as HTMLElement | null;
+    if (el && !SKIP_TAGS.has(el.tagName.toLowerCase())) return el;
+    return null;
+  }, [selectedSelector]);
+
   /* ── Keep animStyleRef current ── */
   useEffect(() => { animStyleRef.current = timelineAnimationStyle; }, [timelineAnimationStyle]);
+
+  /* ── Register Visual bridge (store actions -> iframe DOM) ── */
+  useEffect(() => {
+    setVisualBridge({
+      applyStyle: (property, value) => {
+        const el = getSelectedDomEl();
+        if (!el) return;
+        el.style.setProperty(property, value);
+        setTick(t => t + 1);
+        refreshSelectedSnapshot(el);
+        syncToSource(el);
+      },
+      applyContent: (html) => {
+        const el = getSelectedDomEl();
+        if (!el) return;
+        el.innerHTML = html;
+        setTick(t => t + 1);
+        refreshSelectedSnapshot(el);
+      },
+    });
+    return () => setVisualBridge(null);
+  }, [getSelectedDomEl, refreshSelectedSnapshot, setVisualBridge, syncToSource]);
 
   /* ── Helper: inject timeline animation styles into iframe doc ── */
   const injectAnimStyle = useCallback((doc: Document, css: string) => {
@@ -238,15 +314,19 @@ a,button,input,select,textarea{pointer-events:none!important}
     const onMove = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) { setHovEl(null); return; }
-      if (target !== hovEl) setHovEl(target);
+      if (target !== hovElRef.current) setHovEl(target);
     };
 
     const onClick = (e: MouseEvent) => {
-      e.preventDefault(); e.stopPropagation();
+      if (interaction === 'select') {
+        e.preventDefault(); e.stopPropagation();
+      } else {
+        return;
+      }
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) {
         selectedSelectorRef.current = null;
-        setSelEl(null); setSelectedElement(null); return;
+        setSelEl(null); setSelectedElement(null); setSelectedSelector(null); return;
       }
       selectElement(target);
     };
@@ -255,8 +335,9 @@ a,button,input,select,textarea{pointer-events:none!important}
       e.preventDefault(); e.stopPropagation();
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) return;
-      const screenX = iframeOff.left + e.clientX;
-      const screenY = iframeOff.top + e.clientY;
+      const off = iframeOffRef.current;
+      const screenX = off.left + e.clientX;
+      const screenY = off.top + e.clientY;
 
       const fakeEvent = {
         preventDefault: () => {},
@@ -290,11 +371,13 @@ a,button,input,select,textarea{pointer-events:none!important}
       doc.removeEventListener('click', onClick, true);
       doc.removeEventListener('contextmenu', onContextMenu, true);
     };
-  }, [iframeOff, syncToSource, showCtx]);
+  }, [injectAnimStyle, interaction, selectElement, setSelectedSelector, setSelectedElement, showCtx, syncToSource]);
 
   /* ── Select element ── */
   const selectElement = useCallback((el: HTMLElement) => {
-    selectedSelectorRef.current = elementSelector(el);
+    const selector = elementSelector(el);
+    selectedSelectorRef.current = selector;
+    setSelectedSelector(selector);
     setSelEl(el);
     setHovEl(null);
     setTick(t => t + 1);
@@ -319,33 +402,6 @@ a,button,input,select,textarea{pointer-events:none!important}
       styles,
       innerHTML: el.innerHTML,
       textContent: el.textContent || '',
-      applyStyle: (property, value) => {
-        if (!el.isConnected) return;
-        el.style.setProperty(property, value);
-        setTick(t => t + 1);
-        setSelectedElement(prev => prev ? {
-          ...prev,
-          id: el.id,
-          className: el.className || '',
-          styles: collectStyles(el, iframeRef.current?.contentWindow),
-          innerHTML: el.innerHTML,
-          textContent: el.textContent || '',
-        } : prev);
-        syncToSource(el);
-      },
-      applyContent: (content) => {
-        if (!el.isConnected) return;
-        el.innerHTML = content;
-        setTick(t => t + 1);
-        setSelectedElement(prev => prev ? {
-          ...prev,
-          id: el.id,
-          className: el.className || '',
-          styles: collectStyles(el, iframeRef.current?.contentWindow),
-          innerHTML: el.innerHTML,
-          textContent: el.textContent || '',
-        } : prev);
-      },
     });
 
     addConsoleEntry({
@@ -353,7 +409,7 @@ a,button,input,select,textarea{pointer-events:none!important}
       message: `Selected <${el.tagName.toLowerCase()}${el.id ? '#' + el.id : ''}${el.className ? '.' + el.className.trim().split(/\s+/).join('.') : ''}>`,
       timestamp: new Date(),
     });
-  }, [syncToSource, setSelectedElement, addConsoleEntry]);
+  }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
   /* ── Drag move / resize ── */
   const dragRef = useRef<{
@@ -498,24 +554,52 @@ a,button,input,select,textarea{pointer-events:none!important}
             ? `<${selEl.tagName.toLowerCase()}${selEl.id ? '#' + selEl.id : ''}> — Drag to move • Handles to resize • ○ to rotate • Right-click for options`
             : 'Click any element to select it — Right-click for context menu'}
         </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button
+            onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
+            style={{
+              background: 'none',
+              border: '1px solid #444',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 10,
+              color: interaction === 'select' ? '#e5a45a' : '#7ab8f5',
+              padding: '1px 8px',
+              fontFamily: 'inherit',
+            }}
+            title={interaction === 'select' ? 'Selection mode: clicks select elements' : 'Interact mode: clicks interact with page'}
+          >
+            {interaction === 'select' ? 'Select' : 'Interact'}
+          </button>
         {selEl && (
           <button
-            onClick={() => { selectedSelectorRef.current = null; setSelEl(null); setHovEl(null); setSelectedElement(null); }}
+            onClick={() => {
+              selectedSelectorRef.current = null;
+              setSelEl(null);
+              setHovEl(null);
+              setSelectedElement(null);
+              setSelectedSelector(null);
+            }}
             style={{
-              marginLeft: 'auto', background: 'none', border: '1px solid #444', borderRadius: 3,
+              background: 'none', border: '1px solid #444', borderRadius: 3,
               cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit',
             }}
           >
             Deselect (Esc)
           </button>
         )}
+        </div>
       </div>
 
       {/* Iframe */}
       <iframe
         ref={iframeRef}
         title="Visual Editor"
-        onLoad={attachEvents}
+        onLoad={() => {
+          eventsCleanupRef.current?.();
+          const cleanup = attachEvents();
+          eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
+        }}
         sandbox="allow-scripts allow-same-origin"
         style={{ flex: 1, border: 'none', background: '#fff' }}
       />

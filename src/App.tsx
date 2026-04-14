@@ -112,17 +112,36 @@ function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState
   }));
 }
 
-const LS_KEY = 'html-editor-win-layout-v5';
+const LS_KEY = 'html-editor-win-layout-v6';
 const LS_DOCK = 'html-editor-dock-sizes';
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function normalizeRect(rect: WinRect, wsW: number, wsH: number): WinRect {
+  const minW = 140;
+  const minH = 100;
+  const w = clamp(rect.w, minW, Math.max(minW, wsW));
+  const h = clamp(rect.h, minH, Math.max(minH, wsH));
+  const x = clamp(rect.x, 0, Math.max(0, wsW - w));
+  const y = clamp(rect.y, 0, Math.max(0, wsH - 34));
+  return { x, y, w, h };
+}
+
+function normalizeLayout(wins: WinState[], wsW: number, wsH: number): WinState[] {
+  return wins.map(w => ({ ...w, rect: normalizeRect(w.rect, wsW, wsH) }));
+}
+
 function loadLayout(wsW: number, wsH: number): WinState[] {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as WinState[];
-      if (Array.isArray(saved) && saved.length === 5) return saved;
+      if (Array.isArray(saved) && saved.length === 5) return normalizeLayout(saved, wsW, wsH);
     }
   } catch {}
-  return defaultLayout(wsW, wsH);
+  return normalizeLayout(defaultLayout(wsW, wsH), wsW, wsH);
 }
 function loadDockSizes(): DockSizes {
   try {
@@ -258,10 +277,21 @@ export default function App() {
     return () => { ro.disconnect(); window.removeEventListener('resize', upd); };
   }, []);
 
-  const [wins, setWins] = useState<WinState[]>(() =>
-    loadLayout(window.innerWidth, window.innerHeight - 90)
-  );
+  const [wins, setWins] = useState<WinState[]>(() => {
+    const w = Math.max(600, window.innerWidth);
+    const h = Math.max(400, window.innerHeight - 90);
+    return loadLayout(w, h);
+  });
   const [dockSizes, setDockSizes] = useState<DockSizes>(loadDockSizes);
+  const didInitLayoutRef = useRef(false);
+
+  // After workspace size is measured, re-load and clamp layout once.
+  useEffect(() => {
+    if (didInitLayoutRef.current) return;
+    if (!wsRef.current) return;
+    didInitLayoutRef.current = true;
+    setWins(loadLayout(wsSize.w, wsSize.h));
+  }, [wsSize.w, wsSize.h]);
 
   /* Snap zone drag state */
   const [dragState, setDragState] = useState<{
@@ -285,7 +315,7 @@ export default function App() {
   const floatWin = useCallback((id: WinId) => {
     const fr = floatingDefault(id, wsSize.w, wsSize.h);
     setWins(ws => ws.map(w =>
-      w.id === id ? { ...w, docked: false, zIndex: nextZ(), rect: fr, visible: true, minimized: false } : w
+      w.id === id ? { ...w, docked: false, zIndex: nextZ(), rect: normalizeRect(fr, wsSize.w, wsSize.h), visible: true, minimized: false } : w
     ));
   }, [wsSize]);
 
@@ -328,7 +358,7 @@ export default function App() {
     localStorage.removeItem(LS_KEY);
     localStorage.removeItem(LS_DOCK);
     setDockSizes({ ...DEFAULT_DOCK });
-    setWins(defaultLayout(wsSize.w, wsSize.h, mode as Mode));
+    setWins(normalizeLayout(defaultLayout(wsSize.w, wsSize.h, mode as Mode), wsSize.w, wsSize.h));
     showNotification('Layout reset to defaults');
   }, [wsSize, mode, showNotification]);
 

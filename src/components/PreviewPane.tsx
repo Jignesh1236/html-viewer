@@ -68,7 +68,11 @@ const PreviewPane: React.FC = () => {
       if (linkRe.test(html)) {
         html = html.replace(linkRe, tag);
       } else {
-        html = html.replace('</head>', `${tag}\n</head>`);
+        if (html.toLowerCase().includes('</head>')) {
+          html = html.replace(/<\/head>/i, `${tag}\n</head>`);
+        } else {
+          html = `${tag}\n${html}`;
+        }
       }
     });
 

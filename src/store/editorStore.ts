@@ -16,9 +16,12 @@ export interface SelectedElement {
   styles: Record<string, string>;
   innerHTML: string;
   textContent: string;
+}
+
+type VisualBridge = {
   applyStyle: (property: string, value: string) => void;
   applyContent: (html: string) => void;
-}
+} | null;
 
 export interface AnimationConfig {
   preset: string;
@@ -72,8 +75,17 @@ interface EditorStore {
   mode: Mode;
   setMode: (mode: Mode) => void;
 
+  selectedSelector: string | null;
+  setSelectedSelector: (selector: string | null) => void;
+
   selectedElement: SelectedElement | null;
   setSelectedElement: (el: SelectedElement | null) => void;
+
+  applySelectedStyle: (property: string, value: string) => void;
+  applySelectedContent: (html: string) => void;
+
+  visualBridge: VisualBridge;
+  setVisualBridge: (bridge: VisualBridge) => void;
 
   animationConfig: AnimationConfig;
   setAnimationConfig: (config: Partial<AnimationConfig>) => void;
@@ -306,8 +318,26 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   mode: 'split',
   setMode: (mode) => set({ mode }),
 
+  selectedSelector: null,
+  setSelectedSelector: (selector) => set({ selectedSelector: selector }),
+
   selectedElement: null,
   setSelectedElement: (el) => set({ selectedElement: el }),
+
+  visualBridge: null,
+  setVisualBridge: (bridge) => set({ visualBridge: bridge }),
+
+  applySelectedStyle: (property, value) => {
+    const bridge = get().visualBridge;
+    if (!bridge) return;
+    bridge.applyStyle(property, value);
+  },
+
+  applySelectedContent: (html) => {
+    const bridge = get().visualBridge;
+    if (!bridge) return;
+    bridge.applyContent(html);
+  },
 
   animationConfig: {
     preset: 'none',

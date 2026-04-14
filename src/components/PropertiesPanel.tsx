@@ -107,15 +107,15 @@ function PropInput({ value, onChange, placeholder }: { value: string; onChange: 
 }
 
 const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ onClose, hideHeader }) => {
-  const { selectedElement, animationConfig, setAnimationConfig } = useEditorStore();
+  const { selectedElement, selectedSelector, applySelectedStyle, applySelectedContent, animationConfig, setAnimationConfig } = useEditorStore();
 
   const apply = (property: string, value: string) => {
-    selectedElement?.applyStyle(property, value);
+    applySelectedStyle(property, value);
   };
 
   const getS = (key: string) => selectedElement?.styles?.[key] || '';
 
-  if (!selectedElement) {
+  if (!selectedElement || !selectedSelector) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {!hideHeader && <div style={{
@@ -180,14 +180,14 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
               style={{ ...inp, height: 56, resize: 'none', width: '100%', flex: 'none' } as any}
               defaultValue={selectedElement.innerHTML}
               key={selectedElement.tagName + selectedElement.id}
-              onBlur={e => selectedElement.applyContent(e.target.value)}
+              onBlur={e => applySelectedContent(e.target.value)}
             />
           </Row>
           <Row label="Text">
             <PropInput
               value={selectedElement.textContent}
               placeholder="Plain text content"
-              onChange={v => selectedElement.applyContent(v)}
+              onChange={v => applySelectedContent(v)}
             />
           </Row>
         </Section>
