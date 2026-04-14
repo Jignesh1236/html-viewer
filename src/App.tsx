@@ -1,0 +1,594 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useEditorStore } from './store/editorStore';
+import MenuBar from './components/MenuBar';
+import FilePanel from './components/FilePanel';
+import CodeEditor from './components/CodeEditor';
+import PreviewPane from './components/PreviewPane';
+import VisualEditor from './components/VisualEditor';
+import PropertiesPanel from './components/PropertiesPanel';
+import TimelinePanel from './components/TimelinePanel';
+import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
+import { exportProject } from './utils/export';
+
+/* ─────────────────────────────────────────
+   Types
+   ───────────────────────────────────────── */
+export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
+export type Mode = 'code' | 'visual' | 'split';
+
+interface WinState {
+  id: WinId;
+  title: string;
+  rect: WinRect;
+  visible: boolean;
+  minimized: boolean;
+  zIndex: number;
+  docked: boolean;
+}
+
+interface DockSizes {
+  leftW: number;    // width of left (files) panel
+  rightW: number;   // width of right (preview/props) panel
+  bottomH: number;  // height of bottom (timeline) panel
+}
+
+const WIN_ICONS: Record<WinId, React.ReactNode> = {
+  files:      <FiFolder size={11} />,
+  code:       <FiCode size={11} />,
+  preview:    <FiMonitor size={11} />,
+  properties: <FiSliders size={11} />,
+  timeline:   <FiClock size={11} />,
+};
+
+const WIN_LABELS: Record<WinId, string> = {
+  files: 'File Explorer', code: 'Code Editor', preview: 'Preview',
+  properties: 'Properties', timeline: 'Timeline',
+};
+
+/* ─────────────────────────────────────────
+   Dock slot calculator
+   ───────────────────────────────────────── */
+function getDockRect(id: WinId, wsW: number, wsH: number, mode: Mode, sizes: DockSizes): WinRect | null {
+  const { leftW, rightW, bottomH } = sizes;
+  const cw = Math.max(160, wsW - leftW - rightW);
+
+  if (mode === 'visual') {
+    if (id === 'files')      return { x: 0,          y: 0,          w: leftW, h: wsH };
+    if (id === 'preview')    return { x: leftW,       y: 0,          w: cw,    h: wsH - bottomH };
+    if (id === 'timeline')   return { x: leftW,       y: wsH - bottomH, w: cw, h: bottomH };
+    if (id === 'properties') return { x: leftW + cw,  y: 0,          w: rightW, h: wsH };
+    return null;
+  } else {
+    if (id === 'files')   return { x: 0,          y: 0, w: leftW, h: wsH };
+    if (id === 'code')    return { x: leftW,       y: 0, w: cw,    h: wsH };
+    if (id === 'preview') return { x: leftW + cw,  y: 0, w: rightW, h: wsH };
+    return null;
+  }
+}
+
+/** All slots that exist in this mode (for snap zones) */
+function getSnapSlots(wsW: number, wsH: number, mode: Mode, sizes: DockSizes): { id: WinId; rect: WinRect }[] {
+  const ids: WinId[] = mode === 'visual'
+    ? ['files', 'preview', 'timeline', 'properties']
+    : ['files', 'code', 'preview'];
+  return ids.map(id => ({ id, rect: getDockRect(id, wsW, wsH, mode, sizes)! }));
+}
+
+function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
+  const defaults: Record<WinId, WinRect> = {
+    files:      { x: 40,  y: 60, w: 220, h: Math.min(560, wsH - 80) },
+    code:       { x: 280, y: 60, w: Math.max(360, wsW * 0.35), h: Math.min(560, wsH - 80) },
+    preview:    { x: 640, y: 60, w: Math.max(320, wsW * 0.32), h: Math.min(560, wsH - 80) },
+    properties: { x: Math.max(0, wsW - 320), y: 80, w: 300, h: Math.min(480, wsH - 120) },
+    timeline:   { x: 280, y: Math.max(100, wsH - 220), w: Math.max(400, wsW * 0.55), h: 180 },
+  };
+  return defaults[id];
+}
+
+const DEFAULT_DOCK: DockSizes = { leftW: 220, rightW: 280, bottomH: 160 };
+
+function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState[] {
+  const dockedPerMode: Record<Mode, WinId[]> = {
+    code:   ['files', 'code', 'preview'],
+    split:  ['files', 'code', 'preview'],
+    visual: ['files', 'preview', 'timeline', 'properties'],
+  };
+  const dockedSet = new Set(dockedPerMode[mode]);
+  const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline'];
+  return allIds.map((id, i) => ({
+    id, title: WIN_LABELS[id],
+    rect: floatingDefault(id, wsW, wsH),
+    visible: dockedSet.has(id),
+    minimized: false,
+    zIndex: 10 + i,
+    docked: dockedSet.has(id),
+  }));
+}
+
+const LS_KEY = 'html-editor-win-layout-v3';
+const LS_DOCK = 'html-editor-dock-sizes';
+function loadLayout(wsW: number, wsH: number): WinState[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as WinState[];
+      if (Array.isArray(saved) && saved.length === 5) return saved;
+    }
+  } catch {}
+  return defaultLayout(wsW, wsH);
+}
+function loadDockSizes(): DockSizes {
+  try {
+    const raw = localStorage.getItem(LS_DOCK);
+    if (raw) return { ...DEFAULT_DOCK, ...JSON.parse(raw) };
+  } catch {}
+  return { ...DEFAULT_DOCK };
+}
+function saveLayout(wins: WinState[]) { try { localStorage.setItem(LS_KEY, JSON.stringify(wins)); } catch {} }
+function saveDockSizes(s: DockSizes)  { try { localStorage.setItem(LS_DOCK, JSON.stringify(s)); } catch {} }
+
+let _zTop = 20;
+function nextZ() { return ++_zTop; }
+
+/* ─────────────────────────────────────────
+   Divider component (resizes docked panels)
+   ───────────────────────────────────────── */
+interface DividerProps {
+  orientation: 'vertical' | 'horizontal';
+  pos: number; // pixel position (x for vertical, y for horizontal)
+  min: number;
+  max: number;
+  wsW: number;
+  wsH: number;
+  onChange: (newPos: number) => void;
+}
+function DockDivider({ orientation, pos, min, max, onChange }: DividerProps) {
+  const [hov, setHov] = useState(false);
+  const [drag, setDrag] = useState(false);
+  const isV = orientation === 'vertical';
+
+  const onMd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDrag(true);
+    showCapture(isV ? 'col-resize' : 'row-resize');
+    const startMouse = isV ? e.clientX : e.clientY;
+    const startPos = pos;
+    const onMv = (ev: MouseEvent) => {
+      const delta = (isV ? ev.clientX : ev.clientY) - startMouse;
+      onChange(Math.max(min, Math.min(max, startPos + delta)));
+    };
+    const onUp = () => {
+      setDrag(false); hideCapture();
+      window.removeEventListener('mousemove', onMv);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMv);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const SIZE = 4; // hit area
+  const style: React.CSSProperties = isV
+    ? { position: 'absolute', top: 0, bottom: 0, left: pos - SIZE / 2, width: SIZE, cursor: 'col-resize', zIndex: 500 }
+    : { position: 'absolute', left: 0, right: 0, top: pos - SIZE / 2, height: SIZE, cursor: 'row-resize', zIndex: 500 };
+
+  return (
+    <div
+      onMouseDown={onMd}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        ...style,
+        background: (hov || drag) ? 'rgba(100,160,255,0.5)' : 'transparent',
+        transition: 'background 0.15s',
+      }}
+    />
+  );
+}
+
+/* ─────────────────────────────────────────
+   Snap zone overlay (shown while dragging floating windows)
+   ───────────────────────────────────────── */
+function SnapZonesOverlay({
+  slots, dragPos, hoveredSlot,
+}: {
+  slots: { id: WinId; rect: WinRect }[];
+  dragPos: { x: number; y: number } | null;
+  hoveredSlot: WinId | null;
+}) {
+  if (!dragPos) return null;
+  return (
+    <>
+      {slots.map(({ id, rect }) => {
+        const isHov = hoveredSlot === id;
+        return (
+          <div key={id} style={{
+            position: 'absolute',
+            left: rect.x, top: rect.y, width: rect.w, height: rect.h,
+            zIndex: 9000,
+            pointerEvents: 'none',
+            border: `2px dashed ${isHov ? '#64a0ff' : 'rgba(100,160,255,0.3)'}`,
+            background: isHov ? 'rgba(100,160,255,0.12)' : 'rgba(100,160,255,0.04)',
+            borderRadius: 4,
+            transition: 'all 0.1s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {isHov && (
+              <div style={{
+                background: 'rgba(100,160,255,0.85)', borderRadius: 6,
+                padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              }}>
+                Drop to dock here
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────
+   App
+   ───────────────────────────────────────── */
+export default function App() {
+  const { mode, setMode, notification, files, showNotification } = useEditorStore();
+
+  const wsRef = useRef<HTMLDivElement>(null);
+  const [wsSize, setWsSize] = useState({ w: 1200, h: 660 });
+
+  useEffect(() => {
+    const upd = () => {
+      if (wsRef.current) {
+        const r = wsRef.current.getBoundingClientRect();
+        setWsSize({ w: Math.max(600, r.width), h: Math.max(400, r.height) });
+      }
+    };
+    upd();
+    const ro = new ResizeObserver(upd);
+    if (wsRef.current) ro.observe(wsRef.current);
+    window.addEventListener('resize', upd);
+    return () => { ro.disconnect(); window.removeEventListener('resize', upd); };
+  }, []);
+
+  const [wins, setWins] = useState<WinState[]>(() =>
+    loadLayout(window.innerWidth, window.innerHeight - 90)
+  );
+  const [dockSizes, setDockSizes] = useState<DockSizes>(loadDockSizes);
+
+  /* Snap zone drag state */
+  const [dragState, setDragState] = useState<{
+    winId: WinId;
+    pos: { x: number; y: number };
+    hovered: WinId | null;
+  } | null>(null);
+
+  useEffect(() => { saveLayout(wins); }, [wins]);
+  useEffect(() => { saveDockSizes(dockSizes); }, [dockSizes]);
+
+  /* ── Window operations ── */
+  const updateWin = useCallback((id: WinId, patch: Partial<WinState>) => {
+    setWins(ws => ws.map(w => w.id === id ? { ...w, ...patch } : w));
+  }, []);
+
+  const focusWin = useCallback((id: WinId) => {
+    setWins(ws => ws.map(w => w.id === id ? { ...w, zIndex: nextZ(), minimized: false } : w));
+  }, []);
+
+  const floatWin = useCallback((id: WinId) => {
+    const fr = floatingDefault(id, wsSize.w, wsSize.h);
+    setWins(ws => ws.map(w =>
+      w.id === id ? { ...w, docked: false, zIndex: nextZ(), rect: fr, visible: true, minimized: false } : w
+    ));
+  }, [wsSize]);
+
+  const dockWin = useCallback((id: WinId) => {
+    const slot = getDockRect(id, wsSize.w, wsSize.h, mode as Mode, dockSizes);
+    if (!slot) { showNotification(`No dock slot for "${WIN_LABELS[id]}" in ${mode} mode`); return; }
+    setWins(ws => ws.map(w => w.id === id ? { ...w, docked: true, zIndex: nextZ(), visible: true } : w));
+  }, [wsSize, mode, dockSizes, showNotification]);
+
+  const toggleWin = useCallback((id: WinId) => {
+    setWins(ws => ws.map(w =>
+      w.id !== id ? w : { ...w, visible: !w.visible, minimized: false, zIndex: !w.visible ? nextZ() : w.zIndex }
+    ));
+  }, []);
+
+  const openWin = useCallback((id: WinId, asDocked?: boolean) => {
+    setWins(ws => ws.map(w => {
+      if (w.id !== id) return w;
+      const docked = asDocked ?? w.docked;
+      return { ...w, visible: true, minimized: false, docked, zIndex: nextZ() };
+    }));
+  }, []);
+
+  /* ── Mode presets ── */
+  const applyModePreset = useCallback((m: Mode) => {
+    setMode(m);
+    const dockMap: Record<Mode, WinId[]> = {
+      code:   ['files', 'code', 'preview'],
+      split:  ['files', 'code', 'preview'],
+      visual: ['files', 'preview', 'timeline', 'properties'],
+    };
+    const visible = new Set(dockMap[m]);
+    setWins(ws => ws.map(w => ({
+      ...w, visible: visible.has(w.id), docked: visible.has(w.id),
+      minimized: false, zIndex: visible.has(w.id) ? nextZ() : w.zIndex,
+    })));
+  }, [setMode]);
+
+  const resetLayout = useCallback(() => {
+    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_DOCK);
+    setDockSizes({ ...DEFAULT_DOCK });
+    setWins(defaultLayout(wsSize.w, wsSize.h, mode as Mode));
+    showNotification('Layout reset to defaults');
+  }, [wsSize, mode, showNotification]);
+
+  /* ── Snap zone drag handlers ── */
+  const snapSlots = getSnapSlots(wsSize.w, wsSize.h, mode as Mode, dockSizes);
+  const SNAP_THRESH = 80; // px from slot edge to trigger snap
+
+  const onDragPos = useCallback((winId: WinId, cx: number, cy: number) => {
+    // cx, cy are client coords — need to convert to workspace-relative
+    const wsEl = wsRef.current;
+    if (!wsEl) return;
+    const br = wsEl.getBoundingClientRect();
+    const rx = cx - br.left, ry = cy - br.top;
+
+    // Find which slot the cursor is hovering
+    let hovered: WinId | null = null;
+    for (const { id, rect } of snapSlots) {
+      if (rx >= rect.x - SNAP_THRESH && rx <= rect.x + rect.w + SNAP_THRESH &&
+          ry >= rect.y - SNAP_THRESH && ry <= rect.y + rect.h + SNAP_THRESH) {
+        hovered = id;
+        break;
+      }
+    }
+    setDragState({ winId, pos: { x: rx, y: ry }, hovered });
+  }, [snapSlots]);
+
+  const onDragEnd = useCallback((winId: WinId, cx: number, cy: number) => {
+    setDragState(prev => {
+      if (prev?.hovered) {
+        // Snap! Dock the window to the hovered slot
+        const targetSlot = prev.hovered;
+        setTimeout(() => {
+          setWins(ws => ws.map(w =>
+            w.id === winId ? { ...w, docked: true, zIndex: nextZ() } : w
+          ));
+        }, 0);
+      }
+      return null;
+    });
+  }, []);
+
+  /* ── Keyboard shortcuts ── */
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key === '1') { e.preventDefault(); applyModePreset('code'); }
+      if (mod && e.key === '2') { e.preventDefault(); applyModePreset('visual'); }
+      if (mod && e.key === '3') { e.preventDefault(); applyModePreset('split'); }
+      if (mod && e.key === 's') { e.preventDefault(); showNotification('All files saved ✓'); }
+      if (mod && e.key === 'e') { e.preventDefault(); exportProject(files).then(() => showNotification('Exported project.zip')); }
+      if (mod && e.key === 'r') { e.preventDefault(); useEditorStore.getState().refreshPreview(); }
+      if (e.key === 'Escape')   { useEditorStore.getState().setSelectedElement(null); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [files, applyModePreset]);
+
+  const winMap = Object.fromEntries(wins.map(w => [w.id, w])) as Record<WinId, WinState>;
+
+  /* Effective rect: docked → slot rect, floating → saved rect */
+  function getEffRect(id: WinId): WinRect {
+    const w = winMap[id];
+    if (w.docked) return getDockRect(id, wsSize.w, wsSize.h, mode as Mode, dockSizes) ?? w.rect;
+    return w.rect;
+  }
+
+  function winContent(id: WinId) {
+    switch (id) {
+      case 'files':      return <FilePanel onClose={() => updateWin('files', { visible: false })} hideHeader />;
+      case 'code':       return <CodeEditor />;
+      case 'preview':    return mode === 'visual' ? <VisualEditor /> : <PreviewPane />;
+      case 'properties': return <PropertiesPanel onClose={() => updateWin('properties', { visible: false })} hideHeader />;
+      case 'timeline':   return <TimelinePanel onClose={() => updateWin('timeline', { visible: false })} />;
+    }
+  }
+
+  /* Dock dividers — only between panels that are actually docked */
+  const showLeftDiv  = winMap.files.visible && winMap.files.docked &&
+                       (winMap.code.visible && winMap.code.docked || winMap.preview.visible && winMap.preview.docked);
+  const showRightDiv = (winMap.code.visible && winMap.code.docked || winMap.preview.visible && winMap.preview.docked) &&
+                       (winMap.preview.visible && winMap.preview.docked || winMap.properties.visible && winMap.properties.docked);
+  const showBotDiv   = mode === 'visual' && winMap.timeline.visible && winMap.timeline.docked &&
+                       winMap.preview.visible && winMap.preview.docked;
+
+  const sortedWins = [...wins].sort((a, b) => {
+    if (a.docked !== b.docked) return a.docked ? -1 : 1;
+    return a.zIndex - b.zIndex;
+  });
+
+  const winTitle: Record<WinId, string> = {
+    files: 'File Explorer', code: 'Code Editor',
+    preview: mode === 'visual' ? 'Visual Editor' : 'Preview',
+    properties: 'Properties', timeline: 'Timeline',
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#111', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}>
+
+      {/* Global drag-capture overlay */}
+      <div id="__drag-capture" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 999999, background: 'transparent' }} />
+
+      {/* ── Menu Bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 30, flexShrink: 0, background: '#323233', borderBottom: '1px solid #3e3e3e', zIndex: 200 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', flexShrink: 0 }}>
+          <div style={{ width: 16, height: 16, borderRadius: 3, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: '#fff' }}>H</div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#ccc' }}>HTML Editor</span>
+        </div>
+        <MenuBar
+          wins={wins}
+          onToggleWin={toggleWin}
+          onOpenWin={openWin}
+          onResetLayout={resetLayout}
+          onApplyModePreset={applyModePreset}
+        />
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: '#555', padding: '0 12px' }}>
+          {files.find(f => f.id === useEditorStore.getState().activeFileId)?.name || ''}
+        </span>
+      </div>
+
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 36, flexShrink: 0, background: '#2d2d2d', borderBottom: '1px solid #3e3e3e', padding: '0 10px', gap: 4, zIndex: 200 }}>
+        <span style={{ fontSize: 11, color: '#555', marginRight: 2 }}>Layout:</span>
+        {([['split', 'Split', FiLayout, 'Ctrl+3'], ['code', 'Code', FiCode, 'Ctrl+1'], ['visual', 'Visual', FiEye, 'Ctrl+2']] as const).map(([m, label, Icon, sc]) => (
+          <button key={m} title={`${label} layout (${sc})`} onClick={() => applyModePreset(m)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: mode === m ? 'rgba(229,164,90,0.15)' : 'transparent', border: `1px solid ${mode === m ? 'rgba(229,164,90,0.5)' : 'transparent'}`, color: mode === m ? '#e5a45a' : '#888' }}>
+            <Icon size={13} />{label}
+          </button>
+        ))}
+        <div style={{ width: 1, height: 20, background: '#3e3e3e', margin: '0 4px' }} />
+        <ToolbarBtn title="Refresh (Ctrl+R)" icon={<FiRefreshCw size={13} />} label="Refresh" onClick={() => useEditorStore.getState().refreshPreview()} />
+        <ToolbarBtn title="Export ZIP (Ctrl+E)" icon={<FiDownload size={13} />} label="Export" onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))} />
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: '#555' }}>Windows:</span>
+        {(['files', 'code', 'preview', 'properties', 'timeline'] as WinId[]).map(id => {
+          const w = winMap[id];
+          const shortLabels: Record<WinId, string> = { files: 'Explorer', code: 'Code', preview: 'Preview', properties: 'Props', timeline: 'Timeline' };
+          return (
+            <button key={id} onClick={() => toggleWin(id)}
+              title={w.docked ? `${shortLabels[id]} (docked)` : `${shortLabels[id]} ${w.visible ? '(floating)' : '(hidden)'}`}
+              style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit', background: w.visible ? (w.docked ? 'rgba(100,180,255,0.12)' : 'rgba(229,164,90,0.12)') : '#1a1a1a', border: `1px solid ${w.visible ? (w.docked ? 'rgba(100,180,255,0.35)' : 'rgba(229,164,90,0.4)') : '#3e3e3e'}`, color: w.visible ? (w.docked ? '#7ab8f5' : '#e5a45a') : '#666' }}
+            >
+              {w.docked && w.visible ? '📌' : ''}{shortLabels[id]}
+            </button>
+          );
+        })}
+        <button onClick={resetLayout} title="Reset layout"
+          style={{ marginLeft: 4, padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid #3e3e3e', color: '#777', fontFamily: 'inherit' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e5a45a'; (e.currentTarget as HTMLElement).style.color = '#e5a45a'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#3e3e3e'; (e.currentTarget as HTMLElement).style.color = '#777'; }}
+        >↺ Reset</button>
+      </div>
+
+      {/* ── Workspace ── */}
+      <div ref={wsRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#161616' }}>
+
+        {/* Snap zone overlay (shown while dragging a floating window) */}
+        <SnapZonesOverlay
+          slots={snapSlots}
+          dragPos={dragState?.pos ?? null}
+          hoveredSlot={dragState?.hovered ?? null}
+        />
+
+        {/* Dock dividers (drag to resize docked panels) */}
+        {showLeftDiv && (
+          <DockDivider
+            orientation="vertical"
+            pos={dockSizes.leftW}
+            min={120} max={Math.max(121, wsSize.w - dockSizes.rightW - 160)}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, leftW: v }))}
+          />
+        )}
+        {showRightDiv && mode !== 'visual' && (
+          <DockDivider
+            orientation="vertical"
+            pos={wsSize.w - dockSizes.rightW}
+            min={Math.max(121, dockSizes.leftW + 160)} max={wsSize.w - 160}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, rightW: Math.max(160, wsSize.w - v) }))}
+          />
+        )}
+        {showBotDiv && (
+          <DockDivider
+            orientation="horizontal"
+            pos={wsSize.h - dockSizes.bottomH}
+            min={100} max={wsSize.h - 80}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, bottomH: Math.max(60, wsSize.h - v) }))}
+          />
+        )}
+        {/* Right divider in visual mode (between center and right) */}
+        {mode === 'visual' && winMap.properties.visible && winMap.properties.docked && (
+          <DockDivider
+            orientation="vertical"
+            pos={wsSize.w - dockSizes.rightW}
+            min={Math.max(121, dockSizes.leftW + 160)} max={wsSize.w - 160}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, rightW: Math.max(160, wsSize.w - v) }))}
+          />
+        )}
+
+        {/* All windows */}
+        {sortedWins.map(w => {
+          const effRect = getEffRect(w.id);
+          const hasDockSlot = getDockRect(w.id, wsSize.w, wsSize.h, mode as Mode, dockSizes) !== null;
+          return (
+            <FloatingWindow
+              key={w.id}
+              id={w.id}
+              title={winTitle[w.id]}
+              icon={WIN_ICONS[w.id]}
+              rect={effRect}
+              zIndex={w.zIndex}
+              visible={w.visible}
+              minimized={w.minimized}
+              docked={w.docked}
+              onFloat={w.docked ? () => floatWin(w.id) : undefined}
+              onDock={!w.docked && hasDockSlot ? () => dockWin(w.id) : undefined}
+              minW={140} minH={100}
+              workspaceW={wsSize.w}
+              workspaceH={wsSize.h}
+              onFocus={() => focusWin(w.id)}
+              onMove={(x, y) => updateWin(w.id, { rect: { ...w.rect, x, y } })}
+              onResize={rect => updateWin(w.id, { rect })}
+              onClose={() => updateWin(w.id, { visible: false })}
+              onMinimize={() => updateWin(w.id, { minimized: !w.minimized })}
+              onDragPos={!w.docked ? (cx, cy) => onDragPos(w.id, cx, cy) : undefined}
+              onDragEnd={!w.docked ? (cx, cy) => onDragEnd(w.id, cx, cy) : undefined}
+            >
+              {winContent(w.id)}
+            </FloatingWindow>
+          );
+        })}
+      </div>
+
+      {/* ── Status Bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 22, flexShrink: 0, background: '#007acc', padding: '0 12px', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.85)', zIndex: 200 }}>
+        <span style={{ fontWeight: 600 }}>HTML Editor</span>
+        <span>Mode: {mode}</span>
+        <span>{files.find(f => f.id === useEditorStore.getState().activeFileId)?.name || ''}</span>
+        <div style={{ flex: 1 }} />
+        <span style={{ opacity: 0.7, fontSize: 10 }}>
+          {wins.filter(w => w.visible && w.docked).map(w => winTitle[w.id]).join(' · ')}
+          {wins.some(w => w.visible && !w.docked) && <> + {wins.filter(w => w.visible && !w.docked).length} floating</>}
+        </span>
+        <span>{files.length} files</span>
+        <span>UTF-8</span>
+      </div>
+
+      {/* ── Toast ── */}
+      {notification && (
+        <div style={{ position: 'fixed', bottom: 36, right: 16, zIndex: 1000000, background: '#3c3c3c', border: '1px solid #555', borderRadius: 6, padding: '8px 16px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>
+          {notification}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ToolbarBtn({ title, icon, label, onClick }: { title: string; icon: React.ReactNode; label: string; onClick: () => void }) {
+  return (
+    <button title={title} onClick={onClick}
+      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
+    >{icon}{label}</button>
+  );
+}
