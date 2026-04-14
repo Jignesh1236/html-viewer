@@ -18,6 +18,58 @@ function getHandlePos(h: Handle, r: { left: number; top: number; width: number; 
 
 const SKIP_TAGS = new Set(['html', 'head', 'body', 'script', 'style', 'meta', 'link', 'title', 'base', 'noscript']);
 
+const STYLE_PROPS = [
+  'color', 'background-color', 'background', 'font-size', 'font-weight', 'font-family',
+  'text-align', 'text-decoration', 'text-transform', 'line-height', 'letter-spacing',
+  'display', 'position', 'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+  'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+  'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+  'border', 'border-width', 'border-color', 'border-style', 'border-radius',
+  'box-shadow', 'text-shadow', 'opacity', 'z-index', 'overflow',
+  'left', 'top', 'right', 'bottom', 'flex-direction', 'justify-content', 'align-items', 'gap',
+  'grid-template-columns', 'grid-template-rows', 'transform', 'transition', 'animation',
+  'flex-wrap', 'background-size', 'background-image', 'background-position',
+];
+
+function cssEscape(value: string) {
+  return value.replace(/["\\#.:,[\]>+~*^$|= !]/g, '\\$&');
+}
+
+function elementSelector(el: HTMLElement) {
+  if (el.id) return `#${cssEscape(el.id)}`;
+  const parts: string[] = [];
+  let node: HTMLElement | null = el;
+  while (node && node.parentElement && node.tagName.toLowerCase() !== 'body') {
+    const tag = node.tagName.toLowerCase();
+    const classList = Array.from(node.classList).filter(Boolean);
+    if (classList.length) {
+      parts.unshift(`${tag}.${classList.map(cssEscape).join('.')}`);
+      break;
+    }
+    const siblings = Array.from(node.parentElement.children).filter(child => child.tagName === node!.tagName);
+    const index = siblings.indexOf(node) + 1;
+    parts.unshift(`${tag}:nth-of-type(${Math.max(1, index)})`);
+    node = node.parentElement;
+  }
+  return parts.join(' > ') || el.tagName.toLowerCase();
+}
+
+function shortSelector(el: HTMLElement) {
+  if (el.id) return `#${cssEscape(el.id)}`;
+  const classList = Array.from(el.classList).filter(Boolean);
+  if (classList.length) return `.${classList.map(cssEscape).join('.')}`;
+  return elementSelector(el);
+}
+
+function collectStyles(el: HTMLElement, win?: Window | null) {
+  const cs = win?.getComputedStyle(el);
+  const styles: Record<string, string> = {};
+  STYLE_PROPS.forEach(p => { styles[p] = cs?.getPropertyValue(p) || ''; });
+  styles['inline-style'] = el.getAttribute('style') || '';
+  styles['selector'] = shortSelector(el);
+  return styles;
+}
+
 /* ── Global drag-capture helpers (shared with App.tsx resizer) ── */
 function showDragCapture(cursor: string) {
   document.body.style.cursor = cursor;
@@ -36,6 +88,8 @@ const VisualEditor: React.FC = () => {
   const { files, updateFileContent, setSelectedElement, addConsoleEntry, timelineAnimationStyle } = useEditorStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const animStyleRef = useRef(timelineAnimationStyle);
+  const selectedSelectorRef = useRef<string | null>(null);
+  const pendingSelectorRef = useRef<string | null>(null);
   const [selEl, setSelEl] = useState<HTMLElement | null>(null);
   const [hovEl, setHovEl] = useState<HTMLElement | null>(null);
   const [iframeOff, setIframeOff] = useState({ left: 0, top: 0 });
@@ -68,9 +122,14 @@ a,button,input,select,textarea{pointer-events:none!important}
   /* ── Reload iframe ── */
   useEffect(() => {
     if (iframeRef.current) {
+      const selector = selectedSelectorRef.current;
+      pendingSelectorRef.current = selector;
       iframeRef.current.srcdoc = buildSrcDoc();
-      setSelEl(null); setHovEl(null);
-      setSelectedElement(null);
+      setHovEl(null);
+      if (!selector) {
+        setSelEl(null);
+        setSelectedElement(null);
+      }
     }
   }, [buildSrcDoc]);
 
@@ -163,6 +222,19 @@ a,button,input,select,textarea{pointer-events:none!important}
     /* Re-inject timeline animations after iframe reloads */
     if (animStyleRef.current) injectAnimStyle(doc, animStyleRef.current);
 
+    const pendingSelector = pendingSelectorRef.current;
+    if (pendingSelector) {
+      pendingSelectorRef.current = null;
+      const restored = doc.querySelector(pendingSelector) as HTMLElement | null;
+      if (restored && !SKIP_TAGS.has(restored.tagName.toLowerCase())) {
+        setTimeout(() => selectElement(restored), 0);
+      } else {
+        selectedSelectorRef.current = null;
+        setSelEl(null);
+        setSelectedElement(null);
+      }
+    }
+
     const onMove = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) { setHovEl(null); return; }
@@ -173,6 +245,7 @@ a,button,input,select,textarea{pointer-events:none!important}
       e.preventDefault(); e.stopPropagation();
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) {
+        selectedSelectorRef.current = null;
         setSelEl(null); setSelectedElement(null); return;
       }
       selectElement(target);
@@ -221,6 +294,7 @@ a,button,input,select,textarea{pointer-events:none!important}
 
   /* ── Select element ── */
   const selectElement = useCallback((el: HTMLElement) => {
+    selectedSelectorRef.current = elementSelector(el);
     setSelEl(el);
     setHovEl(null);
     setTick(t => t + 1);
@@ -236,21 +310,7 @@ a,button,input,select,textarea{pointer-events:none!important}
     }
     setRotation(rot);
 
-    const PROPS = [
-      'color', 'background-color', 'background', 'font-size', 'font-weight', 'font-family',
-      'text-align', 'text-decoration', 'text-transform', 'line-height', 'letter-spacing',
-      'display', 'position', 'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
-      'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
-      'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-      'border', 'border-width', 'border-color', 'border-style', 'border-radius',
-      'box-shadow', 'text-shadow', 'opacity', 'z-index', 'overflow',
-      'left', 'top', 'right', 'bottom', 'flex-direction', 'justify-content', 'align-items', 'gap',
-      'grid-template-columns', 'grid-template-rows', 'transform', 'transition', 'animation',
-      'flex-wrap', 'background-size', 'background-image', 'background-position',
-    ];
-    const styles: Record<string, string> = {};
-    PROPS.forEach(p => { styles[p] = (cs as any)[p] || ''; });
-    styles['inline-style'] = el.getAttribute('style') || '';
+    const styles = collectStyles(el, iframe?.contentWindow);
 
     setSelectedElement({
       tagName: el.tagName.toLowerCase(),
@@ -263,12 +323,28 @@ a,button,input,select,textarea{pointer-events:none!important}
         if (!el.isConnected) return;
         el.style.setProperty(property, value);
         setTick(t => t + 1);
+        setSelectedElement(prev => prev ? {
+          ...prev,
+          id: el.id,
+          className: el.className || '',
+          styles: collectStyles(el, iframeRef.current?.contentWindow),
+          innerHTML: el.innerHTML,
+          textContent: el.textContent || '',
+        } : prev);
         syncToSource(el);
       },
       applyContent: (content) => {
         if (!el.isConnected) return;
         el.innerHTML = content;
         setTick(t => t + 1);
+        setSelectedElement(prev => prev ? {
+          ...prev,
+          id: el.id,
+          className: el.className || '',
+          styles: collectStyles(el, iframeRef.current?.contentWindow),
+          innerHTML: el.innerHTML,
+          textContent: el.textContent || '',
+        } : prev);
       },
     });
 
@@ -424,7 +500,7 @@ a,button,input,select,textarea{pointer-events:none!important}
         </span>
         {selEl && (
           <button
-            onClick={() => { setSelEl(null); setHovEl(null); setSelectedElement(null); }}
+            onClick={() => { selectedSelectorRef.current = null; setSelEl(null); setHovEl(null); setSelectedElement(null); }}
             style={{
               marginLeft: 'auto', background: 'none', border: '1px solid #444', borderRadius: 3,
               cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit',
@@ -476,12 +552,13 @@ a,button,input,select,textarea{pointer-events:none!important}
                 { label: 'Reset styles', icon: '↺', action: () => { selEl.removeAttribute('style'); setTick(t => t + 1); syncToSource(selEl); } },
                 { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
                     selEl.remove();
+                    selectedSelectorRef.current = null;
                     setSelEl(null);
                     setSelectedElement(null);
                   }
                 },
                 { separator: true, label: '' },
-                { label: 'Deselect', icon: '✕', action: () => { setSelEl(null); setSelectedElement(null); } },
+                { label: 'Deselect', icon: '✕', action: () => { selectedSelectorRef.current = null; setSelEl(null); setSelectedElement(null); } },
               ]);
             }}
           />

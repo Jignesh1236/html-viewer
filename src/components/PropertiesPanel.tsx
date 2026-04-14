@@ -113,7 +113,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     selectedElement?.applyStyle(property, value);
   };
 
-  const getS = (key: string) => selectedElement?.styles[key] || '';
+  const getS = (key: string) => selectedElement?.styles?.[key] || '';
 
   if (!selectedElement) {
     return (
@@ -550,7 +550,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             key={selectedElement.tagName}
             style={{ ...inp, width: '100%', height: 80, resize: 'none', flex: 'none' } as any}
             placeholder="color: red;&#10;background: blue;&#10;font-size: 20px;"
-            defaultValue={selectedElement.styles['inline-style']}
+            defaultValue={selectedElement.styles?.['inline-style'] || ''}
             onBlur={e => {
               // Apply all custom CSS rules
               const rules = e.target.value.split(';').map(r => r.trim()).filter(Boolean);

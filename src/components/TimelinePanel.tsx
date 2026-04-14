@@ -50,14 +50,22 @@ function buildAnimationCSS(tracks: Track[]): string {
     .filter(t => t.animation !== 'none' && t.element.trim())
     .map(t => {
       const iter = t.iteration === 'infinite' ? 'infinite' : parseInt(t.iteration) || 1;
-      return `${t.element} { animation: ${t.animation} ${t.duration}s ${t.easing} ${t.delay}s ${iter} normal forwards both; }`;
+      return `${t.element} { animation: ${t.animation} ${t.duration}s ${t.easing} ${t.delay}s ${iter} normal forwards both !important; will-change: transform, opacity; }`;
     })
     .join('\n');
   return `${keyframeBlocks}\n${rules}`;
 }
 
+function injectTimelineCssIntoHtml(html: string, css: string) {
+  const cleaned = html.replace(/\n?\s*<style\s+id=["']timeline-animations["'][\s\S]*?<\/style>/i, '');
+  if (!css.trim()) return cleaned;
+  const block = `<style id="timeline-animations">\n${css}\n</style>`;
+  if (cleaned.includes('</head>')) return cleaned.replace('</head>', `${block}\n</head>`);
+  return `${block}\n${cleaned}`;
+}
+
 const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { animationConfig, setAnimationConfig, selectedElement, setTimelineAnimationStyle } = useEditorStore();
+  const { animationConfig, setAnimationConfig, selectedElement, setTimelineAnimationStyle, files, updateFileContent, showNotification } = useEditorStore();
   const { show: showCtx, element: ctxEl } = useContextMenu();
 
   const [tracks, setTracks] = useState<Track[]>([
@@ -71,7 +79,8 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [appliedMsg, setAppliedMsg] = useState(false);
-  const totalDuration = 5;
+  const [animationsApplied, setAnimationsApplied] = useState(false);
+  const totalDuration = Math.max(5, ...tracks.map(t => t.delay + t.duration));
   const labelWidth = 160;
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -79,16 +88,27 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const tracksRef = useRef(tracks);
   tracksRef.current = tracks;
 
+  const pushAnimationCSS = useCallback((css: string) => {
+    setTimelineAnimationStyle('');
+    requestAnimationFrame(() => setTimelineAnimationStyle(css));
+  }, [setTimelineAnimationStyle]);
+
+  const persistAnimations = useCallback((css: string) => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const updated = injectTimelineCssIntoHtml(htmlFile.content, css);
+    if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
+  }, [files, updateFileContent]);
+
   /* ── Playback ── */
   useEffect(() => {
     if (playing) {
-      /* Inject animation CSS into visual editor */
       const css = buildAnimationCSS(tracks);
-      setTimelineAnimationStyle(css);
+      pushAnimationCSS(css);
 
       tickRef.current = setInterval(() => {
         setCurrentTime(t => {
-          if (t >= totalDuration) { setPlaying(false); return 0; }
+          if (t >= totalDuration) { setPlaying(false); return totalDuration; }
           return parseFloat((t + 0.05).toFixed(3));
         });
       }, 50);
@@ -96,25 +116,48 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       if (tickRef.current) clearInterval(tickRef.current);
     }
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [playing]);
+  }, [playing, tracks, totalDuration, pushAnimationCSS]);
+
+  useEffect(() => {
+    if (!animationsApplied || playing) return;
+    setTimelineAnimationStyle(buildAnimationCSS(tracks));
+  }, [tracks, animationsApplied, playing, setTimelineAnimationStyle]);
 
   const stopAndReset = () => {
     setPlaying(false);
     setCurrentTime(0);
-    setTimelineAnimationStyle('');
+    setTimelineAnimationStyle(animationsApplied ? buildAnimationCSS(tracks) : '');
+  };
+
+  const startPlayback = () => {
+    setCurrentTime(0);
+    setPlaying(true);
   };
 
   const applyAnimations = () => {
     const css = buildAnimationCSS(tracks);
-    setTimelineAnimationStyle(css);
+    pushAnimationCSS(css);
+    persistAnimations(css);
+    setAnimationsApplied(true);
     setAppliedMsg(true);
+    showNotification('Timeline animations applied to page');
     setTimeout(() => setAppliedMsg(false), 1800);
+  };
+
+  const clearAnimations = () => {
+    setPlaying(false);
+    setCurrentTime(0);
+    setAnimationsApplied(false);
+    setTimelineAnimationStyle('');
+    persistAnimations('');
+    showNotification('Timeline animations cleared');
   };
 
   const addTrack = useCallback(() => {
     const id = Date.now().toString();
-    const label = selectedElement ? `<${selectedElement.tagName}>${selectedElement.id ? '#' + selectedElement.id : ''}` : '.element';
-    setTracks(t => [...t, {
+    const label = selectedElement ? (selectedElement.styles?.selector || (selectedElement.id ? `#${selectedElement.id}` : selectedElement.tagName)) : '.element';
+    setTracks(t => {
+      const next = [...t, {
       id, element: label,
       animation: animationConfig.preset !== 'none' ? animationConfig.preset : 'fadeIn',
       duration: parseFloat(animationConfig.duration) || 1,
@@ -122,16 +165,28 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       color: COLORS[t.length % COLORS.length],
       easing: animationConfig.easing || 'ease',
       iteration: animationConfig.iteration || '1',
-    }]);
+    }];
+      return next;
+    });
+    setSelectedTrackId(id);
   }, [selectedElement, animationConfig]);
 
-  const removeTrack = (id: string) => setTracks(t => t.filter(tr => tr.id !== id));
+  const removeTrack = (id: string) => {
+    setTracks(t => t.filter(tr => tr.id !== id));
+    setSelectedTrackId(curr => curr === id ? null : curr);
+  };
   const updateTrack = (id: string, update: Partial<Track>) =>
     setTracks(t => t.map(tr => tr.id === id ? { ...tr, ...update } : tr));
+
+  const applyPreset = (preset: string) => {
+    if (selectedTrackId) updateTrack(selectedTrackId, { animation: preset });
+    setAnimationConfig({ preset });
+  };
 
   /* ── Track drag (move delay) ── */
   const startTrackDrag = useCallback((e: React.MouseEvent, trackId: string) => {
     e.preventDefault(); e.stopPropagation();
+    setSelectedTrackId(trackId);
     const contentW = (timelineRef.current?.clientWidth || 600) - labelWidth;
     const scaledW = contentW * zoom;
     const startX = e.clientX;
@@ -154,6 +209,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   /* ── Track resize (duration) ── */
   const startResizeDuration = useCallback((e: React.MouseEvent, trackId: string) => {
     e.preventDefault(); e.stopPropagation();
+    setSelectedTrackId(trackId);
     const contentW = (timelineRef.current?.clientWidth || 600) - labelWidth;
     const scaledW = contentW * zoom;
     const startX = e.clientX;
@@ -227,10 +283,10 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           e.preventDefault();
           showCtx(e, [
             { label: 'Add Track', icon: '➕', action: addTrack },
-            { label: playing ? 'Stop' : 'Play All', icon: playing ? '⏹' : '▶', action: () => setPlaying(!playing) },
+            { label: playing ? 'Stop' : 'Play All', icon: playing ? '⏹' : '▶', action: () => playing ? stopAndReset() : startPlayback() },
             { separator: true, label: '' },
             { label: 'Apply to Page', icon: '✓', action: applyAnimations },
-            { label: 'Clear Animations', icon: '↺', action: () => { setTimelineAnimationStyle(''); } },
+            { label: 'Clear Animations', icon: '↺', action: clearAnimations },
             { separator: true, label: '' },
             { label: 'Zoom In (Ctrl+Scroll)', icon: '+', action: () => setZoom(z => Math.min(8, z + 0.5)) },
             { label: 'Zoom Out (Ctrl+Scroll)', icon: '-', action: () => setZoom(z => Math.max(0.5, z - 0.5)) },
@@ -251,7 +307,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
         <button
           title={playing ? 'Stop' : 'Play — previews animations on page'}
-          onClick={() => { if (playing) stopAndReset(); else setPlaying(true); }}
+          onClick={() => { if (playing) stopAndReset(); else startPlayback(); }}
           style={{ ...hdrBtn, color: playing ? '#e5a45a' : '#666', background: playing ? 'rgba(229,164,90,0.12)' : 'none', borderRadius: 4 }}
         >
           {playing ? <FiSquare size={12} /> : <FiPlay size={12} />}
@@ -284,7 +340,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
         <button
           title="Clear animations from page"
-          onClick={() => setTimelineAnimationStyle('')}
+          onClick={clearAnimations}
           style={{ ...hdrBtn, fontSize: 10, color: '#555', width: 'auto', padding: '0 4px' }}
         >↺</button>
 
@@ -345,7 +401,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 <div
                   key={track.id}
                   style={{ display: 'flex', height: 36, borderBottom: '1px solid rgba(255,255,255,0.04)', background: isSelected ? 'rgba(255,255,255,0.06)' : 'transparent', cursor: 'default' }}
-                  onClick={() => setSelectedTrackId(isSelected ? null : track.id)}
+                  onClick={() => setSelectedTrackId(track.id)}
                   onContextMenu={e => trackContextMenu(e, track)}
                 >
                   {/* Label */}
@@ -406,7 +462,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             <div style={{ marginBottom: 6 }}>
               <div style={{ fontSize: 10, color: '#777', marginBottom: 3 }}>Animation</div>
-              <select value={selectedTrack.animation} onChange={e => updateTrack(selectedTrack.id, { animation: e.target.value })}
+              <select value={selectedTrack.animation} onChange={e => { updateTrack(selectedTrack.id, { animation: e.target.value }); setAnimationConfig({ preset: e.target.value }); }}
                 style={{ width: '100%', background: '#1a1a1a', border: '1px solid #3e3e3e', borderRadius: 3, padding: '3px 6px', fontSize: 11, color: '#ccc', outline: 'none' }}>
                 {PRESETS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
@@ -454,13 +510,13 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       <div style={{ height: 32, flexShrink: 0, borderTop: '1px solid #3e3e3e', background: '#252526', display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px', flexWrap: 'nowrap', overflow: 'hidden' }}>
         <span style={{ fontSize: 10, color: '#666', flexShrink: 0 }}>Quick preset:</span>
         {PRESETS.slice(1, 8).map(p => (
-          <button key={p} onClick={() => setAnimationConfig({ preset: p })}
+          <button key={p} onClick={() => applyPreset(p)}
             style={{ padding: '2px 7px', fontSize: 10, borderRadius: 10, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, background: animationConfig.preset === p ? 'rgba(229,164,90,0.15)' : '#1a1a1a', border: `1px solid ${animationConfig.preset === p ? 'rgba(229,164,90,0.5)' : '#3e3e3e'}`, color: animationConfig.preset === p ? '#e5a45a' : '#777', fontFamily: 'inherit' }}>
             {p}
           </button>
         ))}
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 10, color: '#444' }}>{tracks.length} tracks • Ctrl+Scroll to zoom</span>
+        <span style={{ fontSize: 10, color: animationsApplied ? '#4ec9b0' : '#444' }}>{tracks.length} tracks • {animationsApplied ? 'applied' : 'not applied'} • Ctrl+Scroll to zoom</span>
       </div>
 
       {ctxEl}
