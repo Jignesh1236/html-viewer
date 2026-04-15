@@ -37,7 +37,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent } = useEditorStore();
+  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,6 +93,14 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const newFile = () => {
     setPendingFileDialog({ type: 'create' });
+    close();
+  };
+
+  const newFolder = () => {
+    const name = prompt('Folder name:');
+    if (!name?.trim()) return;
+    addFolder(name.trim());
+    showNotification(`Folder "${name.trim()}" created`);
     close();
   };
 
@@ -170,11 +178,12 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'File',
       items: [
-        { label: 'New File', shortcut: 'Ctrl+N', action: newFile },
+        { label: '📄 New File', shortcut: 'Ctrl+N', action: newFile },
+        { label: '📁 New Folder', action: newFolder },
         { separator: true, label: '' },
         { label: 'Save All', shortcut: 'Ctrl+S', action: () => { showNotification('All files saved ✓'); close(); } },
         { separator: true, label: '' },
-        { label: 'Upload Files…', action: () => { document.getElementById('global-file-upload')?.click(); close(); } },
+        { label: 'Import Files…', action: () => { document.getElementById('global-file-upload')?.click(); close(); } },
         { separator: true, label: '' },
         { label: 'Export as ZIP', shortcut: 'Ctrl+E', action: () => { exportProject(files); showNotification('Exported as ZIP'); close(); } },
       ],

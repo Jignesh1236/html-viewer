@@ -7,6 +7,7 @@ export interface FileItem {
   content: string;
   url?: string;
   mimeType?: string;
+  folder?: string;
 }
 
 export interface SelectedElement {
@@ -89,6 +90,12 @@ interface EditorStore {
   removeFile: (id: string) => void;
   updateFileContent: (id: string, content: string) => void;
   setActiveFile: (id: string) => void;
+  moveFileToFolder: (fileId: string, folder: string | undefined) => void;
+
+  folders: string[];
+  addFolder: (name: string) => void;
+  removeFolder: (name: string) => void;
+  renameFolder: (oldName: string, newName: string) => void;
 
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -377,11 +384,39 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     files: s.files.filter(f => f.id !== id),
     activeFileId: s.activeFileId === id ? (s.files.find(f => f.id !== id)?.id ?? null) : s.activeFileId,
   })),
-  updateFileContent: (id, content) => set((s) => ({
-    files: s.files.map(f => f.id === id ? { ...f, content } : f),
-    previewRefreshKey: s.previewRefreshKey + 1,
-  })),
+  updateFileContent: (id, content) => set((s) => {
+    const file = s.files.find(f => f.id === id);
+    const isHtmlFile = file?.type === 'html';
+    const isBlank = content.trim().length < 30;
+    let timelinePatch: Partial<EditorStore> = {};
+    if (isHtmlFile && isBlank) {
+      const clearedTimeline: TimelineState = { ...s.timelineState, animationsApplied: false, tracks: [], playing: false, currentTime: 0 };
+      saveTimelineState(clearedTimeline);
+      timelinePatch = { timelineState: clearedTimeline, timelineAnimationStyle: '' };
+    }
+    return {
+      files: s.files.map(f => f.id === id ? { ...f, content } : f),
+      previewRefreshKey: s.previewRefreshKey + 1,
+      ...timelinePatch,
+    };
+  }),
   setActiveFile: (id) => set({ activeFileId: id }),
+  moveFileToFolder: (fileId, folder) => set((s) => ({
+    files: s.files.map(f => f.id === fileId ? { ...f, folder } : f),
+  })),
+
+  folders: [],
+  addFolder: (name) => set((s) => ({
+    folders: s.folders.includes(name) ? s.folders : [...s.folders, name],
+  })),
+  removeFolder: (name) => set((s) => ({
+    folders: s.folders.filter(f => f !== name),
+    files: s.files.map(f => f.folder === name ? { ...f, folder: undefined } : f),
+  })),
+  renameFolder: (oldName, newName) => set((s) => ({
+    folders: s.folders.map(f => f === oldName ? newName : f),
+    files: s.files.map(f => f.folder === oldName ? { ...f, folder: newName } : f),
+  })),
 
   mode: 'split',
   setMode: (mode) => set({ mode }),

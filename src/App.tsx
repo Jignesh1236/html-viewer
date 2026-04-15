@@ -40,9 +40,10 @@ interface WinState {
 }
 
 interface DockSizes {
-  leftW: number;    // width of left (files) panel
-  rightW: number;   // width of right (preview/props) panel
-  bottomH: number;  // height of bottom (timeline) panel
+  leftW: number;         // width of left (files) panel
+  rightW: number;        // width of right panel in split mode (preview)
+  visualRightW: number;  // width of right panel in visual mode (properties)
+  bottomH: number;       // height of bottom (timeline) panel
 }
 
 const WIN_ICONS: Record<WinId, React.ReactNode> = {
@@ -61,36 +62,54 @@ const WIN_LABELS: Record<WinId, string> = {
 /* ─────────────────────────────────────────
    Dock slot calculator
    ───────────────────────────────────────── */
-function getDockRect(id: WinId, wsW: number, wsH: number, mode: Mode, sizes: DockSizes): WinRect | null {
-  const { leftW, rightW, bottomH } = sizes;
-  const cw = Math.max(160, wsW - leftW - rightW);
+function getDockRect(id: WinId, wsW: number, wsH: number, mode: Mode, sizes: DockSizes, visible?: Set<WinId>): WinRect | null {
+  const { leftW, rightW, visualRightW, bottomH } = sizes;
 
   if (mode === 'visual') {
-    if (id === 'files')      return { x: 0,          y: 0,             w: leftW,  h: wsH };
-    if (id === 'preview')    return { x: leftW,       y: 0,             w: cw,     h: wsH - bottomH };
-    if (id === 'timeline')   return { x: leftW,       y: wsH - bottomH, w: cw,     h: bottomH };
-    if (id === 'properties') return { x: leftW + cw,  y: 0,             w: rightW, h: wsH };
+    const showFiles = !visible || visible.has('files');
+    const showProps = !visible || visible.has('properties');
+    const showTL    = !visible || visible.has('timeline');
+    const effLeft   = showFiles ? leftW : 0;
+    const effRight  = showProps ? visualRightW : 0;
+    const effBottom = showTL    ? bottomH : 0;
+    const cw = Math.max(160, wsW - effLeft - effRight);
+
+    if (id === 'files'      && showFiles) return { x: 0,               y: 0,             w: leftW,       h: wsH };
+    if (id === 'preview')                 return { x: effLeft,          y: 0,             w: cw,          h: wsH - effBottom };
+    if (id === 'timeline'   && showTL)    return { x: effLeft,          y: wsH - effBottom, w: cw + effRight, h: bottomH };
+    if (id === 'properties' && showProps) return { x: effLeft + cw,     y: 0,             w: visualRightW, h: wsH - effBottom };
     return null;
   } else if (mode === 'code') {
-    if (id === 'files') return { x: 0,      y: 0, w: leftW,       h: wsH };
-    if (id === 'code')  return { x: leftW,  y: 0, w: wsW - leftW, h: wsH };
+    const showFiles = !visible || visible.has('files');
+    const effLeft   = showFiles ? leftW : 0;
+    if (id === 'files' && showFiles) return { x: 0,       y: 0, w: leftW,        h: wsH };
+    if (id === 'code')               return { x: effLeft,  y: 0, w: wsW - effLeft, h: wsH };
     return null;
   } else {
     // split
-    if (id === 'files')   return { x: 0,           y: 0, w: leftW,  h: wsH };
-    if (id === 'code')    return { x: leftW,        y: 0, w: cw,     h: wsH };
-    if (id === 'preview') return { x: leftW + cw,   y: 0, w: rightW, h: wsH };
+    const showFiles   = !visible || visible.has('files');
+    const showPreview = !visible || visible.has('preview');
+    const effLeft  = showFiles   ? leftW  : 0;
+    const effRight = showPreview ? rightW : 0;
+    const cw = Math.max(160, wsW - effLeft - effRight);
+
+    if (id === 'files'   && showFiles)   return { x: 0,              y: 0, w: leftW,  h: wsH };
+    if (id === 'code')                   return { x: effLeft,         y: 0, w: cw,     h: wsH };
+    if (id === 'preview' && showPreview) return { x: effLeft + cw,    y: 0, w: rightW, h: wsH };
     return null;
   }
 }
 
 /** All slots that exist in this mode (for snap zones) */
-function getSnapSlots(wsW: number, wsH: number, mode: Mode, sizes: DockSizes): { id: WinId; rect: WinRect }[] {
+function getSnapSlots(wsW: number, wsH: number, mode: Mode, sizes: DockSizes, visible?: Set<WinId>): { id: WinId; rect: WinRect }[] {
   const ids: WinId[] =
     mode === 'visual' ? ['files', 'preview', 'timeline', 'properties'] :
     mode === 'code'   ? ['files', 'code'] :
                         ['files', 'code', 'preview'];
-  return ids.map(id => ({ id, rect: getDockRect(id, wsW, wsH, mode, sizes)! }));
+  return ids.flatMap(id => {
+    const r = getDockRect(id, wsW, wsH, mode, sizes, visible);
+    return r ? [{ id, rect: r }] : [];
+  });
 }
 
 function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
@@ -104,7 +123,7 @@ function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
   return defaults[id];
 }
 
-const DEFAULT_DOCK: DockSizes = { leftW: 220, rightW: 280, bottomH: 160 };
+const DEFAULT_DOCK: DockSizes = { leftW: 200, rightW: 420, visualRightW: 240, bottomH: 160 };
 
 function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState[] {
   const dockedPerMode: Record<Mode, WinId[]> = {
@@ -125,7 +144,7 @@ function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState
 }
 
 const LS_KEY = 'html-editor-win-layout-v6';
-const LS_DOCK = 'html-editor-dock-sizes';
+const LS_DOCK = 'html-editor-dock-sizes-v2';
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -471,6 +490,11 @@ function DesktopApp() {
     showNotification('Layout reset to defaults');
   }, [wsSize, mode, showNotification]);
 
+  /* Set of window IDs that are currently visible AND docked — used to compute fill-on-close layout */
+  const visibleDockedSet = new Set<WinId>(
+    wins.filter(w => w.visible && w.docked).map(w => w.id)
+  );
+
   /* ── Snap zone drag handlers ── */
   const snapSlots = getSnapSlots(wsSize.w, wsSize.h, mode as Mode, dockSizes);
   const SNAP_THRESH = 80; // px from slot edge to trigger snap
@@ -528,10 +552,10 @@ function DesktopApp() {
   const winMap = Object.fromEntries(wins.map(w => [w.id, w])) as Record<WinId, WinState>;
   const activeFileName = files.find(f => f.id === activeFileId)?.name || '';
 
-  /* Effective rect: docked → slot rect, floating → saved rect */
+  /* Effective rect: docked → slot rect (with fill-on-close), floating → saved rect */
   function getEffRect(id: WinId): WinRect {
     const w = winMap[id];
-    if (w.docked) return getDockRect(id, wsSize.w, wsSize.h, mode as Mode, dockSizes) ?? w.rect;
+    if (w.docked) return getDockRect(id, wsSize.w, wsSize.h, mode as Mode, dockSizes, visibleDockedSet) ?? w.rect;
     return w.rect;
   }
 
@@ -652,7 +676,7 @@ function DesktopApp() {
           <DockDivider
             orientation="vertical"
             pos={dockSizes.leftW}
-            min={120} max={Math.max(121, wsSize.w - dockSizes.rightW - 160)}
+            min={120} max={Math.max(121, wsSize.w - (mode === 'visual' ? dockSizes.visualRightW : dockSizes.rightW) - 160)}
             wsW={wsSize.w} wsH={wsSize.h}
             onChange={v => setDockSizes(s => ({ ...s, leftW: v }))}
           />
@@ -675,21 +699,21 @@ function DesktopApp() {
             onChange={v => setDockSizes(s => ({ ...s, bottomH: Math.max(60, wsSize.h - v) }))}
           />
         )}
-        {/* Right divider in visual mode (between center and right) */}
+        {/* Right divider in visual mode (properties panel — uses visualRightW) */}
         {mode === 'visual' && winMap.properties.visible && winMap.properties.docked && (
           <DockDivider
             orientation="vertical"
-            pos={wsSize.w - dockSizes.rightW}
+            pos={wsSize.w - dockSizes.visualRightW}
             min={Math.max(121, dockSizes.leftW + 160)} max={wsSize.w - 160}
             wsW={wsSize.w} wsH={wsSize.h}
-            onChange={v => setDockSizes(s => ({ ...s, rightW: Math.max(160, wsSize.w - v) }))}
+            onChange={v => setDockSizes(s => ({ ...s, visualRightW: Math.max(160, wsSize.w - v) }))}
           />
         )}
 
         {/* All windows */}
         {sortedWins.map(w => {
           const effRect = getEffRect(w.id);
-          const hasDockSlot = getDockRect(w.id, wsSize.w, wsSize.h, mode as Mode, dockSizes) !== null;
+          const hasDockSlot = getDockRect(w.id, wsSize.w, wsSize.h, mode as Mode, dockSizes, visibleDockedSet) !== null;
           return (
             <FloatingWindow
               key={w.id}
