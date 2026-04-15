@@ -264,6 +264,5 @@ For issues or improvements, track them in your own repo’s issue tracker.
 ---
 
 ## next plaing
-project expose / mount / route mapping missing
-
+switch to react
 
