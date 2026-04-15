@@ -8,6 +8,7 @@ import VisualEditor from './components/VisualEditor';
 import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
+import { useContextMenu } from './components/ContextMenu';
 import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
@@ -365,7 +366,8 @@ export default function App() {
 }
 
 function DesktopApp() {
-  const { mode, setMode, notification, files, showNotification } = useEditorStore();
+  const { mode, setMode, notification, files, showNotification, activeFileId } = useEditorStore();
+  const { show: showCtx, element: ctxEl } = useContextMenu();
 
   const wsRef = useRef<HTMLDivElement>(null);
   const [wsSize, setWsSize] = useState({ w: 1200, h: 660 });
@@ -524,6 +526,7 @@ function DesktopApp() {
   }, [files, applyModePreset]);
 
   const winMap = Object.fromEntries(wins.map(w => [w.id, w])) as Record<WinId, WinState>;
+  const activeFileName = files.find(f => f.id === activeFileId)?.name || '';
 
   /* Effective rect: docked → slot rect, floating → saved rect */
   function getEffRect(id: WinId): WinRect {
@@ -562,7 +565,22 @@ function DesktopApp() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#111', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#111', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).closest('[data-file-item], button, input, textarea, select, [contenteditable="true"]')) return;
+        showCtx(e, [
+          { label: 'Mode: Code Layout', icon: '1', action: () => applyModePreset('code') },
+          { label: 'Mode: Visual Layout', icon: '2', action: () => applyModePreset('visual') },
+          { label: 'Mode: Split Layout', icon: '3', action: () => applyModePreset('split') },
+          { separator: true, label: '' },
+          { label: 'Refresh Preview', icon: '↻', action: () => useEditorStore.getState().refreshPreview() },
+          { label: 'Export ZIP', icon: '📦', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
+          { separator: true, label: '' },
+          { label: 'Reset Layout', icon: '↺', action: () => resetLayout() },
+        ]);
+      }}
+    >
 
       {/* Global drag-capture overlay */}
       <div id="__drag-capture" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 999999, background: 'transparent' }} />
@@ -582,7 +600,7 @@ function DesktopApp() {
         />
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: '#555', padding: '0 12px' }}>
-          {files.find(f => f.id === useEditorStore.getState().activeFileId)?.name || ''}
+          {activeFileName}
         </span>
       </div>
 
@@ -706,7 +724,7 @@ function DesktopApp() {
       <div style={{ display: 'flex', alignItems: 'center', height: 22, flexShrink: 0, background: '#007acc', padding: '0 12px', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.85)', zIndex: 200 }}>
         <span style={{ fontWeight: 600 }}>HTML Editor</span>
         <span>Mode: {mode}</span>
-        <span>{files.find(f => f.id === useEditorStore.getState().activeFileId)?.name || ''}</span>
+        <span>{activeFileName}</span>
         <div style={{ flex: 1 }} />
         <span style={{ opacity: 0.7, fontSize: 10 }}>
           {wins.filter(w => w.visible && w.docked).map(w => winTitle[w.id]).join(' · ')}
@@ -722,6 +740,7 @@ function DesktopApp() {
           {notification}
         </div>
       )}
+      {ctxEl}
     </div>
   );
 }

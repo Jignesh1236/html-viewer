@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import {
   FiChevronDown, FiChevronRight, FiType, FiLayout, FiBox,
@@ -18,6 +18,27 @@ const C = {
   muted:     '#888',
   dim:       '#555',
 };
+
+const PRESET_KEYFRAMES: Record<string, string> = {
+  fadeIn: '@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }',
+  slideUp: '@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }',
+  slideLeft: '@keyframes slideLeft { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }',
+  slideRight: '@keyframes slideRight { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }',
+  bounce: '@keyframes bounce { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-20px); } 60% { transform: translateY(-10px); } }',
+  pulse: '@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } }',
+  spin: '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }',
+  zoom: '@keyframes zoom { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }',
+  shake: '@keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }',
+  flip: '@keyframes flip { from { opacity: 0; transform: perspective(400px) rotateX(-90deg); } to { opacity: 1; transform: perspective(400px) rotateX(0); } }',
+};
+
+function injectPropertiesAnimationCssIntoHtml(html: string, css: string) {
+  const cleaned = html.replace(/\n?\s*<style\s+id=["']properties-animations["'][\s\S]*?<\/style>/i, '');
+  if (!css.trim()) return cleaned;
+  const block = `<style id="properties-animations">\n${css}\n</style>`;
+  if (cleaned.includes('</head>')) return cleaned.replace('</head>', `${block}\n</head>`);
+  return `${block}\n${cleaned}`;
+}
 
 /* ─── Section ─────────────────────────────────────────────── */
 interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }
@@ -76,6 +97,18 @@ const selBase: React.CSSProperties = {
   backgroundRepeat: 'no-repeat', backgroundPosition: 'right 7px center',
   paddingRight: 22,
 };
+
+function parseTransform(transform: string) {
+  const value = transform || '';
+  const rotateMatch = value.match(/rotate\((-?[\d.]+)deg\)/i);
+  const scaleXMatch = value.match(/scaleX\((-?[\d.]+)\)/i);
+  const scaleYMatch = value.match(/scaleY\((-?[\d.]+)\)/i);
+  return {
+    rotate: rotateMatch ? parseFloat(rotateMatch[1]) : 0,
+    scaleX: scaleXMatch ? parseFloat(scaleXMatch[1]) : 1,
+    scaleY: scaleYMatch ? parseFloat(scaleYMatch[1]) : 1,
+  };
+}
 
 /* ─── BtnGroup ────────────────────────────────────────────── */
 function BtnGroup({ options, value, onChange, small }: { options: string[]; value: string; onChange: (v: string) => void; small?: boolean }) {
@@ -195,10 +228,92 @@ function SpacingGrid({ props, getS, apply }: { props: [string, string][]; getS: 
 
 /* ─── Main component ──────────────────────────────────────── */
 const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ hideHeader }) => {
-  const { selectedElement, selectedSelector, applySelectedStyle, applySelectedContent, animationConfig, setAnimationConfig } = useEditorStore();
+  const {
+    selectedElement,
+    selectedSelector,
+    applySelectedStyle,
+    applySelectedContent,
+    animationConfig,
+    setAnimationConfig,
+    files,
+    updateFileContent,
+    setTimelineState,
+  } = useEditorStore();
 
   const apply = (property: string, value: string) => applySelectedStyle(property, value);
   const getS = (key: string) => selectedElement?.styles?.[key] || '';
+  const [contentDraft, setContentDraft] = useState('');
+  const [customCssDraft, setCustomCssDraft] = useState('');
+  const [rotateDeg, setRotateDeg] = useState(0);
+  const [scaleX, setScaleX] = useState(1);
+  const [scaleY, setScaleY] = useState(1);
+
+  useEffect(() => {
+    setContentDraft(selectedElement?.innerHTML || '');
+    setCustomCssDraft(selectedElement?.styles?.['inline-style'] || '');
+    const parsed = parseTransform(selectedElement?.styles?.transform || '');
+    setRotateDeg(parsed.rotate);
+    setScaleX(parsed.scaleX);
+    setScaleY(parsed.scaleY);
+  }, [selectedSelector, selectedElement?.innerHTML, selectedElement?.styles]);
+
+  const applyTransform = useCallback((next: { rotate?: number; scaleX?: number; scaleY?: number }) => {
+    const r = next.rotate ?? rotateDeg;
+    const sx = next.scaleX ?? scaleX;
+    const sy = next.scaleY ?? scaleY;
+    apply('transform', `rotate(${r}deg) scaleX(${sx}) scaleY(${sy})`);
+  }, [apply, rotateDeg, scaleX, scaleY]);
+
+  const persistPresetKeyframe = useCallback((preset: string) => {
+    const keyframeCss = PRESET_KEYFRAMES[preset];
+    if (!keyframeCss) return;
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const updated = injectPropertiesAnimationCssIntoHtml(htmlFile.content, keyframeCss);
+    if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
+  }, [files, updateFileContent]);
+
+  const upsertTimelineTrackForSelection = useCallback((preset: string, animationValue: string) => {
+    if (!selectedElement || !selectedSelector) return;
+    const normalizedPreset = preset === 'none' ? '' : preset;
+    if (!normalizedPreset) return;
+    const selectorCandidate = selectedElement.styles?.selector || selectedSelector;
+    setTimelineState(prev => {
+      const idx = prev.tracks.findIndex(t => t.element.trim() === selectorCandidate.trim());
+      if (idx >= 0) {
+        const nextTracks = [...prev.tracks];
+        nextTracks[idx] = {
+          ...nextTracks[idx],
+          animation: normalizedPreset,
+          duration: parseFloat(animationConfig.duration) || nextTracks[idx].duration,
+          delay: parseFloat(animationConfig.delay) || 0,
+          easing: animationConfig.easing || nextTracks[idx].easing,
+          iteration: animationConfig.iteration || nextTracks[idx].iteration,
+        };
+        return { ...prev, tracks: nextTracks };
+      }
+
+      const id = Date.now().toString();
+      return {
+        ...prev,
+        tracks: [
+          ...prev.tracks,
+          {
+            id,
+            element: selectorCandidate,
+            animation: normalizedPreset,
+            duration: parseFloat(animationConfig.duration) || 0.6,
+            delay: parseFloat(animationConfig.delay) || 0,
+            color: '#e5a45a',
+            easing: animationConfig.easing || 'ease',
+            iteration: animationConfig.iteration || '1',
+          },
+        ],
+      };
+    });
+    // Keep direct animation value applied to selected element.
+    apply('animation', animationValue);
+  }, [selectedElement, selectedSelector, setTimelineState, animationConfig, apply]);
 
   /* ── Empty state ── */
   if (!selectedElement || !selectedSelector) {
@@ -279,9 +394,9 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             <div style={{ fontSize: 10, color: C.dim, marginBottom: 1 }}>Inner HTML</div>
             <textarea
               style={{ ...inputBase, height: 60, resize: 'vertical', width: '100%', flex: 'none', fontFamily: 'var(--app-font-mono)' } as any}
-              defaultValue={selectedElement.innerHTML}
-              key={tag + selectedElement.id}
-              onBlur={e => applySelectedContent(e.target.value)}
+              value={contentDraft}
+              onChange={e => setContentDraft(e.target.value)}
+              onBlur={() => applySelectedContent(contentDraft)}
               onFocus={e => (e.target.style.borderColor = C.accentBrd)}
               onBlurCapture={e => (e.target.style.borderColor = C.border)}
             />
@@ -337,9 +452,9 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           <Row label="Opacity">
             <input
               type="range" min="0" max="1" step="0.01"
-              defaultValue={getS('opacity') || '1'}
+              value={getS('opacity') || '1'}
               style={{ flex: 1, accentColor: C.accent } as any}
-              onInput={e => apply('opacity', (e.target as HTMLInputElement).value)}
+              onChange={e => apply('opacity', (e.target as HTMLInputElement).value)}
             />
             <span style={{ fontSize: 11, color: C.muted, width: 32, textAlign: 'right', flexShrink: 0 }}>
               {Math.round(parseFloat(getS('opacity') || '1') * 100)}%
@@ -465,19 +580,31 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         {/* Transform */}
         <Section title="Transform" defaultOpen={false}>
           <Row label="Rotate">
-            <input type="range" min="-180" max="180" step="1" defaultValue="0"
+            <input type="range" min="-180" max="180" step="1" value={rotateDeg}
               style={{ flex: 1, accentColor: C.accent } as any}
-              onInput={e => apply('transform', `rotate(${(e.target as HTMLInputElement).value}deg)`)} />
+              onChange={e => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setRotateDeg(v);
+                applyTransform({ rotate: v });
+              }} />
           </Row>
           <Row label="Scale X">
-            <input type="range" min="0.1" max="3" step="0.05" defaultValue="1"
+            <input type="range" min="0.1" max="3" step="0.05" value={scaleX}
               style={{ flex: 1, accentColor: C.accent } as any}
-              onInput={e => apply('transform', `scaleX(${(e.target as HTMLInputElement).value})`)} />
+              onChange={e => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setScaleX(v);
+                applyTransform({ scaleX: v });
+              }} />
           </Row>
           <Row label="Scale Y">
-            <input type="range" min="0.1" max="3" step="0.05" defaultValue="1"
+            <input type="range" min="0.1" max="3" step="0.05" value={scaleY}
               style={{ flex: 1, accentColor: C.accent } as any}
-              onInput={e => apply('transform', `scaleY(${(e.target as HTMLInputElement).value})`)} />
+              onChange={e => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setScaleY(v);
+                applyTransform({ scaleY: v });
+              }} />
           </Row>
           <Row label="Custom">
             <PropInput value={getS('transform') || 'none'} onChange={v => apply('transform', v)} placeholder="rotate(45deg) scale(1.2)" />
@@ -538,7 +665,9 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
                 spin: 'spin 1s linear infinite', zoom: 'zoom 0.4s ease forwards',
                 shake: 'shake 0.5s ease', flip: 'flip 0.6s ease forwards',
               };
-              apply('animation', PRESETS[animationConfig.preset] || animationConfig.preset);
+              const animationValue = PRESETS[animationConfig.preset] || animationConfig.preset;
+              upsertTimelineTrackForSelection(animationConfig.preset, animationValue);
+              persistPresetKeyframe(animationConfig.preset);
             }}
             style={{
               padding: '6px 12px', background: C.accentBg,
@@ -558,12 +687,12 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         <Section title="Custom CSS" icon={<FiCode size={12} />} defaultOpen={false}>
           <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Paste CSS property:value pairs</div>
           <textarea
-            key={tag}
             style={{ ...inputBase, width: '100%', height: 88, resize: 'none', flex: 'none' } as any}
             placeholder={'color: red;\nbackground: blue;\nfont-size: 20px;'}
-            defaultValue={selectedElement.styles?.['inline-style'] || ''}
-            onBlur={e => {
-              e.target.value.split(';').map(r => r.trim()).filter(Boolean).forEach(rule => {
+            value={customCssDraft}
+            onChange={e => setCustomCssDraft(e.target.value)}
+            onBlur={() => {
+              customCssDraft.split(';').map(r => r.trim()).filter(Boolean).forEach(rule => {
                 const [prop, ...vals] = rule.split(':');
                 if (prop && vals.length) apply(prop.trim(), vals.join(':').trim());
               });

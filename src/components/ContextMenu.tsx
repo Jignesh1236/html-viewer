@@ -19,24 +19,63 @@ interface Props {
 
 const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const [focusIdx, setFocusIdx] = React.useState<number>(-1);
+
+  const actionableIndexes = React.useMemo(
+    () => items.map((item, idx) => ({ item, idx })).filter(({ item }) => !item.separator && !item.disabled && !!item.action).map(({ idx }) => idx),
+    [items]
+  );
 
   useEffect(() => {
     const down = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     };
-    const key = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (actionableIndexes.length === 0) return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const currentPos = actionableIndexes.indexOf(focusIdx);
+        const delta = e.key === 'ArrowDown' ? 1 : -1;
+        const nextPos = currentPos === -1
+          ? (delta > 0 ? 0 : actionableIndexes.length - 1)
+          : (currentPos + delta + actionableIndexes.length) % actionableIndexes.length;
+        setFocusIdx(actionableIndexes[nextPos]);
+      }
+      if (e.key === 'Enter' && focusIdx >= 0) {
+        e.preventDefault();
+        const target = items[focusIdx];
+        if (!target?.disabled && target.action) {
+          target.action();
+          onClose();
+        }
+      }
+    };
+    const scrollOrResize = () => onClose();
     setTimeout(() => {
       document.addEventListener('mousedown', down);
       document.addEventListener('keydown', key);
+      window.addEventListener('resize', scrollOrResize);
+      window.addEventListener('scroll', scrollOrResize, true);
     }, 0);
     return () => {
       document.removeEventListener('mousedown', down);
       document.removeEventListener('keydown', key);
+      window.removeEventListener('resize', scrollOrResize);
+      window.removeEventListener('scroll', scrollOrResize, true);
     };
-  }, [onClose]);
+  }, [onClose, actionableIndexes, focusIdx, items]);
+
+  useEffect(() => {
+    if (actionableIndexes.length > 0) setFocusIdx(actionableIndexes[0]);
+    else setFocusIdx(-1);
+  }, [actionableIndexes]);
 
   // Clamp to viewport
-  const W = 200, itemH = 28;
+  const W = 240, itemH = 30;
   const approxH = items.length * itemH;
   const cx = Math.min(x, window.innerWidth - W - 8);
   const cy = Math.min(y, window.innerHeight - approxH - 8);
@@ -50,12 +89,12 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
         left: cx,
         top: cy,
         width: W,
-        background: '#2a2a2a',
-        border: '1px solid #4a4a4a',
-        borderRadius: 6,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)',
+        background: '#252526',
+        border: '1px solid #3f3f46',
+        borderRadius: 8,
+        boxShadow: '0 16px 40px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35)',
         zIndex: 99999,
-        padding: '4px 0',
+        padding: '6px 0',
         animation: 'fadeInMenu 0.1s ease',
         userSelect: 'none',
       }}
@@ -77,7 +116,7 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              padding: '5px 12px',
+              padding: '6px 12px',
               background: 'none',
               border: 'none',
               cursor: item.disabled ? 'default' : 'pointer',
@@ -87,7 +126,11 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
               textAlign: 'left',
               fontFamily: "'Inter', sans-serif",
               transition: 'background 0.1s',
+              outline: 'none',
+              boxSizing: 'border-box',
+              borderLeft: focusIdx === i ? '2px solid #e5a45a' : '2px solid transparent',
             }}
+            onMouseMove={() => { if (!item.disabled && item.action) setFocusIdx(i); }}
             onMouseEnter={e => {
               if (!item.disabled) (e.currentTarget as HTMLButtonElement).style.background = item.danger ? 'rgba(255,100,100,0.12)' : 'rgba(229,164,90,0.1)';
             }}

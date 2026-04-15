@@ -14,6 +14,7 @@ const PreviewPane: React.FC = () => {
     consoleEntries, addConsoleEntry, clearConsole,
     previewTabs, activePreviewTabId, addPreviewTab, closePreviewTab,
     setActivePreviewTab, updatePreviewTab,
+    timelineAnimationStyle,
   } = useEditorStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -23,6 +24,10 @@ const PreviewPane: React.FC = () => {
   const [elementsHtml, setElementsHtml] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
+  const [currentUrl, setCurrentUrl] = useState('preview://localhost/');
+  const historyIdxRef = useRef(-1);
+  useEffect(() => { historyIdxRef.current = historyIdx; }, [historyIdx]);
+
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const newTabBtnRef = useRef<HTMLButtonElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
@@ -91,6 +96,15 @@ const PreviewPane: React.FC = () => {
       html = html.replace(new RegExp(`(src|href)=["']${esc}["']`, 'gi'), `$1="${img.url}"`);
     });
 
+    if (timelineAnimationStyle.trim()) {
+      const timelineStyleTag = `<style id="__timeline-preview-anim-style">\n${timelineAnimationStyle}\n</style>`;
+      if (html.toLowerCase().includes('</head>')) {
+        html = html.replace(/<\/head>/i, `${timelineStyleTag}\n</head>`);
+      } else {
+        html = `${timelineStyleTag}\n${html}`;
+      }
+    }
+
     const bridgeScript = `<script>
 (function() {
   const _types = ['log','error','warn','info','debug'];
@@ -146,7 +160,7 @@ const PreviewPane: React.FC = () => {
     }
 
     return html;
-  }, [files]);
+  }, [files, timelineAnimationStyle]);
 
   // Listen for postMessages from iframe
   useEffect(() => {
@@ -160,6 +174,16 @@ const PreviewPane: React.FC = () => {
           title: d.title || 'Untitled',
           favicon: d.favicon || '',
         });
+      } else if (d.type === 'navigate' && typeof d.url === 'string') {
+        setCurrentUrl(d.url);
+        setHistory(prev => {
+          const idx = historyIdxRef.current;
+          const base = idx >= 0 ? prev.slice(0, idx + 1) : prev;
+          if (base[base.length - 1] === d.url) return base;
+          const next = [...base, d.url];
+          setHistoryIdx(next.length - 1);
+          return next;
+        });
       }
     };
     window.addEventListener('message', handler);
@@ -171,6 +195,9 @@ const PreviewPane: React.FC = () => {
     const iframe = iframeRef.current;
     if (!iframe || activeTab?.previewType === 'image') return;
     setLoading(true);
+    setCurrentUrl('preview://localhost/');
+    setHistory(['preview://localhost/']);
+    setHistoryIdx(0);
     const srcDoc = buildSrcDoc();
     iframe.srcdoc = srcDoc;
   }, [previewRefreshKey, buildSrcDoc, activeTab?.previewType]);
@@ -180,6 +207,9 @@ const PreviewPane: React.FC = () => {
     const iframe = iframeRef.current;
     if (!iframe || activeTab?.previewType !== 'page') return;
     setLoading(true);
+    setCurrentUrl('preview://localhost/');
+    setHistory(['preview://localhost/']);
+    setHistoryIdx(0);
     iframe.srcdoc = buildSrcDoc();
   }, [activePreviewTabId]);
 
@@ -373,13 +403,15 @@ const PreviewPane: React.FC = () => {
           }}>
             <button
               className="panel-icon-btn" title="Back"
-              onClick={() => { if (historyIdx > 0) setHistoryIdx(h => h - 1); }}
-              style={{ opacity: historyIdx > 0 ? 1 : 0.3 }}
+              onClick={() => {}}
+              disabled
+              style={{ opacity: 0.3, cursor: 'not-allowed' }}
             ><FiArrowLeft size={13} /></button>
             <button
               className="panel-icon-btn" title="Forward"
-              onClick={() => { if (historyIdx < history.length - 1) setHistoryIdx(h => h + 1); }}
-              style={{ opacity: historyIdx < history.length - 1 ? 1 : 0.3 }}
+              onClick={() => {}}
+              disabled
+              style={{ opacity: 0.3, cursor: 'not-allowed' }}
             ><FiArrowRight size={13} /></button>
             <button
               className="panel-icon-btn" title="Refresh (Ctrl+R)"
@@ -399,7 +431,7 @@ const PreviewPane: React.FC = () => {
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
                   fontSize: 12, color: '#bbb', fontFamily: 'var(--app-font-mono)',
                 }}
-                defaultValue="preview://localhost/"
+                value={currentUrl}
                 readOnly
               />
             </div>

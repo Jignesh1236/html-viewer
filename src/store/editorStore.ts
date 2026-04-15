@@ -64,6 +64,24 @@ export interface PreviewTab {
   imageFileId?: string;
 }
 
+export interface TimelineTrack {
+  id: string;
+  element: string;
+  animation: string;
+  duration: number;
+  delay: number;
+  color: string;
+  easing: string;
+  iteration: string;
+}
+
+export interface TimelineState {
+  tracks: TimelineTrack[];
+  playing: boolean;
+  currentTime: number;
+  animationsApplied: boolean;
+}
+
 interface EditorStore {
   files: FileItem[];
   activeFileId: string | null;
@@ -115,6 +133,10 @@ interface EditorStore {
 
   timelineRestartKey: number;
   triggerTimelineRestart: () => void;
+
+  timelineState: TimelineState;
+  setTimelineState: (update: Partial<TimelineState> | ((prev: TimelineState) => TimelineState)) => void;
+  resetTimelineState: () => void;
 
   pendingFileDialog: { type: 'create' | 'rename'; fileId?: string } | null;
   setPendingFileDialog: (d: { type: 'create' | 'rename'; fileId?: string } | null) => void;
@@ -302,6 +324,46 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 `;
 
+const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
+const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
+  { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
+  { id: '2', element: 'h2', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
+  { id: '3', element: '.btn', animation: 'zoom', duration: 0.5, delay: 0.8, color: '#9cdcfe', easing: 'ease', iteration: '1' },
+  { id: '4', element: '.card', animation: 'fadeIn', duration: 0.6, delay: 1.0, color: '#dcdcaa', easing: 'ease', iteration: '1' },
+];
+
+const DEFAULT_TIMELINE_STATE: TimelineState = {
+  tracks: DEFAULT_TIMELINE_TRACKS,
+  playing: false,
+  currentTime: 0,
+  animationsApplied: false,
+};
+
+function loadTimelineState(): TimelineState {
+  try {
+    const raw = localStorage.getItem(TIMELINE_STORAGE_KEY);
+    if (!raw) return DEFAULT_TIMELINE_STATE;
+    const parsed = JSON.parse(raw) as Partial<TimelineState>;
+    if (!parsed || !Array.isArray(parsed.tracks)) return DEFAULT_TIMELINE_STATE;
+    return {
+      tracks: parsed.tracks,
+      playing: !!parsed.playing,
+      currentTime: typeof parsed.currentTime === 'number' ? parsed.currentTime : 0,
+      animationsApplied: !!parsed.animationsApplied,
+    };
+  } catch {
+    return DEFAULT_TIMELINE_STATE;
+  }
+}
+
+function saveTimelineState(state: TimelineState) {
+  try {
+    localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
 export const useEditorStore = create<EditorStore>((set, get) => ({
   files: [
     { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
@@ -427,6 +489,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   timelineRestartKey: 0,
   triggerTimelineRestart: () => set((s) => ({ timelineRestartKey: s.timelineRestartKey + 1 })),
+
+  timelineState: loadTimelineState(),
+  setTimelineState: (update) => set((s) => {
+    const nextState = typeof update === 'function' ? update(s.timelineState) : { ...s.timelineState, ...update };
+    saveTimelineState(nextState);
+    return { timelineState: nextState };
+  }),
+  resetTimelineState: () => set(() => {
+    saveTimelineState(DEFAULT_TIMELINE_STATE);
+    return { timelineState: DEFAULT_TIMELINE_STATE };
+  }),
 
   pendingFileDialog: null,
   setPendingFileDialog: (d) => set({ pendingFileDialog: d }),

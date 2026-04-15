@@ -2,7 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
-import { FiX, FiImage } from 'react-icons/fi';
+import { FiImage } from 'react-icons/fi';
 
 const LANG_MAP: Record<string, string> = {
   html: 'html',
@@ -30,14 +30,6 @@ const CodeEditor: React.FC = () => {
     }
   };
 
-  const handleCloseTab = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (activeFileId === id) {
-      const others = files.filter(f => f.id !== id);
-      if (others.length > 0) setActiveFile(others[0].id);
-    }
-  };
-
   return (
     <div className="editor-pane" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Tab bar */}
@@ -51,13 +43,6 @@ const CodeEditor: React.FC = () => {
           >
             {fileIcon(file.type)}
             <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
-            <div
-              className="tab-close"
-              onClick={(e) => handleCloseTab(file.id, e)}
-              title="Close tab"
-            >
-              <FiX size={12} />
-            </div>
           </div>
         ))}
       </div>

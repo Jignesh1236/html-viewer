@@ -149,60 +149,27 @@ const FloatingWindow: React.FC<Props> = ({
   const EDGE = 5, CORNER = 14;
 
   /* ════════════════════════════════════
-     DOCKED mode — slim title bar, no controls
+     DOCKED mode — content only (no title bar)
   ════════════════════════════════════ */
   if (docked) {
     return (
       <>
-        <div onMouseDown={onFocus} style={{
+        <div
+          onMouseDown={onFocus}
+          onContextMenu={onCtxMenu}
+          style={{
           position: 'absolute',
           left: rect.x, top: rect.y, width: rect.w,
-          height: minimized ? 28 : rect.h,
+          height: rect.h,
           zIndex, display: 'flex', flexDirection: 'column',
           background: '#1e1e1e',
           borderRight: '1px solid #2d2d2d',
           borderBottom: '1px solid #2d2d2d',
           overflow: 'hidden',
         }}>
-          <div
-            onContextMenu={onCtxMenu}
-            onMouseEnter={() => setHeaderHov(true)}
-            onMouseLeave={() => setHeaderHov(false)}
-            style={{
-              height: 28, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
-              padding: '0 8px 0 10px',
-              background: headerHov ? '#2a2a2a' : '#252526',
-              borderBottom: '1px solid #3e3e3e',
-              cursor: 'default', userSelect: 'none', transition: 'background 0.1s',
-            }}
-          >
-            {icon && <span style={{ color: '#666', display: 'flex', alignItems: 'center', flexShrink: 0, fontSize: 11 }}>{icon}</span>}
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#888', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '0.04em' }}>
-              {title}
-            </span>
-            {onFloat && (
-              <button
-                title="Float Window (Unpin)"
-                onMouseDown={e => e.stopPropagation()}
-                onClick={e => { e.stopPropagation(); onFloat(); }}
-                style={{
-                  background: 'none', border: '1px solid transparent', borderRadius: 3,
-                  cursor: 'pointer', padding: '1px 6px', fontSize: 10,
-                  color: '#555', display: headerHov ? 'flex' : 'none',
-                  alignItems: 'center', gap: 3, transition: 'all 0.12s', flexShrink: 0, whiteSpace: 'nowrap', fontFamily: 'inherit',
-                }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#e5a45a'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(229,164,90,0.4)'; (e.currentTarget as HTMLElement).style.background = 'rgba(229,164,90,0.08)'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#555'; (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLElement).style.background = 'none'; }}
-              >
-                ⬡ Float
-              </button>
-            )}
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {children}
           </div>
-          {!minimized && (
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {children}
-            </div>
-          )}
         </div>
         {ctxEl}
       </>

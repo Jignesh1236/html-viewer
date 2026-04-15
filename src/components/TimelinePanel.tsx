@@ -3,16 +3,7 @@ import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import { FiPlay, FiSquare, FiPlus, FiZoomIn, FiZoomOut, FiX, FiRefreshCw, FiCheck } from 'react-icons/fi';
 
-interface Track {
-  id: string;
-  element: string;
-  animation: string;
-  duration: number;
-  delay: number;
-  color: string;
-  easing: string;
-  iteration: string;
-}
+type Track = import('../store/editorStore').TimelineTrack;
 
 const COLORS = ['#e5a45a', '#4ec9b0', '#9cdcfe', '#dcdcaa', '#c586c0', '#f44747', '#89d185'];
 const PRESETS = ['none', 'fadeIn', 'slideUp', 'slideLeft', 'slideRight', 'bounce', 'pulse', 'spin', 'zoom', 'shake', 'flip'];
@@ -50,7 +41,7 @@ function buildAnimationCSS(tracks: Track[]): string {
     .filter(t => t.animation !== 'none' && t.element.trim())
     .map(t => {
       const iter = t.iteration === 'infinite' ? 'infinite' : parseInt(t.iteration) || 1;
-      return `${t.element} { animation: ${t.animation} ${t.duration}s ${t.easing} ${t.delay}s ${iter} normal forwards both !important; will-change: transform, opacity; }`;
+      return `${t.element} { animation: ${t.animation} ${t.duration}s ${t.easing} ${t.delay}s ${iter} normal both !important; will-change: transform, opacity; }`;
     })
     .join('\n');
   return `${keyframeBlocks}\n${rules}`;
@@ -65,21 +56,26 @@ function injectTimelineCssIntoHtml(html: string, css: string) {
 }
 
 const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const { animationConfig, setAnimationConfig, selectedElement, setTimelineAnimationStyle, files, updateFileContent, showNotification } = useEditorStore();
+  const {
+    animationConfig,
+    setAnimationConfig,
+    selectedElement,
+    setTimelineAnimationStyle,
+    files,
+    updateFileContent,
+    showNotification,
+    timelineState,
+    setTimelineState,
+    selectedSelector,
+  } = useEditorStore();
   const { show: showCtx, element: ctxEl } = useContextMenu();
 
-  const [tracks, setTracks] = useState<Track[]>([
-    { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: COLORS[0], easing: 'ease', iteration: '1' },
-    { id: '2', element: 'h2', animation: 'slideUp', duration: 0.8, delay: 0.3, color: COLORS[1], easing: 'ease', iteration: '1' },
-    { id: '3', element: '.btn', animation: 'zoom', duration: 0.5, delay: 0.8, color: COLORS[2], easing: 'ease', iteration: '1' },
-    { id: '4', element: '.card', animation: 'fadeIn', duration: 0.6, delay: 1.0, color: COLORS[3], easing: 'ease', iteration: '1' },
-  ]);
-
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
+  const tracks = timelineState.tracks;
+  const playing = timelineState.playing;
+  const currentTime = timelineState.currentTime;
+  const animationsApplied = timelineState.animationsApplied;
   const [zoom, setZoom] = useState(1);
   const [appliedMsg, setAppliedMsg] = useState(false);
-  const [animationsApplied, setAnimationsApplied] = useState(false);
   const totalDuration = Math.max(5, ...tracks.map(t => t.delay + t.duration));
   const labelWidth = 160;
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -89,8 +85,11 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   tracksRef.current = tracks;
 
   const pushAnimationCSS = useCallback((css: string) => {
+    // Double-frame reinjection forces CSS animations to restart reliably.
     setTimelineAnimationStyle('');
-    requestAnimationFrame(() => setTimelineAnimationStyle(css));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setTimelineAnimationStyle(css));
+    });
   }, [setTimelineAnimationStyle]);
 
   const persistAnimations = useCallback((css: string) => {
@@ -107,47 +106,47 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       pushAnimationCSS(css);
 
       tickRef.current = setInterval(() => {
-        setCurrentTime(t => {
-          if (t >= totalDuration) { setPlaying(false); return totalDuration; }
-          return parseFloat((t + 0.05).toFixed(3));
+        setTimelineState(prev => {
+          if (prev.currentTime >= totalDuration) {
+            return { ...prev, playing: false, currentTime: totalDuration };
+          }
+          return { ...prev, currentTime: parseFloat((prev.currentTime + 0.05).toFixed(3)) };
         });
       }, 50);
     } else {
       if (tickRef.current) clearInterval(tickRef.current);
     }
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [playing, tracks, totalDuration, pushAnimationCSS]);
+  }, [playing, tracks, totalDuration, pushAnimationCSS, setTimelineState]);
 
   useEffect(() => {
     if (!animationsApplied || playing) return;
-    setTimelineAnimationStyle(buildAnimationCSS(tracks));
-  }, [tracks, animationsApplied, playing, setTimelineAnimationStyle]);
+    const css = buildAnimationCSS(tracks);
+    pushAnimationCSS(css);
+    persistAnimations(css);
+  }, [tracks, animationsApplied, playing, pushAnimationCSS, persistAnimations]);
 
   const stopAndReset = () => {
-    setPlaying(false);
-    setCurrentTime(0);
-    setTimelineAnimationStyle(animationsApplied ? buildAnimationCSS(tracks) : '');
+    setTimelineState(prev => ({ ...prev, playing: false, currentTime: 0 }));
+    pushAnimationCSS(animationsApplied ? buildAnimationCSS(tracks) : '');
   };
 
   const startPlayback = () => {
-    setCurrentTime(0);
-    setPlaying(true);
+    setTimelineState(prev => ({ ...prev, currentTime: 0, playing: true }));
   };
 
   const applyAnimations = () => {
     const css = buildAnimationCSS(tracks);
     pushAnimationCSS(css);
     persistAnimations(css);
-    setAnimationsApplied(true);
+    setTimelineState(prev => ({ ...prev, animationsApplied: true }));
     setAppliedMsg(true);
     showNotification('Timeline animations applied to page');
     setTimeout(() => setAppliedMsg(false), 1800);
   };
 
   const clearAnimations = () => {
-    setPlaying(false);
-    setCurrentTime(0);
-    setAnimationsApplied(false);
+    setTimelineState(prev => ({ ...prev, playing: false, currentTime: 0, animationsApplied: false }));
     setTimelineAnimationStyle('');
     persistAnimations('');
     showNotification('Timeline animations cleared');
@@ -156,7 +155,8 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const addTrack = useCallback(() => {
     const id = Date.now().toString();
     const label = selectedElement ? (selectedElement.styles?.selector || (selectedElement.id ? `#${selectedElement.id}` : selectedElement.tagName)) : '.element';
-    setTracks(t => {
+    setTimelineState(prev => {
+      const t = prev.tracks;
       const next = [...t, {
       id, element: label,
       animation: animationConfig.preset !== 'none' ? animationConfig.preset : 'fadeIn',
@@ -166,17 +166,20 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       easing: animationConfig.easing || 'ease',
       iteration: animationConfig.iteration || '1',
     }];
-      return next;
+      return { ...prev, tracks: next };
     });
     setSelectedTrackId(id);
   }, [selectedElement, animationConfig]);
 
   const removeTrack = (id: string) => {
-    setTracks(t => t.filter(tr => tr.id !== id));
+    setTimelineState(prev => ({ ...prev, tracks: prev.tracks.filter(tr => tr.id !== id) }));
     setSelectedTrackId(curr => curr === id ? null : curr);
   };
   const updateTrack = (id: string, update: Partial<Track>) =>
-    setTracks(t => t.map(tr => tr.id === id ? { ...tr, ...update } : tr));
+    setTimelineState(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(tr => tr.id === id ? { ...tr, ...update } : tr),
+    }));
 
   const applyPreset = (preset: string) => {
     if (selectedTrackId) updateTrack(selectedTrackId, { animation: preset });
@@ -199,7 +202,10 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       const dx = ev.clientX - startX;
       const dT = (dx / scaledW) * totalDuration;
       const newDelay = Math.max(0, Math.min(totalDuration - trackDuration, initDelay + dT));
-      setTracks(ts => ts.map(tr => tr.id === trackId ? { ...tr, delay: parseFloat(newDelay.toFixed(2)) } : tr));
+      setTimelineState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(tr => tr.id === trackId ? { ...tr, delay: parseFloat(newDelay.toFixed(2)) } : tr),
+      }));
     };
     const onUp = () => { hideDragCapture(); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
@@ -222,7 +228,10 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       const dx = ev.clientX - startX;
       const dT = (dx / scaledW) * totalDuration;
       const newDur = Math.max(0.1, Math.min(totalDuration - initDelay, initDuration + dT));
-      setTracks(ts => ts.map(tr => tr.id === trackId ? { ...tr, duration: parseFloat(newDur.toFixed(2)) } : tr));
+      setTimelineState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(tr => tr.id === trackId ? { ...tr, duration: parseFloat(newDur.toFixed(2)) } : tr),
+      }));
     };
     const onUp = () => { hideDragCapture(); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
     window.addEventListener('mousemove', onMove);
@@ -233,7 +242,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const seekTo = (e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    setCurrentTime(Math.max(0, Math.min(totalDuration, pct * totalDuration)));
+    setTimelineState(prev => ({ ...prev, currentTime: Math.max(0, Math.min(totalDuration, pct * totalDuration)) }));
   };
 
   /* ── Track context menu ── */
@@ -242,7 +251,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     showCtx(e, [
       { label: `Track: ${track.element}`, disabled: true },
       { separator: true, label: '' },
-      { label: 'Duplicate', icon: '📋', action: () => setTracks(t => [...t, { ...track, id: Date.now().toString(), delay: Math.min(track.delay + 0.2, totalDuration - track.duration) }]) },
+      { label: 'Duplicate', icon: '📋', action: () => setTimelineState(prev => ({ ...prev, tracks: [...prev.tracks, { ...track, id: Date.now().toString(), delay: Math.min(track.delay + 0.2, totalDuration - track.duration) }] })) },
       { label: 'Reset to start', icon: '↩️', action: () => updateTrack(track.id, { delay: 0 }) },
       { separator: true, label: '' },
       { label: '— Change Animation —', disabled: true },
@@ -273,6 +282,26 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   const selectedTrack = tracks.find(t => t.id === selectedTrackId);
 
+  const selectedCandidates = new Set<string>(
+    [
+      selectedSelector?.trim() || '',
+      selectedElement?.styles?.selector?.trim() || '',
+      selectedElement?.id ? `#${selectedElement.id}` : '',
+      selectedElement?.className
+        ? `.${selectedElement.className.trim().split(/\s+/).filter(Boolean).join('.')}`
+        : '',
+      selectedElement?.tagName?.toLowerCase() || '',
+    ].filter(Boolean)
+  );
+
+  const isTrackSelectedElement = (track: Track) => selectedCandidates.has(track.element.trim());
+
+  useEffect(() => {
+    if (selectedCandidates.size === 0) return;
+    const matched = tracks.find(t => isTrackSelectedElement(t));
+    if (matched) setSelectedTrackId(matched.id);
+  }, [tracks, selectedSelector, selectedElement]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1a1a1a', overflow: 'hidden' }} onWheel={handleWheel}>
 
@@ -292,7 +321,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             { label: 'Zoom Out (Ctrl+Scroll)', icon: '-', action: () => setZoom(z => Math.max(0.5, z - 0.5)) },
             { label: 'Reset Zoom', icon: '↺', action: () => setZoom(1) },
             { separator: true, label: '' },
-            { label: 'Clear All Tracks', icon: '🗑️', danger: true, action: () => setTracks([]) },
+            { label: 'Clear All Tracks', icon: '🗑️', danger: true, action: () => setTimelineState(prev => ({ ...prev, tracks: [] })) },
             { label: 'Close Timeline', icon: '✕', action: onClose },
           ]);
         }}
@@ -323,7 +352,6 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
         <div style={{ width: 1, height: 16, background: '#3e3e3e', margin: '0 2px' }} />
 
-        {/* Apply to page button */}
         <button
           title="Apply all animations to page now"
           onClick={applyAnimations}
@@ -397,10 +425,22 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             {/* ── Tracks ── */}
             {tracks.map(track => {
               const isSelected = selectedTrackId === track.id;
+              const isLinkedToSelectedElement = isTrackSelectedElement(track);
               return (
                 <div
                   key={track.id}
-                  style={{ display: 'flex', height: 36, borderBottom: '1px solid rgba(255,255,255,0.04)', background: isSelected ? 'rgba(255,255,255,0.06)' : 'transparent', cursor: 'default' }}
+                  style={{
+                    display: 'flex',
+                    height: 36,
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    background: isSelected
+                      ? 'rgba(255,255,255,0.08)'
+                      : isLinkedToSelectedElement
+                        ? 'rgba(229,164,90,0.12)'
+                        : 'transparent',
+                    boxShadow: isLinkedToSelectedElement ? 'inset 2px 0 0 #e5a45a' : 'none',
+                    cursor: 'default',
+                  }}
                   onClick={() => setSelectedTrackId(track.id)}
                   onContextMenu={e => trackContextMenu(e, track)}
                 >

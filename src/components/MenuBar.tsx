@@ -37,7 +37,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, mode, setMode, showNotification, clearConsole, setPendingFileDialog } = useEditorStore();
+  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,6 +49,47 @@ const MenuBar: React.FC<MenuBarProps> = ({
   }, []);
 
   const close = () => setOpenMenu(null);
+
+  const htmlFile = files.find(f => f.type === 'html');
+
+  const formatHtml = (input: string) => {
+    let indent = 0;
+    return input
+      .replace(/>\s*</g, '><')
+      .replace(/></g, '>\n<')
+      .split('\n')
+      .map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('</')) indent = Math.max(0, indent - 1);
+        const out = `${'  '.repeat(indent)}${trimmed}`;
+        if (!trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.includes('</')) indent++;
+        return out;
+      })
+      .filter(Boolean)
+      .join('\n');
+  };
+
+  const minifyHtml = (input: string) =>
+    input
+      .replace(/>\s+</g, '><')
+      .replace(/\n+/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+  const validateHtml = (input: string) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(input, 'text/html');
+    return !doc.querySelector('parsererror');
+  };
+
+  const checkAccessibility = (input: string) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(input, 'text/html');
+    const missingAlt = doc.querySelectorAll('img:not([alt])').length;
+    const missingButtonLabel = Array.from(doc.querySelectorAll('button')).filter(btn => !btn.textContent?.trim() && !btn.getAttribute('aria-label')).length;
+    return { missingAlt, missingButtonLabel };
+  };
 
   const newFile = () => {
     setPendingFileDialog({ type: 'create' });
@@ -152,14 +193,52 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Tools',
       items: [
-        { label: 'Validate HTML', action: () => { showNotification('HTML is valid ✓'); close(); } },
-        { label: 'Check Accessibility', action: () => { showNotification('No critical issues found'); close(); } },
+        {
+          label: 'Validate HTML',
+          action: () => {
+            if (!htmlFile) { showNotification('No HTML file found'); close(); return; }
+            const ok = validateHtml(htmlFile.content);
+            showNotification(ok ? 'HTML looks valid' : 'HTML parser found issues');
+            close();
+          },
+        },
+        {
+          label: 'Check Accessibility',
+          action: () => {
+            if (!htmlFile) { showNotification('No HTML file found'); close(); return; }
+            const a11y = checkAccessibility(htmlFile.content);
+            if (a11y.missingAlt === 0 && a11y.missingButtonLabel === 0) {
+              showNotification('Accessibility quick-check passed');
+            } else {
+              showNotification(`A11y: missing alt(${a11y.missingAlt}), unlabeled buttons(${a11y.missingButtonLabel})`);
+            }
+            close();
+          },
+        },
         { separator: true, label: '' },
         { label: 'Clear Console', action: () => { clearConsole(); close(); } },
         { label: 'Hard Refresh Preview', shortcut: 'Ctrl+R', action: () => { useEditorStore.getState().refreshPreview(); close(); } },
         { separator: true, label: '' },
-        { label: 'Format HTML', action: () => { showNotification('Code formatted'); close(); } },
-        { label: 'Minify HTML', action: () => { showNotification('Code minified'); close(); } },
+        {
+          label: 'Format HTML',
+          action: () => {
+            if (!htmlFile) { showNotification('No HTML file found'); close(); return; }
+            const formatted = formatHtml(htmlFile.content);
+            updateFileContent(htmlFile.id, formatted);
+            showNotification('HTML formatted');
+            close();
+          },
+        },
+        {
+          label: 'Minify HTML',
+          action: () => {
+            if (!htmlFile) { showNotification('No HTML file found'); close(); return; }
+            const minified = minifyHtml(htmlFile.content);
+            updateFileContent(htmlFile.id, minified);
+            showNotification('HTML minified');
+            close();
+          },
+        },
       ],
     },
     {

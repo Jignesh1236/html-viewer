@@ -190,39 +190,52 @@ const VisualEditor: React.FC = () => {
     return { left: iframeOff.left + r.left, top: iframeOff.top + r.top, width: r.width, height: r.height };
   }, [hovEl, selEl, iframeOff, tick]);
 
-  /* ── Inject inline style into HTML source ── */
-  const injectInlineStyle = (html: string, el: HTMLElement, newStyle: string): string => {
-    const tag = el.tagName.toLowerCase();
-    const id = el.id;
-    const cls = el.className?.trim().split(/\s+/).filter(Boolean) ?? [];
-
-    const patterns: RegExp[] = [];
-    if (id) patterns.push(new RegExp(`(<${tag}[^>]*\\bid=["']${id}["'][^>]*)(/?>|>)`, 'i'));
-    if (cls.length > 0) {
-      const clsPat = cls.map(c => `(?=[^>]*\\b${c}\\b)`).join('');
-      patterns.push(new RegExp(`(<${tag}${clsPat}[^>]*)(/?>|>)`, 'i'));
-    }
-    if (patterns.length === 0) patterns.push(new RegExp(`(<${tag}(?:\\s[^>]*)?)>`, 'i'));
-
-    for (const re of patterns) {
-      if (re.test(html)) {
-        return html.replace(re, (_m, openTag, _close) => {
-          const cleaned = openTag.replace(/\s+style=["'][^"']*["']/, '');
-          const styleAttr = newStyle ? ` style="${newStyle}"` : '';
-          return `${cleaned}${styleAttr}>`;
-        });
-      }
-    }
-    return html;
+  const serializeDoc = (doc: Document) => {
+    const doctype = doc.doctype ? `<!DOCTYPE ${doc.doctype.name}>` : '';
+    return `${doctype}\n${doc.documentElement.outerHTML}`;
   };
+
+  const resolveSourceElement = (doc: Document, selector: string, el: HTMLElement): HTMLElement | null => {
+    const bySelector = doc.querySelector(selector) as HTMLElement | null;
+    if (bySelector) return bySelector;
+    if (el.id) {
+      const byId = doc.getElementById(el.id) as HTMLElement | null;
+      if (byId) return byId;
+    }
+    const classList = Array.from(el.classList).filter(Boolean);
+    if (classList.length > 0) {
+      const byClass = doc.querySelector(`.${classList.map(cssEscape).join('.')}`) as HTMLElement | null;
+      if (byClass) return byClass;
+    }
+    return null;
+  };
+
+  const updateHtmlSourceForElement = useCallback((el: HTMLElement, applyChange: (target: HTMLElement) => void) => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const selector = elementSelector(el);
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+    const target = resolveSourceElement(parsedDoc, selector, el);
+    if (!target) return;
+    applyChange(target);
+    const updated = serializeDoc(parsedDoc);
+    if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
+  }, [files, updateFileContent]);
 
   const syncToSource = useCallback((el: HTMLElement) => {
     const style = el.getAttribute('style') || '';
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return;
-    const updated = injectInlineStyle(htmlFile.content, el, style);
-    if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+    updateHtmlSourceForElement(el, (target) => {
+      if (style) target.setAttribute('style', style);
+      else target.removeAttribute('style');
+    });
+  }, [updateHtmlSourceForElement]);
+
+  const syncContentToSource = useCallback((el: HTMLElement) => {
+    updateHtmlSourceForElement(el, (target) => {
+      target.innerHTML = el.innerHTML;
+    });
+  }, [updateHtmlSourceForElement]);
 
   const refreshSelectedSnapshot = useCallback((el: HTMLElement) => {
     const iframe = iframeRef.current;
@@ -270,10 +283,11 @@ const VisualEditor: React.FC = () => {
         el.innerHTML = html;
         setTick(t => t + 1);
         refreshSelectedSnapshot(el);
+        syncContentToSource(el);
       },
     });
     return () => setVisualBridge(null);
-  }, [getSelectedDomEl, refreshSelectedSnapshot, setVisualBridge, syncToSource]);
+  }, [getSelectedDomEl, refreshSelectedSnapshot, setVisualBridge, syncContentToSource, syncToSource]);
 
   /* ── Helper: inject timeline animation styles into iframe doc ── */
   const injectAnimStyle = useCallback((doc: Document, css: string) => {
@@ -637,10 +651,14 @@ const VisualEditor: React.FC = () => {
                 { separator: true, label: '' },
                 { label: 'Reset styles', icon: '↺', action: () => { selEl.removeAttribute('style'); setTick(t => t + 1); syncToSource(selEl); } },
                 { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
+                    updateHtmlSourceForElement(selEl, (target) => {
+                      target.remove();
+                    });
                     selEl.remove();
                     selectedSelectorRef.current = null;
                     setSelEl(null);
                     setSelectedElement(null);
+                    setSelectedSelector(null);
                   }
                 },
                 { separator: true, label: '' },
