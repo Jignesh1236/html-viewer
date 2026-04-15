@@ -28,7 +28,7 @@ const STYLE_PROPS = [
   'box-shadow', 'text-shadow', 'opacity', 'z-index', 'overflow',
   'left', 'top', 'right', 'bottom', 'flex-direction', 'justify-content', 'align-items', 'gap',
   'grid-template-columns', 'grid-template-rows', 'transform', 'transition', 'animation',
-  'flex-wrap', 'background-size', 'background-image', 'background-position',
+  'flex-wrap', 'background-size', 'background-image', 'background-position', 'background-repeat',
 ];
 
 function cssEscape(value: string) {
@@ -94,6 +94,7 @@ const VisualEditor: React.FC = () => {
   const animStyleRef = useRef(timelineAnimationStyle);
   const selectedSelectorRef = useRef<string | null>(null);
   const pendingSelectorRef = useRef<string | null>(null);
+  const prevFilesRef = useRef(files);
   const [selEl, setSelEl] = useState<HTMLElement | null>(null);
   const [hovEl, setHovEl] = useState<HTMLElement | null>(null);
   const [iframeOff, setIframeOff] = useState({ left: 0, top: 0 });
@@ -122,20 +123,25 @@ const VisualEditor: React.FC = () => {
     const htmlFile = files.find(f => f.type === 'html');
     if (!htmlFile) return '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>';
     let html = htmlFile.content;
+    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     files.filter(f => f.type === 'css').forEach(css => {
-      const tag = `<style data-src="${css.name}">${css.content}</style>`;
-      const re = new RegExp(`<link[^>]*href=["']${css.name.replace('.', '\\.')}["'][^>]*/?>`, 'gi');
-      if (re.test(html)) {
-        html = html.replace(re, tag);
-      } else if (html.toLowerCase().includes('</head>')) {
-        html = html.replace(/<\/head>/i, `${tag}\n</head>`);
-      } else {
-        html = `${tag}\n${html}`;
+      const tag = `<style data-src="${css.id}">${css.content}</style>`;
+      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
+      let matched = false;
+      for (const ref of refs) {
+        const re = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
+        if (re.test(html)) { html = html.replace(re, tag); matched = true; break; }
+      }
+      if (!matched) {
+        if (html.toLowerCase().includes('</head>')) { html = html.replace(/<\/head>/i, `${tag}\n</head>`); }
+        else { html = `${tag}\n${html}`; }
       }
     });
     files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const esc = img.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      html = html.replace(new RegExp(`(src|href)=["']${esc}["']`, 'gi'), `$1="${img.url}"`);
+      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
+      for (const ref of refs) {
+        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
+      }
     });
     const editorCss = `<style>
 *{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}
@@ -148,8 +154,38 @@ const VisualEditor: React.FC = () => {
     return html;
   }, [files, interaction]);
 
-  /* ── Reload iframe ── */
+  /* ── Reload iframe (smart: CSS-only → inject; HTML/JS → full reload) ── */
   useEffect(() => {
+    const prev = prevFilesRef.current;
+    const curr = files;
+    prevFilesRef.current = curr;
+
+    const doc = iframeRef.current?.contentDocument;
+    const iframeLoaded = !!doc?.body;
+
+    const prevHtml = prev.find(f => f.type === 'html')?.content ?? '';
+    const currHtml = curr.find(f => f.type === 'html')?.content ?? '';
+    const prevJs   = prev.find(f => f.type === 'js')?.content ?? '';
+    const currJs   = curr.find(f => f.type === 'js')?.content ?? '';
+
+    const htmlChanged = prevHtml !== currHtml;
+    const jsChanged   = prevJs   !== currJs;
+
+    if (!htmlChanged && !jsChanged && iframeLoaded && doc) {
+      let allFound = true;
+      curr.filter(f => f.type === 'css').forEach(css => {
+        const prevCss = prev.find(f => f.id === css.id);
+        if (prevCss?.content === css.content) return;
+        const styleEl = (doc.querySelector(`style[data-src="${css.id}"]`) ?? doc.querySelector(`style[data-src="${css.name}"]`)) as HTMLStyleElement | null;
+        if (styleEl) {
+          styleEl.textContent = css.content;
+        } else {
+          allFound = false;
+        }
+      });
+      if (allFound) return;
+    }
+
     if (iframeRef.current) {
       const selector = selectedSelectorRef.current;
       pendingSelectorRef.current = selector;
@@ -161,7 +197,7 @@ const VisualEditor: React.FC = () => {
         setSelectedSelector(null);
       }
     }
-  }, [buildSrcDoc, setSelectedSelector, setSelectedElement]);
+  }, [files, interaction, buildSrcDoc, setSelectedSelector, setSelectedElement]);
 
   /* ── Track iframe offset ── */
   useEffect(() => {

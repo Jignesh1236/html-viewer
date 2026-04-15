@@ -170,7 +170,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
   const [draggingOver, setDraggingOver] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogState | null>(null);
-  const [draggingFileId, setDraggingFileId] = useState<string | null>(null);
+  const draggingFileIdRef = useRef<string | null>(null);
   const { show: showCtx, element: ctxEl } = useContextMenu();
 
   useEffect(() => {
@@ -191,32 +191,70 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
     });
   };
 
+  const importSingleFile = useCallback((file: File, targetFolder?: string) => {
+    const name = file.name;
+    const ext = name.split('.').pop()?.toLowerCase();
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
+    const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
+    const fileId = targetFolder ? `${targetFolder}/${name}` : name;
+    if (isImage) {
+      addFile({ id: fileId, name, type: 'image', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
+    } else if (isText) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const content = e.target?.result as string;
+        const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
+        addFile({ id: fileId, name, type, content, folder: targetFolder });
+      };
+      reader.readAsText(file);
+    } else {
+      addFile({ id: fileId, name, type: 'other', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
+    }
+  }, [addFile]);
+
+  const readDirectoryEntry = useCallback((entry: FileSystemDirectoryEntry, parentFolder?: string) => {
+    const folderName = parentFolder ? `${parentFolder}/${entry.name}` : entry.name;
+    addFolder(folderName);
+    const reader = entry.createReader();
+    const readAll = (accumulated: FileSystemEntry[] = []) => {
+      reader.readEntries(entries => {
+        if (entries.length === 0) {
+          accumulated.forEach(e => {
+            if (e.isFile) {
+              (e as FileSystemFileEntry).file(f => importSingleFile(f, folderName));
+            } else if (e.isDirectory) {
+              readDirectoryEntry(e as FileSystemDirectoryEntry, folderName);
+            }
+          });
+          return;
+        }
+        readAll([...accumulated, ...entries]);
+      });
+    };
+    readAll();
+  }, [addFolder, importSingleFile]);
+
+  const handleDropItems = useCallback((items: DataTransferItemList, targetFolder?: string) => {
+    let count = 0;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const entry = item.webkitGetAsEntry?.();
+      if (!entry) continue;
+      count++;
+      if (entry.isDirectory) {
+        readDirectoryEntry(entry as FileSystemDirectoryEntry, targetFolder);
+      } else if (entry.isFile) {
+        (entry as FileSystemFileEntry).file(f => importSingleFile(f, targetFolder));
+      }
+    }
+    if (count > 0) showNotification(`Importing ${count} item(s)…`);
+  }, [readDirectoryEntry, importSingleFile, showNotification]);
+
   const handleUpload = useCallback((uploadedFiles: FileList | null, targetFolder?: string) => {
     if (!uploadedFiles) return;
-    Array.from(uploadedFiles).forEach(file => {
-      const name = file.name;
-      const ext = name.split('.').pop()?.toLowerCase();
-      const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
-      const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
-      const fileId = targetFolder ? `${targetFolder}/${name}` : name;
-      if (isImage) {
-        addFile({ id: fileId, name, type: 'image', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
-        showNotification(`Imported ${name}`);
-      } else if (isText) {
-        const reader = new FileReader();
-        reader.onload = e => {
-          const content = e.target?.result as string;
-          const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
-          addFile({ id: fileId, name, type, content, folder: targetFolder });
-          showNotification(`Imported ${name}`);
-        };
-        reader.readAsText(file);
-      } else {
-        addFile({ id: fileId, name, type: 'other', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
-        showNotification(`Imported ${name}`);
-      }
-    });
-  }, [addFile, showNotification]);
+    Array.from(uploadedFiles).forEach(file => importSingleFile(file, targetFolder));
+    if (uploadedFiles.length > 0) showNotification(`Imported ${uploadedFiles.length} file(s)`);
+  }, [importSingleFile, showNotification]);
 
   const handleDialogConfirm = useCallback((value: string) => {
     if (!dialog) return;
@@ -333,8 +371,8 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
         key={file.id}
         data-file-item="true"
         draggable
-        onDragStart={() => setDraggingFileId(file.id)}
-        onDragEnd={() => setDraggingFileId(null)}
+        onDragStart={e => { draggingFileIdRef.current = file.id; e.dataTransfer.setData('text/plain', file.id); e.dataTransfer.effectAllowed = 'move'; }}
+        onDragEnd={() => { draggingFileIdRef.current = null; }}
         onClick={() => file.type !== 'image' && setActiveFile(file.id)}
         onDoubleClick={() => setDialog({ mode: 'rename-file', file })}
         onContextMenu={e => { e.stopPropagation(); handleFileCtx(e, file); }}
@@ -378,15 +416,15 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       <div key={folderName} data-folder-item="true">
         <div
           onContextMenu={e => handleFolderCtx(e, folderName)}
-          onDragOver={e => { e.preventDefault(); setDraggingOver(folderName); }}
-          onDragLeave={() => setDraggingOver(null)}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDraggingOver(folderName); }}
+          onDragLeave={e => { if (!(e.currentTarget as HTMLDivElement).contains(e.relatedTarget as Node)) setDraggingOver(null); }}
           onDrop={e => {
-            e.preventDefault(); setDraggingOver(null);
-            if (draggingFileId) {
-              moveFileToFolder(draggingFileId, folderName);
-              setDraggingFileId(null);
+            e.preventDefault(); e.stopPropagation(); setDraggingOver(null);
+            if (draggingFileIdRef.current) {
+              moveFileToFolder(draggingFileIdRef.current, folderName);
+              draggingFileIdRef.current = null;
             } else {
-              handleUpload(e.dataTransfer.files, folderName);
+              handleDropItems(e.dataTransfer.items, folderName);
             }
           }}
           style={{
@@ -466,15 +504,14 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '2px 0' }}
-        onDragOver={e => { e.preventDefault(); if (!draggingFileId) setDraggingOver('__root__'); }}
-        onDragLeave={() => setDraggingOver(null)}
+        onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
         onDrop={e => {
-          e.preventDefault(); setDraggingOver(null);
-          if (draggingFileId) {
-            moveFileToFolder(draggingFileId, undefined);
-            setDraggingFileId(null);
+          e.preventDefault(); e.stopPropagation();
+          if (draggingFileIdRef.current) {
+            moveFileToFolder(draggingFileIdRef.current, undefined);
+            draggingFileIdRef.current = null;
           } else {
-            handleUpload(e.dataTransfer.files);
+            handleDropItems(e.dataTransfer.items);
           }
         }}>
 
@@ -484,9 +521,9 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       </div>
 
       <div onClick={() => uploadRef.current?.click()}
-        onDragOver={e => { e.preventDefault(); setDraggingOver('__dropzone__'); }}
-        onDragLeave={() => setDraggingOver(null)}
-        onDrop={e => { e.preventDefault(); setDraggingOver(null); handleUpload(e.dataTransfer.files); }}
+        onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDraggingOver('__dropzone__'); }}
+        onDragLeave={e => { if (e.currentTarget === e.target || !(e.currentTarget as HTMLDivElement).contains(e.relatedTarget as Node)) setDraggingOver(null); }}
+        onDrop={e => { e.preventDefault(); e.stopPropagation(); setDraggingOver(null); handleDropItems(e.dataTransfer.items); }}
         style={{
           margin: 8, padding: '10px', borderRadius: 5,
           border: `1px dashed ${draggingOver === '__dropzone__' ? C.accent : '#3e3e3e'}`,

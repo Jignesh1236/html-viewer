@@ -67,33 +67,40 @@ const PreviewPane: React.FC = () => {
 
     let html = htmlFile.content;
 
+    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     files.filter(f => f.type === 'css').forEach(css => {
-      const tag = `<style data-src="${css.name}">\n${css.content}\n</style>`;
-      const linkRe = new RegExp(`<link[^>]*href=["']${css.name.replace('.', '\\.')}["'][^>]*/?>`, 'gi');
-      if (linkRe.test(html)) {
-        html = html.replace(linkRe, tag);
-      } else {
+      const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
+      // Match by file.name or file.id (folder path like "styles/main.css")
+      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
+      let matched = false;
+      for (const ref of refs) {
+        const linkRe = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
+        if (linkRe.test(html)) { html = html.replace(linkRe, tag); matched = true; break; }
+      }
+      if (!matched) {
         if (html.toLowerCase().includes('</head>')) {
           html = html.replace(/<\/head>/i, `${tag}\n</head>`);
-        } else {
-          html = `${tag}\n${html}`;
-        }
+        } else { html = `${tag}\n${html}`; }
       }
     });
 
     files.filter(f => f.type === 'js').forEach(js => {
-      const tag = `<script data-src="${js.name}">\n${js.content}\n<\/script>`;
-      const scriptRe = new RegExp(`<script[^>]*src=["']${js.name.replace('.', '\\.')}["'][^>]*><\/script>`, 'gi');
-      if (scriptRe.test(html)) {
-        html = html.replace(scriptRe, tag);
-      } else {
-        html = html.replace('</body>', `${tag}\n</body>`);
+      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
+      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
+      let matched = false;
+      for (const ref of refs) {
+        const scriptRe = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\/script>`, 'gi');
+        if (scriptRe.test(html)) { html = html.replace(scriptRe, tag); matched = true; break; }
       }
+      if (!matched) { html = html.replace('</body>', `${tag}\n</body>`); }
     });
 
     files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const esc = img.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      html = html.replace(new RegExp(`(src|href)=["']${esc}["']`, 'gi'), `$1="${img.url}"`);
+      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
+      for (const ref of refs) {
+        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
+      }
     });
 
     if (timelineAnimationStyle.trim()) {
