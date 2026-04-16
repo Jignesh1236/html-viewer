@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import {
   FiRefreshCw, FiMonitor, FiTablet, FiSmartphone,
-  FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown,
+  FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
 } from 'react-icons/fi';
 import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
 
@@ -31,6 +31,7 @@ const PreviewPane: React.FC = () => {
   const historyIdxRef = useRef(-1);
   useEffect(() => { historyIdxRef.current = historyIdx; }, [historyIdx]);
 
+  const [iframeKey, setIframeKey] = useState(0);
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const newTabBtnRef = useRef<HTMLButtonElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
@@ -200,7 +201,7 @@ const PreviewPane: React.FC = () => {
     return () => window.removeEventListener('message', handler);
   }, [activePreviewTabId, addConsoleEntry, updatePreviewTab]);
 
-  const scheduleRebuild = useCallback(() => {
+  const scheduleRebuild = useCallback((forceRemount = false) => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     rebuildTimerRef.current = setTimeout(() => {
       setLoading(true);
@@ -208,18 +209,34 @@ const PreviewPane: React.FC = () => {
       setCurrentUrl('preview://localhost/');
       setHistory(['preview://localhost/']);
       setHistoryIdx(0);
+      if (forceRemount) setIframeKey(k => k + 1);
       setSrcDoc(buildSrcDoc());
     }, 120);
   }, [buildSrcDoc]);
 
-  // Rebuild srcdoc on file changes (only for page tabs)
+  const openInBrowser = useCallback(() => {
+    const html = buildSrcDoc();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }, [buildSrcDoc]);
+
+  // Rebuild srcdoc on file changes or explicit refresh
   useEffect(() => {
     if (activeTab?.previewType === 'image') return;
-    scheduleRebuild();
+    scheduleRebuild(false);
     return () => {
       if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     };
-  }, [previewRefreshKey, activeTab?.previewType, scheduleRebuild]);
+  }, [activeTab?.previewType, scheduleRebuild]);
+
+  // Force full remount on explicit refresh
+  useEffect(() => {
+    if (previewRefreshKey === 0) return;
+    if (activeTab?.previewType === 'image') return;
+    scheduleRebuild(true);
+  }, [previewRefreshKey]);
 
   // When switching to a page tab, reload
   useEffect(() => {
@@ -464,6 +481,12 @@ const PreviewPane: React.FC = () => {
               ))}
             </div>
             <button
+              className="panel-icon-btn" title="Open in Browser"
+              onClick={openInBrowser}
+            >
+              <FiExternalLink size={13} />
+            </button>
+            <button
               className="panel-icon-btn" title="DevTools (F12)"
               onClick={() => setPanels({ devtools: !panels.devtools })}
               style={{
@@ -499,6 +522,7 @@ const PreviewPane: React.FC = () => {
               }} />
             )}
             <iframe
+              key={iframeKey}
               ref={iframeRef}
               title="Preview"
               onLoad={handleIframeLoad}
