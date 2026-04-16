@@ -331,6 +331,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 `;
 
+const FILES_STORAGE_KEY    = 'html-editor-files-v1';
+const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
+const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
 const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
 const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
   { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
@@ -345,6 +348,65 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
   currentTime: 0,
   animationsApplied: false,
 };
+
+/* ─── Files persistence ─── */
+const DEFAULT_FILES: FileItem[] = [
+  { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
+  { id: 'styles.css', name: 'styles.css', type: 'css', content: DEFAULT_CSS },
+  { id: 'script.js',  name: 'script.js',  type: 'js',  content: DEFAULT_JS  },
+];
+
+function serializeFiles(files: FileItem[]): FileItem[] {
+  return files.map(f => {
+    if (f.type === 'image' && f.url?.startsWith('blob:')) {
+      return { ...f, url: undefined };
+    }
+    return f;
+  });
+}
+
+function saveFiles(files: FileItem[]) {
+  try {
+    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(serializeFiles(files)));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadFiles(): FileItem[] {
+  try {
+    const raw = localStorage.getItem(FILES_STORAGE_KEY);
+    if (!raw) return DEFAULT_FILES;
+    const parsed = JSON.parse(raw) as FileItem[];
+    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_FILES;
+    return parsed;
+  } catch {
+    return DEFAULT_FILES;
+  }
+}
+
+function saveFolders(folders: string[]) {
+  try { localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders)); } catch {}
+}
+
+function loadFolders(): string[] {
+  try {
+    const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch { return []; }
+}
+
+function saveActiveFile(id: string | null) {
+  try { localStorage.setItem(ACTIVE_FILE_KEY, id ?? ''); } catch {}
+}
+
+function loadActiveFile(files: FileItem[]): string | null {
+  try {
+    const id = localStorage.getItem(ACTIVE_FILE_KEY);
+    if (id && files.find(f => f.id === id)) return id;
+    return files[0]?.id ?? null;
+  } catch {
+    return files[0]?.id ?? null;
+  }
+}
 
 function loadTimelineState(): TimelineState {
   try {
@@ -371,19 +433,26 @@ function saveTimelineState(state: TimelineState) {
   }
 }
 
-export const useEditorStore = create<EditorStore>((set, get) => ({
-  files: [
-    { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
-    { id: 'styles.css', name: 'styles.css', type: 'css', content: DEFAULT_CSS },
-    { id: 'script.js', name: 'script.js', type: 'js', content: DEFAULT_JS },
-  ],
-  activeFileId: 'index.html',
+const _initFiles = loadFiles();
+const _initActiveFileId = loadActiveFile(_initFiles);
+const _initFolders = loadFolders();
 
-  addFile: (file) => set((s) => ({ files: [...s.files, file] })),
-  removeFile: (id) => set((s) => ({
-    files: s.files.filter(f => f.id !== id),
-    activeFileId: s.activeFileId === id ? (s.files.find(f => f.id !== id)?.id ?? null) : s.activeFileId,
-  })),
+export const useEditorStore = create<EditorStore>((set, get) => ({
+  files: _initFiles,
+  activeFileId: _initActiveFileId,
+
+  addFile: (file) => set((s) => {
+    const next = [...s.files, file];
+    saveFiles(next);
+    return { files: next };
+  }),
+  removeFile: (id) => set((s) => {
+    const next = s.files.filter(f => f.id !== id);
+    const nextActive = s.activeFileId === id ? (next.find(f => f.id !== id)?.id ?? next[0]?.id ?? null) : s.activeFileId;
+    saveFiles(next);
+    saveActiveFile(nextActive);
+    return { files: next, activeFileId: nextActive };
+  }),
   updateFileContent: (id, content) => set((s) => {
     const file = s.files.find(f => f.id === id);
     const isHtmlFile = file?.type === 'html';
@@ -394,29 +463,44 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       saveTimelineState(clearedTimeline);
       timelinePatch = { timelineState: clearedTimeline, timelineAnimationStyle: '' };
     }
+    const next = s.files.map(f => f.id === id ? { ...f, content } : f);
+    saveFiles(next);
     return {
-      files: s.files.map(f => f.id === id ? { ...f, content } : f),
+      files: next,
       previewRefreshKey: s.previewRefreshKey + 1,
       ...timelinePatch,
     };
   }),
-  setActiveFile: (id) => set({ activeFileId: id }),
-  moveFileToFolder: (fileId, folder) => set((s) => ({
-    files: s.files.map(f => f.id === fileId ? { ...f, folder } : f),
-  })),
+  setActiveFile: (id) => {
+    saveActiveFile(id);
+    set({ activeFileId: id });
+  },
+  moveFileToFolder: (fileId, folder) => set((s) => {
+    const next = s.files.map(f => f.id === fileId ? { ...f, folder } : f);
+    saveFiles(next);
+    return { files: next };
+  }),
 
-  folders: [],
-  addFolder: (name) => set((s) => ({
-    folders: s.folders.includes(name) ? s.folders : [...s.folders, name],
-  })),
-  removeFolder: (name) => set((s) => ({
-    folders: s.folders.filter(f => f !== name),
-    files: s.files.map(f => f.folder === name ? { ...f, folder: undefined } : f),
-  })),
-  renameFolder: (oldName, newName) => set((s) => ({
-    folders: s.folders.map(f => f === oldName ? newName : f),
-    files: s.files.map(f => f.folder === oldName ? { ...f, folder: newName } : f),
-  })),
+  folders: _initFolders,
+  addFolder: (name) => set((s) => {
+    const next = s.folders.includes(name) ? s.folders : [...s.folders, name];
+    saveFolders(next);
+    return { folders: next };
+  }),
+  removeFolder: (name) => set((s) => {
+    const nextFolders = s.folders.filter(f => f !== name);
+    const nextFiles = s.files.map(f => f.folder === name ? { ...f, folder: undefined } : f);
+    saveFolders(nextFolders);
+    saveFiles(nextFiles);
+    return { folders: nextFolders, files: nextFiles };
+  }),
+  renameFolder: (oldName, newName) => set((s) => {
+    const nextFolders = s.folders.map(f => f === oldName ? newName : f);
+    const nextFiles = s.files.map(f => f.folder === oldName ? { ...f, folder: newName } : f);
+    saveFolders(nextFolders);
+    saveFiles(nextFiles);
+    return { folders: nextFolders, files: nextFiles };
+  }),
 
   mode: 'split',
   setMode: (mode) => set({ mode }),
