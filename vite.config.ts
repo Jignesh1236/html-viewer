@@ -35,14 +35,33 @@ export default defineConfig(async () => {
     build: {
       outDir: path.resolve(__dirname, "dist"),
       emptyOutDir: true,
+      target: "es2020",
+      cssCodeSplit: true,
+      sourcemap: false,
+      minify: "esbuild",
+      reportCompressedSize: true,
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         output: {
           manualChunks: {
-            react: ["react", "react-dom"],
-            monaco: ["@monaco-editor/react", "monaco-editor"],
-            zustand: ["zustand"],
+            "vendor-react": ["react", "react-dom"],
+            "vendor-monaco": ["@monaco-editor/react", "monaco-editor"],
+            "vendor-state": ["zustand"],
+            "vendor-ui": ["framer-motion", "@radix-ui/react-context-menu", "@radix-ui/react-tooltip"],
+            "vendor-utils": ["jszip", "file-saver"],
           },
+          chunkFileNames: "assets/[name]-[hash].js",
+          entryFileNames: "assets/[name]-[hash].js",
+          assetFileNames: "assets/[name]-[hash].[ext]",
         },
+        treeshake: {
+          moduleSideEffects: false,
+          propertyReadSideEffects: false,
+        },
+      },
+      esbuildOptions: {
+        drop: isProduction ? ["console", "debugger"] : [],
+        legalComments: "none",
       },
     },
     server: {
@@ -58,6 +77,16 @@ export default defineConfig(async () => {
       port,
       host: "0.0.0.0",
       allowedHosts: true,
+      headers: {
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+      },
+    },
+    optimizeDeps: {
+      include: ["react", "react-dom", "zustand", "framer-motion"],
+      exclude: ["@monaco-editor/react"],
     },
   };
 });
