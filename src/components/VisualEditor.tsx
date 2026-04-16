@@ -91,6 +91,8 @@ const VisualEditor: React.FC = () => {
     selectedSelector,
   } = useEditorStore();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [srcDoc, setSrcDoc] = useState<string>('');
+  const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animStyleRef = useRef(timelineAnimationStyle);
   const selectedSelectorRef = useRef<string | null>(null);
   const pendingSelectorRef = useRef<string | null>(null);
@@ -137,6 +139,20 @@ const VisualEditor: React.FC = () => {
         else { html = `${tag}\n${html}`; }
       }
     });
+    // Inject JS (so pages that rely on scripts don't render blank in Visual mode)
+    files.filter(f => f.type === 'js').forEach(js => {
+      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
+      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
+      let matched = false;
+      for (const ref of refs) {
+        const re = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\\/script>`, 'gi');
+        if (re.test(html)) { html = html.replace(re, tag); matched = true; break; }
+      }
+      if (!matched) {
+        if (html.toLowerCase().includes('</body>')) html = html.replace(/<\/body>/i, `${tag}\n</body>`);
+        else html = `${html}\n${tag}`;
+      }
+    });
     files.filter(f => f.type === 'image' && f.url).forEach(img => {
       const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
       for (const ref of refs) {
@@ -153,6 +169,20 @@ const VisualEditor: React.FC = () => {
     }
     return html;
   }, [files, interaction]);
+
+  const scheduleRebuild = useCallback(() => {
+    if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    rebuildTimerRef.current = setTimeout(() => {
+      setSrcDoc(buildSrcDoc());
+    }, 80);
+  }, [buildSrcDoc]);
+
+  useEffect(() => {
+    scheduleRebuild();
+    return () => {
+      if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    };
+  }, [scheduleRebuild]);
 
   /* ── Reload iframe (smart: CSS-only → inject; HTML/JS → full reload) ── */
   useEffect(() => {
@@ -186,18 +216,16 @@ const VisualEditor: React.FC = () => {
       if (allFound) return;
     }
 
-    if (iframeRef.current) {
-      const selector = selectedSelectorRef.current;
-      pendingSelectorRef.current = selector;
-      iframeRef.current.srcdoc = buildSrcDoc();
-      setHovEl(null);
-      if (!selector) {
-        setSelEl(null);
-        setSelectedElement(null);
-        setSelectedSelector(null);
-      }
+    const selector = selectedSelectorRef.current;
+    pendingSelectorRef.current = selector;
+    scheduleRebuild();
+    setHovEl(null);
+    if (!selector) {
+      setSelEl(null);
+      setSelectedElement(null);
+      setSelectedSelector(null);
     }
-  }, [files, interaction, buildSrcDoc, setSelectedSelector, setSelectedElement]);
+  }, [files, interaction, scheduleRebuild, setSelectedSelector, setSelectedElement]);
 
   /* ── Track iframe offset ── */
   useEffect(() => {
@@ -385,6 +413,7 @@ const VisualEditor: React.FC = () => {
   const attachEvents = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
+    const win = iframeRef.current?.contentWindow ?? doc.defaultView;
     /* Re-inject timeline animations after iframe reloads */
     if (animStyleRef.current) injectAnimStyle(doc, animStyleRef.current);
 
@@ -453,13 +482,22 @@ const VisualEditor: React.FC = () => {
       ]);
     };
 
+    const onIframeScrollOrResize = () => {
+      // Recompute overlay positions when the iframe document scrolls/relayouts.
+      setTick(t => t + 1);
+    };
+
     doc.addEventListener('mousemove', onMove);
     doc.addEventListener('click', onClick, true);
     doc.addEventListener('contextmenu', onContextMenu, true);
+    doc.addEventListener('scroll', onIframeScrollOrResize, true);
+    win?.addEventListener('resize', onIframeScrollOrResize);
     return () => {
       doc.removeEventListener('mousemove', onMove);
       doc.removeEventListener('click', onClick, true);
       doc.removeEventListener('contextmenu', onContextMenu, true);
+      doc.removeEventListener('scroll', onIframeScrollOrResize, true);
+      win?.removeEventListener('resize', onIframeScrollOrResize);
     };
   }, [injectAnimStyle, interaction, selectElement, setSelectedSelector, setSelectedElement, showCtx, syncToSource]);
 
@@ -648,10 +686,13 @@ const VisualEditor: React.FC = () => {
         ref={iframeRef}
         title="Visual Editor"
         onLoad={() => {
+          // Ensure a predictable default: selection mode works immediately after reloads.
+          setInteraction('select');
           eventsCleanupRef.current?.();
           const cleanup = attachEvents();
           eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
         }}
+        srcDoc={srcDoc}
         sandbox="allow-scripts allow-same-origin"
         style={{ flex: 1, border: 'none', background: '#fff' }}
       />

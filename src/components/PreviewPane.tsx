@@ -18,9 +18,12 @@ const PreviewPane: React.FC = () => {
   } = useEditorStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [srcDoc, setSrcDoc] = useState<string>('');
+  const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [devtoolsTab, setDevtoolsTab] = useState<DevToolsTab>('console');
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [loading, setLoading] = useState(false);
+  const [fadeIn, setFadeIn] = useState(false);
   const [elementsHtml, setElementsHtml] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
@@ -197,31 +200,36 @@ const PreviewPane: React.FC = () => {
     return () => window.removeEventListener('message', handler);
   }, [activePreviewTabId, addConsoleEntry, updatePreviewTab]);
 
+  const scheduleRebuild = useCallback(() => {
+    if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    rebuildTimerRef.current = setTimeout(() => {
+      setLoading(true);
+      setFadeIn(false);
+      setCurrentUrl('preview://localhost/');
+      setHistory(['preview://localhost/']);
+      setHistoryIdx(0);
+      setSrcDoc(buildSrcDoc());
+    }, 120);
+  }, [buildSrcDoc]);
+
   // Rebuild srcdoc on file changes (only for page tabs)
   useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || activeTab?.previewType === 'image') return;
-    setLoading(true);
-    setCurrentUrl('preview://localhost/');
-    setHistory(['preview://localhost/']);
-    setHistoryIdx(0);
-    const srcDoc = buildSrcDoc();
-    iframe.srcdoc = srcDoc;
-  }, [previewRefreshKey, buildSrcDoc, activeTab?.previewType]);
+    if (activeTab?.previewType === 'image') return;
+    scheduleRebuild();
+    return () => {
+      if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    };
+  }, [previewRefreshKey, activeTab?.previewType, scheduleRebuild]);
 
   // When switching to a page tab, reload
   useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe || activeTab?.previewType !== 'page') return;
-    setLoading(true);
-    setCurrentUrl('preview://localhost/');
-    setHistory(['preview://localhost/']);
-    setHistoryIdx(0);
-    iframe.srcdoc = buildSrcDoc();
-  }, [activePreviewTabId]);
+    if (activeTab?.previewType !== 'page') return;
+    scheduleRebuild();
+  }, [activePreviewTabId, activeTab?.previewType, scheduleRebuild]);
 
   const handleIframeLoad = () => {
     setLoading(false);
+    requestAnimationFrame(() => setFadeIn(true));
     try {
       const doc = iframeRef.current?.contentDocument;
       if (doc) setElementsHtml(formatHTML(doc.documentElement.outerHTML));
@@ -494,11 +502,14 @@ const PreviewPane: React.FC = () => {
               ref={iframeRef}
               title="Preview"
               onLoad={handleIframeLoad}
+              srcDoc={srcDoc}
               sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
               style={{
                 ...viewportStyle,
                 border: 'none', flexShrink: 0, overflow: 'hidden',
                 transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease',
+                opacity: fadeIn ? 1 : 0,
+                willChange: 'opacity',
               }}
             />
           </div>

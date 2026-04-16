@@ -592,7 +592,13 @@ function DesktopApp() {
     <div
       style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#111', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}
       onContextMenu={(e) => {
-        if ((e.target as HTMLElement).closest('[data-file-item], button, input, textarea, select, [contenteditable="true"]')) return;
+        // Keep native context menu inside editable controls, but prevent it everywhere else.
+        if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        // If a component (like FilePanel rows) wants to handle its own context menu,
+        // it should stopPropagation; we avoid showing the global menu for those.
+        if ((e.target as HTMLElement).closest('[data-file-item], [data-folder-item], button')) return;
         showCtx(e, [
           { label: 'Mode: Code Layout', icon: '1', action: () => applyModePreset('code') },
           { label: 'Mode: Visual Layout', icon: '2', action: () => applyModePreset('visual') },

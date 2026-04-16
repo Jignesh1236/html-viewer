@@ -157,15 +157,6 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
 
 export default ContextMenu;
 
-/* Show/hide the global drag-capture overlay to intercept iframe clicks */
-function captureOverlay(show: boolean) {
-  const el = document.getElementById('__drag-capture');
-  if (el) {
-    el.style.display = show ? 'block' : 'none';
-    el.style.cursor = 'default';
-  }
-}
-
 /* Hook for easy context menu usage */
 export function useContextMenu() {
   const [menu, setMenu] = React.useState<{ x: number; y: number; items: ContextMenuItem[] } | null>(null);
@@ -173,11 +164,9 @@ export function useContextMenu() {
     e.preventDefault();
     e.stopPropagation();
     setMenu({ x: e.clientX, y: e.clientY, items });
-    captureOverlay(true);
   };
   const hide = () => {
     setMenu(null);
-    captureOverlay(false);
   };
   const element = menu ? <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={hide} /> : null;
   return { show, hide, element };

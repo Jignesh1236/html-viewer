@@ -351,6 +351,10 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
   };
 
   const handlePanelCtx = (e: React.MouseEvent) => {
+    // Keep native context menu inside editable controls (copy/paste, spellcheck, etc.)
+    if ((e.target as Element).closest('input, textarea, select, [contenteditable="true"]')) return;
+    e.preventDefault();
+    e.stopPropagation();
     if ((e.target as Element).closest('[data-file-item], [data-folder-item], button, input')) return;
     showCtx(e, [
       { label: 'New File', icon: '📄', action: () => setDialog({ mode: 'create-file' }) },
@@ -375,7 +379,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
         onDragEnd={() => { draggingFileIdRef.current = null; }}
         onClick={() => file.type !== 'image' && setActiveFile(file.id)}
         onDoubleClick={() => setDialog({ mode: 'rename-file', file })}
-        onContextMenu={e => { e.stopPropagation(); handleFileCtx(e, file); }}
+        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); handleFileCtx(e, file); }}
         style={{
           ...ITEM_STYLE,
           paddingLeft: 10 + indent * 12,
