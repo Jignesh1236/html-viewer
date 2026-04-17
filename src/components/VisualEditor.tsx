@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
+import LayersPanel from './LayersPanel';
+import ElementsPalette from './ElementsPalette';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = typeof HANDLES[number];
@@ -17,6 +19,7 @@ function getHandlePos(h: Handle, r: { left: number; top: number; width: number; 
 }
 
 const SKIP_TAGS = new Set(['html', 'head', 'body', 'script', 'style', 'meta', 'link', 'title', 'base', 'noscript']);
+const GRID = 8;
 
 const STYLE_PROPS = [
   'color', 'background-color', 'background', 'font-size', 'font-weight', 'font-family',
@@ -30,6 +33,8 @@ const STYLE_PROPS = [
   'grid-template-columns', 'grid-template-rows', 'transform', 'transition', 'animation',
   'flex-wrap', 'background-size', 'background-image', 'background-position', 'background-repeat',
 ];
+
+function snap(v: number) { return Math.round(v / GRID) * GRID; }
 
 function cssEscape(value: string) {
   return value.replace(/["\\#.:,[\]>+~*^$|= !]/g, '\\$&');
@@ -65,7 +70,26 @@ function collectStyles(el: HTMLElement, win?: Window | null) {
   return styles;
 }
 
-/* ── Global drag-capture helpers (shared with App.tsx resizer) ── */
+function buildBreadcrumb(el: HTMLElement): HTMLElement[] {
+  const path: HTMLElement[] = [];
+  let node: HTMLElement | null = el;
+  while (node && node.tagName) {
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'html') break;
+    path.unshift(node);
+    node = node.parentElement;
+  }
+  return path;
+}
+
+function breadcrumbLabel(el: HTMLElement) {
+  const tag = el.tagName.toLowerCase();
+  if (el.id) return `${tag}#${el.id}`;
+  const cls = Array.from(el.classList).filter(Boolean);
+  if (cls.length) return `${tag}.${cls[0]}`;
+  return tag;
+}
+
 function showDragCapture(cursor: string) {
   document.body.style.cursor = cursor;
   document.body.style.userSelect = 'none';
@@ -79,17 +103,18 @@ function hideDragCapture() {
   if (overlay) overlay.style.display = 'none';
 }
 
+type PreviewSize = 'full' | 'desktop' | 'tablet' | 'mobile';
+const PREVIEW_WIDTHS: Record<PreviewSize, number | undefined> = {
+  full: undefined, desktop: 1280, tablet: 768, mobile: 375,
+};
+
 const VisualEditor: React.FC = () => {
   const {
-    files,
-    updateFileContent,
-    setSelectedElement,
-    addConsoleEntry,
-    timelineAnimationStyle,
-    setSelectedSelector,
-    setVisualBridge,
-    selectedSelector,
+    files, updateFileContent, setSelectedElement, addConsoleEntry,
+    timelineAnimationStyle, setSelectedSelector, setVisualBridge, selectedSelector,
+    showNotification,
   } = useEditorStore();
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [srcDoc, setSrcDoc] = useState<string>('');
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -110,14 +135,31 @@ const VisualEditor: React.FC = () => {
   const eventsCleanupRef = useRef<null | (() => void)>(null);
   const [interaction, setInteraction] = useState<'select' | 'interact'>('select');
 
+  // Multi-select
+  const [multiSel, setMultiSel] = useState<Set<HTMLElement>>(new Set());
+  const multiSelRef = useRef<Set<HTMLElement>>(new Set());
+
+  // Responsive preview
+  const [previewSize, setPreviewSize] = useState<PreviewSize>('full');
+
+  // Panels visibility
+  const [showLayers, setShowLayers] = useState(true);
+  const [showPalette, setShowPalette] = useState(true);
+
+  // Drag from palette
+  const [paletteDropping, setPaletteDropping] = useState(false);
+  const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
+  const pendingInsertRef = useRef<string | null>(null);
+
+  // iframe doc ref for layers
+  const [iframeDoc, setIframeDoc] = useState<Document | null>(null);
+
   useEffect(() => { iframeOffRef.current = iframeOff; }, [iframeOff]);
   useEffect(() => { hovElRef.current = hovEl; }, [hovEl]);
   useEffect(() => { selElRef.current = selEl; }, [selEl]);
+  useEffect(() => { multiSelRef.current = multiSel; }, [multiSel]);
   useEffect(() => {
-    return () => {
-      eventsCleanupRef.current?.();
-      eventsCleanupRef.current = null;
-    };
+    return () => { eventsCleanupRef.current?.(); eventsCleanupRef.current = null; };
   }, []);
 
   /* ── Build srcdoc ── */
@@ -139,7 +181,6 @@ const VisualEditor: React.FC = () => {
         else { html = `${tag}\n${html}`; }
       }
     });
-    // Inject JS (so pages that rely on scripts don't render blank in Visual mode)
     files.filter(f => f.type === 'js').forEach(js => {
       const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
       const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
@@ -172,59 +213,41 @@ const VisualEditor: React.FC = () => {
 
   const scheduleRebuild = useCallback(() => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
-    rebuildTimerRef.current = setTimeout(() => {
-      setSrcDoc(buildSrcDoc());
-    }, 80);
+    rebuildTimerRef.current = setTimeout(() => { setSrcDoc(buildSrcDoc()); }, 80);
   }, [buildSrcDoc]);
 
   useEffect(() => {
     scheduleRebuild();
-    return () => {
-      if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
-    };
+    return () => { if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current); };
   }, [scheduleRebuild]);
 
-  /* ── Reload iframe (smart: CSS-only → inject; HTML/JS → full reload) ── */
   useEffect(() => {
     const prev = prevFilesRef.current;
     const curr = files;
     prevFilesRef.current = curr;
-
     const doc = iframeRef.current?.contentDocument;
     const iframeLoaded = !!doc?.body;
-
     const prevHtml = prev.find(f => f.type === 'html')?.content ?? '';
     const currHtml = curr.find(f => f.type === 'html')?.content ?? '';
-    const prevJs   = prev.find(f => f.type === 'js')?.content ?? '';
-    const currJs   = curr.find(f => f.type === 'js')?.content ?? '';
-
+    const prevJs = prev.find(f => f.type === 'js')?.content ?? '';
+    const currJs = curr.find(f => f.type === 'js')?.content ?? '';
     const htmlChanged = prevHtml !== currHtml;
-    const jsChanged   = prevJs   !== currJs;
-
+    const jsChanged = prevJs !== currJs;
     if (!htmlChanged && !jsChanged && iframeLoaded && doc) {
       let allFound = true;
       curr.filter(f => f.type === 'css').forEach(css => {
         const prevCss = prev.find(f => f.id === css.id);
         if (prevCss?.content === css.content) return;
         const styleEl = (doc.querySelector(`style[data-src="${css.id}"]`) ?? doc.querySelector(`style[data-src="${css.name}"]`)) as HTMLStyleElement | null;
-        if (styleEl) {
-          styleEl.textContent = css.content;
-        } else {
-          allFound = false;
-        }
+        if (styleEl) { styleEl.textContent = css.content; } else { allFound = false; }
       });
       if (allFound) return;
     }
-
     const selector = selectedSelectorRef.current;
     pendingSelectorRef.current = selector;
     scheduleRebuild();
     setHovEl(null);
-    if (!selector) {
-      setSelEl(null);
-      setSelectedElement(null);
-      setSelectedSelector(null);
-    }
+    if (!selector) { setSelEl(null); setSelectedElement(null); setSelectedSelector(null); }
   }, [files, interaction, scheduleRebuild, setSelectedSelector, setSelectedElement]);
 
   /* ── Track iframe offset ── */
@@ -241,7 +264,6 @@ const VisualEditor: React.FC = () => {
     return () => { ro.disconnect(); window.removeEventListener('scroll', update, true); window.removeEventListener('resize', update); };
   }, []);
 
-  /* ── Overlay rects ── */
   const getSelOverlay = useCallback(() => {
     if (!selEl?.isConnected) return null;
     const r = selEl.getBoundingClientRect();
@@ -262,10 +284,7 @@ const VisualEditor: React.FC = () => {
   const resolveSourceElement = (doc: Document, selector: string, el: HTMLElement): HTMLElement | null => {
     const bySelector = doc.querySelector(selector) as HTMLElement | null;
     if (bySelector) return bySelector;
-    if (el.id) {
-      const byId = doc.getElementById(el.id) as HTMLElement | null;
-      if (byId) return byId;
-    }
+    if (el.id) { const byId = doc.getElementById(el.id) as HTMLElement | null; if (byId) return byId; }
     const classList = Array.from(el.classList).filter(Boolean);
     if (classList.length > 0) {
       const byClass = doc.querySelector(`.${classList.map(cssEscape).join('.')}`) as HTMLElement | null;
@@ -296,9 +315,7 @@ const VisualEditor: React.FC = () => {
   }, [updateHtmlSourceForElement]);
 
   const syncContentToSource = useCallback((el: HTMLElement) => {
-    updateHtmlSourceForElement(el, (target) => {
-      target.innerHTML = el.innerHTML;
-    });
+    updateHtmlSourceForElement(el, (target) => { target.innerHTML = el.innerHTML; });
   }, [updateHtmlSourceForElement]);
 
   const refreshSelectedSnapshot = useCallback((el: HTMLElement) => {
@@ -327,10 +344,8 @@ const VisualEditor: React.FC = () => {
     return null;
   }, [selectedSelector]);
 
-  /* ── Keep animStyleRef current ── */
   useEffect(() => { animStyleRef.current = timelineAnimationStyle; }, [timelineAnimationStyle]);
 
-  /* ── Register Visual bridge (store actions -> iframe DOM) ── */
   useEffect(() => {
     setVisualBridge({
       applyStyle: (property, value) => {
@@ -353,18 +368,12 @@ const VisualEditor: React.FC = () => {
     return () => setVisualBridge(null);
   }, [getSelectedDomEl, refreshSelectedSnapshot, setVisualBridge, syncContentToSource, syncToSource]);
 
-  /* ── Helper: inject timeline animation styles into iframe doc ── */
   const injectAnimStyle = useCallback((doc: Document, css: string) => {
     let styleEl = doc.getElementById('__timeline-anim-style') as HTMLStyleElement | null;
-    if (!styleEl) {
-      styleEl = doc.createElement('style');
-      styleEl.id = '__timeline-anim-style';
-      doc.head?.appendChild(styleEl);
-    }
+    if (!styleEl) { styleEl = doc.createElement('style'); styleEl.id = '__timeline-anim-style'; doc.head?.appendChild(styleEl); }
     styleEl.textContent = css;
   }, []);
 
-  /* ── Inject timeline animation styles into iframe ── */
   useEffect(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
@@ -372,7 +381,17 @@ const VisualEditor: React.FC = () => {
   }, [timelineAnimationStyle, tick, injectAnimStyle]);
 
   /* ── Select element ── */
-  const selectElement = useCallback((el: HTMLElement) => {
+  const selectElement = useCallback((el: HTMLElement, addToMulti = false) => {
+    if (addToMulti) {
+      setMultiSel(prev => {
+        const next = new Set(prev);
+        if (next.has(el)) { next.delete(el); } else { next.add(el); }
+        return next;
+      });
+    } else {
+      setMultiSel(new Set());
+    }
+
     const selector = elementSelector(el);
     selectedSelectorRef.current = selector;
     setSelectedSelector(selector);
@@ -382,7 +401,6 @@ const VisualEditor: React.FC = () => {
 
     const iframe = iframeRef.current;
     const cs = iframe?.contentWindow?.getComputedStyle(el) ?? {} as CSSStyleDeclaration;
-
     const tr = (cs as any).transform || 'none';
     let rot = 0;
     if (tr !== 'none') {
@@ -392,14 +410,10 @@ const VisualEditor: React.FC = () => {
     setRotation(rot);
 
     const styles = collectStyles(el, iframe?.contentWindow);
-
     setSelectedElement({
       tagName: el.tagName.toLowerCase(),
-      id: el.id,
-      className: el.className || '',
-      styles,
-      innerHTML: el.innerHTML,
-      textContent: el.textContent || '',
+      id: el.id, className: el.className || '',
+      styles, innerHTML: el.innerHTML, textContent: el.textContent || '',
     });
 
     addConsoleEntry({
@@ -409,13 +423,138 @@ const VisualEditor: React.FC = () => {
     });
   }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
+  /* ── Duplicate element ── */
+  const duplicateElement = useCallback((el: HTMLElement) => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const selector = elementSelector(el);
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+    const target = resolveSourceElement(parsedDoc, selector, el);
+    if (!target) return;
+    const clone = target.cloneNode(true) as HTMLElement;
+    clone.removeAttribute('id');
+    target.after(clone);
+    const updated = serializeDoc(parsedDoc);
+    updateFileContent(htmlFile.id, updated);
+    // Also clone in live DOM
+    const liveClone = el.cloneNode(true) as HTMLElement;
+    liveClone.removeAttribute('id');
+    el.after(liveClone);
+    setTick(t => t + 1);
+    showNotification('Element duplicated');
+  }, [files, updateFileContent, showNotification]);
+
+  /* ── Insert HTML at body (palette) ── */
+  const insertHtmlAtBody = useCallback((html: string) => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+
+    // If an element is selected, insert after it; otherwise append to body
+    const selEl = selElRef.current;
+    let targetEl: HTMLElement | null = null;
+    if (selEl?.isConnected) {
+      const selector = elementSelector(selEl);
+      targetEl = resolveSourceElement(parsedDoc, selector, selEl);
+    }
+
+    const temp = parsedDoc.createElement('div');
+    temp.innerHTML = html;
+    const newEl = temp.firstElementChild as HTMLElement;
+    if (!newEl) return;
+
+    if (targetEl && targetEl.parentElement) {
+      targetEl.after(newEl);
+    } else {
+      parsedDoc.body.appendChild(newEl);
+    }
+
+    const updated = serializeDoc(parsedDoc);
+    updateFileContent(htmlFile.id, updated);
+    showNotification(`Inserted <${newEl.tagName.toLowerCase()}>`);
+  }, [files, updateFileContent, showNotification]);
+
+  /* ── Reorder element in DOM (layers panel move) ── */
+  const moveElementInDom = useCallback((el: HTMLElement, dir: 'up' | 'down') => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const selector = elementSelector(el);
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+    const target = resolveSourceElement(parsedDoc, selector, el);
+    if (!target || !target.parentElement) return;
+    const parent = target.parentElement;
+    const siblings = Array.from(parent.children);
+    const idx = siblings.indexOf(target);
+    if (dir === 'up' && idx > 0) {
+      parent.insertBefore(target, siblings[idx - 1]);
+    } else if (dir === 'down' && idx < siblings.length - 1) {
+      parent.insertBefore(siblings[idx + 1], target);
+    }
+    const updated = serializeDoc(parsedDoc);
+    updateFileContent(htmlFile.id, updated);
+  }, [files, updateFileContent]);
+
+  /* ── Z-index helpers ── */
+  const bringToFront = useCallback((el: HTMLElement) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const allEls = Array.from(doc.querySelectorAll('*')) as HTMLElement[];
+    const maxZ = allEls.reduce((m, e) => {
+      const z = parseInt(e.style.zIndex || '0', 10);
+      return isNaN(z) ? m : Math.max(m, z);
+    }, 0);
+    el.style.zIndex = String(maxZ + 10);
+    el.style.position = el.style.position || 'relative';
+    setTick(t => t + 1);
+    syncToSource(el);
+    showNotification('Brought to front');
+  }, [syncToSource, showNotification]);
+
+  const sendToBack = useCallback((el: HTMLElement) => {
+    el.style.zIndex = '0';
+    el.style.position = el.style.position || 'relative';
+    setTick(t => t + 1);
+    syncToSource(el);
+    showNotification('Sent to back');
+  }, [syncToSource, showNotification]);
+
+  /* ── Text alignment ── */
+  const applyTextAlign = useCallback((align: 'left' | 'center' | 'right') => {
+    const el = getSelectedDomEl();
+    if (!el) return;
+    el.style.textAlign = align;
+    setTick(t => t + 1);
+    refreshSelectedSnapshot(el);
+    syncToSource(el);
+  }, [getSelectedDomEl, refreshSelectedSnapshot, syncToSource]);
+
+  const applyVerticalAlign = useCallback((align: 'flex-start' | 'center' | 'flex-end') => {
+    const el = getSelectedDomEl();
+    if (!el) return;
+    const cs = iframeRef.current?.contentWindow?.getComputedStyle(el);
+    const disp = cs?.display || '';
+    if (disp.includes('flex') || disp.includes('grid')) {
+      el.style.alignItems = align;
+    } else {
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.alignItems = align;
+    }
+    setTick(t => t + 1);
+    refreshSelectedSnapshot(el);
+    syncToSource(el);
+  }, [getSelectedDomEl, iframeRef, refreshSelectedSnapshot, syncToSource]);
+
   /* ── Attach iframe events ── */
   const attachEvents = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
     const win = iframeRef.current?.contentWindow ?? doc.defaultView;
-    /* Re-inject timeline animations after iframe reloads */
     if (animStyleRef.current) injectAnimStyle(doc, animStyleRef.current);
+    setIframeDoc(doc);
 
     const pendingSelector = pendingSelectorRef.current;
     if (pendingSelector) {
@@ -437,17 +576,37 @@ const VisualEditor: React.FC = () => {
     };
 
     const onClick = (e: MouseEvent) => {
-      if (interaction === 'select') {
-        e.preventDefault(); e.stopPropagation();
-      } else {
-        return;
-      }
+      if (interaction === 'select') { e.preventDefault(); e.stopPropagation(); }
+      else { return; }
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) {
         selectedSelectorRef.current = null;
-        setSelEl(null); setSelectedElement(null); setSelectedSelector(null); return;
+        setSelEl(null); setSelectedElement(null); setSelectedSelector(null);
+        setMultiSel(new Set());
+        return;
       }
-      selectElement(target);
+      selectElement(target, e.shiftKey);
+    };
+
+    const onDblClick = (e: MouseEvent) => {
+      if (interaction !== 'select') return;
+      const target = e.target as HTMLElement;
+      if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) return;
+      // Make element editable inline
+      target.setAttribute('contenteditable', 'true');
+      target.focus();
+      target.style.outline = '2px solid #7ab8f5';
+      const onBlur = () => {
+        target.removeAttribute('contenteditable');
+        target.style.outline = '';
+        target.removeEventListener('blur', onBlur);
+        // Sync content
+        syncContentToSource(target);
+        setTick(t => t + 1);
+        showNotification('Text updated');
+      };
+      target.addEventListener('blur', onBlur);
+      e.preventDefault(); e.stopPropagation();
     };
 
     const onContextMenu = (e: MouseEvent) => {
@@ -457,22 +616,31 @@ const VisualEditor: React.FC = () => {
       const off = iframeOffRef.current;
       const screenX = off.left + e.clientX;
       const screenY = off.top + e.clientY;
-
       const fakeEvent = {
-        preventDefault: () => {},
-        stopPropagation: () => {},
-        clientX: screenX,
-        clientY: screenY,
+        preventDefault: () => {}, stopPropagation: () => {},
+        clientX: screenX, clientY: screenY,
       } as React.MouseEvent;
-
       showCtx(fakeEvent, [
-        { label: `Select <${target.tagName.toLowerCase()}>`, icon: '🖱️', action: () => selectElement(target) },
+        { label: `<${target.tagName.toLowerCase()}${target.id ? '#' + target.id : ''}>`, disabled: true },
         { separator: true, label: '' },
-        { label: 'Copy element HTML', icon: '📋', action: () => { navigator.clipboard.writeText(target.outerHTML); } },
+        { label: 'Select', icon: '🖱️', action: () => selectElement(target) },
+        { label: 'Duplicate', icon: '⧉', action: () => duplicateElement(target) },
+        { separator: true, label: '' },
+        { label: 'Bring to Front', icon: '⬆', action: () => bringToFront(target) },
+        { label: 'Send to Back', icon: '⬇', action: () => sendToBack(target) },
+        { separator: true, label: '' },
+        { label: 'Copy HTML', icon: '📋', action: () => { navigator.clipboard.writeText(target.outerHTML); } },
         { label: 'Copy styles', icon: '🎨', action: () => { navigator.clipboard.writeText(target.getAttribute('style') || ''); } },
         { separator: true, label: '' },
         { label: 'Reset styles', icon: '↺', action: () => { target.removeAttribute('style'); setTick(t => t + 1); syncToSource(target); } },
         { label: 'Hide element', icon: '👁️', action: () => { target.style.display = 'none'; setTick(t => t + 1); syncToSource(target); } },
+        { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
+            updateHtmlSourceForElement(target, t => t.remove());
+            target.remove();
+            selectedSelectorRef.current = null;
+            setSelEl(null); setSelectedElement(null); setSelectedSelector(null);
+          }
+        },
         { separator: true, label: '' },
         { label: 'Select parent', icon: '⬆️', action: () => {
             const parent = target.parentElement;
@@ -482,24 +650,23 @@ const VisualEditor: React.FC = () => {
       ]);
     };
 
-    const onIframeScrollOrResize = () => {
-      // Recompute overlay positions when the iframe document scrolls/relayouts.
-      setTick(t => t + 1);
-    };
+    const onIframeScrollOrResize = () => { setTick(t => t + 1); };
 
     doc.addEventListener('mousemove', onMove);
     doc.addEventListener('click', onClick, true);
+    doc.addEventListener('dblclick', onDblClick, true);
     doc.addEventListener('contextmenu', onContextMenu, true);
     doc.addEventListener('scroll', onIframeScrollOrResize, true);
     win?.addEventListener('resize', onIframeScrollOrResize);
     return () => {
       doc.removeEventListener('mousemove', onMove);
       doc.removeEventListener('click', onClick, true);
+      doc.removeEventListener('dblclick', onDblClick, true);
       doc.removeEventListener('contextmenu', onContextMenu, true);
       doc.removeEventListener('scroll', onIframeScrollOrResize, true);
       win?.removeEventListener('resize', onIframeScrollOrResize);
     };
-  }, [injectAnimStyle, interaction, selectElement, setSelectedSelector, setSelectedElement, showCtx, syncToSource]);
+  }, [injectAnimStyle, interaction, selectElement, duplicateElement, bringToFront, sendToBack, setSelectedSelector, setSelectedElement, showCtx, syncToSource, syncContentToSource, updateHtmlSourceForElement, showNotification]);
 
   /* ── Drag move / resize ── */
   const dragRef = useRef<{
@@ -507,6 +674,7 @@ const VisualEditor: React.FC = () => {
     startX: number; startY: number;
     initLeft: number; initTop: number; initW: number; initH: number;
     el: HTMLElement;
+    multiEls: { el: HTMLElement; initLeft: number; initTop: number }[];
   } | null>(null);
 
   const startDrag = useCallback((type: 'move' | Handle, e: React.MouseEvent) => {
@@ -516,6 +684,15 @@ const VisualEditor: React.FC = () => {
     if (!win) return;
     const cs = win.getComputedStyle(selEl);
     const r = selEl.getBoundingClientRect();
+
+    // Capture multi-select positions
+    const multiEls = Array.from(multiSelRef.current)
+      .filter(el => el !== selEl && el.isConnected)
+      .map(el => {
+        const mcs = win.getComputedStyle(el);
+        return { el, initLeft: parseFloat(mcs.left) || 0, initTop: parseFloat(mcs.top) || 0 };
+      });
+
     dragRef.current = {
       type,
       startX: e.clientX, startY: e.clientY,
@@ -523,6 +700,7 @@ const VisualEditor: React.FC = () => {
       initTop: parseFloat(cs.top) || 0,
       initW: r.width, initH: r.height,
       el: selEl,
+      multiEls,
     };
     const cursor = type === 'move' ? 'move' : CURSOR[type as Handle] || 'default';
     showDragCapture(cursor);
@@ -533,40 +711,34 @@ const VisualEditor: React.FC = () => {
     const onMove = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d || !d.el.isConnected) return;
-      const dx = e.clientX - d.startX;
-      const dy = e.clientY - d.startY;
+      let dx = e.clientX - d.startX;
+      let dy = e.clientY - d.startY;
+      const useSnap = e.shiftKey;
       const { el, type, initLeft, initTop, initW, initH } = d;
 
       if (type === 'move') {
+        let newLeft = initLeft + dx;
+        let newTop = initTop + dy;
+        if (useSnap) { newLeft = snap(newLeft); newTop = snap(newTop); }
         el.style.position = el.style.position || 'relative';
-        el.style.left = (initLeft + dx) + 'px';
-        el.style.top = (initTop + dy) + 'px';
-      } else if (type === 'se') {
-        el.style.width = Math.max(20, initW + dx) + 'px';
-        el.style.height = Math.max(20, initH + dy) + 'px';
-      } else if (type === 'e') {
-        el.style.width = Math.max(20, initW + dx) + 'px';
-      } else if (type === 's') {
-        el.style.height = Math.max(20, initH + dy) + 'px';
-      } else if (type === 'n') {
-        el.style.height = Math.max(20, initH - dy) + 'px';
-        el.style.top = (initTop + dy) + 'px';
-      } else if (type === 'w') {
-        el.style.width = Math.max(20, initW - dx) + 'px';
-        el.style.left = (initLeft + dx) + 'px';
-      } else if (type === 'sw') {
-        el.style.width = Math.max(20, initW - dx) + 'px';
-        el.style.left = (initLeft + dx) + 'px';
-        el.style.height = Math.max(20, initH + dy) + 'px';
-      } else if (type === 'nw') {
-        el.style.width = Math.max(20, initW - dx) + 'px';
-        el.style.height = Math.max(20, initH - dy) + 'px';
-        el.style.left = (initLeft + dx) + 'px';
-        el.style.top = (initTop + dy) + 'px';
-      } else if (type === 'ne') {
-        el.style.width = Math.max(20, initW + dx) + 'px';
-        el.style.height = Math.max(20, initH - dy) + 'px';
-        el.style.top = (initTop + dy) + 'px';
+        el.style.left = newLeft + 'px';
+        el.style.top = newTop + 'px';
+        // Move multi-selected elements together
+        for (const { el: mel, initLeft: ml, initTop: mt } of d.multiEls) {
+          mel.style.position = mel.style.position || 'relative';
+          mel.style.left = (useSnap ? snap(ml + dx) : ml + dx) + 'px';
+          mel.style.top = (useSnap ? snap(mt + dy) : mt + dy) + 'px';
+        }
+      } else {
+        if (useSnap) { dx = snap(dx); dy = snap(dy); }
+        if (type === 'se') { el.style.width = Math.max(20, initW + dx) + 'px'; el.style.height = Math.max(20, initH + dy) + 'px'; }
+        else if (type === 'e') { el.style.width = Math.max(20, initW + dx) + 'px'; }
+        else if (type === 's') { el.style.height = Math.max(20, initH + dy) + 'px'; }
+        else if (type === 'n') { el.style.height = Math.max(20, initH - dy) + 'px'; el.style.top = (initTop + dy) + 'px'; }
+        else if (type === 'w') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.left = (initLeft + dx) + 'px'; }
+        else if (type === 'sw') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.left = (initLeft + dx) + 'px'; el.style.height = Math.max(20, initH + dy) + 'px'; }
+        else if (type === 'nw') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.height = Math.max(20, initH - dy) + 'px'; el.style.left = (initLeft + dx) + 'px'; el.style.top = (initTop + dy) + 'px'; }
+        else if (type === 'ne') { el.style.width = Math.max(20, initW + dx) + 'px'; el.style.height = Math.max(20, initH - dy) + 'px'; el.style.top = (initTop + dy) + 'px'; }
       }
       setTick(t => t + 1);
     };
@@ -578,6 +750,7 @@ const VisualEditor: React.FC = () => {
       hideDragCapture();
       setActiveOp(null);
       if (d.el.isConnected) syncToSource(d.el);
+      for (const { el } of d.multiEls) { if (el.isConnected) syncToSource(el); }
     };
 
     window.addEventListener('mousemove', onMove);
@@ -597,8 +770,7 @@ const VisualEditor: React.FC = () => {
     rotRef.current = {
       cx, cy,
       startAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI),
-      initRot: rotation,
-      el: selEl,
+      initRot: rotation, el: selEl,
     };
     showDragCapture('crosshair');
     setActiveOp('rotate');
@@ -631,188 +803,361 @@ const VisualEditor: React.FC = () => {
   const HR = getHovOverlay();
   const isDragging = activeOp !== null;
 
+  const previewW = PREVIEW_WIDTHS[previewSize];
+
+  /* Breadcrumb path */
+  const breadcrumb = selEl ? buildBreadcrumb(selEl) : [];
+
   return (
     <div style={{ position: 'relative', flex: 1, overflow: 'hidden', background: '#2d2d2d', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Hint bar */}
+      {/* ── Top toolbar ── */}
       <div style={{
-        height: 28, flexShrink: 0, background: 'rgba(26,26,26,0.9)', borderBottom: '1px solid #3e3e3e',
-        display: 'flex', alignItems: 'center', padding: '0 12px', gap: 16, zIndex: 5,
+        height: 34, flexShrink: 0, background: 'rgba(26,26,26,0.9)',
+        borderBottom: '1px solid #3e3e3e',
+        display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6, zIndex: 5,
+        flexWrap: 'nowrap', overflowX: 'auto',
       }}>
-        <span style={{ fontSize: 11, color: '#777' }}>
-          {selEl
-            ? `<${selEl.tagName.toLowerCase()}${selEl.id ? '#' + selEl.id : ''}> — Drag to move • Handles to resize • ○ to rotate • Right-click for options`
-            : 'Click any element to select it — Right-click for context menu'}
-        </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button
-            onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
+
+        {/* Panel toggles */}
+        <button
+          title="Toggle Layers panel"
+          onClick={() => setShowLayers(l => !l)}
+          style={{ background: showLayers ? 'rgba(100,160,255,0.15)' : 'none', border: `1px solid ${showLayers ? 'rgba(100,160,255,0.4)' : '#444'}`, borderRadius: 3, cursor: 'pointer', fontSize: 10, color: showLayers ? '#7ab8f5' : '#666', padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0 }}
+        >
+          ☰ Layers
+        </button>
+        <button
+          title="Toggle Elements palette"
+          onClick={() => setShowPalette(p => !p)}
+          style={{ background: showPalette ? 'rgba(100,160,255,0.15)' : 'none', border: `1px solid ${showPalette ? 'rgba(100,160,255,0.4)' : '#444'}`, borderRadius: 3, cursor: 'pointer', fontSize: 10, color: showPalette ? '#7ab8f5' : '#666', padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0 }}
+        >
+          + Elements
+        </button>
+
+        <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
+
+        {/* Alignment buttons (only when element selected) */}
+        {selEl && (
+          <>
+            <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>Align:</span>
+            {[
+              { label: '⬤◌◌', title: 'Align left', action: () => applyTextAlign('left') },
+              { label: '◌⬤◌', title: 'Align center', action: () => applyTextAlign('center') },
+              { label: '◌◌⬤', title: 'Align right', action: () => applyTextAlign('right') },
+            ].map(btn => (
+              <button key={btn.title} title={btn.title} onClick={btn.action}
+                style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#aaa', padding: '1px 6px', fontFamily: 'monospace', flexShrink: 0 }}>
+                {btn.label}
+              </button>
+            ))}
+            <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
+            {[
+              { icon: '▲', title: 'Align top', action: () => applyVerticalAlign('flex-start') },
+              { icon: '≡', title: 'Align middle', action: () => applyVerticalAlign('center') },
+              { icon: '▼', title: 'Align bottom', action: () => applyVerticalAlign('flex-end') },
+            ].map(btn => (
+              <button key={btn.title} title={btn.title} onClick={btn.action}
+                style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#aaa', padding: '1px 6px', fontFamily: 'monospace', flexShrink: 0 }}>
+                {btn.icon}
+              </button>
+            ))}
+            <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
+          </>
+        )}
+
+        {/* Responsive viewport buttons */}
+        <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>Preview:</span>
+        {([
+          { key: 'mobile', label: '📱 375', title: 'Mobile (375px)' },
+          { key: 'tablet', label: '📲 768', title: 'Tablet (768px)' },
+          { key: 'desktop', label: '🖥 1280', title: 'Desktop (1280px)' },
+          { key: 'full', label: '⬜ Full', title: 'Full width' },
+        ] as const).map(btn => (
+          <button key={btn.key} title={btn.title} onClick={() => setPreviewSize(btn.key)}
             style={{
-              background: 'none',
-              border: '1px solid #444',
-              borderRadius: 3,
-              cursor: 'pointer',
-              fontSize: 10,
-              color: interaction === 'select' ? '#e5a45a' : '#7ab8f5',
-              padding: '1px 8px',
-              fontFamily: 'inherit',
-            }}
-            title={interaction === 'select' ? 'Selection mode: clicks select elements' : 'Interact mode: clicks interact with page'}
-          >
-            {interaction === 'select' ? 'Select' : 'Interact'}
+              background: previewSize === btn.key ? 'rgba(229,164,90,0.15)' : 'none',
+              border: `1px solid ${previewSize === btn.key ? 'rgba(229,164,90,0.5)' : '#444'}`,
+              borderRadius: 3, cursor: 'pointer', fontSize: 10,
+              color: previewSize === btn.key ? '#e5a45a' : '#777',
+              padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0,
+            }}>
+            {btn.label}
           </button>
+        ))}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Mode toggle */}
+        <button
+          onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
+          style={{
+            background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer',
+            fontSize: 10, color: interaction === 'select' ? '#e5a45a' : '#7ab8f5',
+            padding: '1px 8px', fontFamily: 'inherit', flexShrink: 0,
+          }}
+          title={interaction === 'select' ? 'Select mode' : 'Interact mode'}
+        >
+          {interaction === 'select' ? '↖ Select' : '↗ Interact'}
+        </button>
+
         {selEl && (
           <button
             onClick={() => {
               selectedSelectorRef.current = null;
-              setSelEl(null);
-              setHovEl(null);
-              setSelectedElement(null);
-              setSelectedSelector(null);
+              setSelEl(null); setHovEl(null);
+              setSelectedElement(null); setSelectedSelector(null);
+              setMultiSel(new Set());
             }}
-            style={{
-              background: 'none', border: '1px solid #444', borderRadius: 3,
-              cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit',
-            }}
+            style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit', flexShrink: 0 }}
           >
-            Deselect (Esc)
+            ✕ Deselect
           </button>
         )}
-        </div>
+        {multiSel.size > 0 && (
+          <span style={{ fontSize: 10, color: '#7ab8f5', flexShrink: 0 }}>+{multiSel.size} selected</span>
+        )}
       </div>
 
-      {/* Iframe */}
-      <iframe
-        ref={iframeRef}
-        title="Visual Editor"
-        onLoad={() => {
-          // Ensure a predictable default: selection mode works immediately after reloads.
-          setInteraction('select');
-          eventsCleanupRef.current?.();
-          const cleanup = attachEvents();
-          eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
-        }}
-        srcDoc={srcDoc}
-        sandbox="allow-scripts allow-same-origin"
-        style={{ flex: 1, border: 'none', background: '#fff' }}
-      />
+      {/* ── Main editor area ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
-      {/* Hover outline — hidden while dragging */}
-      {HR && !isDragging && (
-        <div style={{
-          position: 'fixed', zIndex: 50, pointerEvents: 'none',
-          left: HR.left, top: HR.top, width: HR.width, height: HR.height,
-          outline: '1px dashed rgba(229,164,90,0.35)',
-        }} />
-      )}
+        {/* Layers panel */}
+        {showLayers && (
+          <div style={{ width: 170, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <LayersPanel
+              iframeDoc={iframeDoc}
+              selectedEl={selEl}
+              multiSel={multiSel}
+              tick={tick}
+              onSelect={(el, shift) => selectElement(el, shift)}
+              onMove={moveElementInDom}
+            />
+          </div>
+        )}
 
-      {/* Selection overlay */}
-      {OR && selEl && (
-        <>
-          {/* Move overlay */}
-          <div
-            style={{
-              position: 'fixed', zIndex: 51,
-              left: OR.left, top: OR.top, width: OR.width, height: OR.height,
-              outline: '2px solid #e5a45a',
-              cursor: isDragging && activeOp === 'move' ? 'move' : 'move',
+        {/* Iframe area */}
+        <div
+          style={{ flex: 1, overflow: previewW ? 'auto' : 'hidden', position: 'relative', background: '#333', display: 'flex', justifyContent: 'center' }}
+        >
+          <iframe
+            ref={iframeRef}
+            title="Visual Editor"
+            onLoad={() => {
+              setInteraction('select');
+              eventsCleanupRef.current?.();
+              const cleanup = attachEvents();
+              eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
             }}
-            onMouseDown={e => startDrag('move', e)}
-            onContextMenu={e => {
-              e.preventDefault();
-              showCtx(e, [
-                { label: selEl.outerHTML.slice(0, 50) + '…', disabled: true },
-                { separator: true, label: '' },
-                { label: 'Copy HTML', icon: '📋', action: () => navigator.clipboard.writeText(selEl.outerHTML) },
-                { label: 'Copy inline style', icon: '🎨', action: () => navigator.clipboard.writeText(selEl.getAttribute('style') || '') },
-                { separator: true, label: '' },
-                { label: 'Reset styles', icon: '↺', action: () => { selEl.removeAttribute('style'); setTick(t => t + 1); syncToSource(selEl); } },
-                { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
-                    updateHtmlSourceForElement(selEl, (target) => {
-                      target.remove();
-                    });
-                    selEl.remove();
-                    selectedSelectorRef.current = null;
-                    setSelEl(null);
-                    setSelectedElement(null);
-                    setSelectedSelector(null);
-                  }
-                },
-                { separator: true, label: '' },
-                { label: 'Deselect', icon: '✕', action: () => { selectedSelectorRef.current = null; setSelEl(null); setSelectedElement(null); } },
-              ]);
+            srcDoc={srcDoc}
+            sandbox="allow-scripts allow-same-origin"
+            style={{
+              border: 'none', background: '#fff',
+              width: previewW ? previewW + 'px' : '100%',
+              height: '100%',
+              flexShrink: 0,
+              boxShadow: previewW ? '0 0 30px rgba(0,0,0,0.5)' : 'none',
             }}
           />
 
-          {/* Tag label */}
-          <div style={{
-            position: 'fixed', zIndex: 55, pointerEvents: 'none',
-            left: OR.left, top: Math.max(0, OR.top - 20),
-            background: '#e5a45a', color: '#1a1a1a',
-            fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
-            padding: '1px 7px 2px', borderRadius: '3px 3px 0 0', whiteSpace: 'nowrap',
-          }}>
-            &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}&gt;
-            {' '}{Math.round(OR.width)}×{Math.round(OR.height)}
-            {rotation !== 0 && ` ${rotation}°`}
-          </div>
+          {/* Drop zone overlay — shows on top of iframe when dragging from palette, capturing drop events */}
+          {isDraggingFromPalette && (
+            <div
+              style={{
+                position: 'absolute', inset: 0, zIndex: 200,
+                border: `3px dashed ${paletteDropping ? '#e5a45a' : 'rgba(229,164,90,0.4)'}`,
+                background: paletteDropping ? 'rgba(229,164,90,0.08)' : 'rgba(229,164,90,0.03)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.1s',
+              }}
+              onDragOver={e => { e.preventDefault(); setPaletteDropping(true); }}
+              onDragLeave={() => setPaletteDropping(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setPaletteDropping(false);
+                const html = e.dataTransfer.getData('text/html-element');
+                if (html) insertHtmlAtBody(html);
+              }}
+            >
+              <div style={{
+                background: '#e5a45a', color: '#1a1a1a', padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 700,
+                opacity: paletteDropping ? 1 : 0.7, transition: 'opacity 0.1s',
+              }}>
+                {paletteDropping ? 'Release to insert element' : 'Drag here to insert element'}
+              </div>
+            </div>
+          )}
 
-          {/* Resize handles — larger 12×12 for easier grabbing */}
-          {HANDLES.map(h => {
-            const pos = getHandlePos(h, OR);
+          {/* Hover outline */}
+          {HR && !isDragging && (
+            <div style={{
+              position: 'fixed', zIndex: 50, pointerEvents: 'none',
+              left: HR.left, top: HR.top, width: HR.width, height: HR.height,
+              outline: '1px dashed rgba(229,164,90,0.35)',
+            }} />
+          )}
+
+          {/* Multi-select outlines */}
+          {Array.from(multiSel).map((el, i) => {
+            if (!el.isConnected || el === selEl) return null;
+            const r = el.getBoundingClientRect();
             return (
-              <div
-                key={h}
-                style={{
-                  position: 'fixed', zIndex: 54,
-                  left: pos.x - 6, top: pos.y - 6,
-                  width: 12, height: 12,
-                  background: '#1e1e1e', border: '2px solid #e5a45a', borderRadius: 2,
-                  cursor: CURSOR[h],
-                  boxSizing: 'border-box',
-                }}
-                onMouseDown={e => { e.stopPropagation(); startDrag(h, e); }}
-              />
+              <div key={i} style={{
+                position: 'fixed', zIndex: 49, pointerEvents: 'none',
+                left: iframeOff.left + r.left, top: iframeOff.top + r.top,
+                width: r.width, height: r.height,
+                outline: '2px solid #64a0ff',
+              }} />
             );
           })}
 
-          {/* Rotate handle */}
-          <div
-            title="Drag to rotate"
-            style={{
-              position: 'fixed', zIndex: 54,
-              left: OR.left + OR.width / 2 - 8,
-              top: OR.top - 38,
-              width: 16, height: 16,
-              background: '#1e1e1e', border: '2px solid #e5a45a',
-              borderRadius: '50%', cursor: 'crosshair',
-              boxSizing: 'border-box',
-            }}
-            onMouseDown={startRotate}
-          />
-          <div style={{
-            position: 'fixed', zIndex: 52, pointerEvents: 'none',
-            left: OR.left + OR.width / 2 - 0.5, top: Math.max(0, OR.top - 22),
-            width: 1, height: 22, background: 'rgba(229,164,90,0.5)',
-          }} />
+          {/* Selection overlay */}
+          {OR && selEl && (
+            <>
+              <div
+                style={{
+                  position: 'fixed', zIndex: 51,
+                  left: OR.left, top: OR.top, width: OR.width, height: OR.height,
+                  outline: '2px solid #e5a45a',
+                  cursor: isDragging && activeOp === 'move' ? 'move' : 'move',
+                }}
+                onMouseDown={e => startDrag('move', e)}
+                onContextMenu={e => {
+                  e.preventDefault();
+                  showCtx(e, [
+                    { label: selEl.outerHTML.slice(0, 50) + '…', disabled: true },
+                    { separator: true, label: '' },
+                    { label: 'Duplicate', icon: '⧉', action: () => duplicateElement(selEl) },
+                    { label: 'Bring to Front', icon: '⬆', action: () => bringToFront(selEl) },
+                    { label: 'Send to Back', icon: '⬇', action: () => sendToBack(selEl) },
+                    { separator: true, label: '' },
+                    { label: 'Copy HTML', icon: '📋', action: () => navigator.clipboard.writeText(selEl.outerHTML) },
+                    { label: 'Copy inline style', icon: '🎨', action: () => navigator.clipboard.writeText(selEl.getAttribute('style') || '') },
+                    { separator: true, label: '' },
+                    { label: 'Reset styles', icon: '↺', action: () => { selEl.removeAttribute('style'); setTick(t => t + 1); syncToSource(selEl); } },
+                    { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
+                        updateHtmlSourceForElement(selEl, (target) => { target.remove(); });
+                        selEl.remove();
+                        selectedSelectorRef.current = null;
+                        setSelEl(null); setSelectedElement(null); setSelectedSelector(null);
+                      }
+                    },
+                    { separator: true, label: '' },
+                    { label: 'Deselect', icon: '✕', action: () => { selectedSelectorRef.current = null; setSelEl(null); setSelectedElement(null); setMultiSel(new Set()); } },
+                  ]);
+                }}
+              />
 
-          {/* Live dimensions during drag */}
-          {isDragging && (
-            <div style={{
-              position: 'fixed', zIndex: 60, pointerEvents: 'none',
-              left: OR.left + OR.width / 2, top: OR.top + OR.height + 8,
-              transform: 'translateX(-50%)',
-              background: 'rgba(0,0,0,0.85)', color: '#ccc',
-              fontSize: 11, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 3,
-              whiteSpace: 'nowrap',
-            }}>
-              {activeOp === 'rotate'
-                ? `${rotation}°`
-                : `${Math.round(OR.width)} × ${Math.round(OR.height)}`}
-            </div>
+              {/* Tag label */}
+              <div style={{
+                position: 'fixed', zIndex: 55, pointerEvents: 'none',
+                left: OR.left, top: Math.max(0, OR.top - 20),
+                background: '#e5a45a', color: '#1a1a1a',
+                fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+                padding: '1px 7px 2px', borderRadius: '3px 3px 0 0', whiteSpace: 'nowrap',
+              }}>
+                &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}&gt;
+                {' '}{Math.round(OR.width)}×{Math.round(OR.height)}
+                {rotation !== 0 && ` ${rotation}°`}
+              </div>
+
+              {/* Resize handles */}
+              {HANDLES.map(h => {
+                const pos = getHandlePos(h, OR);
+                return (
+                  <div
+                    key={h}
+                    style={{
+                      position: 'fixed', zIndex: 54,
+                      left: pos.x - 6, top: pos.y - 6, width: 12, height: 12,
+                      background: '#1e1e1e', border: '2px solid #e5a45a', borderRadius: 2,
+                      cursor: CURSOR[h], boxSizing: 'border-box',
+                    }}
+                    onMouseDown={e => { e.stopPropagation(); startDrag(h, e); }}
+                  />
+                );
+              })}
+
+              {/* Rotate handle */}
+              <div
+                title="Drag to rotate"
+                style={{
+                  position: 'fixed', zIndex: 54,
+                  left: OR.left + OR.width / 2 - 8, top: OR.top - 38,
+                  width: 16, height: 16,
+                  background: '#1e1e1e', border: '2px solid #e5a45a',
+                  borderRadius: '50%', cursor: 'crosshair', boxSizing: 'border-box',
+                }}
+                onMouseDown={startRotate}
+              />
+              <div style={{
+                position: 'fixed', zIndex: 52, pointerEvents: 'none',
+                left: OR.left + OR.width / 2 - 0.5, top: Math.max(0, OR.top - 22),
+                width: 1, height: 22, background: 'rgba(229,164,90,0.5)',
+              }} />
+
+              {/* Live dimensions */}
+              {isDragging && (
+                <div style={{
+                  position: 'fixed', zIndex: 60, pointerEvents: 'none',
+                  left: OR.left + OR.width / 2, top: OR.top + OR.height + 8,
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(0,0,0,0.85)', color: '#ccc',
+                  fontSize: 11, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 3, whiteSpace: 'nowrap',
+                }}>
+                  {activeOp === 'rotate'
+                    ? `${rotation}°`
+                    : `${Math.round(OR.width)} × ${Math.round(OR.height)}${dragRef.current && (dragRef.current.type === 'move' || HANDLES.includes(dragRef.current.type as Handle)) ? ' (Shift=snap to 8px)' : ''}`
+                  }
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+
+        {/* Elements palette */}
+        {showPalette && (
+          <div style={{ width: 160, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <ElementsPalette
+            onInsert={insertHtmlAtBody}
+            onDragStart={() => setIsDraggingFromPalette(true)}
+            onDragEnd={() => { setIsDraggingFromPalette(false); setPaletteDropping(false); }}
+          />
+          </div>
+        )}
+      </div>
+
+      {/* ── Breadcrumb bar ── */}
+      <div style={{
+        height: 26, flexShrink: 0, background: '#1a1a1a', borderTop: '1px solid #2e2e2e',
+        display: 'flex', alignItems: 'center', padding: '0 10px', gap: 0,
+        overflow: 'hidden', zIndex: 5,
+      }}>
+        {breadcrumb.length > 0 ? (
+          breadcrumb.map((el, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <span style={{ fontSize: 10, color: '#444', margin: '0 4px' }}>›</span>}
+              <button
+                onClick={() => selectElement(el)}
+                title={`Select <${breadcrumbLabel(el)}>`}
+                style={{
+                  background: el === selEl ? 'rgba(229,164,90,0.15)' : 'none',
+                  border: 'none', cursor: 'pointer', fontSize: 10, fontFamily: 'monospace',
+                  color: el === selEl ? '#e5a45a' : '#888',
+                  padding: '0 4px', borderRadius: 3,
+                  fontWeight: el === selEl ? 700 : 400,
+                }}
+              >
+                {breadcrumbLabel(el)}
+              </button>
+            </React.Fragment>
+          ))
+        ) : (
+          <span style={{ fontSize: 10, color: '#444' }}>
+            {selEl ? '' : 'Click any element to select • Shift+click to multi-select • Double-click to edit text • Shift+drag to snap to 8px grid'}
+          </span>
+        )}
+      </div>
 
       {ctxEl}
     </div>
