@@ -28,10 +28,10 @@ function AiStatusButton() {
   };
 
   const cfg = {
-    idle:    { dot: '#6b7280', text: '✦ AI',     bg: 'transparent',         border: '#3b4048', label: 'Click to get AI suggestion' },
-    loading: { dot: '#f59e0b', text: '⟳ AI…',   bg: 'rgba(245,158,11,0.1)', border: '#f59e0b66', label: 'AI is thinking…' },
-    ready:   { dot: '#22c55e', text: '✓ AI',     bg: 'rgba(34,197,94,0.1)', border: '#22c55e66', label: 'Suggestion ready — press Tab to accept. Click to refresh.' },
-    error:   { dot: '#ef4444', text: '✗ AI',     bg: 'rgba(239,68,68,0.1)', border: '#ef444466', label: 'AI failed — click to retry' },
+    idle:    { dot: 'rgba(255,255,255,0.5)', dotGlow: false, text: '✦ AI',  bg: 'rgba(0,0,0,0.15)',  label: 'Click to get AI suggestion' },
+    loading: { dot: '#fbbf24',               dotGlow: true,  text: '⟳ AI…', bg: 'rgba(0,0,0,0.25)',  label: 'AI is thinking…' },
+    ready:   { dot: '#4ade80',               dotGlow: true,  text: '✓ AI',  bg: 'rgba(0,0,0,0.25)',  label: 'Suggestion ready — Tab to accept · Click to refresh' },
+    error:   { dot: '#f87171',               dotGlow: false, text: '✗ AI',  bg: 'rgba(0,0,0,0.25)',  label: 'AI error — click to retry' },
   }[aiState];
 
   return (
@@ -42,23 +42,23 @@ function AiStatusButton() {
         display: 'flex',
         alignItems: 'center',
         gap: 5,
-        padding: '0 8px',
+        padding: '0 10px',
         height: '100%',
         background: cfg.bg,
         border: 'none',
-        borderLeft: `1px solid ${cfg.border}`,
-        borderRight: `1px solid ${cfg.border}`,
-        color: cfg.dot,
+        borderLeft: '1px solid rgba(255,255,255,0.15)',
+        color: '#ffffff',
         cursor: 'pointer',
         fontSize: 11,
         fontFamily: 'inherit',
         fontWeight: 600,
-        letterSpacing: '0.03em',
+        letterSpacing: '0.04em',
         transition: 'background 0.15s',
         flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.25)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'none'; }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.3)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = cfg.bg; }}
     >
       <span style={{
         width: 7,
@@ -67,7 +67,8 @@ function AiStatusButton() {
         background: cfg.dot,
         display: 'inline-block',
         flexShrink: 0,
-        boxShadow: aiState === 'loading' ? `0 0 6px ${cfg.dot}` : aiState === 'ready' ? `0 0 4px ${cfg.dot}88` : 'none',
+        boxShadow: cfg.dotGlow ? `0 0 6px ${cfg.dot}, 0 0 10px ${cfg.dot}88` : 'none',
+        transition: 'background 0.2s, box-shadow 0.2s',
       }} />
       {cfg.text}
     </button>
