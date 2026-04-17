@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import Editor from '@monaco-editor/react';
+import React from 'react';
+import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
 import { FiImage } from 'react-icons/fi';
@@ -10,6 +10,172 @@ const LANG_MAP: Record<string, string> = {
   js: 'javascript',
   other: 'plaintext',
 };
+
+const EXTENSION_LANG_MAP: Record<string, string> = {
+  html: 'html',
+  htm: 'html',
+  css: 'css',
+  scss: 'scss',
+  sass: 'sass',
+  less: 'less',
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  json: 'json',
+  md: 'markdown',
+  markdown: 'markdown',
+  py: 'python',
+  rb: 'ruby',
+  php: 'php',
+  java: 'java',
+  c: 'c',
+  h: 'c',
+  cpp: 'cpp',
+  cc: 'cpp',
+  cxx: 'cpp',
+  cs: 'csharp',
+  go: 'go',
+  rs: 'rust',
+  swift: 'swift',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  sql: 'sql',
+  sh: 'shell',
+  bash: 'shell',
+  zsh: 'shell',
+  yml: 'yaml',
+  yaml: 'yaml',
+  xml: 'xml',
+  svg: 'xml',
+  vue: 'html',
+  svelte: 'html',
+  txt: 'plaintext',
+};
+
+const VOID_HTML_TAGS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+let inlineAiProviderRegistered = false;
+
+function getLanguageForFile(file: { name: string; type: string }) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  return EXTENSION_LANG_MAP[extension] || LANG_MAP[file.type] || 'plaintext';
+}
+
+function cleanAiSuggestion(text: string) {
+  return text
+    .trim()
+    .replace(/^```[\w-]*\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .replace(/^`+|`+$/g, '')
+    .trimEnd()
+    .slice(0, 1200);
+}
+
+function getPromptForSuggestion(language: string, fileName: string, prefix: string, suffix: string) {
+  return [
+    'You are an inline code completion engine like GitHub Copilot.',
+    'Return only the next code to insert at the cursor.',
+    'Do not explain anything. Do not wrap the answer in markdown.',
+    `Language: ${language}`,
+    `File: ${fileName}`,
+    'Code before cursor:',
+    prefix.slice(-1800),
+    'Code after cursor:',
+    suffix.slice(0, 800),
+    'Completion:',
+  ].join('\n');
+}
+
+function registerPollinationsInlineSuggestions(monaco: any) {
+  if (inlineAiProviderRegistered) return;
+  inlineAiProviderRegistered = true;
+
+  monaco.languages.registerInlineCompletionsProvider('*', {
+    provideInlineCompletions: async (model: any, position: any, _context: any, token: any) => {
+      const wordUntilPosition = model.getWordUntilPosition(position);
+      const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+
+      if (!linePrefix.trim() && !wordUntilPosition.word) {
+        return { items: [], dispose: () => undefined };
+      }
+
+      try {
+        const fullText = model.getValue();
+        const offset = model.getOffsetAt(position);
+        const language = model.getLanguageId();
+        const fileName = model.uri?.path?.split('/').pop() || 'untitled';
+        const prompt = getPromptForSuggestion(language, fileName, fullText.slice(0, offset), fullText.slice(offset));
+        const response = await fetch(`https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}`);
+
+        if (!response.ok || token.isCancellationRequested) {
+          return { items: [], dispose: () => undefined };
+        }
+
+        const suggestion = cleanAiSuggestion(await response.text());
+
+        if (!suggestion || token.isCancellationRequested) {
+          return { items: [], dispose: () => undefined };
+        }
+
+        return {
+          items: [{
+            insertText: suggestion,
+            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+          }],
+          dispose: () => undefined,
+        };
+      } catch {
+        return { items: [], dispose: () => undefined };
+      }
+    },
+    freeInlineCompletions: () => undefined,
+  });
+}
+
+function enableHtmlAutoClose(editor: any, monaco: any) {
+  return editor.onDidType((text: string) => {
+    if (text !== '>' || editor.getModel()?.getLanguageId() !== 'html') return;
+
+    const model = editor.getModel();
+    const position = editor.getPosition();
+    if (!model || !position) return;
+
+    const line = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+    const tagMatch = line.match(/<([A-Za-z][\w:-]*)(?:\s[^<>]*)?>$/);
+    if (!tagMatch) return;
+
+    const tagName = tagMatch[1].toLowerCase();
+    if (VOID_HTML_TAGS.has(tagName) || line.endsWith('/>') || line.includes('</')) return;
+
+    const closingTag = `</${tagMatch[1]}>`;
+
+    editor.executeEdits('html-auto-close', [{
+      range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+      text: closingTag,
+      forceMoveMarkers: true,
+    }]);
+
+    editor.setPosition(position);
+  });
+}
 
 function fileIcon(type: string) {
   if (type === 'html') return <VscFileCode style={{ color: '#e34c26', flexShrink: 0 }} size={14} />;
@@ -23,6 +189,15 @@ const CodeEditor: React.FC = () => {
   const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
 
   const activeFile = files.find(f => f.id === activeFileId);
+
+  const handleBeforeMount: BeforeMount = (monaco) => {
+    registerPollinationsInlineSuggestions(monaco);
+  };
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    const autoCloseDisposable = enableHtmlAutoClose(editor, monaco);
+    editor.onDidDispose(() => autoCloseDisposable.dispose());
+  };
 
   const handleEditorChange = (value: string | undefined) => {
     if (activeFileId && value !== undefined) {
@@ -63,9 +238,11 @@ const CodeEditor: React.FC = () => {
             <Editor
               key={activeFile.id}
               height="100%"
-              language={LANG_MAP[activeFile.type] || 'plaintext'}
+              language={getLanguageForFile(activeFile)}
               value={activeFile.content}
               onChange={handleEditorChange}
+              beforeMount={handleBeforeMount}
+              onMount={handleEditorMount}
               theme="vs-dark"
               options={{
                 fontSize: 14,
@@ -79,6 +256,8 @@ const CodeEditor: React.FC = () => {
                 insertSpaces: true,
                 autoClosingBrackets: 'always',
                 autoClosingQuotes: 'always',
+                inlineSuggest: { enabled: true },
+                suggest: { preview: true },
                 formatOnPaste: true,
                 formatOnType: false,
                 suggestOnTriggerCharacters: true,
