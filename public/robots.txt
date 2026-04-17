@@ -1,11 +1,13 @@
 User-agent: *
 Allow: /
-
-# Sitemaps
-Sitemap: https://html-editor.replit.app/sitemap.xml
-
-# Block development/build artifacts
 Disallow: /node_modules/
 Disallow: /.git/
 Disallow: /dist/
 Disallow: /src/
+
+# Sitemaps
+Sitemap: https://html-viewer-gray-beta.vercel.app/sitemap.xml
+Sitemap: https://html-viewer-f2v.pages.dev/sitemap.xml
+
+# Crawl-delay (optional, polite crawling)
+Crawl-delay: 1

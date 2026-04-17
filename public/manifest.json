@@ -1,14 +1,17 @@
 {
-  "name": "HTML Editor — Visual & Code Web Page Builder",
+  "name": "HTML Editor – Visual & Code Web Page Builder",
   "short_name": "HTML Editor",
-  "description": "A powerful browser-based HTML editor with live preview, visual drag-and-drop design, CSS animations timeline, Monaco code editor, and project export.",
+  "description": "Free browser-based HTML editor with Monaco code editor, drag-and-drop visual designer, CSS animations timeline, live preview, and ZIP export.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "background_color": "#1e1e1e",
   "theme_color": "#e34c26",
   "orientation": "landscape",
-  "scope": "/",
   "lang": "en",
+  "dir": "ltr",
+  "id": "html-editor-app",
   "categories": ["developer", "productivity", "utilities"],
   "icons": [
     {
@@ -28,16 +31,39 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "src": "/og-image.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "HTML Editor – Split view with Monaco code editor and live preview"
+    }
+  ],
   "shortcuts": [
     {
-      "name": "New Project",
-      "short_name": "New",
-      "description": "Start a fresh HTML project",
+      "name": "Open Editor",
+      "short_name": "Editor",
+      "description": "Open the HTML code editor",
       "url": "/",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "SEO Tutorial",
+      "short_name": "SEO Guide",
+      "description": "HTML & SEO tutorial with live examples",
+      "url": "/seo",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
-  ]
+  ],
+  "prefer_related_applications": false,
+  "related_applications": []
 }

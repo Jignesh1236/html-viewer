@@ -22,6 +22,21 @@ Single-package React + Vite app. All code lives at the project root with one sha
 - `vite.config.ts` — Vite configuration
 - `package.json` — All dependencies
 
+## SEO (Added 2026-04-17)
+
+- `index.html` — full SEO meta tags: title, description, keywords, author (Jignesh D Maru), canonical, OG, Twitter Card, JSON-LD structured data, manifest/favicon links
+- `public/og-image.png` — AI-generated 1200×630 OG image
+- `public/og-seo-tutorial.png` — OG image for the SEO tutorial page
+- `public/favicon.svg` — Updated SVG favicon with `</>` icon
+- `public/sitemap.xml` — Updated with `/seo` route
+- `src/pages/SEOPage.tsx` — Comprehensive HTML & SEO tutorial page at `/seo`
+  - Tab 1: `<meta charset="UTF-8">` — working vs not working with live iframe preview
+  - Tab 2: All basic HTML tags reference
+  - Tab 3: CSS basics examples
+  - Tab 4: Image SEO (Google Images) guide
+  - Tab 5: Open Graph + Favicon complete guide
+- `src/main.tsx` — Wouter routing added (`/` = editor, `/seo` = tutorial)
+
 ## Features
 
 - VS Code-style dark theme (amber accent)
