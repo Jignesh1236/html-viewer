@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useEditorStore } from './store/editorStore';
 import MenuBar from './components/MenuBar';
 import FilePanel from './components/FilePanel';
-import CodeEditor from './components/CodeEditor';
+import CodeEditor, { aiControl, clearAiCache } from './components/CodeEditor';
 import PreviewPane from './components/PreviewPane';
 import VisualEditor from './components/VisualEditor';
 import PropertiesPanel from './components/PropertiesPanel';
@@ -11,6 +11,68 @@ import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/
 import { useContextMenu } from './components/ContextMenu';
 import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
 import { exportProject } from './utils/export';
+
+/* ─── AI Status Button (shown in bottom status bar) ─── */
+function AiStatusButton() {
+  const [aiState, setAiState] = useState(aiControl.state);
+
+  useEffect(() => {
+    const handler = () => setAiState(aiControl.state);
+    aiControl.listeners.add(handler);
+    return () => { aiControl.listeners.delete(handler); };
+  }, []);
+
+  const handleClick = () => {
+    clearAiCache();
+    aiControl.triggerManual?.();
+  };
+
+  const cfg = {
+    idle:    { dot: '#6b7280', text: '✦ AI',     bg: 'transparent',         border: '#3b4048', label: 'Click to get AI suggestion' },
+    loading: { dot: '#f59e0b', text: '⟳ AI…',   bg: 'rgba(245,158,11,0.1)', border: '#f59e0b66', label: 'AI is thinking…' },
+    ready:   { dot: '#22c55e', text: '✓ AI',     bg: 'rgba(34,197,94,0.1)', border: '#22c55e66', label: 'Suggestion ready — press Tab to accept. Click to refresh.' },
+    error:   { dot: '#ef4444', text: '✗ AI',     bg: 'rgba(239,68,68,0.1)', border: '#ef444466', label: 'AI failed — click to retry' },
+  }[aiState];
+
+  return (
+    <button
+      title={cfg.label}
+      onClick={handleClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '0 8px',
+        height: '100%',
+        background: cfg.bg,
+        border: 'none',
+        borderLeft: `1px solid ${cfg.border}`,
+        borderRight: `1px solid ${cfg.border}`,
+        color: cfg.dot,
+        cursor: 'pointer',
+        fontSize: 11,
+        fontFamily: 'inherit',
+        fontWeight: 600,
+        letterSpacing: '0.03em',
+        transition: 'background 0.15s',
+        flexShrink: 0,
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.filter = 'brightness(1.25)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = 'none'; }}
+    >
+      <span style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: cfg.dot,
+        display: 'inline-block',
+        flexShrink: 0,
+        boxShadow: aiState === 'loading' ? `0 0 6px ${cfg.dot}` : aiState === 'ready' ? `0 0 4px ${cfg.dot}88` : 'none',
+      }} />
+      {cfg.text}
+    </button>
+  );
+}
 
 /* ─── mobile hook ─── */
 function useIsMobile() {
@@ -751,17 +813,18 @@ function DesktopApp() {
       </div>
 
       {/* ── Status Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 22, flexShrink: 0, background: '#007acc', padding: '0 12px', gap: 16, fontSize: 11, color: 'rgba(255,255,255,0.85)', zIndex: 200 }}>
-        <span style={{ fontWeight: 600 }}>HTML Editor</span>
-        <span>Mode: {mode}</span>
-        <span>{activeFileName}</span>
+      <div style={{ display: 'flex', alignItems: 'center', height: 24, flexShrink: 0, background: '#007acc', padding: '0 0 0 12px', gap: 0, fontSize: 11, color: 'rgba(255,255,255,0.9)', zIndex: 200 }}>
+        <span style={{ fontWeight: 600, paddingRight: 12, borderRight: '1px solid rgba(255,255,255,0.2)' }}>HTML Editor</span>
+        <span style={{ padding: '0 12px' }}>Mode: {mode}</span>
+        <span style={{ padding: '0 12px', opacity: 0.8 }}>{activeFileName}</span>
         <div style={{ flex: 1 }} />
-        <span style={{ opacity: 0.7, fontSize: 10 }}>
+        <span style={{ opacity: 0.6, fontSize: 10, paddingRight: 12 }}>
           {wins.filter(w => w.visible && w.docked).map(w => winTitle[w.id]).join(' · ')}
           {wins.some(w => w.visible && !w.docked) && <> + {wins.filter(w => w.visible && !w.docked).length} floating</>}
         </span>
-        <span>{files.length} files</span>
-        <span>UTF-8</span>
+        <span style={{ padding: '0 10px', borderLeft: '1px solid rgba(255,255,255,0.2)', opacity: 0.8 }}>{files.length} files</span>
+        <span style={{ padding: '0 10px', borderLeft: '1px solid rgba(255,255,255,0.2)', opacity: 0.8 }}>UTF-8</span>
+        <AiStatusButton />
       </div>
 
       {/* ── Toast ── */}
