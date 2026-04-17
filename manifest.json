@@ -1,0 +1,31 @@
+{
+  "name": "HTML Editor by Jignesh",
+  "short_name": "HTML Editor",
+  "description": "Free online HTML editor with Monaco, live preview, visual editing (auto-sync to code), templates, import/export, and share links.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d0d12",
+  "theme_color": "#6c63ff",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "logo-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
