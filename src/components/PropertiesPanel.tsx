@@ -226,6 +226,115 @@ function SpacingGrid({ props, getS, apply }: { props: [string, string][]; getS: 
   );
 }
 
+function parseGradient(value: string) {
+  const raw = value || '';
+  const type = raw.startsWith('radial-gradient') ? 'radial' : raw.startsWith('linear-gradient') ? 'linear' : 'none';
+  const colorMatches = raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) || [];
+  const usableColors = colorMatches.filter(v => !['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'].includes(v.toLowerCase()));
+  const angleMatch = raw.match(/(-?\d+(?:\.\d+)?)deg/i);
+  return {
+    type,
+    angle: angleMatch?.[1] || '135',
+    color1: usableColors[0] || '#ff7a18',
+    color2: usableColors[1] || '#af002d',
+  };
+}
+
+function buildGradient(type: string, angle: string, color1: string, color2: string) {
+  if (type === 'radial') return `radial-gradient(circle, ${color1}, ${color2})`;
+  if (type === 'linear') return `linear-gradient(${angle || '135'}deg, ${color1}, ${color2})`;
+  return 'none';
+}
+
+function GradientControls({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parsed = parseGradient(value);
+  const [type, setType] = useState(parsed.type);
+  const [angle, setAngle] = useState(parsed.angle);
+  const [color1, setColor1] = useState(parsed.color1);
+  const [color2, setColor2] = useState(parsed.color2);
+
+  useEffect(() => {
+    const next = parseGradient(value);
+    setType(next.type);
+    setAngle(next.angle);
+    setColor1(next.color1);
+    setColor2(next.color2);
+  }, [value]);
+
+  const applyGradient = (next: Partial<{ type: string; angle: string; color1: string; color2: string }>) => {
+    const nextType = next.type ?? type;
+    const nextAngle = next.angle ?? angle;
+    const nextColor1 = next.color1 ?? color1;
+    const nextColor2 = next.color2 ?? color2;
+    setType(nextType);
+    setAngle(nextAngle);
+    setColor1(nextColor1);
+    setColor2(nextColor2);
+    onChange(buildGradient(nextType, nextAngle, nextColor1, nextColor2));
+  };
+
+  const preview = buildGradient(type === 'none' ? 'linear' : type, angle, color1, color2);
+  const presets = [
+    ['Sunset', 'linear', '135', '#ff7a18', '#af002d'],
+    ['Ocean', 'linear', '135', '#00c6ff', '#0072ff'],
+    ['Purple', 'linear', '135', '#8e2de2', '#4a00e0'],
+    ['Mint', 'linear', '135', '#00f5a0', '#00d9f5'],
+    ['Fire', 'radial', '135', '#f9d423', '#ff4e50'],
+    ['Dark', 'linear', '135', '#232526', '#414345'],
+  ] as const;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: 8, background: 'rgba(0,0,0,0.12)', border: `1px solid ${C.border}`, borderRadius: 6 }}>
+      <div style={{ height: 34, borderRadius: 5, border: `1px solid ${C.border}`, background: type === 'none' ? C.surface2 : preview }} />
+      <Row label="Type">
+        <select style={selBase} value={type} onChange={e => applyGradient({ type: e.target.value })}>
+          <option value="none">none</option>
+          <option value="linear">linear</option>
+          <option value="radial">radial</option>
+        </select>
+      </Row>
+      {type !== 'none' && (
+        <>
+          <Row label="Color 1">
+            <ColorInput value={color1} onChange={v => applyGradient({ color1: v })} />
+          </Row>
+          <Row label="Color 2">
+            <ColorInput value={color2} onChange={v => applyGradient({ color2: v })} />
+          </Row>
+          {type === 'linear' && (
+            <Row label="Angle">
+              <input
+                type="range" min="0" max="360" step="1" value={angle}
+                style={{ flex: 1, accentColor: C.accent } as any}
+                onChange={e => applyGradient({ angle: (e.target as HTMLInputElement).value })}
+              />
+              <span style={{ fontSize: 11, color: C.muted, width: 42, textAlign: 'right', flexShrink: 0 }}>{angle}°</span>
+            </Row>
+          )}
+        </>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+        {presets.map(([label, presetType, presetAngle, presetColor1, presetColor2]) => (
+          <button
+            key={label}
+            onClick={() => applyGradient({ type: presetType, angle: presetAngle, color1: presetColor1, color2: presetColor2 })}
+            style={{
+              height: 28, borderRadius: 5, border: `1px solid ${C.border}`, cursor: 'pointer',
+              color: '#fff', fontSize: 9, textShadow: '0 1px 2px rgba(0,0,0,0.55)',
+              background: buildGradient(presetType, presetAngle, presetColor1, presetColor2),
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <Row label="Custom">
+        <PropInput value={value || ''} onChange={onChange} placeholder="linear-gradient(135deg, #ff7a18, #af002d)" />
+      </Row>
+    </div>
+  );
+}
+
 /* ─── Main component ──────────────────────────────────────── */
 const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ hideHeader }) => {
   const {
@@ -443,8 +552,10 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           <Row label="Color">
             <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} />
           </Row>
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>Gradient</div>
+          <GradientControls value={getS('background-image') || ''} onChange={v => apply('background-image', v)} />
           <Row label="Image">
-            <PropInput value={getS('background-image') || ''} onChange={v => apply('background-image', v)} placeholder="url(...)" />
+            <PropInput value={getS('background-image') || ''} onChange={v => apply('background-image', v)} placeholder="url(...) or gradient(...)" />
           </Row>
           <Row label="Size">
             <BtnGroup options={['auto', 'cover', 'contain']} value={getS('background-size') || 'auto'} onChange={v => apply('background-size', v)} />
