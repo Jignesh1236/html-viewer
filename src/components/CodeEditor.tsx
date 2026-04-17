@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
@@ -74,34 +74,84 @@ const VOID_HTML_TAGS = new Set([
 
 let inlineAiProviderRegistered = false;
 
+// Simple LRU-style cache: key = prefix hash, value = suggestion
+const aiSuggestionCache = new Map<string, string>();
+const AI_CACHE_MAX = 40;
+
+// Pending debounce handle
+let aiDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Reactive status for the AI badge
+export const aiStatus = { loading: false, lastError: false, listeners: new Set<() => void>() };
+function setAiStatus(loading: boolean, error = false) {
+  aiStatus.loading = loading;
+  aiStatus.lastError = error;
+  aiStatus.listeners.forEach(fn => fn());
+}
+
 function getLanguageForFile(file: { name: string; type: string }) {
   const extension = file.name.split('.').pop()?.toLowerCase() || '';
   return EXTENSION_LANG_MAP[extension] || LANG_MAP[file.type] || 'plaintext';
 }
 
-function cleanAiSuggestion(text: string) {
-  return text
-    .trim()
-    .replace(/^```[\w-]*\s*/i, '')
-    .replace(/\s*```$/i, '')
+function cleanAiSuggestion(raw: string): string {
+  return raw
+    .replace(/^```[\w-]*\n?/i, '')
+    .replace(/\n?```$/i, '')
     .replace(/^`+|`+$/g, '')
     .trimEnd()
-    .slice(0, 1200);
+    .slice(0, 1500);
 }
 
-function getPromptForSuggestion(language: string, fileName: string, prefix: string, suffix: string) {
+function buildPrompt(language: string, fileName: string, prefix: string, suffix: string) {
   return [
-    'You are an inline code completion engine like GitHub Copilot.',
-    'Return only the next code to insert at the cursor.',
-    'Do not explain anything. Do not wrap the answer in markdown.',
-    `Language: ${language}`,
-    `File: ${fileName}`,
-    'Code before cursor:',
-    prefix.slice(-1800),
-    'Code after cursor:',
-    suffix.slice(0, 800),
-    'Completion:',
+    'You are an expert inline code completion AI, similar to GitHub Copilot.',
+    'Output ONLY the code to insert at the cursor — nothing else.',
+    'No explanations, no markdown fences, no prose.',
+    'Complete the code naturally for 1-5 lines, matching indentation and style.',
+    `Language: ${language}. File: ${fileName}.`,
+    '--- CODE BEFORE CURSOR ---',
+    prefix.slice(-2000),
+    '--- CODE AFTER CURSOR ---',
+    suffix.slice(0, 600),
+    '--- COMPLETION (raw code only) ---',
   ].join('\n');
+}
+
+function cacheKey(prefix: string, language: string): string {
+  const trimmed = prefix.slice(-300);
+  return `${language}::${trimmed}`;
+}
+
+async function fetchAiSuggestion(
+  language: string,
+  fileName: string,
+  prefix: string,
+  suffix: string,
+  signal: AbortSignal,
+): Promise<string> {
+  const key = cacheKey(prefix, language);
+
+  if (aiSuggestionCache.has(key)) {
+    return aiSuggestionCache.get(key)!;
+  }
+
+  const prompt = buildPrompt(language, fileName, prefix, suffix);
+  const url = `https://text.pollinations.ai/${encodeURIComponent(prompt)}`;
+
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(`AI API ${res.status}`);
+
+  const text = cleanAiSuggestion(await res.text());
+
+  if (text) {
+    if (aiSuggestionCache.size >= AI_CACHE_MAX) {
+      aiSuggestionCache.delete(aiSuggestionCache.keys().next().value!);
+    }
+    aiSuggestionCache.set(key, text);
+  }
+
+  return text;
 }
 
 function registerPollinationsInlineSuggestions(monaco: any) {
@@ -109,42 +159,70 @@ function registerPollinationsInlineSuggestions(monaco: any) {
   inlineAiProviderRegistered = true;
 
   monaco.languages.registerInlineCompletionsProvider('*', {
-    provideInlineCompletions: async (model: any, position: any, _context: any, token: any) => {
-      const wordUntilPosition = model.getWordUntilPosition(position);
+    provideInlineCompletions: (model: any, position: any, _context: any, token: any) => {
       const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
 
-      if (!linePrefix.trim() && !wordUntilPosition.word) {
-        return { items: [], dispose: () => undefined };
+      // Don't trigger on empty lines or very short input
+      if (linePrefix.trim().length < 2) {
+        return Promise.resolve({ items: [], dispose: () => undefined });
       }
 
-      try {
-        const fullText = model.getValue();
-        const offset = model.getOffsetAt(position);
-        const language = model.getLanguageId();
-        const fileName = model.uri?.path?.split('/').pop() || 'untitled';
-        const prompt = getPromptForSuggestion(language, fileName, fullText.slice(0, offset), fullText.slice(offset));
-        const response = await fetch(`https://text.pollinations.ai/prompt/${encodeURIComponent(prompt)}`);
+      const fullText = model.getValue();
+      const offset = model.getOffsetAt(position);
+      const language = model.getLanguageId();
+      const fileName = model.uri?.path?.split('/').pop() || 'untitled';
+      const prefix = fullText.slice(0, offset);
+      const suffix = fullText.slice(offset);
 
-        if (!response.ok || token.isCancellationRequested) {
-          return { items: [], dispose: () => undefined };
-        }
-
-        const suggestion = cleanAiSuggestion(await response.text());
-
-        if (!suggestion || token.isCancellationRequested) {
-          return { items: [], dispose: () => undefined };
-        }
-
-        return {
+      // Check cache first — instant response
+      const cached = aiSuggestionCache.get(cacheKey(prefix, language));
+      if (cached) {
+        return Promise.resolve({
           items: [{
-            insertText: suggestion,
+            insertText: cached,
             range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
           }],
           dispose: () => undefined,
-        };
-      } catch {
-        return { items: [], dispose: () => undefined };
+        });
       }
+
+      // Debounced network fetch wrapped in a Promise
+      return new Promise<{ items: any[]; dispose: () => void }>((resolve) => {
+        if (aiDebounceTimer) clearTimeout(aiDebounceTimer);
+
+        aiDebounceTimer = setTimeout(async () => {
+          if (token.isCancellationRequested) {
+            resolve({ items: [], dispose: () => undefined });
+            return;
+          }
+
+          const abortCtrl = new AbortController();
+          const cancelSub = token.onCancellationRequested(() => abortCtrl.abort());
+
+          setAiStatus(true);
+          try {
+            const suggestion = await fetchAiSuggestion(language, fileName, prefix, suffix, abortCtrl.signal);
+
+            if (!suggestion || token.isCancellationRequested) {
+              resolve({ items: [], dispose: () => undefined });
+            } else {
+              resolve({
+                items: [{
+                  insertText: suggestion,
+                  range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                }],
+                dispose: () => undefined,
+              });
+            }
+          } catch {
+            setAiStatus(false, true);
+            resolve({ items: [], dispose: () => undefined });
+          } finally {
+            setAiStatus(false);
+            cancelSub?.dispose();
+          }
+        }, 420); // 420 ms debounce — feels like Copilot
+      });
     },
     freeInlineCompletions: () => undefined,
   });
@@ -185,6 +263,52 @@ function fileIcon(type: string) {
   return <VscFile style={{ color: '#aaa', flexShrink: 0 }} size={14} />;
 }
 
+function AiBadge() {
+  const [state, setState] = useState({ loading: false, lastError: false });
+  useEffect(() => {
+    const handler = () => setState({ loading: aiStatus.loading, lastError: aiStatus.lastError });
+    aiStatus.listeners.add(handler);
+    return () => { aiStatus.listeners.delete(handler); };
+  }, []);
+
+  const color = state.loading ? '#f59e0b' : state.lastError ? '#ef4444' : '#22c55e';
+  const label = state.loading ? 'AI…' : state.lastError ? 'AI ✗' : 'AI ✓';
+  const title = state.loading
+    ? 'AI is generating a suggestion…'
+    : state.lastError
+    ? 'AI suggestion failed – will retry on next keystroke'
+    : 'AI inline completions active (Tab to accept)';
+
+  return (
+    <div title={title} style={{
+      marginLeft: 'auto',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 4,
+      padding: '2px 8px',
+      borderRadius: 4,
+      background: 'rgba(0,0,0,0.25)',
+      border: `1px solid ${color}44`,
+      flexShrink: 0,
+      cursor: 'default',
+      userSelect: 'none',
+    }}>
+      <span style={{
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: color,
+        display: 'inline-block',
+        boxShadow: state.loading ? `0 0 6px ${color}` : 'none',
+        animation: state.loading ? 'pulse 1s ease-in-out infinite' : 'none',
+      }} />
+      <span style={{ fontSize: 10, color, fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 const CodeEditor: React.FC = () => {
   const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
 
@@ -208,7 +332,7 @@ const CodeEditor: React.FC = () => {
   return (
     <div className="editor-pane" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Tab bar */}
-      <div className="editor-tabs" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden', flexShrink: 0 }}>
+      <div className="editor-tabs" style={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', overflowY: 'hidden', flexShrink: 0, alignItems: 'center', paddingRight: 8 }}>
         {files.map(file => (
           <div
             key={file.id}
@@ -220,6 +344,7 @@ const CodeEditor: React.FC = () => {
             <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</span>
           </div>
         ))}
+        <AiBadge />
       </div>
 
       {/* Content area */}
