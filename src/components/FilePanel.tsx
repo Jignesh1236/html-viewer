@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useEditorStore, FileItem } from '../store/editorStore';
 import { FiPlus, FiUpload, FiX, FiCheck, FiTrash2, FiAlertTriangle, FiFolder, FiFolderPlus, FiChevronRight, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import { useContextMenu } from './ContextMenu';
+import { getFileTypeForName, isImageExtension, isTextExtension } from '../utils/fileTypes';
 
 const DEVICON_MAP: Record<string, { icon: string; color: string }> = {
   html:  { icon: 'devicon-html5-plain',       color: '#e34c26' },
@@ -124,13 +125,13 @@ const FileDialog: React.FC<{
             </div>
             <input ref={inputRef} value={value} onChange={e => { setValue(e.target.value); setError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); if (e.key === 'Escape') onCancel(); }}
-              placeholder={dialog.mode === 'create-file' ? 'e.g. about.html, extra.css' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
+              placeholder={dialog.mode === 'create-file' ? 'e.g. about.html, App.tsx, package.json' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
               style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: `1px solid ${error ? 'rgba(248,68,68,0.6)' : '#444'}`, borderRadius: 5, padding: '7px 10px', fontSize: 12.5, color: '#e0e0e0', outline: 'none', fontFamily: 'monospace', transition: 'border-color 0.15s' }}
               onFocus={e => { if (!error) e.currentTarget.style.borderColor = '#e5a45a66'; }}
               onBlur={e => { if (!error) e.currentTarget.style.borderColor = '#444'; }}
             />
             {error && <div style={{ fontSize: 10.5, color: '#f87171', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><FiAlertTriangle size={10} /> {error}</div>}
-            {!error && dialog.mode === 'create-file' && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Extension determines file type (.html, .css, .js)</div>}
+            {!error && dialog.mode === 'create-file' && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Extension determines file type (.html, .css, .js, .ts, .tsx, .jsx)</div>}
           </div>
         )}
         {isDelete && <div style={{ fontSize: 11.5, color: '#aaa', marginBottom: 14, lineHeight: 1.5 }}>
@@ -193,9 +194,8 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
 
   const importSingleFile = useCallback((file: File, targetFolder?: string) => {
     const name = file.name;
-    const ext = name.split('.').pop()?.toLowerCase();
-    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
-    const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
+    const isImage = isImageExtension(name);
+    const isText = isTextExtension(name);
     const fileId = targetFolder ? `${targetFolder}/${name}` : name;
     if (isImage) {
       addFile({ id: fileId, name, type: 'image', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
@@ -203,7 +203,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const reader = new FileReader();
       reader.onload = e => {
         const content = e.target?.result as string;
-        const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
+        const type = getFileTypeForName(name);
         addFile({ id: fileId, name, type, content, folder: targetFolder });
       };
       reader.readAsText(file);
@@ -264,10 +264,9 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const folder = dialog.targetFolder;
       const fileId = folder ? `${folder}/${name}` : name;
       if (files.find(f => f.id === fileId)) { showNotification(`"${name}" already exists`); return; }
-      const ext = name.split('.').pop()?.toLowerCase();
-      const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts') ? 'js' : 'other';
+      const type = getFileTypeForName(name);
       const starter = type === 'html' ? `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>New Page</title>\n</head>\n<body>\n\n</body>\n</html>` :
-        type === 'css' ? `/* ${name} */\n` : type === 'js' ? `// ${name}\n` : '';
+        type === 'css' ? `/* ${name} */\n` : (type === 'js' || type === 'ts' || type === 'tsx' || type === 'jsx') ? `// ${name}\n` : '';
       addFile({ id: fileId, name, type, content: starter, folder });
       setActiveFile(fileId);
       showNotification(`Created ${name}`);
@@ -366,7 +365,53 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
   };
 
   const rootFiles = files.filter(f => !f.folder);
-  const allFolderNames = Array.from(new Set([...folders, ...files.filter(f => f.folder).map(f => f.folder!)]));
+  const allFolderNames = Array.from(new Set([...folders, ...files.filter(f => f.folder).map(f => f.folder!)])).sort();
+
+  /* ── Nested folder tree ─────────────────────────────────────── */
+  interface FolderNode {
+    name: string;       // display name (last path segment)
+    fullPath: string;   // full path like 'src/components'
+    children: FolderNode[];
+    files: FileItem[];
+  }
+
+  function buildFolderTree(folderPaths: string[]): FolderNode[] {
+    const nodeMap = new Map<string, FolderNode>();
+    for (const fp of folderPaths) {
+      nodeMap.set(fp, {
+        name: fp.split('/').pop()!,
+        fullPath: fp,
+        children: [],
+        files: files.filter(f => f.folder === fp),
+      });
+    }
+    const roots: FolderNode[] = [];
+    for (const fp of folderPaths) {
+      const parts = fp.split('/');
+      if (parts.length === 1) {
+        roots.push(nodeMap.get(fp)!);
+      } else {
+        const parentPath = parts.slice(0, -1).join('/');
+        const parent = nodeMap.get(parentPath);
+        if (parent) parent.children.push(nodeMap.get(fp)!);
+        else roots.push(nodeMap.get(fp)!);
+      }
+    }
+    return roots;
+  }
+
+  const folderTree = buildFolderTree(allFolderNames);
+
+  /* Auto-collapse all folders except roots when there are many folders */
+  useEffect(() => {
+    if (allFolderNames.length > 4) {
+      setCollapsedFolders(new Set(allFolderNames));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFolderNames.length === 0 ? 0 : allFolderNames.join('\x00').length]);
+
+  const collapseAll = () => setCollapsedFolders(new Set(allFolderNames));
+  const expandAll   = () => setCollapsedFolders(new Set());
 
   const renderFileRow = (file: FileItem, indent = 0) => {
     const isActive = activeFileId === file.id;
@@ -412,43 +457,46 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
     );
   };
 
-  const renderFolder = (folderName: string) => {
-    const folderFiles = files.filter(f => f.folder === folderName);
-    const collapsed = collapsedFolders.has(folderName);
-    const isDragOver = draggingOver === folderName;
+  const renderFolderNode = (node: { name: string; fullPath: string; children: { name: string; fullPath: string; children: unknown[]; files: FileItem[] }[]; files: FileItem[] }, depth = 0): React.ReactNode => {
+    const { name, fullPath, children, files: nodeFiles } = node;
+    const collapsed = collapsedFolders.has(fullPath);
+    const isDragOver = draggingOver === fullPath;
+    const totalCount = nodeFiles.length + (children as { files: FileItem[] }[]).reduce((s, c) => s + c.files.length, 0);
     return (
-      <div key={folderName} data-folder-item="true">
+      <div key={fullPath} data-folder-item="true">
         <div
-          onContextMenu={e => handleFolderCtx(e, folderName)}
-          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDraggingOver(folderName); }}
+          onContextMenu={e => handleFolderCtx(e, fullPath)}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDraggingOver(fullPath); }}
           onDragLeave={e => { if (!(e.currentTarget as HTMLDivElement).contains(e.relatedTarget as Node)) setDraggingOver(null); }}
           onDrop={e => {
             e.preventDefault(); e.stopPropagation(); setDraggingOver(null);
             if (draggingFileIdRef.current) {
-              moveFileToFolder(draggingFileIdRef.current, folderName);
+              moveFileToFolder(draggingFileIdRef.current, fullPath);
               draggingFileIdRef.current = null;
             } else {
-              handleDropItems(e.dataTransfer.items, folderName);
+              handleDropItems(e.dataTransfer.items, fullPath);
             }
           }}
           style={{
-            display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px 4px 10px',
+            display: 'flex', alignItems: 'center', gap: 5,
+            padding: `4px 8px 4px ${10 + depth * 12}px`,
             cursor: 'pointer', userSelect: 'none', fontSize: 12.5,
             background: isDragOver ? 'rgba(229,164,90,0.1)' : 'transparent',
             border: isDragOver ? '1px dashed rgba(229,164,90,0.5)' : '1px solid transparent',
             borderRadius: 3, color: '#bbb', transition: 'background 0.1s',
           }}
-          onClick={() => toggleFolder(folderName)}
+          onClick={() => toggleFolder(fullPath)}
           onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = isDragOver ? 'rgba(229,164,90,0.1)' : 'rgba(255,255,255,0.04)'; }}
           onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isDragOver ? 'rgba(229,164,90,0.1)' : 'transparent'; }}
         >
+          {depth > 0 && <span style={{ display: 'block', width: 1, height: 14, background: '#333', flexShrink: 0, marginRight: 2 }} />}
           <span style={{ color: '#666', display: 'flex', flexShrink: 0 }}>
             {collapsed ? <FiChevronRight size={11} /> : <FiChevronDown size={11} />}
           </span>
           <FiFolder size={13} color={isDragOver ? C.accent : '#c09040'} style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folderName}</span>
-          <span style={{ fontSize: 10, color: '#555' }}>{folderFiles.length}</span>
-          <button onClick={e => { e.stopPropagation(); setDialog({ mode: 'create-file', targetFolder: folderName }); }}
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+          <span style={{ fontSize: 10, color: '#555' }}>{totalCount}</span>
+          <button onClick={e => { e.stopPropagation(); setDialog({ mode: 'create-file', targetFolder: fullPath }); }}
             title="New file in folder"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, display: 'flex', borderRadius: 2, opacity: 0, flexShrink: 0 }}
             onMouseEnter={e => { e.currentTarget.style.color = C.accent; e.currentTarget.style.opacity = '1'; }}
@@ -457,9 +505,10 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
             <FiPlus size={11} />
           </button>
         </div>
-        {!collapsed && folderFiles.map(f => renderFileRow(f, 1))}
-        {!collapsed && folderFiles.length === 0 && (
-          <div style={{ paddingLeft: 28, fontSize: 11, color: '#444', padding: '3px 0 3px 28px', fontStyle: 'italic' }}>
+        {!collapsed && (children as Parameters<typeof renderFolderNode>[0][]).map(child => renderFolderNode(child, depth + 1))}
+        {!collapsed && nodeFiles.map(f => renderFileRow(f, depth + 1))}
+        {!collapsed && nodeFiles.length === 0 && children.length === 0 && (
+          <div style={{ paddingLeft: 10 + (depth + 1) * 12, fontSize: 11, color: '#444', padding: `3px 0 3px ${10 + (depth + 1) * 12}px`, fontStyle: 'italic' }}>
             Empty — drop files here
           </div>
         )}
@@ -503,8 +552,22 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
         </div>
       )}
 
-      <div style={{ padding: '5px 12px 2px', fontSize: 10, color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-        Project Files
+      <div style={{ display: 'flex', alignItems: 'center', padding: '5px 8px 2px 12px' }}>
+        <span style={{ fontSize: 10, color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase', flex: 1 }}>
+          Project Files
+        </span>
+        {allFolderNames.length > 0 && (
+          <>
+            <button title="Collapse all folders" onClick={collapseAll}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '1px 4px', fontSize: 10, borderRadius: 3, fontFamily: 'inherit' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#555'; }}>⊟</button>
+            <button title="Expand all folders" onClick={expandAll}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: '1px 4px', fontSize: 10, borderRadius: 3, fontFamily: 'inherit' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#555'; }}>⊞</button>
+          </>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '2px 0' }}
@@ -519,7 +582,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
           }
         }}>
 
-        {allFolderNames.map(folderName => renderFolder(folderName))}
+        {folderTree.map(node => renderFolderNode(node, 0))}
 
         {rootFiles.map(f => renderFileRow(f, 0))}
       </div>

@@ -3,10 +3,15 @@ import { useEditorStore } from '../store/editorStore';
 import {
   FiRefreshCw, FiMonitor, FiTablet, FiSmartphone,
   FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
+  FiLock, FiTrash2, FiPlay, FiSquare, FiSettings,
 } from 'react-icons/fi';
 import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
+import { createPreviewFrame, buildStaticPreviewHtml } from '../utils/previewEngine';
+import type { PreviewFrame } from '../utils/previewEngine';
+import { projectTypeLabel } from '../utils/fileTypes';
+import { startWebContainerPreview, stopWebContainerRuntime } from '../utils/webContainerRuntime';
 
-type DevToolsTab = 'console' | 'elements' | 'network' | 'styles';
+type DevToolsTab = 'console' | 'network' | 'styles';
 
 const PreviewPane: React.FC = () => {
   const {
@@ -18,16 +23,19 @@ const PreviewPane: React.FC = () => {
   } = useEditorStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [srcDoc, setSrcDoc] = useState<string>('');
+  const [previewFrame, setPreviewFrame] = useState<PreviewFrame>(() => createPreviewFrame([], { mode: 'srcdoc' }));
+  const [previewMode, setPreviewMode] = useState<'srcdoc' | 'url'>('srcdoc');
+  const objectUrlRef = useRef<string | null>(null);
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [devtoolsTab, setDevtoolsTab] = useState<DevToolsTab>('console');
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [loading, setLoading] = useState(false);
   const [fadeIn, setFadeIn] = useState(false);
-  const [elementsHtml, setElementsHtml] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
   const [currentUrl, setCurrentUrl] = useState('preview://localhost/');
+  const runtimeRunRef = useRef(0);
+  const [runtimeStatus, setRuntimeStatus] = useState('');
   const historyIdxRef = useRef(-1);
   useEffect(() => { historyIdxRef.current = historyIdx; }, [historyIdx]);
 
@@ -35,6 +43,9 @@ const PreviewPane: React.FC = () => {
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const newTabBtnRef = useRef<HTMLButtonElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [customPort, setCustomPort] = useState('3000');
+  const [runtimeRunning, setRuntimeRunning] = useState(false);
 
   const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
 
@@ -64,113 +75,8 @@ const PreviewPane: React.FC = () => {
     }
   }, [files, addPreviewTab]);
 
-  // Build the srcdoc that injects all project files into the HTML
   const buildSrcDoc = useCallback(() => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
-
-    let html = htmlFile.content;
-
-    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    files.filter(f => f.type === 'css').forEach(css => {
-      const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
-      // Match by file.name or file.id (folder path like "styles/main.css")
-      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const linkRe = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
-        if (linkRe.test(html)) { html = html.replace(linkRe, tag); matched = true; break; }
-      }
-      if (!matched) {
-        if (html.toLowerCase().includes('</head>')) {
-          html = html.replace(/<\/head>/i, `${tag}\n</head>`);
-        } else { html = `${tag}\n${html}`; }
-      }
-    });
-
-    files.filter(f => f.type === 'js').forEach(js => {
-      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
-      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const scriptRe = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\/script>`, 'gi');
-        if (scriptRe.test(html)) { html = html.replace(scriptRe, tag); matched = true; break; }
-      }
-      if (!matched) { html = html.replace('</body>', `${tag}\n</body>`); }
-    });
-
-    files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
-      for (const ref of refs) {
-        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
-      }
-    });
-
-    if (timelineAnimationStyle.trim()) {
-      const timelineStyleTag = `<style id="__timeline-preview-anim-style">\n${timelineAnimationStyle}\n</style>`;
-      if (html.toLowerCase().includes('</head>')) {
-        html = html.replace(/<\/head>/i, `${timelineStyleTag}\n</head>`);
-      } else {
-        html = `${timelineStyleTag}\n${html}`;
-      }
-    }
-
-    const bridgeScript = `<script>
-(function() {
-  const _types = ['log','error','warn','info','debug'];
-  _types.forEach(function(t) {
-    const orig = console[t].bind(console);
-    console[t] = function() {
-      orig.apply(console, arguments);
-      try {
-        const msg = Array.from(arguments).map(function(a) {
-          if (a === null) return 'null';
-          if (a === undefined) return 'undefined';
-          try { return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }
-          catch(e) { return String(a); }
-        }).join(' ');
-        window.parent.postMessage({ __htmlEditor: true, type: 'console', level: t, message: msg }, '*');
-      } catch(e) {}
-    };
-  });
-  window.addEventListener('error', function(e) {
-    window.parent.postMessage({ __htmlEditor: true, type: 'console', level: 'error', message: 'Uncaught ' + e.message + '\\n  at ' + e.filename + ':' + e.lineno + ':' + e.colno }, '*');
-  });
-  window.addEventListener('unhandledrejection', function(e) {
-    window.parent.postMessage({ __htmlEditor: true, type: 'console', level: 'error', message: 'UnhandledPromiseRejection: ' + e.reason }, '*');
-  });
-  function sendMeta() {
-    var title = document.title || 'Untitled';
-    var favicon = '';
-    var links = document.querySelectorAll('link[rel*="icon"]');
-    if (links.length > 0) favicon = links[links.length - 1].href || '';
-    window.parent.postMessage({ __htmlEditor: true, type: 'meta', title: title, favicon: favicon }, '*');
-  }
-  document.addEventListener('DOMContentLoaded', sendMeta);
-  var titleEl = document.querySelector('title');
-  if (titleEl) {
-    var mo = new MutationObserver(sendMeta);
-    mo.observe(titleEl, { childList: true, characterData: true, subtree: true });
-  }
-  var _pushState = history.pushState.bind(history);
-  var _replaceState = history.replaceState.bind(history);
-  history.pushState = function() { _pushState.apply(history, arguments); sendNav(); };
-  history.replaceState = function() { _replaceState.apply(history, arguments); sendNav(); };
-  window.addEventListener('popstate', sendNav);
-  function sendNav() {
-    window.parent.postMessage({ __htmlEditor: true, type: 'navigate', url: location.href }, '*');
-  }
-})();
-<\/script>`;
-
-    if (html.includes('<head>')) {
-      html = html.replace('<head>', '<head>' + bridgeScript);
-    } else {
-      html = bridgeScript + html;
-    }
-
-    return html;
+    return buildStaticPreviewHtml(files, { timelineAnimationStyle });
   }, [files, timelineAnimationStyle]);
 
   // Listen for postMessages from iframe
@@ -201,26 +107,85 @@ const PreviewPane: React.FC = () => {
     return () => window.removeEventListener('message', handler);
   }, [activePreviewTabId, addConsoleEntry, updatePreviewTab]);
 
-  const scheduleRebuild = useCallback((forceRemount = false) => {
+  const scheduleRebuild = useCallback((forceRemount = false, modeOverride?: 'srcdoc' | 'url') => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     rebuildTimerRef.current = setTimeout(() => {
+      const runId = ++runtimeRunRef.current;
+      const mode = modeOverride ?? previewMode;
       setLoading(true);
       setFadeIn(false);
-      setCurrentUrl('preview://localhost/');
-      setHistory(['preview://localhost/']);
+      const frame = createPreviewFrame(files, {
+        mode,
+        timelineAnimationStyle,
+        previousObjectUrl: objectUrlRef.current || undefined,
+      });
+      objectUrlRef.current = frame.mode === 'url' ? frame.value : null;
+      setPreviewFrame(frame);
+      setCurrentUrl(frame.url);
+      setHistory([frame.url]);
       setHistoryIdx(0);
       if (forceRemount) setIframeKey(k => k + 1);
-      setSrcDoc(buildSrcDoc());
+
+      if (mode === 'url' && frame.projectType !== 'static') {
+        startWebContainerPreview(files, frame.projectType, {
+          onStatus: (_phase, message) => {
+            if (runtimeRunRef.current === runId) setRuntimeStatus(message);
+          },
+          onConsole: (level, message) => {
+            addConsoleEntry({ type: level as any, message, timestamp: new Date() });
+          },
+        }).then(result => {
+          if (runtimeRunRef.current !== runId) return;
+          const runtimeFrame: PreviewFrame = {
+            mode: 'url',
+            value: result.url,
+            projectType: frame.projectType,
+            runtimeLabel: result.runtimeLabel,
+            url: result.url,
+          };
+          setRuntimeStatus(`Running ${result.command}`);
+          setPreviewFrame(runtimeFrame);
+          setCurrentUrl(result.url);
+          setHistory([result.url]);
+          setHistoryIdx(0);
+          setIframeKey(k => k + 1);
+        }).catch(err => {
+          if (runtimeRunRef.current !== runId) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setRuntimeStatus('Runtime unavailable');
+          setLoading(false);
+          setPreviewFrame({
+            ...frame,
+            error: message,
+          });
+          addConsoleEntry({ type: 'error', message, timestamp: new Date() });
+        });
+      } else {
+        setRuntimeStatus('');
+        if (mode === 'srcdoc') stopWebContainerRuntime().catch(() => {});
+      }
     }, 120);
-  }, [buildSrcDoc]);
+  }, [files, previewMode, timelineAnimationStyle, addConsoleEntry]);
 
   const openInBrowser = useCallback(() => {
+    if (previewFrame.mode === 'url') {
+      window.open(previewFrame.value, '_blank');
+      return;
+    }
     const html = buildSrcDoc();
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [buildSrcDoc]);
+  }, [buildSrcDoc, previewFrame]);
+
+  useEffect(() => {
+    return () => {
+      runtimeRunRef.current += 1;
+      stopWebContainerRuntime().catch(() => {});
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
 
   // Rebuild srcdoc on file changes or explicit refresh
   useEffect(() => {
@@ -244,30 +209,20 @@ const PreviewPane: React.FC = () => {
     scheduleRebuild();
   }, [activePreviewTabId, activeTab?.previewType, scheduleRebuild]);
 
+  const runProject = useCallback(() => {
+    setPreviewMode('url');
+    scheduleRebuild(true, 'url');
+  }, [scheduleRebuild]);
+
+  const useInstantPreview = useCallback(() => {
+    setPreviewMode('srcdoc');
+    stopWebContainerRuntime().catch(() => {});
+    scheduleRebuild(true, 'srcdoc');
+  }, [scheduleRebuild]);
+
   const handleIframeLoad = () => {
     setLoading(false);
     requestAnimationFrame(() => setFadeIn(true));
-    try {
-      const doc = iframeRef.current?.contentDocument;
-      if (doc) setElementsHtml(formatHTML(doc.documentElement.outerHTML));
-    } catch {}
-  };
-
-  const formatHTML = (html: string) => {
-    let indent = 0;
-    return html
-      .replace(/></g, '>\n<')
-      .split('\n')
-      .map(line => {
-        const trimmed = line.trim();
-        if (!trimmed) return '';
-        if (trimmed.startsWith('</')) indent = Math.max(0, indent - 1);
-        const out = '  '.repeat(indent) + trimmed;
-        if (!trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.includes('</')) indent++;
-        return out;
-      })
-      .filter(Boolean)
-      .join('\n');
   };
 
   const viewportStyle = {
@@ -302,28 +257,31 @@ const PreviewPane: React.FC = () => {
             onClick={() => setActivePreviewTab(tab.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              height: 26, maxWidth: 180, minWidth: 80,
-              padding: '0 8px',
-              borderRadius: '4px 4px 0 0',
+              height: '100%', maxWidth: 200, minWidth: 90,
+              padding: '0 10px',
               background: tab.active ? '#1e1e1e' : 'transparent',
-              border: tab.active ? '1px solid #3e3e3e' : '1px solid transparent',
-              borderBottom: tab.active ? '1px solid #1e1e1e' : 'none',
+              borderRight: '1px solid #333',
+              borderTop: tab.active ? '2px solid #e5a45a' : '2px solid transparent',
               cursor: 'pointer',
               position: 'relative',
-              top: tab.active ? 1 : 0,
               flex: '0 1 160px',
+              userSelect: 'none',
+              transition: 'background 0.1s',
             }}
+            onMouseEnter={e => { if (!tab.active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+            onMouseLeave={e => { if (!tab.active) e.currentTarget.style.background = 'transparent'; }}
           >
             {tab.previewType === 'image'
               ? <FiImage size={11} style={{ color: '#8bc34a', flexShrink: 0 }} />
               : (tab.favicon
-                ? <img src={tab.favicon} style={{ width: 12, height: 12, flexShrink: 0 }} alt="" />
-                : <div style={{ width: 12, height: 12, background: '#555', borderRadius: 2, flexShrink: 0 }} />
+                ? <img src={tab.favicon} style={{ width: 12, height: 12, flexShrink: 0, borderRadius: 2 }} alt="" />
+                : <div style={{ width: 10, height: 10, background: tab.active ? '#e5a45a' : '#444', borderRadius: '50%', flexShrink: 0 }} />
               )
             }
             <span style={{
-              fontSize: 11, color: tab.active ? '#ccc' : '#888',
+              fontSize: 12, color: tab.active ? '#d4d4d4' : '#888',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+              fontWeight: tab.active ? 500 : 400,
             }}>
               {tab.title || 'Loading…'}
             </span>
@@ -331,11 +289,19 @@ const PreviewPane: React.FC = () => {
               <div
                 onClick={e => { e.stopPropagation(); closePreviewTab(tab.id); }}
                 style={{
-                  width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 2, opacity: 0.5, cursor: 'pointer', flexShrink: 0,
+                  width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: 3, opacity: 0, cursor: 'pointer', flexShrink: 0,
+                  transition: 'opacity 0.1s, background 0.1s',
                 }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
-                onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.background = 'rgba(244,71,71,0.2)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = '0';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+                className="preview-tab-close"
               >
                 <FiX size={10} />
               </div>
@@ -343,43 +309,59 @@ const PreviewPane: React.FC = () => {
           </div>
         ))}
 
-        {/* New Tab button with file picker */}
+        {/* New Tab + Config button */}
         <button
           ref={newTabBtnRef}
-          onClick={() => setNewTabMenuOpen(o => !o)}
+          onClick={() => {
+            if (newTabMenuOpen) { setNewTabMenuOpen(false); return; }
+            const rect = newTabBtnRef.current?.getBoundingClientRect();
+            if (rect) {
+              setDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+            }
+            setNewTabMenuOpen(true);
+          }}
           style={{
             display: 'flex', alignItems: 'center', gap: 2,
-            height: 24, padding: '0 6px',
-            background: newTabMenuOpen ? 'rgba(229,164,90,0.12)' : 'none',
-            border: newTabMenuOpen ? '1px solid rgba(229,164,90,0.35)' : '1px solid transparent',
+            height: 24, padding: '0 8px',
+            background: newTabMenuOpen ? 'rgba(229,164,90,0.15)' : 'none',
+            border: newTabMenuOpen ? '1px solid rgba(229,164,90,0.4)' : '1px solid transparent',
             cursor: 'pointer', color: newTabMenuOpen ? '#e5a45a' : '#888', borderRadius: 4,
+            flexShrink: 0,
           }}
-          title="Open file in new tab"
+          title="Open file in new tab / Runtime config"
         >
           <FiPlus size={13} />
           <FiChevronDown size={10} />
         </button>
 
-        {/* File picker dropdown */}
+        {/* File picker + Runtime Config dropdown (fixed positioned) */}
         {newTabMenuOpen && (
           <div
             ref={newTabMenuRef}
             style={{
-              position: 'absolute', top: 32, left: 'auto', right: 0,
-              background: '#252526', border: '1px solid #3e3e3e', borderRadius: 6,
-              zIndex: 9999, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              position: 'fixed',
+              top: dropdownPos.top,
+              right: dropdownPos.right,
+              background: '#252526',
+              border: '1px solid #3e3e3e',
+              borderRadius: 8,
+              zIndex: 99999,
+              minWidth: 260,
+              boxShadow: '0 12px 32px rgba(0,0,0,0.6)',
               overflow: 'hidden',
             }}
           >
+            {/* Section: Open File */}
             <div style={{
-              padding: '6px 10px 4px', fontSize: 10, color: '#666',
-              fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
-              borderBottom: '1px solid #3e3e3e',
+              padding: '7px 12px 5px', fontSize: 10, color: '#555',
+              fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+              borderBottom: '1px solid #333',
+              display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              Open file in new tab
+              <FiPlus size={10} /> Open in New Tab
             </div>
             {previewableFiles.length === 0 ? (
-              <div style={{ padding: '10px 12px', fontSize: 12, color: '#555' }}>
+              <div style={{ padding: '8px 12px', fontSize: 12, color: '#555', fontStyle: 'italic' }}>
                 No HTML or image files found
               </div>
             ) : (
@@ -389,12 +371,12 @@ const PreviewPane: React.FC = () => {
                   onClick={() => openFileInTab(file.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8,
-                    width: '100%', padding: '7px 12px',
+                    width: '100%', padding: '6px 12px',
                     background: 'none', border: 'none', cursor: 'pointer',
                     textAlign: 'left', fontSize: 12, color: '#ccc',
                     fontFamily: 'inherit',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                 >
                   {file.type === 'image'
@@ -404,12 +386,109 @@ const PreviewPane: React.FC = () => {
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {file.name}
                   </span>
-                  <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#555', flexShrink: 0, background: '#1e1e1e', padding: '1px 5px', borderRadius: 3, border: '1px solid #333' }}>
                     {file.type.toUpperCase()}
                   </span>
                 </button>
               ))
             )}
+
+            {/* Section: Runtime / Ports Config */}
+            <div style={{
+              padding: '7px 12px 5px', fontSize: 10, color: '#555',
+              fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
+              borderTop: '1px solid #333', borderBottom: '1px solid #333',
+              display: 'flex', alignItems: 'center', gap: 6, marginTop: 2,
+            }}>
+              <FiSettings size={10} /> Runtime & Ports
+            </div>
+
+            {/* Preview mode toggle */}
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #2a2a2a' }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Preview Mode</div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {(['srcdoc', 'url'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => {
+                      if (m === 'url') { runProject(); } else { useInstantPreview(); }
+                    }}
+                    style={{
+                      flex: 1, padding: '5px 0', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                      background: previewMode === m ? 'rgba(229,164,90,0.18)' : '#1e1e1e',
+                      border: `1px solid ${previewMode === m ? 'rgba(229,164,90,0.5)' : '#3a3a3a'}`,
+                      color: previewMode === m ? '#e5a45a' : '#888',
+                      fontFamily: 'inherit', fontWeight: previewMode === m ? 600 : 400,
+                    }}
+                  >
+                    {m === 'srcdoc' ? '⚡ Static' : '🚀 WebContainer'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Port configuration */}
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #2a2a2a' }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Dev Server Port</div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="number"
+                  value={customPort}
+                  onChange={e => setCustomPort(e.target.value)}
+                  min={1024}
+                  max={65535}
+                  style={{
+                    flex: 1, background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: 4,
+                    color: '#ccc', fontSize: 12, padding: '4px 8px',
+                    outline: 'none', fontFamily: 'var(--app-font-mono)',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(229,164,90,0.5)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = '#3a3a3a')}
+                />
+                <span style={{ fontSize: 11, color: '#555' }}>TCP</span>
+              </div>
+              <div style={{ fontSize: 10, color: '#555', marginTop: 5 }}>
+                {previewMode === 'url' ? 'WebContainer will bind to this port' : 'Switch to WebContainer to use custom ports'}
+              </div>
+            </div>
+
+            {/* Run / Stop controls */}
+            <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
+              <button
+                onClick={() => {
+                  setRuntimeRunning(true);
+                  runProject();
+                  setNewTabMenuOpen(false);
+                }}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '6px 0', fontSize: 12, borderRadius: 4, cursor: 'pointer',
+                  background: 'rgba(78,201,176,0.15)', border: '1px solid rgba(78,201,176,0.35)',
+                  color: '#4ec9b0', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(78,201,176,0.25)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(78,201,176,0.15)')}
+              >
+                <FiPlay size={12} /> Run
+              </button>
+              <button
+                onClick={() => {
+                  setRuntimeRunning(false);
+                  useInstantPreview();
+                  setNewTabMenuOpen(false);
+                }}
+                style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '6px 0', fontSize: 12, borderRadius: 4, cursor: 'pointer',
+                  background: 'rgba(244,71,71,0.1)', border: '1px solid rgba(244,71,71,0.3)',
+                  color: '#f44747', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,71,71,0.2)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(244,71,71,0.1)')}
+              >
+                <FiSquare size={11} /> Stop
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -452,12 +531,20 @@ const PreviewPane: React.FC = () => {
             >
               <FiRefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
+            <button
+              className="panel-icon-btn"
+              title={previewMode === 'url' ? 'Switch to instant srcDoc preview' : 'Run project with URL preview'}
+              onClick={previewMode === 'url' ? useInstantPreview : runProject}
+              style={{ color: previewMode === 'url' ? 'var(--editor-amber)' : undefined }}
+            >
+              <FiPlay size={12} />
+            </button>
             <div style={{
               flex: 1, background: '#1a1a1a', border: '1px solid #3e3e3e',
               borderRadius: 12, padding: '3px 12px',
               display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
             }}>
-              <span style={{ color: '#4ec9b0', fontSize: 11 }}>🔒</span>
+              <FiLock size={11} style={{ color: '#4ec9b0', flexShrink: 0 }} />
               <input
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -466,6 +553,13 @@ const PreviewPane: React.FC = () => {
                 value={currentUrl}
                 readOnly
               />
+              <span style={{
+                fontSize: 10, color: previewMode === 'url' ? '#e5a45a' : '#666',
+                border: `1px solid ${previewMode === 'url' ? 'rgba(229,164,90,0.35)' : '#333'}`,
+                borderRadius: 10, padding: '1px 7px', flexShrink: 0,
+              }}>
+                {projectTypeLabel(previewFrame.projectType)} · {previewFrame.runtimeLabel}
+              </span>
             </div>
             <div style={{ display: 'flex', gap: 2 }}>
               {(['desktop', 'tablet', 'mobile'] as const).map(v => (
@@ -522,11 +616,12 @@ const PreviewPane: React.FC = () => {
               }} />
             )}
             <iframe
-              key={iframeKey}
+              key={`${iframeKey}-${previewFrame.mode}`}
               ref={iframeRef}
               title="Preview"
               onLoad={handleIframeLoad}
-              srcDoc={srcDoc}
+              srcDoc={previewFrame.mode === 'srcdoc' ? previewFrame.value : undefined}
+              src={previewFrame.mode === 'url' ? previewFrame.value : undefined}
               sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
               style={{
                 ...viewportStyle,
@@ -536,6 +631,28 @@ const PreviewPane: React.FC = () => {
                 willChange: 'opacity',
               }}
             />
+            {previewFrame.error && (
+              <div style={{
+                position: 'absolute', left: 12, bottom: 12, maxWidth: 420,
+                background: 'rgba(20,24,32,0.92)', color: '#d6deeb',
+                border: '1px solid rgba(229,164,90,0.35)', borderRadius: 8,
+                padding: '8px 10px', fontSize: 11, lineHeight: 1.45,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.35)', pointerEvents: 'none',
+              }}>
+                {previewFrame.error}
+              </div>
+            )}
+            {runtimeStatus && !previewFrame.error && (
+              <div style={{
+                position: 'absolute', left: 12, bottom: 12, maxWidth: 420,
+                background: 'rgba(20,24,32,0.9)', color: '#d6deeb',
+                border: '1px solid rgba(78,201,176,0.35)', borderRadius: 8,
+                padding: '8px 10px', fontSize: 11, lineHeight: 1.45,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.35)', pointerEvents: 'none',
+              }}>
+                {runtimeStatus}
+              </div>
+            )}
           </div>
 
           {/* DevTools Panel */}
@@ -561,7 +678,7 @@ const PreviewPane: React.FC = () => {
                 display: 'flex', alignItems: 'center', height: 30, flexShrink: 0,
                 background: '#252526', borderBottom: '1px solid #3e3e3e',
               }}>
-                {(['console', 'elements', 'styles', 'network'] as DevToolsTab[]).map(t => (
+                {(['console', 'styles', 'network'] as DevToolsTab[]).map(t => (
                   <div
                     key={t}
                     onClick={() => setDevtoolsTab(t)}
@@ -591,7 +708,7 @@ const PreviewPane: React.FC = () => {
                   onClick={clearConsole}
                   style={{ marginLeft: 'auto', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#888' }}
                 >
-                  🚫 Clear
+                  <FiTrash2 size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Clear
                 </button>
               </div>
               <div style={{ flex: 1, overflow: 'auto', fontFamily: 'var(--app-font-mono)', fontSize: 12 }}>
@@ -627,11 +744,6 @@ const PreviewPane: React.FC = () => {
                       </div>
                     ))
                   )
-                )}
-                {devtoolsTab === 'elements' && (
-                  <pre style={{ padding: 8, fontSize: 11, color: '#9cdcfe', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>
-                    {elementsHtml || 'Elements will appear here after page loads.'}
-                  </pre>
                 )}
                 {devtoolsTab === 'styles' && (
                   <div style={{ padding: 10, color: '#888', fontSize: 12 }}>
@@ -691,7 +803,7 @@ function InlineImageViewer({ file }: InlineImageViewerProps) {
               border: `1px solid ${bg === b ? 'rgba(229,164,90,0.5)' : '#3e3e3e'}`,
               color: bg === b ? '#e5a45a' : '#888', fontFamily: 'inherit',
             }}>
-            {b === 'checker' ? '⬛' : b === 'dark' ? 'Dark' : 'Light'}
+            {b === 'checker' ? 'Grid' : b === 'dark' ? 'Dark' : 'Light'}
           </button>
         ))}
         <div style={{ width: 1, height: 14, background: '#3e3e3e' }} />
@@ -721,7 +833,7 @@ function InlineImageViewer({ file }: InlineImageViewerProps) {
           />
         ) : (
           <div style={{ color: '#555', fontSize: 13, textAlign: 'center' }}>
-            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>🖼</div>
+            <FiImage size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
             <div>Cannot display image</div>
           </div>
         )}

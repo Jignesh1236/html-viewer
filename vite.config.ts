@@ -68,6 +68,10 @@ export default defineConfig(async () => {
       port,
       host: "0.0.0.0",
       allowedHosts: true,
+      headers: {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
+      },
       fs: {
         strict: true,
         deny: ["**/.*"],
@@ -79,6 +83,8 @@ export default defineConfig(async () => {
       allowedHosts: true,
       headers: {
         "Cache-Control": "public, max-age=31536000, immutable",
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "credentialless",
         "X-Content-Type-Options": "nosniff",
         "X-Frame-Options": "SAMEORIGIN",
         "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -86,7 +92,28 @@ export default defineConfig(async () => {
     },
     optimizeDeps: {
       include: ["react", "react-dom", "zustand", "framer-motion"],
-      exclude: ["@monaco-editor/react"],
+      exclude: ["@monaco-editor/react", "@webcontainer/api"],
+    },
+    build: {
+      rollupOptions: {
+        external: (id: string) => id.startsWith("@webcontainer/api"),
+        output: {
+          manualChunks: {
+            "vendor-react": ["react", "react-dom"],
+            "vendor-monaco": ["@monaco-editor/react", "monaco-editor"],
+            "vendor-state": ["zustand"],
+            "vendor-ui": ["framer-motion", "@radix-ui/react-context-menu", "@radix-ui/react-tooltip"],
+            "vendor-utils": ["jszip", "file-saver"],
+          },
+          chunkFileNames: "assets/[name]-[hash].js",
+          entryFileNames: "assets/[name]-[hash].js",
+          assetFileNames: "assets/[name]-[hash].[ext]",
+        },
+      },
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+      },
     },
   };
 });

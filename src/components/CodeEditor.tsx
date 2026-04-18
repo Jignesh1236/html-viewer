@@ -2,34 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
-import { FiImage } from 'react-icons/fi';
+import { FiImage, FiX } from 'react-icons/fi';
+import { getExtension, getMonacoLanguage } from '../utils/fileTypes';
 
 /* ─────────────────────────────────────────────────────────────
    Language maps
    ───────────────────────────────────────────────────────────── */
-const LANG_MAP: Record<string, string> = {
-  html: 'html', css: 'css', js: 'javascript', other: 'plaintext',
-};
-const EXTENSION_LANG_MAP: Record<string, string> = {
-  html: 'html', htm: 'html', css: 'css', scss: 'scss', sass: 'sass',
-  less: 'less', js: 'javascript', jsx: 'javascript', mjs: 'javascript',
-  cjs: 'javascript', ts: 'typescript', tsx: 'typescript', json: 'json',
-  md: 'markdown', markdown: 'markdown', py: 'python', rb: 'ruby',
-  php: 'php', java: 'java', c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp',
-  cxx: 'cpp', cs: 'csharp', go: 'go', rs: 'rust', swift: 'swift',
-  kt: 'kotlin', kts: 'kotlin', sql: 'sql', sh: 'shell', bash: 'shell',
-  zsh: 'shell', yml: 'yaml', yaml: 'yaml', xml: 'xml', svg: 'xml',
-  vue: 'html', svelte: 'html', txt: 'plaintext',
-};
 const VOID_HTML_TAGS = new Set([
   'area','base','br','col','embed','hr','img','input',
   'link','meta','param','source','track','wbr',
 ]);
 
-function getLanguageForFile(file: { name: string; type: string }) {
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  return EXTENSION_LANG_MAP[ext] || LANG_MAP[file.type] || 'plaintext';
-}
 
 /* ─────────────────────────────────────────────────────────────
    Global AI state — shared with App status bar
@@ -77,14 +60,17 @@ export function clearAiCache() {
 function buildPrompt(lang: string, file: string, prefix: string, suffix: string) {
   return [
     'You are an expert inline code completion AI like GitHub Copilot.',
-    'Output ONLY the raw code to insert at the cursor. No explanation, no markdown.',
-    'Complete 1–5 lines naturally, preserving indentation and coding style.',
+    'Output ONLY the raw code to insert at the cursor. No markdown, no explanation, no ``` fences.',
+    'Write exactly 3 to 4 lines of natural continuation that fit perfectly in context.',
+    'Preserve the exact indentation style (tabs vs spaces) and coding conventions already used.',
+    'IMPORTANT: If the code before the cursor contains a comment (e.g. // create a navbar, <!-- add a button -->, /* build a card */), generate the full code that implements what the comment describes.',
+    'The output is shown as ghost text — make it immediately useful and complete.',
     `Language: ${lang}. File: ${file}.`,
     '=== CODE BEFORE CURSOR ===',
     prefix.slice(-2000),
     '=== CODE AFTER CURSOR ===',
     suffix.slice(0, 600),
-    '=== COMPLETION ===',
+    '=== GHOST TEXT COMPLETION (3-4 lines, implement comments if present) ===',
   ].join('\n');
 }
 
@@ -94,7 +80,7 @@ function cleanSuggestion(raw: string): string {
     .replace(/\n?```$/i, '')
     .replace(/^`+|`+$/g, '')
     .trimEnd()
-    .slice(0, 1500);
+    .slice(0, 3000);
 }
 
 async function fetchSuggestion(
@@ -126,12 +112,20 @@ function registerProvider(monaco: any) {
 
   monaco.languages.registerInlineCompletionsProvider('*', {
     provideInlineCompletions(model: any, position: any, _ctx: any, token: any) {
+      const fullText = model.getValue();
       const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-      if (linePrefix.trim().length < 2) {
+      const prevLine = position.lineNumber > 1 ? model.getLineContent(position.lineNumber - 1).trim() : '';
+
+      // Allow suggestion if: current line has content, OR there's a comment on current/prev line, OR file has substantial content before cursor
+      const hasComment = /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(linePrefix.trim()) || /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(prevLine) || /(\*\/|-->)\s*$/.test(prevLine);
+      const hasCurrentLineContent = linePrefix.trim().length >= 2;
+      const hasPrefixContext = fullText.slice(0, model.getOffsetAt(position)).trim().length >= 30;
+
+      if (!hasComment && !hasCurrentLineContent && !hasPrefixContext) {
         return Promise.resolve({ items: [], dispose: () => undefined });
       }
 
-      const fullText = model.getValue();
+
       const offset   = model.getOffsetAt(position);
       const lang     = model.getLanguageId();
       const fileName = model.uri?.path?.split('/').pop() ?? 'untitled';
@@ -208,11 +202,15 @@ function enableHtmlAutoClose(editor: any, monaco: any) {
 /* ─────────────────────────────────────────────────────────────
    File icon
    ───────────────────────────────────────────────────────────── */
-function fileIcon(type: string) {
-  if (type === 'html')  return <VscFileCode style={{ color: '#e34c26', flexShrink: 0 }} size={14} />;
-  if (type === 'css')   return <VscSymbolColor style={{ color: '#264de4', flexShrink: 0 }} size={14} />;
-  if (type === 'js')    return <VscFile style={{ color: '#f7df1e', flexShrink: 0 }} size={14} />;
-  if (type === 'image') return <FiImage style={{ color: '#8bc34a', flexShrink: 0 }} size={13} />;
+function fileIcon(file: { name: string; type: string }) {
+  const ext = getExtension(file.name);
+  if (file.type === 'html') return <VscFileCode style={{ color: '#e34c26', flexShrink: 0 }} size={14} />;
+  if (file.type === 'css') return <VscSymbolColor style={{ color: '#264de4', flexShrink: 0 }} size={14} />;
+  if (file.type === 'js') return <VscFile style={{ color: '#f7df1e', flexShrink: 0 }} size={14} />;
+  if (file.type === 'ts') return <VscFile style={{ color: '#3178c6', flexShrink: 0 }} size={14} />;
+  if (file.type === 'tsx' || file.type === 'jsx') return <VscFileCode style={{ color: '#61dafb', flexShrink: 0 }} size={14} />;
+  if (file.type === 'json' || ext === 'json') return <VscFile style={{ color: '#f8c555', flexShrink: 0 }} size={14} />;
+  if (file.type === 'image') return <FiImage style={{ color: '#8bc34a', flexShrink: 0 }} size={13} />;
   return <VscFile style={{ color: '#aaa', flexShrink: 0 }} size={14} />;
 }
 
@@ -220,7 +218,7 @@ function fileIcon(type: string) {
    CodeEditor component
    ───────────────────────────────────────────────────────────── */
 const CodeEditor: React.FC = () => {
-  const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
+  const { files, activeFileId, setActiveFile, updateFileContent, removeFile } = useEditorStore();
   const editorRef = useRef<any>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -257,31 +255,42 @@ const CodeEditor: React.FC = () => {
 
   /* ── Register idle detection ── */
   function setupIdleDetection(editor: any) {
-    function resetIdleTimer() {
+    function scheduleAiTrigger() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      // After 1.5 s of no typing → trigger AI
       idleTimerRef.current = setTimeout(() => {
         const model = editor.getModel();
         const pos   = editor.getPosition();
         if (!model || !pos) return;
+
         const linePrefix = model.getLineContent(pos.lineNumber).slice(0, pos.column - 1);
-        // Only trigger if there's meaningful code on the current line
-        if (linePrefix.trim().length >= 2) {
+        const prevLine = pos.lineNumber > 1 ? model.getLineContent(pos.lineNumber - 1).trim() : '';
+        const fullPrefix = model.getValue().slice(0, model.getOffsetAt(pos)).trim();
+
+        const hasComment = /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(linePrefix.trim())
+          || /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(prevLine)
+          || /(\*\/|-->)\s*$/.test(prevLine);
+        const hasContent = linePrefix.trim().length >= 2;
+        const hasContext = fullPrefix.length >= 30;
+
+        if (hasComment || hasContent || hasContext) {
           aiControl.setState('loading');
           editor.trigger('ai-idle', 'editor.action.inlineSuggest.trigger', null);
         }
       }, 1500);
     }
 
-    // Reset timer on every content change (user typed something)
+    // Start timer whenever content changes (typing)
     const contentSub = editor.onDidChangeModelContent(() => {
-      aiControl.setState('idle');   // hide stale state while typing
-      resetIdleTimer();
+      aiControl.setState('idle');
+      scheduleAiTrigger();
     });
 
-    // Also reset on cursor move (arrow keys, click)
+    // Also start timer when cursor moves and then stops (navigation, click, arrow keys)
     const cursorSub = editor.onDidChangeCursorPosition(() => {
+      // Cancel any pending suggestion from a previous position
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      // Schedule a fresh suggestion for the new cursor position
+      scheduleAiTrigger();
     });
 
     return () => {
@@ -311,19 +320,36 @@ const CodeEditor: React.FC = () => {
       {/* Tab bar */}
       <div className="editor-tabs" style={{
         display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
-        overflowY: 'hidden', flexShrink: 0, alignItems: 'center',
+        overflowY: 'hidden', flexShrink: 0, alignItems: 'stretch',
       }}>
         {files.map(file => (
           <div
             key={file.id}
             className={`editor-tab ${activeFileId === file.id ? 'active' : ''}`}
             onClick={() => setActiveFile(file.id)}
-            style={{ flexShrink: 0 }}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6 }}
           >
-            {fileIcon(file.type)}
-            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {fileIcon(file)}
+            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
               {file.name}
             </span>
+            {files.length > 1 && (
+              <span
+                className="tab-close"
+                onClick={e => {
+                  e.stopPropagation();
+                  const idx = files.findIndex(f => f.id === file.id);
+                  if (activeFileId === file.id) {
+                    const next = files[idx + 1] ?? files[idx - 1];
+                    if (next) setActiveFile(next.id);
+                  }
+                  removeFile(file.id);
+                }}
+                title={`Close ${file.name}`}
+              >
+                <FiX size={11} />
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -341,7 +367,7 @@ const CodeEditor: React.FC = () => {
             <Editor
               key={activeFile.id}
               height="100%"
-              language={getLanguageForFile(activeFile)}
+              language={getMonacoLanguage(activeFile)}
               value={activeFile.content}
               onChange={handleEditorChange}
               beforeMount={handleBeforeMount}

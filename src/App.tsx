@@ -7,9 +7,10 @@ import PreviewPane from './components/PreviewPane';
 import VisualEditor from './components/VisualEditor';
 import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
+import TerminalPane from './components/TerminalPane';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiTerminal } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
 /* ─── AI Status Button (shown in bottom status bar) ─── */
@@ -89,7 +90,7 @@ function useIsMobile() {
 /* ─────────────────────────────────────────
    Types
    ───────────────────────────────────────── */
-export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
+export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'terminal';
 export type Mode = 'code' | 'visual' | 'split';
 
 interface WinState {
@@ -115,11 +116,12 @@ const WIN_ICONS: Record<WinId, React.ReactNode> = {
   preview:    <FiMonitor size={11} />,
   properties: <FiSliders size={11} />,
   timeline:   <FiClock size={11} />,
+  terminal:   <FiTerminal size={11} />,
 };
 
 const WIN_LABELS: Record<WinId, string> = {
   files: 'File Explorer', code: 'Code Editor', preview: 'Preview',
-  properties: 'Properties', timeline: 'Timeline',
+  properties: 'Properties', timeline: 'Timeline', terminal: 'Terminal',
 };
 
 /* ─────────────────────────────────────────
@@ -182,6 +184,7 @@ function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
     preview:    { x: Math.max(240, wsW - Math.max(380, wsW * 0.38) - 20), y: 20, w: Math.max(380, wsW * 0.38), h: Math.min(500, wsH - 80) },
     properties: { x: Math.max(0, wsW - 280), y: 60, w: 265, h: Math.min(440, wsH - 100) },
     timeline:   { x: 20, y: Math.max(80, wsH - 200), w: Math.max(460, wsW * 0.6), h: 185 },
+    terminal:   { x: 20, y: Math.max(80, wsH - 320), w: Math.max(520, wsW * 0.55), h: 300 },
   };
   return defaults[id];
 }
@@ -195,7 +198,7 @@ function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState
     visual: ['files', 'preview', 'timeline', 'properties'],
   };
   const dockedSet = new Set(dockedPerMode[mode]);
-  const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline'];
+  const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline', 'terminal'];
   return allIds.map((id, i) => ({
     id, title: WIN_LABELS[id],
     rect: floatingDefault(id, wsW, wsH),
@@ -206,7 +209,7 @@ function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState
   }));
 }
 
-const LS_KEY = 'html-editor-win-layout-v6';
+const LS_KEY = 'html-editor-win-layout-v7';
 const LS_DOCK = 'html-editor-dock-sizes-v2';
 
 function clamp(n: number, min: number, max: number) {
@@ -232,7 +235,7 @@ function loadLayout(wsW: number, wsH: number): WinState[] {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as WinState[];
-      if (Array.isArray(saved) && saved.length === 5) return normalizeLayout(saved, wsW, wsH);
+      if (Array.isArray(saved) && saved.length === 6) return normalizeLayout(saved, wsW, wsH);
     }
   } catch {}
   return normalizeLayout(defaultLayout(wsW, wsH), wsW, wsH);
@@ -629,6 +632,7 @@ function DesktopApp() {
       case 'preview':    return mode === 'visual' ? <VisualEditor /> : <PreviewPane />;
       case 'properties': return <PropertiesPanel onClose={() => updateWin('properties', { visible: false })} hideHeader />;
       case 'timeline':   return <TimelinePanel onClose={() => updateWin('timeline', { visible: false })} />;
+      case 'terminal':   return <TerminalPane />;
     }
   }
 
@@ -648,7 +652,7 @@ function DesktopApp() {
   const winTitle: Record<WinId, string> = {
     files: 'File Explorer', code: 'Code Editor',
     preview: mode === 'visual' ? 'Visual Editor' : 'Preview',
-    properties: 'Properties', timeline: 'Timeline',
+    properties: 'Properties', timeline: 'Timeline', terminal: 'Terminal',
   };
 
   return (
@@ -668,7 +672,7 @@ function DesktopApp() {
           { label: 'Mode: Split Layout', icon: '3', action: () => applyModePreset('split') },
           { separator: true, label: '' },
           { label: 'Refresh Preview', icon: '↻', action: () => useEditorStore.getState().refreshPreview() },
-          { label: 'Export ZIP', icon: '📦', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
+          { label: 'Export ZIP', icon: 'ZIP', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
           { separator: true, label: '' },
           { label: 'Reset Layout', icon: '↺', action: () => resetLayout() },
         ]);
@@ -711,15 +715,15 @@ function DesktopApp() {
         <ToolbarBtn title="Export ZIP (Ctrl+E)" icon={<FiDownload size={13} />} label="Export" onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))} />
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: '#555' }}>Windows:</span>
-        {(['files', 'code', 'preview', 'properties', 'timeline'] as WinId[]).map(id => {
+        {(['files', 'code', 'preview', 'properties', 'timeline', 'terminal'] as WinId[]).map(id => {
           const w = winMap[id];
-          const shortLabels: Record<WinId, string> = { files: 'Explorer', code: 'Code', preview: 'Preview', properties: 'Props', timeline: 'Timeline' };
+          const shortLabels: Record<WinId, string> = { files: 'Explorer', code: 'Code', preview: 'Preview', properties: 'Props', timeline: 'Timeline', terminal: 'Terminal' };
           return (
             <button key={id} onClick={() => toggleWin(id)}
               title={w.docked ? `${shortLabels[id]} (docked)` : `${shortLabels[id]} ${w.visible ? '(floating)' : '(hidden)'}`}
               style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit', background: w.visible ? (w.docked ? 'rgba(100,180,255,0.12)' : 'rgba(229,164,90,0.12)') : '#1a1a1a', border: `1px solid ${w.visible ? (w.docked ? 'rgba(100,180,255,0.35)' : 'rgba(229,164,90,0.4)') : '#3e3e3e'}`, color: w.visible ? (w.docked ? '#7ab8f5' : '#e5a45a') : '#666' }}
             >
-              {w.docked && w.visible ? '📌' : ''}{shortLabels[id]}
+              {shortLabels[id]}
             </button>
           );
         })}
@@ -842,7 +846,7 @@ function DesktopApp() {
 function ToolbarBtn({ title, icon, label, onClick }: { title: string; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <button title={title} onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit' }}
+      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, lineHeight: 1, background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
     >{icon}{label}</button>

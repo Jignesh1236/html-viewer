@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <!-- Main App -->
+  <url>
+    <loc>https://html-viewer-gray-beta.vercel.app/</loc>
+    <lastmod>2026-04-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://html-viewer-gray-beta.vercel.app/og-image.png</image:loc>
+      <image:title>HTML Editor – Monaco code editor with live HTML preview</image:title>
+      <image:caption>Free browser-based HTML editor with drag-and-drop visual designer and live preview</image:caption>
+    </image:image>
+  </url>
+
+  <!-- SEO Tutorial Page -->
+  <url>
+    <loc>https://html-viewer-gray-beta.vercel.app/seo</loc>
+    <lastmod>2026-04-17</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <image:image>
+      <image:loc>https://html-viewer-gray-beta.vercel.app/og-seo-tutorial.png</image:loc>
+      <image:title>HTML &amp; SEO Tutorial – meta charset, HTML tags, CSS, Image SEO, Open Graph</image:title>
+      <image:caption>Comprehensive HTML and SEO tutorial covering meta charset, HTML tags, CSS basics, Image SEO, and Open Graph tags</image:caption>
+    </image:image>
+  </url>
+
+</urlset>
