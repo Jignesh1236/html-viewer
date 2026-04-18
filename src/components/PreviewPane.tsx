@@ -3,6 +3,7 @@ import { useEditorStore } from '../store/editorStore';
 import {
   FiRefreshCw, FiMonitor, FiTablet, FiSmartphone,
   FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
+  FiLock, FiTrash2,
 } from 'react-icons/fi';
 import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
 
@@ -457,7 +458,7 @@ const PreviewPane: React.FC = () => {
               borderRadius: 12, padding: '3px 12px',
               display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
             }}>
-              <span style={{ color: '#4ec9b0', fontSize: 11 }}>🔒</span>
+              <FiLock size={11} style={{ color: '#4ec9b0', flexShrink: 0 }} />
               <input
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -591,7 +592,7 @@ const PreviewPane: React.FC = () => {
                   onClick={clearConsole}
                   style={{ marginLeft: 'auto', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#888' }}
                 >
-                  🚫 Clear
+                  <FiTrash2 size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Clear
                 </button>
               </div>
               <div style={{ flex: 1, overflow: 'auto', fontFamily: 'var(--app-font-mono)', fontSize: 12 }}>
@@ -691,7 +692,7 @@ function InlineImageViewer({ file }: InlineImageViewerProps) {
               border: `1px solid ${bg === b ? 'rgba(229,164,90,0.5)' : '#3e3e3e'}`,
               color: bg === b ? '#e5a45a' : '#888', fontFamily: 'inherit',
             }}>
-            {b === 'checker' ? '⬛' : b === 'dark' ? 'Dark' : 'Light'}
+            {b === 'checker' ? 'Grid' : b === 'dark' ? 'Dark' : 'Light'}
           </button>
         ))}
         <div style={{ width: 1, height: 14, background: '#3e3e3e' }} />
@@ -721,7 +722,7 @@ function InlineImageViewer({ file }: InlineImageViewerProps) {
           />
         ) : (
           <div style={{ color: '#555', fontSize: 13, textAlign: 'center' }}>
-            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>🖼</div>
+            <FiImage size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
             <div>Cannot display image</div>
           </div>
         )}

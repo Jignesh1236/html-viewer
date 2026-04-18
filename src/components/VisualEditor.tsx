@@ -2,7 +2,11 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import LayersPanel from './LayersPanel';
-import ElementsPalette from './ElementsPalette';
+import ElementsPalette, { PaletteItem } from './ElementsPalette';
+import {
+  FiBox, FiGrid, FiLayers, FiMaximize2, FiMonitor,
+  FiMousePointer, FiSmartphone, FiTablet, FiX,
+} from 'react-icons/fi';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = typeof HANDLES[number];
@@ -32,6 +36,7 @@ const STYLE_PROPS = [
   'left', 'top', 'right', 'bottom', 'flex-direction', 'justify-content', 'align-items', 'gap',
   'grid-template-columns', 'grid-template-rows', 'transform', 'transition', 'animation',
   'flex-wrap', 'background-size', 'background-image', 'background-position', 'background-repeat',
+  '-webkit-background-clip', '-webkit-text-fill-color', 'background-clip', 'border-image-source', 'border-image-slice',
 ];
 
 function snap(v: number) { return Math.round(v / GRID) * GRID; }
@@ -149,6 +154,7 @@ const VisualEditor: React.FC = () => {
   // Drag from palette
   const [paletteDropping, setPaletteDropping] = useState(false);
   const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
+  const [dragGhost, setDragGhost] = useState<{ x: number; y: number; html: string; label: string } | null>(null);
   const pendingInsertRef = useRef<string | null>(null);
 
   // iframe doc ref for layers
@@ -476,6 +482,28 @@ const VisualEditor: React.FC = () => {
     showNotification(`Inserted <${newEl.tagName.toLowerCase()}>`);
   }, [files, updateFileContent, showNotification]);
 
+  const insertHtmlAtPoint = useCallback((html: string, clientX: number, clientY: number) => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+    const temp = parsedDoc.createElement('div');
+    temp.innerHTML = html;
+    const newEl = temp.firstElementChild as HTMLElement;
+    if (!newEl) return;
+    const off = iframeOffRef.current;
+    const win = iframeRef.current?.contentWindow;
+    const x = Math.max(0, Math.round(clientX - off.left + (win?.scrollX || 0)));
+    const y = Math.max(0, Math.round(clientY - off.top + (win?.scrollY || 0)));
+    const inline = newEl.getAttribute('style') || '';
+    const separator = inline.trim() && !inline.trim().endsWith(';') ? '; ' : '';
+    newEl.setAttribute('style', `${inline}${separator}position:absolute;left:${x}px;top:${y}px;`);
+    parsedDoc.body.appendChild(newEl);
+    const updated = serializeDoc(parsedDoc);
+    updateFileContent(htmlFile.id, updated);
+    showNotification(`Inserted <${newEl.tagName.toLowerCase()}> near cursor`);
+  }, [files, updateFileContent, showNotification]);
+
   /* ── Reorder element in DOM (layers panel move) ── */
   const moveElementInDom = useCallback((el: HTMLElement, dir: 'up' | 'down') => {
     const htmlFile = files.find(f => f.type === 'html');
@@ -496,6 +524,37 @@ const VisualEditor: React.FC = () => {
     const updated = serializeDoc(parsedDoc);
     updateFileContent(htmlFile.id, updated);
   }, [files, updateFileContent]);
+
+  const reorderElementInDom = useCallback((draggedEl: HTMLElement, targetEl: HTMLElement, position: 'before' | 'inside' | 'after') => {
+    if (draggedEl === targetEl || draggedEl.contains(targetEl) || targetEl.tagName.toLowerCase() === 'html') return;
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return;
+    const draggedSelector = elementSelector(draggedEl);
+    const targetSelector = elementSelector(targetEl);
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+    const sourceDragged = parsedDoc.querySelector(draggedSelector) as HTMLElement | null;
+    const sourceTarget = parsedDoc.querySelector(targetSelector) as HTMLElement | null;
+    if (!sourceDragged || !sourceTarget || sourceDragged === sourceTarget || sourceDragged.contains(sourceTarget)) return;
+    if (position === 'inside') {
+      sourceTarget.appendChild(sourceDragged);
+    } else if (sourceTarget.parentElement) {
+      if (position === 'before') sourceTarget.parentElement.insertBefore(sourceDragged, sourceTarget);
+      else sourceTarget.parentElement.insertBefore(sourceDragged, sourceTarget.nextSibling);
+    }
+    const updated = serializeDoc(parsedDoc);
+    updateFileContent(htmlFile.id, updated);
+    if (draggedEl.isConnected && targetEl.isConnected) {
+      if (position === 'inside') targetEl.appendChild(draggedEl);
+      else if (targetEl.parentElement) {
+        if (position === 'before') targetEl.parentElement.insertBefore(draggedEl, targetEl);
+        else targetEl.parentElement.insertBefore(draggedEl, targetEl.nextSibling);
+      }
+      setTick(t => t + 1);
+      selectElement(draggedEl);
+    }
+    showNotification('Layer reordered');
+  }, [files, updateFileContent, showNotification, selectElement]);
 
   /* ── Z-index helpers ── */
   const bringToFront = useCallback((el: HTMLElement) => {
@@ -520,33 +579,6 @@ const VisualEditor: React.FC = () => {
     syncToSource(el);
     showNotification('Sent to back');
   }, [syncToSource, showNotification]);
-
-  /* ── Text alignment ── */
-  const applyTextAlign = useCallback((align: 'left' | 'center' | 'right') => {
-    const el = getSelectedDomEl();
-    if (!el) return;
-    el.style.textAlign = align;
-    setTick(t => t + 1);
-    refreshSelectedSnapshot(el);
-    syncToSource(el);
-  }, [getSelectedDomEl, refreshSelectedSnapshot, syncToSource]);
-
-  const applyVerticalAlign = useCallback((align: 'flex-start' | 'center' | 'flex-end') => {
-    const el = getSelectedDomEl();
-    if (!el) return;
-    const cs = iframeRef.current?.contentWindow?.getComputedStyle(el);
-    const disp = cs?.display || '';
-    if (disp.includes('flex') || disp.includes('grid')) {
-      el.style.alignItems = align;
-    } else {
-      el.style.display = 'flex';
-      el.style.flexDirection = 'column';
-      el.style.alignItems = align;
-    }
-    setTick(t => t + 1);
-    refreshSelectedSnapshot(el);
-    syncToSource(el);
-  }, [getSelectedDomEl, iframeRef, refreshSelectedSnapshot, syncToSource]);
 
   /* ── Attach iframe events ── */
   const attachEvents = useCallback(() => {
@@ -623,18 +655,18 @@ const VisualEditor: React.FC = () => {
       showCtx(fakeEvent, [
         { label: `<${target.tagName.toLowerCase()}${target.id ? '#' + target.id : ''}>`, disabled: true },
         { separator: true, label: '' },
-        { label: 'Select', icon: '🖱️', action: () => selectElement(target) },
+        { label: 'Select', icon: '↖', action: () => selectElement(target) },
         { label: 'Duplicate', icon: '⧉', action: () => duplicateElement(target) },
         { separator: true, label: '' },
         { label: 'Bring to Front', icon: '⬆', action: () => bringToFront(target) },
         { label: 'Send to Back', icon: '⬇', action: () => sendToBack(target) },
         { separator: true, label: '' },
-        { label: 'Copy HTML', icon: '📋', action: () => { navigator.clipboard.writeText(target.outerHTML); } },
-        { label: 'Copy styles', icon: '🎨', action: () => { navigator.clipboard.writeText(target.getAttribute('style') || ''); } },
+        { label: 'Copy HTML', icon: '<>', action: () => { navigator.clipboard.writeText(target.outerHTML); } },
+        { label: 'Copy styles', icon: 'CSS', action: () => { navigator.clipboard.writeText(target.getAttribute('style') || ''); } },
         { separator: true, label: '' },
         { label: 'Reset styles', icon: '↺', action: () => { target.removeAttribute('style'); setTick(t => t + 1); syncToSource(target); } },
-        { label: 'Hide element', icon: '👁️', action: () => { target.style.display = 'none'; setTick(t => t + 1); syncToSource(target); } },
-        { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
+        { label: 'Hide element', icon: '◌', action: () => { target.style.display = 'none'; setTick(t => t + 1); syncToSource(target); } },
+        { label: 'Delete element', icon: '⌫', danger: true, action: () => {
             updateHtmlSourceForElement(target, t => t.remove());
             target.remove();
             selectedSelectorRef.current = null;
@@ -642,7 +674,7 @@ const VisualEditor: React.FC = () => {
           }
         },
         { separator: true, label: '' },
-        { label: 'Select parent', icon: '⬆️', action: () => {
+        { label: 'Select parent', icon: '↑', action: () => {
             const parent = target.parentElement;
             if (parent && !SKIP_TAGS.has(parent.tagName.toLowerCase())) selectElement(parent);
           }
@@ -825,54 +857,25 @@ const VisualEditor: React.FC = () => {
           onClick={() => setShowLayers(l => !l)}
           style={{ background: showLayers ? 'rgba(100,160,255,0.15)' : 'none', border: `1px solid ${showLayers ? 'rgba(100,160,255,0.4)' : '#444'}`, borderRadius: 3, cursor: 'pointer', fontSize: 10, color: showLayers ? '#7ab8f5' : '#666', padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0 }}
         >
-          ☰ Layers
+          <FiLayers size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Layers
         </button>
         <button
           title="Toggle Elements palette"
           onClick={() => setShowPalette(p => !p)}
           style={{ background: showPalette ? 'rgba(100,160,255,0.15)' : 'none', border: `1px solid ${showPalette ? 'rgba(100,160,255,0.4)' : '#444'}`, borderRadius: 3, cursor: 'pointer', fontSize: 10, color: showPalette ? '#7ab8f5' : '#666', padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0 }}
         >
-          + Elements
+          <FiGrid size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Elements
         </button>
 
         <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
 
-        {/* Alignment buttons (only when element selected) */}
-        {selEl && (
-          <>
-            <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>Align:</span>
-            {[
-              { label: '⬤◌◌', title: 'Align left', action: () => applyTextAlign('left') },
-              { label: '◌⬤◌', title: 'Align center', action: () => applyTextAlign('center') },
-              { label: '◌◌⬤', title: 'Align right', action: () => applyTextAlign('right') },
-            ].map(btn => (
-              <button key={btn.title} title={btn.title} onClick={btn.action}
-                style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#aaa', padding: '1px 6px', fontFamily: 'monospace', flexShrink: 0 }}>
-                {btn.label}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
-            {[
-              { icon: '▲', title: 'Align top', action: () => applyVerticalAlign('flex-start') },
-              { icon: '≡', title: 'Align middle', action: () => applyVerticalAlign('center') },
-              { icon: '▼', title: 'Align bottom', action: () => applyVerticalAlign('flex-end') },
-            ].map(btn => (
-              <button key={btn.title} title={btn.title} onClick={btn.action}
-                style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#aaa', padding: '1px 6px', fontFamily: 'monospace', flexShrink: 0 }}>
-                {btn.icon}
-              </button>
-            ))}
-            <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
-          </>
-        )}
-
         {/* Responsive viewport buttons */}
         <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>Preview:</span>
         {([
-          { key: 'mobile', label: '📱 375', title: 'Mobile (375px)' },
-          { key: 'tablet', label: '📲 768', title: 'Tablet (768px)' },
-          { key: 'desktop', label: '🖥 1280', title: 'Desktop (1280px)' },
-          { key: 'full', label: '⬜ Full', title: 'Full width' },
+          { key: 'mobile', icon: <FiSmartphone size={11} />, label: '375', title: 'Mobile (375px)' },
+          { key: 'tablet', icon: <FiTablet size={11} />, label: '768', title: 'Tablet (768px)' },
+          { key: 'desktop', icon: <FiMonitor size={11} />, label: '1280', title: 'Desktop (1280px)' },
+          { key: 'full', icon: <FiMaximize2 size={11} />, label: 'Full', title: 'Full width' },
         ] as const).map(btn => (
           <button key={btn.key} title={btn.title} onClick={() => setPreviewSize(btn.key)}
             style={{
@@ -881,8 +884,9 @@ const VisualEditor: React.FC = () => {
               borderRadius: 3, cursor: 'pointer', fontSize: 10,
               color: previewSize === btn.key ? '#e5a45a' : '#777',
               padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: 4,
             }}>
-            {btn.label}
+            {btn.icon}{btn.label}
           </button>
         ))}
 
@@ -898,7 +902,7 @@ const VisualEditor: React.FC = () => {
           }}
           title={interaction === 'select' ? 'Select mode' : 'Interact mode'}
         >
-          {interaction === 'select' ? '↖ Select' : '↗ Interact'}
+          {interaction === 'select' ? <><FiMousePointer size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Select</> : <><FiBox size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Interact</>}
         </button>
 
         {selEl && (
@@ -911,7 +915,7 @@ const VisualEditor: React.FC = () => {
             }}
             style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit', flexShrink: 0 }}
           >
-            ✕ Deselect
+            <FiX size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Deselect
           </button>
         )}
         {multiSel.size > 0 && (
@@ -932,6 +936,7 @@ const VisualEditor: React.FC = () => {
               tick={tick}
               onSelect={(el, shift) => selectElement(el, shift)}
               onMove={moveElementInDom}
+              onReorder={reorderElementInDom}
             />
           </div>
         )}
@@ -970,13 +975,19 @@ const VisualEditor: React.FC = () => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.1s',
               }}
-              onDragOver={e => { e.preventDefault(); setPaletteDropping(true); }}
+              onDragOver={e => {
+                e.preventDefault();
+                setPaletteDropping(true);
+                setDragGhost(prev => prev ? { ...prev, x: e.clientX + 14, y: e.clientY + 14 } : null);
+              }}
               onDragLeave={() => setPaletteDropping(false)}
               onDrop={e => {
                 e.preventDefault();
                 setPaletteDropping(false);
                 const html = e.dataTransfer.getData('text/html-element');
-                if (html) insertHtmlAtBody(html);
+                if (html) insertHtmlAtPoint(html, e.clientX, e.clientY);
+                setIsDraggingFromPalette(false);
+                setDragGhost(null);
               }}
             >
               <div style={{
@@ -985,6 +996,27 @@ const VisualEditor: React.FC = () => {
               }}>
                 {paletteDropping ? 'Release to insert element' : 'Drag here to insert element'}
               </div>
+              {dragGhost && (
+                <div style={{
+                  position: 'fixed',
+                  left: dragGhost.x,
+                  top: dragGhost.y,
+                  zIndex: 220,
+                  maxWidth: 260,
+                  pointerEvents: 'none',
+                  transform: 'scale(0.92)',
+                  transformOrigin: 'top left',
+                  background: 'rgba(255,255,255,0.92)',
+                  border: '1px solid rgba(229,164,90,0.9)',
+                  borderRadius: 8,
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+                  padding: 8,
+                  color: '#111',
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#8a5a1e', marginBottom: 5 }}>{dragGhost.label}</div>
+                  <div dangerouslySetInnerHTML={{ __html: dragGhost.html }} />
+                </div>
+              )}
             </div>
           )}
 
@@ -1031,11 +1063,11 @@ const VisualEditor: React.FC = () => {
                     { label: 'Bring to Front', icon: '⬆', action: () => bringToFront(selEl) },
                     { label: 'Send to Back', icon: '⬇', action: () => sendToBack(selEl) },
                     { separator: true, label: '' },
-                    { label: 'Copy HTML', icon: '📋', action: () => navigator.clipboard.writeText(selEl.outerHTML) },
-                    { label: 'Copy inline style', icon: '🎨', action: () => navigator.clipboard.writeText(selEl.getAttribute('style') || '') },
+                    { label: 'Copy HTML', icon: '<>', action: () => navigator.clipboard.writeText(selEl.outerHTML) },
+                    { label: 'Copy inline style', icon: 'CSS', action: () => navigator.clipboard.writeText(selEl.getAttribute('style') || '') },
                     { separator: true, label: '' },
                     { label: 'Reset styles', icon: '↺', action: () => { selEl.removeAttribute('style'); setTick(t => t + 1); syncToSource(selEl); } },
-                    { label: 'Delete element', icon: '🗑️', danger: true, action: () => {
+                    { label: 'Delete element', icon: '⌫', danger: true, action: () => {
                         updateHtmlSourceForElement(selEl, (target) => { target.remove(); });
                         selEl.remove();
                         selectedSelectorRef.current = null;
@@ -1120,8 +1152,11 @@ const VisualEditor: React.FC = () => {
           <div style={{ width: 160, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <ElementsPalette
             onInsert={insertHtmlAtBody}
-            onDragStart={() => setIsDraggingFromPalette(true)}
-            onDragEnd={() => { setIsDraggingFromPalette(false); setPaletteDropping(false); }}
+            onDragStart={(item: PaletteItem) => {
+              setIsDraggingFromPalette(true);
+              setDragGhost({ x: 0, y: 0, html: item.defaultHtml, label: item.label });
+            }}
+            onDragEnd={() => { setIsDraggingFromPalette(false); setPaletteDropping(false); setDragGhost(null); }}
           />
           </div>
         )}

@@ -3,6 +3,7 @@ import { useEditorStore } from '../store/editorStore';
 import {
   FiChevronDown, FiChevronRight, FiType, FiLayout, FiBox,
   FiDroplet, FiSliders, FiZap, FiCode, FiMove, FiMaximize2,
+  FiAlignLeft, FiPlus, FiMinus,
 } from 'react-icons/fi';
 
 /* ─── Design tokens ───────────────────────────────────────── */
@@ -143,33 +144,76 @@ function BtnGroup({ options, value, onChange, small }: { options: string[]; valu
 }
 
 /* ─── ColorInput ──────────────────────────────────────────── */
-function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function ColorInput({
+  value,
+  onChange,
+  gradientValue,
+  onGradientChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  gradientValue?: string;
+  onGradientChange?: (v: string) => void;
+}) {
   const [text, setText] = useState(value);
+  const [showGradient, setShowGradient] = useState(() => parseGradient(gradientValue || '').type !== 'none');
   useEffect(() => setText(value), [value]);
+  useEffect(() => {
+    if (parseGradient(gradientValue || '').type !== 'none') setShowGradient(true);
+  }, [gradientValue]);
   const hex = /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : '#000000';
   return (
-    <div style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <div style={{
-          width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`,
-          background: value || '#000', cursor: 'pointer', overflow: 'hidden',
-        }}>
-          <input
-            type="color" value={hex}
-            onChange={e => { onChange(e.target.value); setText(e.target.value); }}
-            style={{ width: 40, height: 40, opacity: 0, cursor: 'pointer', position: 'absolute', top: -4, left: -4 }}
-          />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`,
+            background: gradientValue && parseGradient(gradientValue).type !== 'none' ? gradientValue : value || '#000', cursor: 'pointer', overflow: 'hidden',
+          }}>
+            <input
+              type="color" value={hex}
+              onChange={e => { onChange(e.target.value); setText(e.target.value); }}
+              style={{ width: 40, height: 40, opacity: 0, cursor: 'pointer', position: 'absolute', top: -4, left: -4 }}
+            />
+          </div>
         </div>
+        <input
+          style={inputBase} value={text}
+          onChange={e => setText(e.target.value)}
+          onBlur={() => onChange(text)}
+          onKeyDown={e => e.key === 'Enter' && onChange(text)}
+          placeholder="#000000 or rgba(...)"
+          onFocus={e => (e.target.style.borderColor = C.accentBrd)}
+          onBlurCapture={e => (e.target.style.borderColor = C.border)}
+        />
+        {onGradientChange && (
+          <button
+            onClick={() => {
+              if (showGradient) {
+                setShowGradient(false);
+                onGradientChange('none');
+              } else {
+                setShowGradient(true);
+                if (parseGradient(gradientValue || '').type === 'none') onGradientChange('linear-gradient(135deg, #ff7a18, #af002d)');
+              }
+            }}
+            title={showGradient ? 'Remove gradient' : 'Add gradient'}
+            style={{
+              width: 26, height: 26, borderRadius: 4, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: showGradient ? C.accentBg : C.surface2,
+              border: `1px solid ${showGradient ? C.accentBrd : C.border}`,
+              color: showGradient ? C.accent : C.muted,
+              cursor: 'pointer',
+            }}
+          >
+            {showGradient ? <FiMinus size={12} /> : <FiPlus size={12} />}
+          </button>
+        )}
       </div>
-      <input
-        style={inputBase} value={text}
-        onChange={e => setText(e.target.value)}
-        onBlur={() => onChange(text)}
-        onKeyDown={e => e.key === 'Enter' && onChange(text)}
-        placeholder="#000000 or rgba(...)"
-        onFocus={e => (e.target.style.borderColor = C.accentBrd)}
-        onBlurCapture={e => (e.target.style.borderColor = C.border)}
-      />
+      {showGradient && onGradientChange && (
+        <GradientControls value={gradientValue || ''} onChange={onGradientChange} />
+      )}
     </div>
   );
 }
@@ -373,6 +417,23 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     apply('transform', `rotate(${r}deg) scaleX(${sx}) scaleY(${sy})`);
   }, [apply, rotateDeg, scaleX, scaleY]);
 
+  const applyTextGradient = useCallback((value: string) => {
+    apply('background-image', value);
+    if (parseGradient(value).type !== 'none') {
+      apply('background-clip', 'text');
+      apply('-webkit-background-clip', 'text');
+      apply('-webkit-text-fill-color', 'transparent');
+    } else {
+      apply('-webkit-text-fill-color', '');
+      apply('-webkit-background-clip', '');
+    }
+  }, [apply]);
+
+  const applyBorderGradient = useCallback((value: string) => {
+    apply('border-image-source', value);
+    apply('border-image-slice', parseGradient(value).type !== 'none' ? '1' : '');
+  }, [apply]);
+
   const persistPresetKeyframe = useCallback((preset: string) => {
     const keyframeCss = PRESET_KEYFRAMES[preset];
     if (!keyframeCss) return;
@@ -515,10 +576,46 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           </Row>
         </Section>
 
+        <Section title="Alignment" icon={<FiAlignLeft size={12} />}>
+          <Row label="Text">
+            <BtnGroup options={['left', 'center', 'right', 'justify']} value={getS('text-align') || 'left'} onChange={v => apply('text-align', v)} />
+          </Row>
+          <Row label="Vertical">
+            <select
+              style={selBase}
+              value={getS('align-items') || 'stretch'}
+              onChange={e => {
+                const v = e.target.value;
+                const display = getS('display');
+                if (!display.includes('flex') && !display.includes('grid')) {
+                  apply('display', 'flex');
+                  apply('flex-direction', 'column');
+                }
+                apply('align-items', v);
+              }}
+            >
+              {['stretch', 'flex-start', 'center', 'flex-end', 'baseline'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Justify">
+            <select
+              style={selBase}
+              value={getS('justify-content') || 'flex-start'}
+              onChange={e => {
+                const display = getS('display');
+                if (!display.includes('flex') && !display.includes('grid')) apply('display', 'flex');
+                apply('justify-content', e.target.value);
+              }}
+            >
+              {['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+        </Section>
+
         {/* Typography */}
         <Section title="Typography" icon={<FiType size={12} />}>
           <Row label="Color">
-            <ColorInput value={getS('color') || '#333333'} onChange={v => apply('color', v)} />
+            <ColorInput value={getS('color') || '#333333'} onChange={v => apply('color', v)} gradientValue={getS('background-image')} onGradientChange={applyTextGradient} />
           </Row>
           <Row label="Size">
             <PropInput value={getS('font-size') || '16px'} onChange={v => apply('font-size', v)} placeholder="16px" />
@@ -530,9 +627,6 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           </Row>
           <Row label="Weight">
             <BtnGroup options={['100', '300', '400', '600', '700', '900']} value={getS('font-weight') || '400'} onChange={v => apply('font-weight', v)} small />
-          </Row>
-          <Row label="Align">
-            <BtnGroup options={['left', 'center', 'right', 'justify']} value={getS('text-align') || 'left'} onChange={v => apply('text-align', v)} />
           </Row>
           <Row label="Line H">
             <PropInput value={getS('line-height') || '1.6'} onChange={v => apply('line-height', v)} placeholder="1.6" />
@@ -550,10 +644,8 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         {/* Background */}
         <Section title="Background" icon={<FiDroplet size={12} />}>
           <Row label="Color">
-            <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} />
+            <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} gradientValue={getS('background-image')} onGradientChange={v => apply('background-image', v)} />
           </Row>
-          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>Gradient</div>
-          <GradientControls value={getS('background-image') || ''} onChange={v => apply('background-image', v)} />
           <Row label="Image">
             <PropInput value={getS('background-image') || ''} onChange={v => apply('background-image', v)} placeholder="url(...) or gradient(...)" />
           </Row>
@@ -656,7 +748,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             <PropInput value={getS('border-width') || '0px'} onChange={v => apply('border-width', v)} placeholder="0px" />
           </Row>
           <Row label="Color">
-            <ColorInput value={getS('border-color') || '#cccccc'} onChange={v => apply('border-color', v)} />
+            <ColorInput value={getS('border-color') || '#cccccc'} onChange={v => apply('border-color', v)} gradientValue={getS('border-image-source')} onGradientChange={applyBorderGradient} />
           </Row>
           <Row label="Style">
             <BtnGroup options={['none', 'solid', 'dashed', 'dotted', 'double']} value={getS('border-style') || 'none'} onChange={v => apply('border-style', v)} small />

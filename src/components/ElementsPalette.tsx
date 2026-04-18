@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
+import {
+  FiBox, FiColumns, FiCreditCard, FiGrid, FiImage, FiLink,
+  FiList, FiMinus, FiMousePointer, FiNavigation, FiSquare,
+  FiTable, FiTerminal, FiType,
+} from 'react-icons/fi';
 
 export interface PaletteItem {
-  icon: string;
+  Icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>;
   label: string;
   tag: string;
   defaultHtml: string;
@@ -9,36 +14,36 @@ export interface PaletteItem {
 }
 
 const PALETTE_ITEMS: PaletteItem[] = [
-  { icon: '▭', label: 'Div', tag: 'div', category: 'Layout', defaultHtml: '<div style="padding:16px;border:1px dashed #aaa">Div block</div>' },
-  { icon: '⬛', label: 'Section', tag: 'section', category: 'Layout', defaultHtml: '<section style="padding:24px">Section</section>' },
-  { icon: '▤', label: 'Header', tag: 'header', category: 'Layout', defaultHtml: '<header style="padding:16px;background:#333;color:#fff">Header</header>' },
-  { icon: '▣', label: 'Footer', tag: 'footer', category: 'Layout', defaultHtml: '<footer style="padding:16px;background:#222;color:#aaa">Footer</footer>' },
-  { icon: 'H1', label: 'Heading 1', tag: 'h1', category: 'Text', defaultHtml: '<h1>Heading 1</h1>' },
-  { icon: 'H2', label: 'Heading 2', tag: 'h2', category: 'Text', defaultHtml: '<h2>Heading 2</h2>' },
-  { icon: 'H3', label: 'Heading 3', tag: 'h3', category: 'Text', defaultHtml: '<h3>Heading 3</h3>' },
-  { icon: '¶', label: 'Paragraph', tag: 'p', category: 'Text', defaultHtml: '<p>Type your text here.</p>' },
-  { icon: '🔗', label: 'Link', tag: 'a', category: 'Text', defaultHtml: '<a href="#">Link text</a>' },
-  { icon: '⌚', label: 'Span', tag: 'span', category: 'Text', defaultHtml: '<span>Inline text</span>' },
-  { icon: '⏩', label: 'Button', tag: 'button', category: 'UI', defaultHtml: '<button style="padding:10px 20px;background:#e5a45a;border:none;border-radius:6px;cursor:pointer;font-size:14px;color:#111">Button</button>' },
-  { icon: '☐', label: 'Input', tag: 'input', category: 'UI', defaultHtml: '<input type="text" placeholder="Enter text..." style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px">' },
-  { icon: '▽', label: 'Select', tag: 'select', category: 'UI', defaultHtml: '<select style="padding:8px;border:1px solid #ccc;border-radius:4px"><option>Option 1</option><option>Option 2</option></select>' },
-  { icon: '☷', label: 'Textarea', tag: 'textarea', category: 'UI', defaultHtml: '<textarea rows="4" style="padding:8px;border:1px solid #ccc;border-radius:4px;resize:vertical" placeholder="Enter text..."></textarea>' },
-  { icon: '🖼', label: 'Image', tag: 'img', category: 'Media', defaultHtml: '<img src="https://placehold.co/200x120" alt="Image" style="max-width:100%;border-radius:4px">' },
-  { icon: '—', label: 'Divider', tag: 'hr', category: 'Layout', defaultHtml: '<hr style="border:none;border-top:2px solid #eee;margin:16px 0">' },
-  { icon: '•', label: 'List (ul)', tag: 'ul', category: 'Text', defaultHtml: '<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>' },
-  { icon: '1.', label: 'List (ol)', tag: 'ol', category: 'Text', defaultHtml: '<ol><li>First</li><li>Second</li><li>Third</li></ol>' },
-  { icon: '⊞', label: 'Table', tag: 'table', category: 'Layout', defaultHtml: '<table style="border-collapse:collapse;width:100%"><thead><tr><th style="border:1px solid #ccc;padding:8px">Col 1</th><th style="border:1px solid #ccc;padding:8px">Col 2</th></tr></thead><tbody><tr><td style="border:1px solid #ccc;padding:8px">Cell</td><td style="border:1px solid #ccc;padding:8px">Cell</td></tr></tbody></table>' },
-  { icon: '◱', label: 'Card', tag: 'div', category: 'UI', defaultHtml: '<div style="padding:20px;background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,0.1);max-width:280px"><h3 style="margin:0 0 8px">Card Title</h3><p style="margin:0;color:#666;font-size:14px">Card description goes here.</p></div>' },
-  { icon: '☰', label: 'Nav', tag: 'nav', category: 'Layout', defaultHtml: '<nav style="display:flex;gap:16px;padding:12px 24px;background:#222"><a href="#" style="color:#ccc;text-decoration:none">Home</a><a href="#" style="color:#ccc;text-decoration:none">About</a><a href="#" style="color:#ccc;text-decoration:none">Contact</a></nav>' },
-  { icon: '◫', label: 'Flex Row', tag: 'div', category: 'Layout', defaultHtml: '<div style="display:flex;gap:16px;align-items:center;padding:12px"><div style="padding:12px;background:#eee;border-radius:4px;flex:1">Item</div><div style="padding:12px;background:#eee;border-radius:4px;flex:1">Item</div></div>' },
-  { icon: '⊟', label: 'Grid', tag: 'div', category: 'Layout', defaultHtml: '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:12px"><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div></div>' },
+  { Icon: FiBox, label: 'Div', tag: 'div', category: 'Layout', defaultHtml: '<div style="padding:16px;border:1px dashed #aaa">Div block</div>' },
+  { Icon: FiColumns, label: 'Section', tag: 'section', category: 'Layout', defaultHtml: '<section style="padding:24px">Section</section>' },
+  { Icon: FiTerminal, label: 'Header', tag: 'header', category: 'Layout', defaultHtml: '<header style="padding:16px;background:#333;color:#fff">Header</header>' },
+  { Icon: FiMinus, label: 'Footer', tag: 'footer', category: 'Layout', defaultHtml: '<footer style="padding:16px;background:#222;color:#aaa">Footer</footer>' },
+  { Icon: FiType, label: 'Heading 1', tag: 'h1', category: 'Text', defaultHtml: '<h1>Heading 1</h1>' },
+  { Icon: FiType, label: 'Heading 2', tag: 'h2', category: 'Text', defaultHtml: '<h2>Heading 2</h2>' },
+  { Icon: FiType, label: 'Heading 3', tag: 'h3', category: 'Text', defaultHtml: '<h3>Heading 3</h3>' },
+  { Icon: FiType, label: 'Paragraph', tag: 'p', category: 'Text', defaultHtml: '<p>Type your text here.</p>' },
+  { Icon: FiLink, label: 'Link', tag: 'a', category: 'Text', defaultHtml: '<a href="#">Link text</a>' },
+  { Icon: FiType, label: 'Span', tag: 'span', category: 'Text', defaultHtml: '<span>Inline text</span>' },
+  { Icon: FiMousePointer, label: 'Button', tag: 'button', category: 'UI', defaultHtml: '<button style="padding:10px 20px;background:#e5a45a;border:none;border-radius:6px;cursor:pointer;font-size:14px;color:#111">Button</button>' },
+  { Icon: FiSquare, label: 'Input', tag: 'input', category: 'UI', defaultHtml: '<input type="text" placeholder="Enter text..." style="padding:8px 12px;border:1px solid #ccc;border-radius:4px;font-size:14px">' },
+  { Icon: FiColumns, label: 'Select', tag: 'select', category: 'UI', defaultHtml: '<select style="padding:8px;border:1px solid #ccc;border-radius:4px"><option>Option 1</option><option>Option 2</option></select>' },
+  { Icon: FiTerminal, label: 'Textarea', tag: 'textarea', category: 'UI', defaultHtml: '<textarea rows="4" style="padding:8px;border:1px solid #ccc;border-radius:4px;resize:vertical" placeholder="Enter text..."></textarea>' },
+  { Icon: FiImage, label: 'Image', tag: 'img', category: 'Media', defaultHtml: '<img src="https://placehold.co/200x120" alt="Image" style="max-width:100%;border-radius:4px">' },
+  { Icon: FiMinus, label: 'Divider', tag: 'hr', category: 'Layout', defaultHtml: '<hr style="border:none;border-top:2px solid #eee;margin:16px 0">' },
+  { Icon: FiList, label: 'List (ul)', tag: 'ul', category: 'Text', defaultHtml: '<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>' },
+  { Icon: FiList, label: 'List (ol)', tag: 'ol', category: 'Text', defaultHtml: '<ol><li>First</li><li>Second</li><li>Third</li></ol>' },
+  { Icon: FiTable, label: 'Table', tag: 'table', category: 'Layout', defaultHtml: '<table style="border-collapse:collapse;width:100%"><thead><tr><th style="border:1px solid #ccc;padding:8px">Col 1</th><th style="border:1px solid #ccc;padding:8px">Col 2</th></tr></thead><tbody><tr><td style="border:1px solid #ccc;padding:8px">Cell</td><td style="border:1px solid #ccc;padding:8px">Cell</td></tr></tbody></table>' },
+  { Icon: FiCreditCard, label: 'Card', tag: 'div', category: 'UI', defaultHtml: '<div style="padding:20px;background:#fff;border-radius:10px;box-shadow:0 2px 12px rgba(0,0,0,0.1);max-width:280px"><h3 style="margin:0 0 8px">Card Title</h3><p style="margin:0;color:#666;font-size:14px">Card description goes here.</p></div>' },
+  { Icon: FiNavigation, label: 'Nav', tag: 'nav', category: 'Layout', defaultHtml: '<nav style="display:flex;gap:16px;padding:12px 24px;background:#222"><a href="#" style="color:#ccc;text-decoration:none">Home</a><a href="#" style="color:#ccc;text-decoration:none">About</a><a href="#" style="color:#ccc;text-decoration:none">Contact</a></nav>' },
+  { Icon: FiColumns, label: 'Flex Row', tag: 'div', category: 'Layout', defaultHtml: '<div style="display:flex;gap:16px;align-items:center;padding:12px"><div style="padding:12px;background:#eee;border-radius:4px;flex:1">Item</div><div style="padding:12px;background:#eee;border-radius:4px;flex:1">Item</div></div>' },
+  { Icon: FiGrid, label: 'Grid', tag: 'div', category: 'Layout', defaultHtml: '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:12px"><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div></div>' },
 ];
 
 const CATEGORIES = ['Layout', 'Text', 'UI', 'Media'];
 
 interface Props {
   onInsert: (html: string) => void;
-  onDragStart?: (html: string) => void;
+  onDragStart?: (item: PaletteItem) => void;
   onDragEnd?: () => void;
 }
 
@@ -103,8 +108,9 @@ const ElementsPalette: React.FC<Props> = ({ onInsert, onDragStart, onDragEnd }) 
             onDragStart={e => {
               setDragging(item);
               e.dataTransfer.setData('text/html-element', item.defaultHtml);
+              e.dataTransfer.setData('text/html-element-label', item.label);
               e.dataTransfer.effectAllowed = 'copy';
-              onDragStart?.(item.defaultHtml);
+              onDragStart?.(item);
             }}
             onDragEnd={() => { setDragging(null); onDragEnd?.(); }}
             onClick={() => onInsert(item.defaultHtml)}
@@ -133,18 +139,18 @@ const ElementsPalette: React.FC<Props> = ({ onInsert, onDragStart, onDragEnd }) 
           >
             <span style={{
               width: 26, height: 26, flexShrink: 0,
-              background: '#2a2a2a', borderRadius: 4,
+              background: 'linear-gradient(135deg, #2b2b2b, #202020)', borderRadius: 6,
+              border: '1px solid #363636',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: item.icon.length > 2 ? 9 : 13, color: '#e5a45a',
-              fontFamily: 'monospace', fontWeight: 700,
+              color: '#e5a45a',
             }}>
-              {item.icon}
+              <item.Icon size={14} />
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, color: '#ccc', fontWeight: 500, lineHeight: 1.3 }}>{item.label}</div>
               <div style={{ fontSize: 9, color: '#555', fontFamily: 'monospace' }}>&lt;{item.tag}&gt;</div>
             </div>
-            <span style={{ fontSize: 9, color: '#444', flexShrink: 0 }}>drag</span>
+            <span style={{ fontSize: 9, color: '#555', flexShrink: 0 }}>drag</span>
           </div>
         ))}
       </div>
