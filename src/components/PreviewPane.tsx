@@ -9,6 +9,7 @@ import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
 import { createPreviewFrame, buildStaticPreviewHtml } from '../utils/previewEngine';
 import type { PreviewFrame } from '../utils/previewEngine';
 import { projectTypeLabel } from '../utils/fileTypes';
+import { startWebContainerPreview, stopWebContainerRuntime } from '../utils/webContainerRuntime';
 
 type DevToolsTab = 'console' | 'elements' | 'network' | 'styles';
 
@@ -34,6 +35,8 @@ const PreviewPane: React.FC = () => {
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
   const [currentUrl, setCurrentUrl] = useState('preview://localhost/');
+  const runtimeRunRef = useRef(0);
+  const [runtimeStatus, setRuntimeStatus] = useState('');
   const historyIdxRef = useRef(-1);
   useEffect(() => { historyIdxRef.current = historyIdx; }, [historyIdx]);
 
@@ -105,6 +108,7 @@ const PreviewPane: React.FC = () => {
   const scheduleRebuild = useCallback((forceRemount = false, modeOverride?: 'srcdoc' | 'url') => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     rebuildTimerRef.current = setTimeout(() => {
+      const runId = ++runtimeRunRef.current;
       const mode = modeOverride ?? previewMode;
       setLoading(true);
       setFadeIn(false);
@@ -119,19 +123,64 @@ const PreviewPane: React.FC = () => {
       setHistory([frame.url]);
       setHistoryIdx(0);
       if (forceRemount) setIframeKey(k => k + 1);
+
+      if (mode === 'url' && frame.projectType !== 'static') {
+        startWebContainerPreview(files, frame.projectType, {
+          onStatus: (_phase, message) => {
+            if (runtimeRunRef.current === runId) setRuntimeStatus(message);
+          },
+          onConsole: (level, message) => {
+            addConsoleEntry({ type: level as any, message, timestamp: new Date() });
+          },
+        }).then(result => {
+          if (runtimeRunRef.current !== runId) return;
+          const runtimeFrame: PreviewFrame = {
+            mode: 'url',
+            value: result.url,
+            projectType: frame.projectType,
+            runtimeLabel: result.runtimeLabel,
+            url: result.url,
+          };
+          setRuntimeStatus(`Running ${result.command}`);
+          setPreviewFrame(runtimeFrame);
+          setCurrentUrl(result.url);
+          setHistory([result.url]);
+          setHistoryIdx(0);
+          setIframeKey(k => k + 1);
+        }).catch(err => {
+          if (runtimeRunRef.current !== runId) return;
+          const message = err instanceof Error ? err.message : String(err);
+          setRuntimeStatus('Runtime unavailable');
+          setLoading(false);
+          setPreviewFrame({
+            ...frame,
+            error: message,
+          });
+          addConsoleEntry({ type: 'error', message, timestamp: new Date() });
+        });
+      } else {
+        setRuntimeStatus('');
+        if (mode === 'srcdoc') stopWebContainerRuntime().catch(() => {});
+      }
     }, 120);
-  }, [files, previewMode, timelineAnimationStyle]);
+  }, [files, previewMode, timelineAnimationStyle, addConsoleEntry]);
 
   const openInBrowser = useCallback(() => {
+    if (previewFrame.mode === 'url') {
+      window.open(previewFrame.value, '_blank');
+      return;
+    }
     const html = buildSrcDoc();
     const blob = new Blob([html], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [buildSrcDoc]);
+  }, [buildSrcDoc, previewFrame]);
 
   useEffect(() => {
     return () => {
+      runtimeRunRef.current += 1;
+      stopWebContainerRuntime().catch(() => {});
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
@@ -165,6 +214,7 @@ const PreviewPane: React.FC = () => {
 
   const useInstantPreview = useCallback(() => {
     setPreviewMode('srcdoc');
+    stopWebContainerRuntime().catch(() => {});
     scheduleRebuild(true, 'srcdoc');
   }, [scheduleRebuild]);
 
@@ -485,6 +535,17 @@ const PreviewPane: React.FC = () => {
                 boxShadow: '0 8px 28px rgba(0,0,0,0.35)', pointerEvents: 'none',
               }}>
                 {previewFrame.error}
+              </div>
+            )}
+            {runtimeStatus && !previewFrame.error && (
+              <div style={{
+                position: 'absolute', left: 12, bottom: 12, maxWidth: 420,
+                background: 'rgba(20,24,32,0.9)', color: '#d6deeb',
+                border: '1px solid rgba(78,201,176,0.35)', borderRadius: 8,
+                padding: '8px 10px', fontSize: 11, lineHeight: 1.45,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.35)', pointerEvents: 'none',
+              }}>
+                {runtimeStatus}
               </div>
             )}
           </div>
