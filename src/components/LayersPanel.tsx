@@ -146,16 +146,16 @@ function LayerRow({ node, selectedEl, multiSel, draggingEl, dropTarget, onSelect
           {label(node)}
         </span>
         {isSel && node.el === selectedEl && (
-          <span style={{ display: 'flex', gap: 2 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <button
               onClick={e => { e.stopPropagation(); onMove(node.el, 'up'); }}
               title="Move up"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: '0 2px', lineHeight: 1, display: 'flex' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             ><FiArrowUp size={10} /></button>
             <button
               onClick={e => { e.stopPropagation(); onMove(node.el, 'down'); }}
               title="Move down"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: '0 2px', lineHeight: 1, display: 'flex' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: '0 2px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             ><FiArrowDown size={10} /></button>
           </span>
         )}

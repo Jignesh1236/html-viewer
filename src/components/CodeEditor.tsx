@@ -77,14 +77,17 @@ export function clearAiCache() {
 function buildPrompt(lang: string, file: string, prefix: string, suffix: string) {
   return [
     'You are an expert inline code completion AI like GitHub Copilot.',
-    'Output ONLY the raw code to insert at the cursor. No explanation, no markdown.',
-    'Complete 1–5 lines naturally, preserving indentation and coding style.',
+    'Output ONLY the raw code to insert at the cursor. No markdown, no explanation, no ``` fences.',
+    'Write exactly 3 to 4 lines of natural continuation that fit perfectly in context.',
+    'Preserve the exact indentation style (tabs vs spaces) and coding conventions already used.',
+    'IMPORTANT: If the code before the cursor contains a comment (e.g. // create a navbar, <!-- add a button -->, /* build a card */), generate the full code that implements what the comment describes.',
+    'The output is shown as ghost text — make it immediately useful and complete.',
     `Language: ${lang}. File: ${file}.`,
     '=== CODE BEFORE CURSOR ===',
     prefix.slice(-2000),
     '=== CODE AFTER CURSOR ===',
     suffix.slice(0, 600),
-    '=== COMPLETION ===',
+    '=== GHOST TEXT COMPLETION (3-4 lines, implement comments if present) ===',
   ].join('\n');
 }
 
@@ -94,7 +97,7 @@ function cleanSuggestion(raw: string): string {
     .replace(/\n?```$/i, '')
     .replace(/^`+|`+$/g, '')
     .trimEnd()
-    .slice(0, 1500);
+    .slice(0, 3000);
 }
 
 async function fetchSuggestion(
@@ -126,12 +129,20 @@ function registerProvider(monaco: any) {
 
   monaco.languages.registerInlineCompletionsProvider('*', {
     provideInlineCompletions(model: any, position: any, _ctx: any, token: any) {
+      const fullText = model.getValue();
       const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-      if (linePrefix.trim().length < 2) {
+      const prevLine = position.lineNumber > 1 ? model.getLineContent(position.lineNumber - 1).trim() : '';
+
+      // Allow suggestion if: current line has content, OR there's a comment on current/prev line, OR file has substantial content before cursor
+      const hasComment = /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(linePrefix.trim()) || /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(prevLine) || /(\*\/|-->)\s*$/.test(prevLine);
+      const hasCurrentLineContent = linePrefix.trim().length >= 2;
+      const hasPrefixContext = fullText.slice(0, model.getOffsetAt(position)).trim().length >= 30;
+
+      if (!hasComment && !hasCurrentLineContent && !hasPrefixContext) {
         return Promise.resolve({ items: [], dispose: () => undefined });
       }
 
-      const fullText = model.getValue();
+
       const offset   = model.getOffsetAt(position);
       const lang     = model.getLanguageId();
       const fileName = model.uri?.path?.split('/').pop() ?? 'untitled';
@@ -257,31 +268,42 @@ const CodeEditor: React.FC = () => {
 
   /* ── Register idle detection ── */
   function setupIdleDetection(editor: any) {
-    function resetIdleTimer() {
+    function scheduleAiTrigger() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      // After 1.5 s of no typing → trigger AI
       idleTimerRef.current = setTimeout(() => {
         const model = editor.getModel();
         const pos   = editor.getPosition();
         if (!model || !pos) return;
+
         const linePrefix = model.getLineContent(pos.lineNumber).slice(0, pos.column - 1);
-        // Only trigger if there's meaningful code on the current line
-        if (linePrefix.trim().length >= 2) {
+        const prevLine = pos.lineNumber > 1 ? model.getLineContent(pos.lineNumber - 1).trim() : '';
+        const fullPrefix = model.getValue().slice(0, model.getOffsetAt(pos)).trim();
+
+        const hasComment = /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(linePrefix.trim())
+          || /^(\/\/|\/\*|<!--|\*\s|\s*#)/.test(prevLine)
+          || /(\*\/|-->)\s*$/.test(prevLine);
+        const hasContent = linePrefix.trim().length >= 2;
+        const hasContext = fullPrefix.length >= 30;
+
+        if (hasComment || hasContent || hasContext) {
           aiControl.setState('loading');
           editor.trigger('ai-idle', 'editor.action.inlineSuggest.trigger', null);
         }
       }, 1500);
     }
 
-    // Reset timer on every content change (user typed something)
+    // Start timer whenever content changes (typing)
     const contentSub = editor.onDidChangeModelContent(() => {
-      aiControl.setState('idle');   // hide stale state while typing
-      resetIdleTimer();
+      aiControl.setState('idle');
+      scheduleAiTrigger();
     });
 
-    // Also reset on cursor move (arrow keys, click)
+    // Also start timer when cursor moves and then stops (navigation, click, arrow keys)
     const cursorSub = editor.onDidChangeCursorPosition(() => {
+      // Cancel any pending suggestion from a previous position
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      // Schedule a fresh suggestion for the new cursor position
+      scheduleAiTrigger();
     });
 
     return () => {

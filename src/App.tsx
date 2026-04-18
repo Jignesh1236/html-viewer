@@ -9,7 +9,7 @@ import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiMapPin } from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
 /* ─── AI Status Button (shown in bottom status bar) ─── */
@@ -719,7 +719,6 @@ function DesktopApp() {
               title={w.docked ? `${shortLabels[id]} (docked)` : `${shortLabels[id]} ${w.visible ? '(floating)' : '(hidden)'}`}
               style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit', background: w.visible ? (w.docked ? 'rgba(100,180,255,0.12)' : 'rgba(229,164,90,0.12)') : '#1a1a1a', border: `1px solid ${w.visible ? (w.docked ? 'rgba(100,180,255,0.35)' : 'rgba(229,164,90,0.4)') : '#3e3e3e'}`, color: w.visible ? (w.docked ? '#7ab8f5' : '#e5a45a') : '#666' }}
             >
-              {w.docked && w.visible && <FiMapPin size={10} style={{ marginRight: 4, verticalAlign: -1 }} />}
               {shortLabels[id]}
             </button>
           );
@@ -843,7 +842,7 @@ function DesktopApp() {
 function ToolbarBtn({ title, icon, label, onClick }: { title: string; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <button title={title} onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit' }}
+      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, lineHeight: 1, background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit' }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
     >{icon}{label}</button>

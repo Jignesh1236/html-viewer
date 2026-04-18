@@ -446,6 +446,13 @@ const VisualEditor: React.FC = () => {
         const el = getSelectedDomEl();
         if (!el) return;
         el.style.setProperty(property, value);
+        // Apply same style to every multi-selected element
+        for (const mel of multiSelRef.current) {
+          if (mel.isConnected && mel !== el) {
+            mel.style.setProperty(property, value);
+            syncToSource(mel);
+          }
+        }
         setTick(t => t + 1);
         refreshSelectedSnapshot(el);
         syncToSource(el);
@@ -949,16 +956,16 @@ const VisualEditor: React.FC = () => {
           <button
           title="Toggle Layers panel"
           onClick={() => setShowLayers(l => !l)}
-          style={{ background: showLayers ? VE.blueBg : 'transparent', border: `1px solid ${showLayers ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showLayers ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0 }}
+          style={{ background: showLayers ? VE.blueBg : 'transparent', border: `1px solid ${showLayers ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showLayers ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
         >
-          <FiLayers size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Layers
+          <FiLayers size={12} /> Layers
         </button>
         <button
           title="Toggle Elements palette"
           onClick={() => setShowPalette(p => !p)}
-          style={{ background: showPalette ? VE.blueBg : 'transparent', border: `1px solid ${showPalette ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showPalette ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0 }}
+          style={{ background: showPalette ? VE.blueBg : 'transparent', border: `1px solid ${showPalette ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showPalette ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
         >
-          <FiGrid size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Elements
+          <FiGrid size={12} /> Elements
         </button>
         </div>
 
@@ -994,13 +1001,14 @@ const VisualEditor: React.FC = () => {
             background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer',
             fontSize: 10, color: interaction === 'select' ? VE.accent : VE.blue,
             padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0,
+            display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1,
           }}
-          title={interaction === 'select' ? 'Select mode' : 'Interact mode'}
+          title={interaction === 'select' ? 'Switch to Interact mode (lets page events fire)' : 'Switch to Select mode (click to select elements)'}
         >
-          {interaction === 'select' ? <><FiMousePointer size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Select</> : <><FiBox size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Interact</>}
+          {interaction === 'select' ? <><FiMousePointer size={11} /> Select</> : <><FiBox size={11} /> Interact</>}
         </button>
-        <span style={{ fontSize: 10, color: VE.muted, flexShrink: 0 }}>
-          {selEl ? 'Selected 1' : 'No selection'}
+        <span style={{ fontSize: 10, color: selEl ? VE.accent : VE.muted, flexShrink: 0 }}>
+          {selEl ? `Selected ${multiSel.size > 0 ? multiSel.size + 1 : 1}` : 'No selection'}
         </span>
 
         {selEl && (
@@ -1012,13 +1020,10 @@ const VisualEditor: React.FC = () => {
               setSelectedElement(null); setSelectedSelector(null);
               setMultiSel(new Set());
             }}
-            style={{ background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: VE.dim, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0 }}
+            style={{ background: 'transparent', border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: VE.dim, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
           >
-            <FiX size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Deselect
+            <FiX size={11} /> Deselect
           </button>
-        )}
-        {multiSel.size > 0 && (
-          <span style={{ fontSize: 10, color: VE.blue, flexShrink: 0 }}>+{multiSel.size} selected</span>
         )}
       </div>
 
