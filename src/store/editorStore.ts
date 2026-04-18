@@ -3,12 +3,15 @@ import { create } from 'zustand';
 export interface FileItem {
   id: string;
   name: string;
-  type: 'html' | 'css' | 'js' | 'image' | 'other';
+  type: FileType;
   content: string;
   url?: string;
   mimeType?: string;
   folder?: string;
 }
+
+export type FileType = 'html' | 'css' | 'js' | 'ts' | 'tsx' | 'jsx' | 'json' | 'image' | 'other';
+export type ProjectType = 'static' | 'react' | 'node' | 'fullstack';
 
 export interface SelectedElement {
   tagName: string;

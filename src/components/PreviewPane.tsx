@@ -3,9 +3,12 @@ import { useEditorStore } from '../store/editorStore';
 import {
   FiRefreshCw, FiMonitor, FiTablet, FiSmartphone,
   FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
-  FiLock, FiTrash2,
+  FiLock, FiTrash2, FiPlay,
 } from 'react-icons/fi';
 import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
+import { createPreviewFrame, buildStaticPreviewHtml } from '../utils/previewEngine';
+import type { PreviewFrame } from '../utils/previewEngine';
+import { projectTypeLabel } from '../utils/fileTypes';
 
 type DevToolsTab = 'console' | 'elements' | 'network' | 'styles';
 
@@ -19,7 +22,9 @@ const PreviewPane: React.FC = () => {
   } = useEditorStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [srcDoc, setSrcDoc] = useState<string>('');
+  const [previewFrame, setPreviewFrame] = useState<PreviewFrame>(() => createPreviewFrame([], { mode: 'srcdoc' }));
+  const [previewMode, setPreviewMode] = useState<'srcdoc' | 'url'>('srcdoc');
+  const objectUrlRef = useRef<string | null>(null);
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [devtoolsTab, setDevtoolsTab] = useState<DevToolsTab>('console');
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -65,113 +70,8 @@ const PreviewPane: React.FC = () => {
     }
   }, [files, addPreviewTab]);
 
-  // Build the srcdoc that injects all project files into the HTML
   const buildSrcDoc = useCallback(() => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
-
-    let html = htmlFile.content;
-
-    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    files.filter(f => f.type === 'css').forEach(css => {
-      const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
-      // Match by file.name or file.id (folder path like "styles/main.css")
-      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const linkRe = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
-        if (linkRe.test(html)) { html = html.replace(linkRe, tag); matched = true; break; }
-      }
-      if (!matched) {
-        if (html.toLowerCase().includes('</head>')) {
-          html = html.replace(/<\/head>/i, `${tag}\n</head>`);
-        } else { html = `${tag}\n${html}`; }
-      }
-    });
-
-    files.filter(f => f.type === 'js').forEach(js => {
-      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
-      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const scriptRe = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\/script>`, 'gi');
-        if (scriptRe.test(html)) { html = html.replace(scriptRe, tag); matched = true; break; }
-      }
-      if (!matched) { html = html.replace('</body>', `${tag}\n</body>`); }
-    });
-
-    files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
-      for (const ref of refs) {
-        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
-      }
-    });
-
-    if (timelineAnimationStyle.trim()) {
-      const timelineStyleTag = `<style id="__timeline-preview-anim-style">\n${timelineAnimationStyle}\n</style>`;
-      if (html.toLowerCase().includes('</head>')) {
-        html = html.replace(/<\/head>/i, `${timelineStyleTag}\n</head>`);
-      } else {
-        html = `${timelineStyleTag}\n${html}`;
-      }
-    }
-
-    const bridgeScript = `<script>
-(function() {
-  const _types = ['log','error','warn','info','debug'];
-  _types.forEach(function(t) {
-    const orig = console[t].bind(console);
-    console[t] = function() {
-      orig.apply(console, arguments);
-      try {
-        const msg = Array.from(arguments).map(function(a) {
-          if (a === null) return 'null';
-          if (a === undefined) return 'undefined';
-          try { return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }
-          catch(e) { return String(a); }
-        }).join(' ');
-        window.parent.postMessage({ __htmlEditor: true, type: 'console', level: t, message: msg }, '*');
-      } catch(e) {}
-    };
-  });
-  window.addEventListener('error', function(e) {
-    window.parent.postMessage({ __htmlEditor: true, type: 'console', level: 'error', message: 'Uncaught ' + e.message + '\\n  at ' + e.filename + ':' + e.lineno + ':' + e.colno }, '*');
-  });
-  window.addEventListener('unhandledrejection', function(e) {
-    window.parent.postMessage({ __htmlEditor: true, type: 'console', level: 'error', message: 'UnhandledPromiseRejection: ' + e.reason }, '*');
-  });
-  function sendMeta() {
-    var title = document.title || 'Untitled';
-    var favicon = '';
-    var links = document.querySelectorAll('link[rel*="icon"]');
-    if (links.length > 0) favicon = links[links.length - 1].href || '';
-    window.parent.postMessage({ __htmlEditor: true, type: 'meta', title: title, favicon: favicon }, '*');
-  }
-  document.addEventListener('DOMContentLoaded', sendMeta);
-  var titleEl = document.querySelector('title');
-  if (titleEl) {
-    var mo = new MutationObserver(sendMeta);
-    mo.observe(titleEl, { childList: true, characterData: true, subtree: true });
-  }
-  var _pushState = history.pushState.bind(history);
-  var _replaceState = history.replaceState.bind(history);
-  history.pushState = function() { _pushState.apply(history, arguments); sendNav(); };
-  history.replaceState = function() { _replaceState.apply(history, arguments); sendNav(); };
-  window.addEventListener('popstate', sendNav);
-  function sendNav() {
-    window.parent.postMessage({ __htmlEditor: true, type: 'navigate', url: location.href }, '*');
-  }
-})();
-<\/script>`;
-
-    if (html.includes('<head>')) {
-      html = html.replace('<head>', '<head>' + bridgeScript);
-    } else {
-      html = bridgeScript + html;
-    }
-
-    return html;
+    return buildStaticPreviewHtml(files, { timelineAnimationStyle });
   }, [files, timelineAnimationStyle]);
 
   // Listen for postMessages from iframe
@@ -202,18 +102,25 @@ const PreviewPane: React.FC = () => {
     return () => window.removeEventListener('message', handler);
   }, [activePreviewTabId, addConsoleEntry, updatePreviewTab]);
 
-  const scheduleRebuild = useCallback((forceRemount = false) => {
+  const scheduleRebuild = useCallback((forceRemount = false, modeOverride?: 'srcdoc' | 'url') => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     rebuildTimerRef.current = setTimeout(() => {
+      const mode = modeOverride ?? previewMode;
       setLoading(true);
       setFadeIn(false);
-      setCurrentUrl('preview://localhost/');
-      setHistory(['preview://localhost/']);
+      const frame = createPreviewFrame(files, {
+        mode,
+        timelineAnimationStyle,
+        previousObjectUrl: objectUrlRef.current || undefined,
+      });
+      objectUrlRef.current = frame.mode === 'url' ? frame.value : null;
+      setPreviewFrame(frame);
+      setCurrentUrl(frame.url);
+      setHistory([frame.url]);
       setHistoryIdx(0);
       if (forceRemount) setIframeKey(k => k + 1);
-      setSrcDoc(buildSrcDoc());
     }, 120);
-  }, [buildSrcDoc]);
+  }, [files, previewMode, timelineAnimationStyle]);
 
   const openInBrowser = useCallback(() => {
     const html = buildSrcDoc();
@@ -222,6 +129,12 @@ const PreviewPane: React.FC = () => {
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   }, [buildSrcDoc]);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
 
   // Rebuild srcdoc on file changes or explicit refresh
   useEffect(() => {
@@ -244,6 +157,16 @@ const PreviewPane: React.FC = () => {
     if (activeTab?.previewType !== 'page') return;
     scheduleRebuild();
   }, [activePreviewTabId, activeTab?.previewType, scheduleRebuild]);
+
+  const runProject = useCallback(() => {
+    setPreviewMode('url');
+    scheduleRebuild(true, 'url');
+  }, [scheduleRebuild]);
+
+  const useInstantPreview = useCallback(() => {
+    setPreviewMode('srcdoc');
+    scheduleRebuild(true, 'srcdoc');
+  }, [scheduleRebuild]);
 
   const handleIframeLoad = () => {
     setLoading(false);
@@ -453,6 +376,14 @@ const PreviewPane: React.FC = () => {
             >
               <FiRefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
+            <button
+              className="panel-icon-btn"
+              title={previewMode === 'url' ? 'Switch to instant srcDoc preview' : 'Run project with URL preview'}
+              onClick={previewMode === 'url' ? useInstantPreview : runProject}
+              style={{ color: previewMode === 'url' ? 'var(--editor-amber)' : undefined }}
+            >
+              <FiPlay size={12} />
+            </button>
             <div style={{
               flex: 1, background: '#1a1a1a', border: '1px solid #3e3e3e',
               borderRadius: 12, padding: '3px 12px',
@@ -467,6 +398,13 @@ const PreviewPane: React.FC = () => {
                 value={currentUrl}
                 readOnly
               />
+              <span style={{
+                fontSize: 10, color: previewMode === 'url' ? '#e5a45a' : '#666',
+                border: `1px solid ${previewMode === 'url' ? 'rgba(229,164,90,0.35)' : '#333'}`,
+                borderRadius: 10, padding: '1px 7px', flexShrink: 0,
+              }}>
+                {projectTypeLabel(previewFrame.projectType)} · {previewFrame.runtimeLabel}
+              </span>
             </div>
             <div style={{ display: 'flex', gap: 2 }}>
               {(['desktop', 'tablet', 'mobile'] as const).map(v => (
@@ -523,11 +461,12 @@ const PreviewPane: React.FC = () => {
               }} />
             )}
             <iframe
-              key={iframeKey}
+              key={`${iframeKey}-${previewFrame.mode}`}
               ref={iframeRef}
               title="Preview"
               onLoad={handleIframeLoad}
-              srcDoc={srcDoc}
+              srcDoc={previewFrame.mode === 'srcdoc' ? previewFrame.value : undefined}
+              src={previewFrame.mode === 'url' ? previewFrame.value : undefined}
               sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
               style={{
                 ...viewportStyle,
@@ -537,6 +476,17 @@ const PreviewPane: React.FC = () => {
                 willChange: 'opacity',
               }}
             />
+            {previewFrame.error && (
+              <div style={{
+                position: 'absolute', left: 12, bottom: 12, maxWidth: 420,
+                background: 'rgba(20,24,32,0.92)', color: '#d6deeb',
+                border: '1px solid rgba(229,164,90,0.35)', borderRadius: 8,
+                padding: '8px 10px', fontSize: 11, lineHeight: 1.45,
+                boxShadow: '0 8px 28px rgba(0,0,0,0.35)', pointerEvents: 'none',
+              }}>
+                {previewFrame.error}
+              </div>
+            )}
           </div>
 
           {/* DevTools Panel */}

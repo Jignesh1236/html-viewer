@@ -3,33 +3,16 @@ import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
 import { FiImage } from 'react-icons/fi';
+import { getExtension, getMonacoLanguage } from '../utils/fileTypes';
 
 /* ─────────────────────────────────────────────────────────────
    Language maps
    ───────────────────────────────────────────────────────────── */
-const LANG_MAP: Record<string, string> = {
-  html: 'html', css: 'css', js: 'javascript', other: 'plaintext',
-};
-const EXTENSION_LANG_MAP: Record<string, string> = {
-  html: 'html', htm: 'html', css: 'css', scss: 'scss', sass: 'sass',
-  less: 'less', js: 'javascript', jsx: 'javascript', mjs: 'javascript',
-  cjs: 'javascript', ts: 'typescript', tsx: 'typescript', json: 'json',
-  md: 'markdown', markdown: 'markdown', py: 'python', rb: 'ruby',
-  php: 'php', java: 'java', c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp',
-  cxx: 'cpp', cs: 'csharp', go: 'go', rs: 'rust', swift: 'swift',
-  kt: 'kotlin', kts: 'kotlin', sql: 'sql', sh: 'shell', bash: 'shell',
-  zsh: 'shell', yml: 'yaml', yaml: 'yaml', xml: 'xml', svg: 'xml',
-  vue: 'html', svelte: 'html', txt: 'plaintext',
-};
 const VOID_HTML_TAGS = new Set([
   'area','base','br','col','embed','hr','img','input',
   'link','meta','param','source','track','wbr',
 ]);
 
-function getLanguageForFile(file: { name: string; type: string }) {
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  return EXTENSION_LANG_MAP[ext] || LANG_MAP[file.type] || 'plaintext';
-}
 
 /* ─────────────────────────────────────────────────────────────
    Global AI state — shared with App status bar
@@ -219,11 +202,15 @@ function enableHtmlAutoClose(editor: any, monaco: any) {
 /* ─────────────────────────────────────────────────────────────
    File icon
    ───────────────────────────────────────────────────────────── */
-function fileIcon(type: string) {
-  if (type === 'html')  return <VscFileCode style={{ color: '#e34c26', flexShrink: 0 }} size={14} />;
-  if (type === 'css')   return <VscSymbolColor style={{ color: '#264de4', flexShrink: 0 }} size={14} />;
-  if (type === 'js')    return <VscFile style={{ color: '#f7df1e', flexShrink: 0 }} size={14} />;
-  if (type === 'image') return <FiImage style={{ color: '#8bc34a', flexShrink: 0 }} size={13} />;
+function fileIcon(file: { name: string; type: string }) {
+  const ext = getExtension(file.name);
+  if (file.type === 'html') return <VscFileCode style={{ color: '#e34c26', flexShrink: 0 }} size={14} />;
+  if (file.type === 'css') return <VscSymbolColor style={{ color: '#264de4', flexShrink: 0 }} size={14} />;
+  if (file.type === 'js') return <VscFile style={{ color: '#f7df1e', flexShrink: 0 }} size={14} />;
+  if (file.type === 'ts') return <VscFile style={{ color: '#3178c6', flexShrink: 0 }} size={14} />;
+  if (file.type === 'tsx' || file.type === 'jsx') return <VscFileCode style={{ color: '#61dafb', flexShrink: 0 }} size={14} />;
+  if (file.type === 'json' || ext === 'json') return <VscFile style={{ color: '#f8c555', flexShrink: 0 }} size={14} />;
+  if (file.type === 'image') return <FiImage style={{ color: '#8bc34a', flexShrink: 0 }} size={13} />;
   return <VscFile style={{ color: '#aaa', flexShrink: 0 }} size={14} />;
 }
 
@@ -342,7 +329,7 @@ const CodeEditor: React.FC = () => {
             onClick={() => setActiveFile(file.id)}
             style={{ flexShrink: 0 }}
           >
-            {fileIcon(file.type)}
+            {fileIcon(file)}
             <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {file.name}
             </span>
@@ -363,7 +350,7 @@ const CodeEditor: React.FC = () => {
             <Editor
               key={activeFile.id}
               height="100%"
-              language={getLanguageForFile(activeFile)}
+              language={getMonacoLanguage(activeFile)}
               value={activeFile.content}
               onChange={handleEditorChange}
               beforeMount={handleBeforeMount}

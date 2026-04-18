@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useEditorStore, FileItem } from '../store/editorStore';
 import { FiPlus, FiUpload, FiX, FiCheck, FiTrash2, FiAlertTriangle, FiFolder, FiFolderPlus, FiChevronRight, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import { useContextMenu } from './ContextMenu';
+import { getFileTypeForName, isImageExtension, isTextExtension } from '../utils/fileTypes';
 
 const DEVICON_MAP: Record<string, { icon: string; color: string }> = {
   html:  { icon: 'devicon-html5-plain',       color: '#e34c26' },
@@ -124,13 +125,13 @@ const FileDialog: React.FC<{
             </div>
             <input ref={inputRef} value={value} onChange={e => { setValue(e.target.value); setError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); if (e.key === 'Escape') onCancel(); }}
-              placeholder={dialog.mode === 'create-file' ? 'e.g. about.html, extra.css' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
+              placeholder={dialog.mode === 'create-file' ? 'e.g. about.html, App.tsx, package.json' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
               style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: `1px solid ${error ? 'rgba(248,68,68,0.6)' : '#444'}`, borderRadius: 5, padding: '7px 10px', fontSize: 12.5, color: '#e0e0e0', outline: 'none', fontFamily: 'monospace', transition: 'border-color 0.15s' }}
               onFocus={e => { if (!error) e.currentTarget.style.borderColor = '#e5a45a66'; }}
               onBlur={e => { if (!error) e.currentTarget.style.borderColor = '#444'; }}
             />
             {error && <div style={{ fontSize: 10.5, color: '#f87171', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><FiAlertTriangle size={10} /> {error}</div>}
-            {!error && dialog.mode === 'create-file' && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Extension determines file type (.html, .css, .js)</div>}
+            {!error && dialog.mode === 'create-file' && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Extension determines file type (.html, .css, .js, .ts, .tsx, .jsx)</div>}
           </div>
         )}
         {isDelete && <div style={{ fontSize: 11.5, color: '#aaa', marginBottom: 14, lineHeight: 1.5 }}>
@@ -193,9 +194,8 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
 
   const importSingleFile = useCallback((file: File, targetFolder?: string) => {
     const name = file.name;
-    const ext = name.split('.').pop()?.toLowerCase();
-    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
-    const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
+    const isImage = isImageExtension(name);
+    const isText = isTextExtension(name);
     const fileId = targetFolder ? `${targetFolder}/${name}` : name;
     if (isImage) {
       addFile({ id: fileId, name, type: 'image', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
@@ -203,7 +203,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const reader = new FileReader();
       reader.onload = e => {
         const content = e.target?.result as string;
-        const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
+        const type = getFileTypeForName(name);
         addFile({ id: fileId, name, type, content, folder: targetFolder });
       };
       reader.readAsText(file);
@@ -264,10 +264,9 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const folder = dialog.targetFolder;
       const fileId = folder ? `${folder}/${name}` : name;
       if (files.find(f => f.id === fileId)) { showNotification(`"${name}" already exists`); return; }
-      const ext = name.split('.').pop()?.toLowerCase();
-      const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts') ? 'js' : 'other';
+      const type = getFileTypeForName(name);
       const starter = type === 'html' ? `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>New Page</title>\n</head>\n<body>\n\n</body>\n</html>` :
-        type === 'css' ? `/* ${name} */\n` : type === 'js' ? `// ${name}\n` : '';
+        type === 'css' ? `/* ${name} */\n` : (type === 'js' || type === 'ts' || type === 'tsx' || type === 'jsx') ? `// ${name}\n` : '';
       addFile({ id: fileId, name, type, content: starter, folder });
       setActiveFile(fileId);
       showNotification(`Created ${name}`);

@@ -7,6 +7,8 @@ import {
   FiBox, FiGrid, FiLayers, FiMaximize2, FiMonitor,
   FiMousePointer, FiSmartphone, FiTablet, FiX,
 } from 'react-icons/fi';
+import { buildStaticPreviewHtml } from '../utils/previewEngine';
+import { detectProjectType, projectTypeLabel } from '../utils/fileTypes';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = typeof HANDLES[number];
@@ -231,51 +233,14 @@ const VisualEditor: React.FC = () => {
 
   /* ── Build srcdoc ── */
   const buildSrcDoc = useCallback(() => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>';
-    let html = htmlFile.content;
-    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    files.filter(f => f.type === 'css').forEach(css => {
-      const tag = `<style data-src="${css.id}">${css.content}</style>`;
-      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const re = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
-        if (re.test(html)) { html = html.replace(re, tag); matched = true; break; }
-      }
-      if (!matched) {
-        if (html.toLowerCase().includes('</head>')) { html = html.replace(/<\/head>/i, `${tag}\n</head>`); }
-        else { html = `${tag}\n${html}`; }
-      }
-    });
-    files.filter(f => f.type === 'js').forEach(js => {
-      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
-      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const re = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\\/script>`, 'gi');
-        if (re.test(html)) { html = html.replace(re, tag); matched = true; break; }
-      }
-      if (!matched) {
-        if (html.toLowerCase().includes('</body>')) html = html.replace(/<\/body>/i, `${tag}\n</body>`);
-        else html = `${html}\n${tag}`;
-      }
-    });
-    files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
-      for (const ref of refs) {
-        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
-      }
-    });
     const editorCss = `<style>
 *{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}
 </style>`;
-    if (html.toLowerCase().includes('</head>')) {
-      html = html.replace(/<\/head>/i, `${editorCss}</head>`);
-    } else {
-      html = `${editorCss}\n${html}`;
-    }
-    return html;
+    return buildStaticPreviewHtml(files, {
+      editorCss,
+      includeBridge: false,
+      fallbackHtml: '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>',
+    });
   }, [files, interaction]);
 
   const scheduleRebuild = useCallback(() => {
@@ -937,6 +902,7 @@ const VisualEditor: React.FC = () => {
   const isDragging = activeOp !== null;
 
   const previewW = PREVIEW_WIDTHS[previewSize];
+  const projectType = detectProjectType(files);
 
   /* Breadcrumb path */
   const breadcrumb = selEl ? buildBreadcrumb(selEl) : [];
@@ -993,6 +959,13 @@ const VisualEditor: React.FC = () => {
         </div>
 
         <div style={{ flex: 1 }} />
+        <span style={{
+          fontSize: 10, color: projectType === 'static' ? VE.dim : VE.accent,
+          border: `1px solid ${projectType === 'static' ? VE.border : VE.accentBrd}`,
+          borderRadius: 10, padding: '1px 7px', flexShrink: 0,
+        }}>
+          {projectTypeLabel(projectType)}
+        </span>
 
         {/* Mode toggle */}
         <button
