@@ -1,0 +1,1 @@
+windows Docking system more advanced bnao (full flexible) and abhi Docking system me bohot hugs hai window koi aur jagah pe doc karne pe me uski size change nahi ho rahi hai aur sahi se plase nahi ho rahi hai 
