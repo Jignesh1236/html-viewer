@@ -150,6 +150,8 @@ interface EditorStore {
 
   pendingFileDialog: { type: 'create' | 'rename'; fileId?: string } | null;
   setPendingFileDialog: (d: { type: 'create' | 'rename'; fileId?: string } | null) => void;
+
+  resetFiles: (newFiles: FileItem[]) => void;
 }
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -455,6 +457,13 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     saveFiles(next);
     saveActiveFile(nextActive);
     return { files: next, activeFileId: nextActive };
+  }),
+  resetFiles: (newFiles) => set(() => {
+    const firstId = newFiles[0]?.id ?? null;
+    saveFiles(newFiles);
+    saveActiveFile(firstId);
+    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify([]));
+    return { files: newFiles, activeFileId: firstId, folders: [] };
   }),
   updateFileContent: (id, content) => set((s) => {
     const file = s.files.find(f => f.id === id);

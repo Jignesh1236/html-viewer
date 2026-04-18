@@ -176,6 +176,27 @@ export async function stopWebContainerRuntime() {
   }
 }
 
+/** Spawn an arbitrary command in the WebContainer and return the process */
+export async function spawnInContainer(
+  cmd: string,
+  args: string[],
+  onData: (data: string) => void,
+): Promise<{ exit: Promise<number>; kill: () => void }> {
+  const wc = await getContainer({});
+  const proc = await wc.spawn(cmd, args);
+  proc.output.pipeTo(new WritableStream({ write(d) { onData(String(d)); } })).catch(() => {});
+  return {
+    exit: proc.exit,
+    kill: () => proc.kill(),
+  };
+}
+
+/** Mount current project files to the container */
+export async function mountFilesToContainer(files: FileItem[], projectType: ProjectType) {
+  const wc = await getContainer({});
+  await wc.mount(createTree(files, projectType));
+}
+
 export async function startWebContainerPreview(files: FileItem[], projectType: ProjectType, callbacks: RuntimeCallbacks = {}): Promise<RuntimeResult> {
   const runId = ++activeRun;
   const command = getCommand(projectType, files);

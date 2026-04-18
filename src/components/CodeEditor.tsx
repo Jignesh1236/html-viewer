@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
-import { FiImage } from 'react-icons/fi';
+import { FiImage, FiX } from 'react-icons/fi';
 import { getExtension, getMonacoLanguage } from '../utils/fileTypes';
 
 /* ─────────────────────────────────────────────────────────────
@@ -218,7 +218,7 @@ function fileIcon(file: { name: string; type: string }) {
    CodeEditor component
    ───────────────────────────────────────────────────────────── */
 const CodeEditor: React.FC = () => {
-  const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
+  const { files, activeFileId, setActiveFile, updateFileContent, removeFile } = useEditorStore();
   const editorRef = useRef<any>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -320,19 +320,36 @@ const CodeEditor: React.FC = () => {
       {/* Tab bar */}
       <div className="editor-tabs" style={{
         display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
-        overflowY: 'hidden', flexShrink: 0, alignItems: 'center',
+        overflowY: 'hidden', flexShrink: 0, alignItems: 'stretch',
       }}>
         {files.map(file => (
           <div
             key={file.id}
             className={`editor-tab ${activeFileId === file.id ? 'active' : ''}`}
             onClick={() => setActiveFile(file.id)}
-            style={{ flexShrink: 0 }}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6 }}
           >
             {fileIcon(file)}
-            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
               {file.name}
             </span>
+            {files.length > 1 && (
+              <span
+                className="tab-close"
+                onClick={e => {
+                  e.stopPropagation();
+                  const idx = files.findIndex(f => f.id === file.id);
+                  if (activeFileId === file.id) {
+                    const next = files[idx + 1] ?? files[idx - 1];
+                    if (next) setActiveFile(next.id);
+                  }
+                  removeFile(file.id);
+                }}
+                title={`Close ${file.name}`}
+              >
+                <FiX size={11} />
+              </span>
+            )}
           </div>
         ))}
       </div>
