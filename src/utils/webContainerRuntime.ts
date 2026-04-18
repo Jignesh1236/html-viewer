@@ -1,6 +1,9 @@
-import type { FileSystemTree, WebContainer as WebContainerInstance, WebContainerProcess } from '@webcontainer/api';
 import type { FileItem, ProjectType } from '../store/editorStore';
 import { isRuntimeSourceFile } from './fileTypes';
+
+type FileSystemTree = Record<string, any>;
+type WebContainerInstance = any;
+type WebContainerProcess = any;
 
 type RuntimePhase = 'booting' | 'mounting' | 'installing' | 'starting' | 'ready' | 'error';
 type ConsoleLevel = 'log' | 'error' | 'warn' | 'info';

@@ -92,7 +92,28 @@ export default defineConfig(async () => {
     },
     optimizeDeps: {
       include: ["react", "react-dom", "zustand", "framer-motion"],
-      exclude: ["@monaco-editor/react"],
+      exclude: ["@monaco-editor/react", "@webcontainer/api"],
+    },
+    build: {
+      rollupOptions: {
+        external: (id: string) => id.startsWith("@webcontainer/api"),
+        output: {
+          manualChunks: {
+            "vendor-react": ["react", "react-dom"],
+            "vendor-monaco": ["@monaco-editor/react", "monaco-editor"],
+            "vendor-state": ["zustand"],
+            "vendor-ui": ["framer-motion", "@radix-ui/react-context-menu", "@radix-ui/react-tooltip"],
+            "vendor-utils": ["jszip", "file-saver"],
+          },
+          chunkFileNames: "assets/[name]-[hash].js",
+          entryFileNames: "assets/[name]-[hash].js",
+          assetFileNames: "assets/[name]-[hash].[ext]",
+        },
+      },
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+      },
     },
   };
 });
