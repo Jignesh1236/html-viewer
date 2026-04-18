@@ -1,20 +1,288 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" prefix="og: https://ogp.me/ns#">
   <head>
+    <!-- ═══════════════════════════════════════════════
+         CHARACTER ENCODING — must be first tag in <head>
+         ═══════════════════════════════════════════════ -->
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>HTML Editor</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
-    <script type="module" crossorigin src="/assets/index-D3jD5kk3.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/zustand-DDySVIAW.js">
-    <link rel="modulepreload" crossorigin href="/assets/react-2nngNaPg.js">
-    <link rel="modulepreload" crossorigin href="/assets/monaco-DR43DFwA.js">
-    <link rel="stylesheet" crossorigin href="/assets/monaco-DfZs6d1B.css">
-    <link rel="stylesheet" crossorigin href="/assets/index-DVnFnDMI.css">
+
+    <!-- ═══════════════════════════════════════════════
+         VIEWPORT & COMPATIBILITY
+         ═══════════════════════════════════════════════ -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    <!-- ═══════════════════════════════════════════════
+         PRIMARY SEO — Title & Description
+         ═══════════════════════════════════════════════ -->
+    <title>HTML Editor – Free Online Visual &amp; Code Web Page Builder</title>
+    <meta name="description" content="Free browser-based HTML editor with Monaco code editor, drag-and-drop visual designer, CSS animations timeline, and live preview. Build & export web pages instantly — no install needed." />
+
+    <!-- ═══════════════════════════════════════════════
+         EXTENDED META
+         ═══════════════════════════════════════════════ -->
+    <meta name="keywords" content="HTML editor online, free HTML editor, visual HTML builder, Monaco editor online, drag and drop website builder, CSS editor, live HTML preview, web page builder, code editor browser, HTML CSS JS editor" />
+    <meta name="author" content="Jignesh D Maru" />
+    <meta name="developer" content="Jignesh D Maru" />
+    <meta name="creator" content="Jignesh D Maru" />
+    <meta name="publisher" content="Jignesh D Maru" />
+    <meta name="copyright" content="© 2024 Jignesh D Maru" />
+    <meta name="language" content="English" />
+    <meta name="revisit-after" content="7 days" />
+    <meta name="rating" content="General" />
+    <meta name="category" content="Developer Tools, Web Development, Code Editor" />
+    <meta name="classification" content="Technology/Internet/Software" />
+    <meta name="subject" content="Online HTML Code Editor with Visual Designer and Live Preview" />
+    <meta name="coverage" content="Worldwide" />
+    <meta name="distribution" content="Global" />
+    <meta name="target" content="all" />
+
+    <!-- ═══════════════════════════════════════════════
+         ROBOTS & INDEXING
+         ═══════════════════════════════════════════════ -->
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large" />
+    <meta name="bingbot" content="index, follow" />
+    <meta name="revisit-after" content="3 days" />
+
+    <!-- ═══════════════════════════════════════════════
+         CANONICAL — PRIMARY DOMAIN
+         ═══════════════════════════════════════════════ -->
+    <link rel="canonical" href="https://html-viewer-gray-beta.vercel.app/" />
+
+    <!-- Alternate for secondary domain (Cloudflare Pages) -->
+    <link rel="alternate" href="https://html-viewer-f2v.pages.dev/" hreflang="en" />
+
+    <!-- ═══════════════════════════════════════════════
+         OPEN GRAPH — Facebook, LinkedIn, WhatsApp, iMessage
+         ═══════════════════════════════════════════════ -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HTML Editor" />
+    <meta property="og:title" content="HTML Editor – Free Online Visual &amp; Code Web Page Builder" />
+    <meta property="og:description" content="Free browser-based HTML editor with Monaco code editor, drag-and-drop visual designer, CSS animations timeline, and live preview. Build & export web pages instantly — no install needed." />
+    <meta property="og:url" content="https://html-viewer-gray-beta.vercel.app/" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:image" content="https://html-viewer-gray-beta.vercel.app/og-image.jpg" />
+    <meta property="og:image:url" content="https://html-viewer-gray-beta.vercel.app/og-image.jpg" />
+    <meta property="og:image:secure_url" content="https://html-viewer-gray-beta.vercel.app/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="720" />
+    <meta property="og:image:alt" content="HTML Editor – Monaco code editor with drag-and-drop visual designer and live HTML preview" />
+
+    <!-- ═══════════════════════════════════════════════
+         TWITTER / X CARD
+         ═══════════════════════════════════════════════ -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@jigneshdmaru" />
+    <meta name="twitter:creator" content="@jigneshdmaru" />
+    <meta name="twitter:title" content="HTML Editor – Free Online Visual &amp; Code Web Page Builder" />
+    <meta name="twitter:description" content="Free browser-based HTML editor with Monaco code editor, drag-and-drop visual designer, and live preview. No install needed." />
+    <meta name="twitter:image" content="https://html-viewer-gray-beta.vercel.app/og-image.jpg" />
+    <meta name="twitter:image:alt" content="HTML Editor – Monaco code editor with live HTML preview" />
+    <meta name="twitter:url" content="https://html-viewer-gray-beta.vercel.app/" />
+    <meta name="twitter:domain" content="html-viewer-gray-beta.vercel.app" />
+
+    <!-- ═══════════════════════════════════════════════
+         FAVICON — ALL SIZES & FORMATS
+         ═══════════════════════════════════════════════ -->
+    <!-- SVG — modern browsers (scalable, dark-mode aware) -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- PNG fallback -->
+    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="icon" href="/icon-512.png" sizes="512x512" type="image/png" />
+    <!-- Apple Touch Icon — iPhone, iPad home screen (180×180) -->
+    <link rel="apple-touch-icon" href="/icon-192.png" sizes="192x192" />
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- ═══════════════════════════════════════════════
+         THEME & APP COLORS
+         ═══════════════════════════════════════════════ -->
+    <meta name="theme-color" content="#e34c26" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#e34c26" media="(prefers-color-scheme: dark)" />
+    <meta name="msapplication-TileColor" content="#e34c26" />
+    <meta name="msapplication-TileImage" content="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HTML Editor" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="HTML Editor" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- ═══════════════════════════════════════════════
+         STRUCTURED DATA — JSON-LD
+         ═══════════════════════════════════════════════ -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://html-viewer-gray-beta.vercel.app/#webapp",
+          "name": "HTML Editor",
+          "alternateName": ["Online HTML Editor", "Free HTML Code Editor", "Visual HTML Builder"],
+          "url": "https://html-viewer-gray-beta.vercel.app/",
+          "description": "A powerful free browser-based HTML editor with Monaco code editor, drag-and-drop visual designer, CSS animations timeline, live preview, and ZIP project export.",
+          "applicationCategory": "DeveloperApplication",
+          "applicationSubCategory": "Code Editor",
+          "operatingSystem": "Any",
+          "browserRequirements": "Requires JavaScript. Works in Chrome, Firefox, Safari, Edge.",
+          "inLanguage": "en",
+          "isAccessibleForFree": true,
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          },
+          "author": {
+            "@type": "Person",
+            "@id": "https://html-viewer-gray-beta.vercel.app/#author",
+            "name": "Jignesh D Maru"
+          },
+          "creator": {
+            "@type": "Person",
+            "@id": "https://html-viewer-gray-beta.vercel.app/#author",
+            "name": "Jignesh D Maru"
+          },
+          "image": {
+            "@type": "ImageObject",
+            "url": "https://html-viewer-gray-beta.vercel.app/og-image.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "screenshot": {
+            "@type": "ImageObject",
+            "url": "https://html-viewer-gray-beta.vercel.app/og-image.jpg",
+            "width": 1280,
+            "height": 720
+          },
+          "featureList": [
+            "Monaco Code Editor (VS Code engine)",
+            "Live HTML/CSS/JS Preview",
+            "Visual Drag-and-Drop Designer",
+            "CSS Animations Timeline",
+            "File Explorer",
+            "ZIP Project Export",
+            "Floating and Dockable Panels",
+            "Syntax Highlighting",
+            "Multi-file Support"
+          ],
+          "sameAs": [
+            "https://html-viewer-f2v.pages.dev/"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://html-viewer-gray-beta.vercel.app/#website",
+          "url": "https://html-viewer-gray-beta.vercel.app/",
+          "name": "HTML Editor",
+          "description": "Free browser-based HTML editor with Monaco code editor and live preview",
+          "publisher": {
+            "@type": "Person",
+            "name": "Jignesh D Maru"
+          },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://html-viewer-gray-beta.vercel.app/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "WebPage",
+          "@id": "https://html-viewer-gray-beta.vercel.app/#webpage",
+          "url": "https://html-viewer-gray-beta.vercel.app/",
+          "name": "HTML Editor – Free Online Visual & Code Web Page Builder",
+          "isPartOf": { "@id": "https://html-viewer-gray-beta.vercel.app/#website" },
+          "about": { "@id": "https://html-viewer-gray-beta.vercel.app/#webapp" },
+          "description": "Free browser-based HTML editor with Monaco code editor, drag-and-drop visual designer, CSS animations timeline, and live preview.",
+          "inLanguage": "en",
+          "datePublished": "2024-01-01",
+          "dateModified": "2026-04-17",
+          "author": { "@id": "https://html-viewer-gray-beta.vercel.app/#author" },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://html-viewer-gray-beta.vercel.app/"
+              }
+            ]
+          }
+        },
+        {
+          "@type": "Person",
+          "@id": "https://html-viewer-gray-beta.vercel.app/#author",
+          "name": "Jignesh D Maru",
+          "jobTitle": "Web Developer"
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Is this HTML editor free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, HTML Editor is completely free with no registration required. Works entirely in your browser."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What code editor engine does it use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "It uses Monaco Editor — the same engine powering Visual Studio Code — for professional-grade code editing with syntax highlighting and autocomplete."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I export my project?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, you can export your complete project (HTML, CSS, JS files) as a ZIP archive with one click."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does it support visual drag-and-drop editing?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, switch to Visual Mode to drag, resize, and style elements directly on the page without writing code."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <!-- ═══════════════════════════════════════════════
+         PERFORMANCE — Preconnect & Preload
+         ═══════════════════════════════════════════════ -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+
+    <!-- ═══════════════════════════════════════════════
+         FONTS
+         ═══════════════════════════════════════════════ -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css" />
+    <script type="module" crossorigin src="/assets/index-DKZIhMFl.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-ui-u17CrQMm.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-state-10gj-oKC.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-NFVEl6VV.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-utils-B1aiLE8t.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-monaco-AYhUPLwN.js">
+    <link rel="stylesheet" crossorigin href="/assets/vendor-monaco-D4lxmsqF.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-Dz5ADvth.css">
   </head>
   <body>
     <div id="root"></div>

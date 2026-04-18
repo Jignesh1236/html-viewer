@@ -201,13 +201,16 @@ const LayersPanel: React.FC<LayersPanelProps> = ({ iframeDoc, selectedEl, multiS
   }, [iframeDoc, tick]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderRight: '1px solid #333' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
       <div style={{
-        height: 28, flexShrink: 0, display: 'flex', alignItems: 'center',
-        padding: '0 10px', borderBottom: '1px solid #2e2e2e',
-        fontSize: 10, fontWeight: 700, color: '#777', letterSpacing: '0.07em', textTransform: 'uppercase',
+        height: 30, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 10px', borderBottom: '1px solid #3a3a3a',
+        fontSize: 10, fontWeight: 700, color: '#888', letterSpacing: '0.07em', textTransform: 'uppercase',
       }}>
-        Layers
+        <span>Layers</span>
+        <span style={{ fontSize: 9, color: '#666', letterSpacing: 'normal', textTransform: 'none' }}>
+          Drag to reorder
+        </span>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {tree ? (
@@ -231,11 +234,12 @@ const LayersPanel: React.FC<LayersPanelProps> = ({ iframeDoc, selectedEl, multiS
         )}
       </div>
       <div style={{
-        height: 22, flexShrink: 0, borderTop: '1px solid #2e2e2e',
+        height: 22, flexShrink: 0, borderTop: '1px solid #3a3a3a',
         display: 'flex', alignItems: 'center', padding: '0 8px',
-        fontSize: 10, color: '#555',
+        fontSize: 10, color: '#666', justifyContent: 'space-between',
       }}>
-        Drag layers to reorder · Shift+click multi-select
+        <span>Shift+click multi-select</span>
+        <span>Body locked</span>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   FiBox, FiColumns, FiCreditCard, FiGrid, FiImage, FiLink,
   FiList, FiMinus, FiMousePointer, FiNavigation, FiSquare,
-  FiTable, FiTerminal, FiType,
+  FiTable, FiTerminal, FiType, FiLayout, FiFeather, FiSliders, FiCamera,
 } from 'react-icons/fi';
 
 export interface PaletteItem {
@@ -39,7 +39,14 @@ const PALETTE_ITEMS: PaletteItem[] = [
   { Icon: FiGrid, label: 'Grid', tag: 'div', category: 'Layout', defaultHtml: '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:12px"><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div><div style="padding:16px;background:#eee;border-radius:4px">Grid Item</div></div>' },
 ];
 
-const CATEGORIES = ['Layout', 'Text', 'UI', 'Media'];
+const CATEGORIES = ['Layout', 'Text', 'UI', 'Media'] as const;
+const CATEGORY_ICON: Record<(typeof CATEGORIES)[number] | 'All', React.ComponentType<{ size?: number }>> = {
+  All: FiLayout,
+  Layout: FiColumns,
+  Text: FiFeather,
+  UI: FiSliders,
+  Media: FiCamera,
+};
 
 interface Props {
   onInsert: (html: string) => void;
@@ -60,13 +67,16 @@ const ElementsPalette: React.FC<Props> = ({ onInsert, onDragStart, onDragEnd }) 
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e', borderLeft: '1px solid #333' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
       <div style={{
-        height: 28, flexShrink: 0, display: 'flex', alignItems: 'center',
-        padding: '0 10px', borderBottom: '1px solid #2e2e2e',
-        fontSize: 10, fontWeight: 700, color: '#777', letterSpacing: '0.07em', textTransform: 'uppercase',
+        height: 30, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 10px', borderBottom: '1px solid #3a3a3a',
+        fontSize: 10, fontWeight: 700, color: '#888', letterSpacing: '0.07em', textTransform: 'uppercase',
       }}>
-        Elements
+        <span>Elements</span>
+        <span style={{ fontSize: 9, color: '#666', letterSpacing: 'normal', textTransform: 'none' }}>
+          {items.length} found
+        </span>
       </div>
 
       <div style={{ padding: '6px 8px', borderBottom: '1px solid #2a2a2a', flexShrink: 0 }}>
@@ -82,19 +92,23 @@ const ElementsPalette: React.FC<Props> = ({ onInsert, onDragStart, onDragEnd }) 
         />
       </div>
 
-      <div style={{ display: 'flex', borderBottom: '1px solid #2a2a2a', flexShrink: 0, flexWrap: 'wrap', padding: '4px 4px' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid #2a2a2a', flexShrink: 0, flexWrap: 'wrap', padding: '5px 4px', gap: 3 }}>
         {cats.map(c => (
           <button
             key={c}
             onClick={() => setActiveCategory(c)}
             style={{
-              padding: '2px 7px', fontSize: 10, borderRadius: 3, cursor: 'pointer',
+              padding: '3px 7px', fontSize: 10, borderRadius: 12, cursor: 'pointer',
               fontFamily: 'inherit', border: 'none', margin: '1px',
               background: activeCategory === c ? 'rgba(229,164,90,0.2)' : 'transparent',
               color: activeCategory === c ? '#e5a45a' : '#666',
               fontWeight: activeCategory === c ? 700 : 400,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
             }}
           >
+            {React.createElement(CATEGORY_ICON[c as keyof typeof CATEGORY_ICON], { size: 10 })}
             {c}
           </button>
         ))}
@@ -119,10 +133,10 @@ const ElementsPalette: React.FC<Props> = ({ onInsert, onDragStart, onDragEnd }) 
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '5px 8px',
+              padding: '7px 8px',
               borderRadius: 5,
               cursor: 'grab',
-              marginBottom: 1,
+              marginBottom: 4,
               background: dragging === item ? 'rgba(229,164,90,0.15)' : 'transparent',
               border: '1px solid transparent',
               transition: 'background 0.1s, border-color 0.1s',
@@ -150,17 +164,18 @@ const ElementsPalette: React.FC<Props> = ({ onInsert, onDragStart, onDragEnd }) 
               <div style={{ fontSize: 11, color: '#ccc', fontWeight: 500, lineHeight: 1.3 }}>{item.label}</div>
               <div style={{ fontSize: 9, color: '#555', fontFamily: 'monospace' }}>&lt;{item.tag}&gt;</div>
             </div>
-            <span style={{ fontSize: 9, color: '#555', flexShrink: 0 }}>drag</span>
+            <span style={{ fontSize: 9, color: '#666', flexShrink: 0, border: '1px solid #3a3a3a', borderRadius: 4, padding: '1px 4px' }}>DND</span>
           </div>
         ))}
       </div>
 
       <div style={{
-        height: 22, flexShrink: 0, borderTop: '1px solid #2e2e2e',
+        height: 22, flexShrink: 0, borderTop: '1px solid #3a3a3a',
         display: 'flex', alignItems: 'center', padding: '0 8px',
-        fontSize: 10, color: '#555',
+        fontSize: 10, color: '#666', justifyContent: 'space-between',
       }}>
-        Click or drag to insert
+        <span>Click or drag to insert</span>
+        <span>DND</span>
       </div>
     </div>
   );

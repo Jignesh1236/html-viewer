@@ -156,11 +156,10 @@ function ColorInput({
   onGradientChange?: (v: string) => void;
 }) {
   const [text, setText] = useState(value);
-  const [showGradient, setShowGradient] = useState(() => parseGradient(gradientValue || '').type !== 'none');
+  /** Gradient editor is opt-in only — never auto-expand from existing CSS. */
+  const [showGradient, setShowGradient] = useState(false);
   useEffect(() => setText(value), [value]);
-  useEffect(() => {
-    if (parseGradient(gradientValue || '').type !== 'none') setShowGradient(true);
-  }, [gradientValue]);
+  const hasStoredGradient = parseGradient(gradientValue || '').type !== 'none';
   const hex = /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : '#000000';
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
@@ -194,16 +193,16 @@ function ColorInput({
                 onGradientChange('none');
               } else {
                 setShowGradient(true);
-                if (parseGradient(gradientValue || '').type === 'none') onGradientChange('linear-gradient(135deg, #ff7a18, #af002d)');
+                if (!hasStoredGradient) onGradientChange('linear-gradient(135deg, #ff7a18, #af002d)');
               }
             }}
-            title={showGradient ? 'Remove gradient' : 'Add gradient'}
+            title={showGradient ? 'Remove gradient' : hasStoredGradient ? 'Edit gradient' : 'Add gradient'}
             style={{
               width: 26, height: 26, borderRadius: 4, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: showGradient ? C.accentBg : C.surface2,
-              border: `1px solid ${showGradient ? C.accentBrd : C.border}`,
-              color: showGradient ? C.accent : C.muted,
+              background: (showGradient || hasStoredGradient) ? C.accentBg : C.surface2,
+              border: `1px solid ${(showGradient || hasStoredGradient) ? C.accentBrd : C.border}`,
+              color: (showGradient || hasStoredGradient) ? C.accent : C.muted,
               cursor: 'pointer',
             }}
           >
@@ -273,8 +272,9 @@ function SpacingGrid({ props, getS, apply }: { props: [string, string][]; getS: 
 function parseGradient(value: string) {
   const raw = value || '';
   const type = raw.startsWith('radial-gradient') ? 'radial' : raw.startsWith('linear-gradient') ? 'linear' : 'none';
-  const colorMatches = raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) || [];
-  const usableColors = colorMatches.filter(v => !['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'].includes(v.toLowerCase()));
+  const colorMatches: string[] = (raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) ?? []) as string[];
+  const gradientKeywords: string[] = ['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'];
+  const usableColors = colorMatches.filter(v => !gradientKeywords.includes(v.toLowerCase()));
   const angleMatch = raw.match(/(-?\d+(?:\.\d+)?)deg/i);
   return {
     type,

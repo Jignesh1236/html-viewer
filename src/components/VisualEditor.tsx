@@ -25,6 +25,45 @@ function getHandlePos(h: Handle, r: { left: number; top: number; width: number; 
 const SKIP_TAGS = new Set(['html', 'head', 'body', 'script', 'style', 'meta', 'link', 'title', 'base', 'noscript']);
 const GRID = 8;
 
+/** Stable node handle for source sync (avoids ambiguous nth-of-type selectors). */
+const VI_ATTR = 'data-vi-id';
+
+const VE = {
+  bg: '#1e1e1e',
+  surface: '#252526',
+  border: '#3a3a3a',
+  borderHi: '#3e3e3e',
+  accent: '#e5a45a',
+  accentBg: 'rgba(229,164,90,0.15)',
+  accentBrd: 'rgba(229,164,90,0.45)',
+  blue: '#7ab8f5',
+  blueBg: 'rgba(100,160,255,0.15)',
+  blueBrd: 'rgba(100,160,255,0.4)',
+  text: '#ccc',
+  dim: '#888',
+  muted: '#666',
+  canvas: '#2a2a2a',
+} as const;
+
+function newViId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `vi_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 11)}`;
+}
+
+function cssEscapeAttr(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function ensureViNodeId(el: HTMLElement) {
+  if (!el.getAttribute(VI_ATTR)) el.setAttribute(VI_ATTR, newViId());
+}
+
+/** After cloneNode(true), give the whole subtree fresh ids so selectors stay unique. */
+function regenerateViIdsSubtree(root: HTMLElement) {
+  const all = [root, ...Array.from(root.querySelectorAll('*'))] as HTMLElement[];
+  for (const e of all) e.setAttribute(VI_ATTR, newViId());
+}
+
 const STYLE_PROPS = [
   'color', 'background-color', 'background', 'font-size', 'font-weight', 'font-family',
   'text-align', 'text-decoration', 'text-transform', 'line-height', 'letter-spacing',
@@ -47,20 +86,30 @@ function cssEscape(value: string) {
 
 function elementSelector(el: HTMLElement) {
   if (el.id) return `#${cssEscape(el.id)}`;
+  const vi = el.getAttribute(VI_ATTR);
+  if (vi) return `[${VI_ATTR}="${cssEscapeAttr(vi)}"]`;
   const parts: string[] = [];
   let node: HTMLElement | null = el;
-  while (node && node.parentElement && node.tagName.toLowerCase() !== 'body') {
+  while (node && node.tagName.toLowerCase() !== 'body') {
+    const parent: HTMLElement | null = node.parentElement;
+    if (!parent) break;
     const tag = node.tagName.toLowerCase();
-    const siblings = Array.from(node.parentElement.children).filter(child => child.tagName === node!.tagName);
+    const nodeTagName = node.tagName;
+    const siblings = Array.from(parent.children)
+      .filter((child): child is HTMLElement => child instanceof HTMLElement)
+      .filter(child => child.tagName === nodeTagName);
     const index = siblings.indexOf(node) + 1;
     parts.unshift(`${tag}:nth-of-type(${Math.max(1, index)})`);
-    node = node.parentElement;
+    node = parent;
   }
-  return parts.join(' > ') || el.tagName.toLowerCase();
+  if (parts.length === 0) return 'body';
+  return `body > ${parts.join(' > ')}`;
 }
 
 function shortSelector(el: HTMLElement) {
   if (el.id) return `#${cssEscape(el.id)}`;
+  const vi = el.getAttribute(VI_ATTR);
+  if (vi) return `[${VI_ATTR}="${cssEscapeAttr(vi)}"]`;
   const classList = Array.from(el.classList).filter(Boolean);
   if (classList.length) return `.${classList.map(cssEscape).join('.')}`;
   return elementSelector(el);
@@ -112,6 +161,16 @@ type PreviewSize = 'full' | 'desktop' | 'tablet' | 'mobile';
 const PREVIEW_WIDTHS: Record<PreviewSize, number | undefined> = {
   full: undefined, desktop: 1280, tablet: 768, mobile: 375,
 };
+const DRAG_THRESHOLD_PX = 3;
+
+function findSelectableFallback(start: HTMLElement | null): HTMLElement | null {
+  let node = start;
+  while (node) {
+    if (!SKIP_TAGS.has(node.tagName.toLowerCase())) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
 
 const VisualEditor: React.FC = () => {
   const {
@@ -125,6 +184,7 @@ const VisualEditor: React.FC = () => {
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animStyleRef = useRef(timelineAnimationStyle);
   const selectedSelectorRef = useRef<string | null>(null);
+  const selectedViIdRef = useRef<string | null>(null);
   const pendingSelectorRef = useRef<string | null>(null);
   const prevFilesRef = useRef(files);
   const [selEl, setSelEl] = useState<HTMLElement | null>(null);
@@ -155,6 +215,7 @@ const VisualEditor: React.FC = () => {
   const [paletteDropping, setPaletteDropping] = useState(false);
   const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
   const [dragGhost, setDragGhost] = useState<{ x: number; y: number; html: string; label: string } | null>(null);
+  const [dropPreview, setDropPreview] = useState<{ x: number; y: number } | null>(null);
   const pendingInsertRef = useRef<string | null>(null);
 
   // iframe doc ref for layers
@@ -253,7 +314,7 @@ const VisualEditor: React.FC = () => {
     pendingSelectorRef.current = selector;
     scheduleRebuild();
     setHovEl(null);
-    if (!selector) { setSelEl(null); setSelectedElement(null); setSelectedSelector(null); }
+    if (!selector) { selectedViIdRef.current = null; setSelEl(null); setSelectedElement(null); setSelectedSelector(null); }
   }, [files, interaction, scheduleRebuild, setSelectedSelector, setSelectedElement]);
 
   /* ── Track iframe offset ── */
@@ -288,6 +349,11 @@ const VisualEditor: React.FC = () => {
   };
 
   const resolveSourceElement = (doc: Document, selector: string, el: HTMLElement): HTMLElement | null => {
+    const vi = el.getAttribute(VI_ATTR);
+    if (vi) {
+      const byVi = doc.querySelector(`[${VI_ATTR}="${cssEscapeAttr(vi)}"]`) as HTMLElement | null;
+      if (byVi) return byVi;
+    }
     const bySelector = doc.querySelector(selector) as HTMLElement | null;
     if (bySelector) return bySelector;
     if (el.id) { const byId = doc.getElementById(el.id) as HTMLElement | null; if (byId) return byId; }
@@ -298,6 +364,19 @@ const VisualEditor: React.FC = () => {
     }
     return null;
   };
+
+  const updateHtmlWithMutation = useCallback((mutate: (parsedDoc: Document, htmlFileId: string) => boolean | void) => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return false;
+    const parser = new DOMParser();
+    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
+    const changed = mutate(parsedDoc, htmlFile.id);
+    if (changed === false) return false;
+    const updated = serializeDoc(parsedDoc);
+    if (updated === htmlFile.content) return false;
+    updateFileContent(htmlFile.id, updated);
+    return true;
+  }, [files, updateFileContent]);
 
   const updateHtmlSourceForElement = useCallback((el: HTMLElement, applyChange: (target: HTMLElement) => void) => {
     const htmlFile = files.find(f => f.type === 'html');
@@ -338,6 +417,15 @@ const VisualEditor: React.FC = () => {
       textContent: el.textContent || '',
     });
   }, [setSelectedElement]);
+
+  const commitElementMutation = useCallback((el: HTMLElement | null, mutate: (target: HTMLElement) => void, toast?: string) => {
+    if (!el?.isConnected) return;
+    mutate(el);
+    setTick(t => t + 1);
+    refreshSelectedSnapshot(el);
+    syncToSource(el);
+    if (toast) showNotification(toast);
+  }, [refreshSelectedSnapshot, showNotification, syncToSource]);
 
   const getSelectedDomEl = useCallback((): HTMLElement | null => {
     const current = selElRef.current;
@@ -399,6 +487,7 @@ const VisualEditor: React.FC = () => {
     }
 
     const selector = elementSelector(el);
+    selectedViIdRef.current = el.getAttribute(VI_ATTR);
     selectedSelectorRef.current = selector;
     setSelectedSelector(selector);
     setSelEl(el);
@@ -431,119 +520,104 @@ const VisualEditor: React.FC = () => {
 
   /* ── Duplicate element ── */
   const duplicateElement = useCallback((el: HTMLElement) => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return;
     const selector = elementSelector(el);
-    const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
-    const target = resolveSourceElement(parsedDoc, selector, el);
-    if (!target) return;
-    const clone = target.cloneNode(true) as HTMLElement;
-    clone.removeAttribute('id');
-    target.after(clone);
-    const updated = serializeDoc(parsedDoc);
-    updateFileContent(htmlFile.id, updated);
+    const changed = updateHtmlWithMutation((parsedDoc) => {
+      const target = resolveSourceElement(parsedDoc, selector, el);
+      if (!target) return false;
+      const clone = target.cloneNode(true) as HTMLElement;
+      clone.removeAttribute('id');
+      regenerateViIdsSubtree(clone);
+      target.after(clone);
+      return true;
+    });
+    if (!changed) return;
     // Also clone in live DOM
     const liveClone = el.cloneNode(true) as HTMLElement;
     liveClone.removeAttribute('id');
+    regenerateViIdsSubtree(liveClone);
     el.after(liveClone);
     setTick(t => t + 1);
     showNotification('Element duplicated');
-  }, [files, updateFileContent, showNotification]);
+  }, [showNotification, updateHtmlWithMutation]);
 
   /* ── Insert HTML at body (palette) ── */
   const insertHtmlAtBody = useCallback((html: string) => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return;
-    const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
-
-    // If an element is selected, insert after it; otherwise append to body
-    const selEl = selElRef.current;
-    let targetEl: HTMLElement | null = null;
-    if (selEl?.isConnected) {
-      const selector = elementSelector(selEl);
-      targetEl = resolveSourceElement(parsedDoc, selector, selEl);
-    }
-
-    const temp = parsedDoc.createElement('div');
-    temp.innerHTML = html;
-    const newEl = temp.firstElementChild as HTMLElement;
-    if (!newEl) return;
-
-    if (targetEl && targetEl.parentElement) {
-      targetEl.after(newEl);
-    } else {
-      parsedDoc.body.appendChild(newEl);
-    }
-
-    const updated = serializeDoc(parsedDoc);
-    updateFileContent(htmlFile.id, updated);
-    showNotification(`Inserted <${newEl.tagName.toLowerCase()}>`);
-  }, [files, updateFileContent, showNotification]);
+    let insertedTag = '';
+    const changed = updateHtmlWithMutation((parsedDoc) => {
+      // If an element is selected, insert after it; otherwise append to body
+      const selEl = selElRef.current;
+      let targetEl: HTMLElement | null = null;
+      if (selEl?.isConnected) {
+        const selector = elementSelector(selEl);
+        targetEl = resolveSourceElement(parsedDoc, selector, selEl);
+      }
+      const temp = parsedDoc.createElement('div');
+      temp.innerHTML = html;
+      const newEl = temp.firstElementChild as HTMLElement;
+      if (!newEl) return false;
+      ensureViNodeId(newEl);
+      insertedTag = newEl.tagName.toLowerCase();
+      if (targetEl && targetEl.parentElement) targetEl.after(newEl);
+      else parsedDoc.body.appendChild(newEl);
+      return true;
+    });
+    if (changed && insertedTag) showNotification(`Inserted <${insertedTag}>`);
+  }, [showNotification, updateHtmlWithMutation]);
 
   const insertHtmlAtPoint = useCallback((html: string, clientX: number, clientY: number) => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return;
-    const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
-    const temp = parsedDoc.createElement('div');
-    temp.innerHTML = html;
-    const newEl = temp.firstElementChild as HTMLElement;
-    if (!newEl) return;
-    const off = iframeOffRef.current;
-    const win = iframeRef.current?.contentWindow;
-    const x = Math.max(0, Math.round(clientX - off.left + (win?.scrollX || 0)));
-    const y = Math.max(0, Math.round(clientY - off.top + (win?.scrollY || 0)));
-    const inline = newEl.getAttribute('style') || '';
-    const separator = inline.trim() && !inline.trim().endsWith(';') ? '; ' : '';
-    newEl.setAttribute('style', `${inline}${separator}position:absolute;left:${x}px;top:${y}px;`);
-    parsedDoc.body.appendChild(newEl);
-    const updated = serializeDoc(parsedDoc);
-    updateFileContent(htmlFile.id, updated);
-    showNotification(`Inserted <${newEl.tagName.toLowerCase()}> near cursor`);
-  }, [files, updateFileContent, showNotification]);
+    let insertedTag = '';
+    const changed = updateHtmlWithMutation((parsedDoc) => {
+      const temp = parsedDoc.createElement('div');
+      temp.innerHTML = html;
+      const newEl = temp.firstElementChild as HTMLElement;
+      if (!newEl) return false;
+      ensureViNodeId(newEl);
+      const off = iframeOffRef.current;
+      const win = iframeRef.current?.contentWindow;
+      const x = Math.max(0, Math.round(clientX - off.left + (win?.scrollX || 0)));
+      const y = Math.max(0, Math.round(clientY - off.top + (win?.scrollY || 0)));
+      const inline = newEl.getAttribute('style') || '';
+      const separator = inline.trim() && !inline.trim().endsWith(';') ? '; ' : '';
+      newEl.setAttribute('style', `${inline}${separator}position:absolute;left:${x}px;top:${y}px;`);
+      insertedTag = newEl.tagName.toLowerCase();
+      parsedDoc.body.appendChild(newEl);
+      return true;
+    });
+    if (changed && insertedTag) showNotification(`Inserted <${insertedTag}> near cursor`);
+  }, [showNotification, updateHtmlWithMutation]);
 
   /* ── Reorder element in DOM (layers panel move) ── */
   const moveElementInDom = useCallback((el: HTMLElement, dir: 'up' | 'down') => {
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return;
     const selector = elementSelector(el);
-    const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
-    const target = resolveSourceElement(parsedDoc, selector, el);
-    if (!target || !target.parentElement) return;
-    const parent = target.parentElement;
-    const siblings = Array.from(parent.children);
-    const idx = siblings.indexOf(target);
-    if (dir === 'up' && idx > 0) {
-      parent.insertBefore(target, siblings[idx - 1]);
-    } else if (dir === 'down' && idx < siblings.length - 1) {
-      parent.insertBefore(siblings[idx + 1], target);
-    }
-    const updated = serializeDoc(parsedDoc);
-    updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+    updateHtmlWithMutation((parsedDoc) => {
+      const target = resolveSourceElement(parsedDoc, selector, el);
+      if (!target || !target.parentElement) return false;
+      const parent = target.parentElement;
+      const siblings = Array.from(parent.children);
+      const idx = siblings.indexOf(target);
+      if (dir === 'up' && idx > 0) parent.insertBefore(target, siblings[idx - 1]);
+      else if (dir === 'down' && idx < siblings.length - 1) parent.insertBefore(siblings[idx + 1], target);
+      else return false;
+      return true;
+    });
+  }, [updateHtmlWithMutation]);
 
   const reorderElementInDom = useCallback((draggedEl: HTMLElement, targetEl: HTMLElement, position: 'before' | 'inside' | 'after') => {
     if (draggedEl === targetEl || draggedEl.contains(targetEl) || targetEl.tagName.toLowerCase() === 'html') return;
-    const htmlFile = files.find(f => f.type === 'html');
-    if (!htmlFile) return;
     const draggedSelector = elementSelector(draggedEl);
     const targetSelector = elementSelector(targetEl);
-    const parser = new DOMParser();
-    const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
-    const sourceDragged = parsedDoc.querySelector(draggedSelector) as HTMLElement | null;
-    const sourceTarget = parsedDoc.querySelector(targetSelector) as HTMLElement | null;
-    if (!sourceDragged || !sourceTarget || sourceDragged === sourceTarget || sourceDragged.contains(sourceTarget)) return;
-    if (position === 'inside') {
-      sourceTarget.appendChild(sourceDragged);
-    } else if (sourceTarget.parentElement) {
-      if (position === 'before') sourceTarget.parentElement.insertBefore(sourceDragged, sourceTarget);
-      else sourceTarget.parentElement.insertBefore(sourceDragged, sourceTarget.nextSibling);
-    }
-    const updated = serializeDoc(parsedDoc);
-    updateFileContent(htmlFile.id, updated);
+    const changed = updateHtmlWithMutation((parsedDoc) => {
+      const sourceDragged = parsedDoc.querySelector(draggedSelector) as HTMLElement | null;
+      const sourceTarget = parsedDoc.querySelector(targetSelector) as HTMLElement | null;
+      if (!sourceDragged || !sourceTarget || sourceDragged === sourceTarget || sourceDragged.contains(sourceTarget)) return false;
+      if (position === 'inside') sourceTarget.appendChild(sourceDragged);
+      else if (sourceTarget.parentElement) {
+        if (position === 'before') sourceTarget.parentElement.insertBefore(sourceDragged, sourceTarget);
+        else sourceTarget.parentElement.insertBefore(sourceDragged, sourceTarget.nextSibling);
+      }
+      return true;
+    });
+    if (!changed) return;
     if (draggedEl.isConnected && targetEl.isConnected) {
       if (position === 'inside') targetEl.appendChild(draggedEl);
       else if (targetEl.parentElement) {
@@ -554,7 +628,7 @@ const VisualEditor: React.FC = () => {
       selectElement(draggedEl);
     }
     showNotification('Layer reordered');
-  }, [files, updateFileContent, showNotification, selectElement]);
+  }, [showNotification, selectElement, updateHtmlWithMutation]);
 
   /* ── Z-index helpers ── */
   const bringToFront = useCallback((el: HTMLElement) => {
@@ -591,13 +665,22 @@ const VisualEditor: React.FC = () => {
     const pendingSelector = pendingSelectorRef.current;
     if (pendingSelector) {
       pendingSelectorRef.current = null;
-      const restored = doc.querySelector(pendingSelector) as HTMLElement | null;
+      const restoredByVi = selectedViIdRef.current
+        ? (doc.querySelector(`[${VI_ATTR}="${cssEscapeAttr(selectedViIdRef.current)}"]`) as HTMLElement | null)
+        : null;
+      const restored = restoredByVi ?? (doc.querySelector(pendingSelector) as HTMLElement | null);
       if (restored && !SKIP_TAGS.has(restored.tagName.toLowerCase())) {
         setTimeout(() => selectElement(restored), 0);
       } else {
-        selectedSelectorRef.current = null;
-        setSelEl(null);
-        setSelectedElement(null);
+        const selectedNow = selElRef.current;
+        const fallback = findSelectableFallback(selectedNow?.parentElement ?? null);
+        if (fallback) setTimeout(() => selectElement(fallback), 0);
+        else {
+          selectedSelectorRef.current = null;
+          selectedViIdRef.current = null;
+          setSelEl(null);
+          setSelectedElement(null);
+        }
       }
     }
 
@@ -613,6 +696,7 @@ const VisualEditor: React.FC = () => {
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) {
         selectedSelectorRef.current = null;
+        selectedViIdRef.current = null;
         setSelEl(null); setSelectedElement(null); setSelectedSelector(null);
         setMultiSel(new Set());
         return;
@@ -670,6 +754,7 @@ const VisualEditor: React.FC = () => {
             updateHtmlSourceForElement(target, t => t.remove());
             target.remove();
             selectedSelectorRef.current = null;
+            selectedViIdRef.current = null;
             setSelEl(null); setSelectedElement(null); setSelectedSelector(null);
           }
         },
@@ -707,22 +792,24 @@ const VisualEditor: React.FC = () => {
     initLeft: number; initTop: number; initW: number; initH: number;
     el: HTMLElement;
     multiEls: { el: HTMLElement; initLeft: number; initTop: number }[];
+    moved: boolean;
   } | null>(null);
 
   const startDrag = useCallback((type: 'move' | Handle, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
-    if (!selEl?.isConnected) return;
+    const el = getSelectedDomEl();
+    if (!el?.isConnected) return;
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
-    const cs = win.getComputedStyle(selEl);
-    const r = selEl.getBoundingClientRect();
+    const cs = win.getComputedStyle(el);
+    const r = el.getBoundingClientRect();
 
     // Capture multi-select positions
     const multiEls = Array.from(multiSelRef.current)
-      .filter(el => el !== selEl && el.isConnected)
-      .map(el => {
-        const mcs = win.getComputedStyle(el);
-        return { el, initLeft: parseFloat(mcs.left) || 0, initTop: parseFloat(mcs.top) || 0 };
+      .filter(mel => mel !== el && mel.isConnected)
+      .map(mel => {
+        const mcs = win.getComputedStyle(mel);
+        return { el: mel, initLeft: parseFloat(mcs.left) || 0, initTop: parseFloat(mcs.top) || 0 };
       });
 
     dragRef.current = {
@@ -731,13 +818,14 @@ const VisualEditor: React.FC = () => {
       initLeft: parseFloat(cs.left) || 0,
       initTop: parseFloat(cs.top) || 0,
       initW: r.width, initH: r.height,
-      el: selEl,
+      el,
       multiEls,
+      moved: false,
     };
     const cursor = type === 'move' ? 'move' : CURSOR[type as Handle] || 'default';
     showDragCapture(cursor);
     setActiveOp(type);
-  }, [selEl]);
+  }, []);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -745,12 +833,14 @@ const VisualEditor: React.FC = () => {
       if (!d || !d.el.isConnected) return;
       let dx = e.clientX - d.startX;
       let dy = e.clientY - d.startY;
+      if (!d.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return;
+      d.moved = true;
       const useSnap = e.shiftKey;
       const { el, type, initLeft, initTop, initW, initH } = d;
 
       if (type === 'move') {
-        let newLeft = initLeft + dx;
-        let newTop = initTop + dy;
+        let newLeft = Math.max(0, initLeft + dx);
+        let newTop = Math.max(0, initTop + dy);
         if (useSnap) { newLeft = snap(newLeft); newTop = snap(newTop); }
         el.style.position = el.style.position || 'relative';
         el.style.left = newLeft + 'px';
@@ -758,19 +848,21 @@ const VisualEditor: React.FC = () => {
         // Move multi-selected elements together
         for (const { el: mel, initLeft: ml, initTop: mt } of d.multiEls) {
           mel.style.position = mel.style.position || 'relative';
-          mel.style.left = (useSnap ? snap(ml + dx) : ml + dx) + 'px';
-          mel.style.top = (useSnap ? snap(mt + dy) : mt + dy) + 'px';
+          const nextLeft = Math.max(0, useSnap ? snap(ml + dx) : ml + dx);
+          const nextTop = Math.max(0, useSnap ? snap(mt + dy) : mt + dy);
+          mel.style.left = nextLeft + 'px';
+          mel.style.top = nextTop + 'px';
         }
       } else {
         if (useSnap) { dx = snap(dx); dy = snap(dy); }
         if (type === 'se') { el.style.width = Math.max(20, initW + dx) + 'px'; el.style.height = Math.max(20, initH + dy) + 'px'; }
         else if (type === 'e') { el.style.width = Math.max(20, initW + dx) + 'px'; }
         else if (type === 's') { el.style.height = Math.max(20, initH + dy) + 'px'; }
-        else if (type === 'n') { el.style.height = Math.max(20, initH - dy) + 'px'; el.style.top = (initTop + dy) + 'px'; }
-        else if (type === 'w') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.left = (initLeft + dx) + 'px'; }
-        else if (type === 'sw') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.left = (initLeft + dx) + 'px'; el.style.height = Math.max(20, initH + dy) + 'px'; }
-        else if (type === 'nw') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.height = Math.max(20, initH - dy) + 'px'; el.style.left = (initLeft + dx) + 'px'; el.style.top = (initTop + dy) + 'px'; }
-        else if (type === 'ne') { el.style.width = Math.max(20, initW + dx) + 'px'; el.style.height = Math.max(20, initH - dy) + 'px'; el.style.top = (initTop + dy) + 'px'; }
+        else if (type === 'n') { el.style.height = Math.max(20, initH - dy) + 'px'; el.style.top = Math.max(0, initTop + dy) + 'px'; }
+        else if (type === 'w') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.left = Math.max(0, initLeft + dx) + 'px'; }
+        else if (type === 'sw') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.left = Math.max(0, initLeft + dx) + 'px'; el.style.height = Math.max(20, initH + dy) + 'px'; }
+        else if (type === 'nw') { el.style.width = Math.max(20, initW - dx) + 'px'; el.style.height = Math.max(20, initH - dy) + 'px'; el.style.left = Math.max(0, initLeft + dx) + 'px'; el.style.top = Math.max(0, initTop + dy) + 'px'; }
+        else if (type === 'ne') { el.style.width = Math.max(20, initW + dx) + 'px'; el.style.height = Math.max(20, initH - dy) + 'px'; el.style.top = Math.max(0, initTop + dy) + 'px'; }
       }
       setTick(t => t + 1);
     };
@@ -781,6 +873,7 @@ const VisualEditor: React.FC = () => {
       dragRef.current = null;
       hideDragCapture();
       setActiveOp(null);
+      if (!d.moved) return;
       if (d.el.isConnected) syncToSource(d.el);
       for (const { el } of d.multiEls) { if (el.isConnected) syncToSource(el); }
     };
@@ -796,17 +889,18 @@ const VisualEditor: React.FC = () => {
   const startRotate = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation();
     const OR = getSelOverlay();
-    if (!OR || !selEl?.isConnected) return;
+    const el = selElRef.current;
+    if (!OR || !el?.isConnected) return;
     const cx = OR.left + OR.width / 2;
     const cy = OR.top + OR.height / 2;
     rotRef.current = {
       cx, cy,
       startAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI),
-      initRot: rotation, el: selEl,
+      initRot: rotation, el,
     };
     showDragCapture('crosshair');
     setActiveOp('rotate');
-  }, [selEl, rotation, getSelOverlay]);
+  }, [rotation, getSelOverlay]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
@@ -841,37 +935,37 @@ const VisualEditor: React.FC = () => {
   const breadcrumb = selEl ? buildBreadcrumb(selEl) : [];
 
   return (
-    <div style={{ position: 'relative', flex: 1, overflow: 'hidden', background: '#2d2d2d', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'relative', flex: 1, overflow: 'hidden', background: VE.bg, display: 'flex', flexDirection: 'column' }}>
 
       {/* ── Top toolbar ── */}
       <div style={{
-        height: 34, flexShrink: 0, background: 'rgba(26,26,26,0.9)',
-        borderBottom: '1px solid #3e3e3e',
+        height: 34, flexShrink: 0, background: VE.surface,
+        borderBottom: `1px solid ${VE.borderHi}`,
         display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6, zIndex: 5,
         flexWrap: 'nowrap', overflowX: 'auto',
       }}>
-
-        {/* Panel toggles */}
-        <button
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
+          <span style={{ fontSize: 10, color: VE.muted }}>Panels</span>
+          <button
           title="Toggle Layers panel"
           onClick={() => setShowLayers(l => !l)}
-          style={{ background: showLayers ? 'rgba(100,160,255,0.15)' : 'none', border: `1px solid ${showLayers ? 'rgba(100,160,255,0.4)' : '#444'}`, borderRadius: 3, cursor: 'pointer', fontSize: 10, color: showLayers ? '#7ab8f5' : '#666', padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0 }}
+          style={{ background: showLayers ? VE.blueBg : 'transparent', border: `1px solid ${showLayers ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showLayers ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0 }}
         >
           <FiLayers size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Layers
         </button>
         <button
           title="Toggle Elements palette"
           onClick={() => setShowPalette(p => !p)}
-          style={{ background: showPalette ? 'rgba(100,160,255,0.15)' : 'none', border: `1px solid ${showPalette ? 'rgba(100,160,255,0.4)' : '#444'}`, borderRadius: 3, cursor: 'pointer', fontSize: 10, color: showPalette ? '#7ab8f5' : '#666', padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0 }}
+          style={{ background: showPalette ? VE.blueBg : 'transparent', border: `1px solid ${showPalette ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showPalette ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0 }}
         >
           <FiGrid size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Elements
         </button>
-
-        <div style={{ width: 1, height: 18, background: '#3e3e3e', flexShrink: 0 }} />
+        </div>
 
         {/* Responsive viewport buttons */}
-        <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>Preview:</span>
-        {([
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
+          <span style={{ fontSize: 10, color: VE.dim, flexShrink: 0 }}>Preview</span>
+          {([
           { key: 'mobile', icon: <FiSmartphone size={11} />, label: '375', title: 'Mobile (375px)' },
           { key: 'tablet', icon: <FiTablet size={11} />, label: '768', title: 'Tablet (768px)' },
           { key: 'desktop', icon: <FiMonitor size={11} />, label: '1280', title: 'Desktop (1280px)' },
@@ -879,16 +973,17 @@ const VisualEditor: React.FC = () => {
         ] as const).map(btn => (
           <button key={btn.key} title={btn.title} onClick={() => setPreviewSize(btn.key)}
             style={{
-              background: previewSize === btn.key ? 'rgba(229,164,90,0.15)' : 'none',
-              border: `1px solid ${previewSize === btn.key ? 'rgba(229,164,90,0.5)' : '#444'}`,
-              borderRadius: 3, cursor: 'pointer', fontSize: 10,
-              color: previewSize === btn.key ? '#e5a45a' : '#777',
-              padding: '1px 7px', fontFamily: 'inherit', flexShrink: 0,
+              background: previewSize === btn.key ? VE.accentBg : 'transparent',
+              border: `1px solid ${previewSize === btn.key ? VE.accentBrd : VE.border}`,
+              borderRadius: 4, cursor: 'pointer', fontSize: 10,
+              color: previewSize === btn.key ? VE.accent : VE.dim,
+              padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0,
               display: 'flex', alignItems: 'center', gap: 4,
             }}>
             {btn.icon}{btn.label}
           </button>
-        ))}
+          ))}
+        </div>
 
         <div style={{ flex: 1 }} />
 
@@ -896,30 +991,34 @@ const VisualEditor: React.FC = () => {
         <button
           onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
           style={{
-            background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer',
-            fontSize: 10, color: interaction === 'select' ? '#e5a45a' : '#7ab8f5',
-            padding: '1px 8px', fontFamily: 'inherit', flexShrink: 0,
+            background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer',
+            fontSize: 10, color: interaction === 'select' ? VE.accent : VE.blue,
+            padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0,
           }}
           title={interaction === 'select' ? 'Select mode' : 'Interact mode'}
         >
           {interaction === 'select' ? <><FiMousePointer size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Select</> : <><FiBox size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Interact</>}
         </button>
+        <span style={{ fontSize: 10, color: VE.muted, flexShrink: 0 }}>
+          {selEl ? 'Selected 1' : 'No selection'}
+        </span>
 
         {selEl && (
           <button
             onClick={() => {
               selectedSelectorRef.current = null;
+              selectedViIdRef.current = null;
               setSelEl(null); setHovEl(null);
               setSelectedElement(null); setSelectedSelector(null);
               setMultiSel(new Set());
             }}
-            style={{ background: 'none', border: '1px solid #444', borderRadius: 3, cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit', flexShrink: 0 }}
+            style={{ background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: VE.dim, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0 }}
           >
             <FiX size={11} style={{ verticalAlign: -2, marginRight: 4 }} /> Deselect
           </button>
         )}
         {multiSel.size > 0 && (
-          <span style={{ fontSize: 10, color: '#7ab8f5', flexShrink: 0 }}>+{multiSel.size} selected</span>
+          <span style={{ fontSize: 10, color: VE.blue, flexShrink: 0 }}>+{multiSel.size} selected</span>
         )}
       </div>
 
@@ -928,7 +1027,7 @@ const VisualEditor: React.FC = () => {
 
         {/* Layers panel */}
         {showLayers && (
-          <div style={{ width: 170, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ width: 176, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRight: `1px solid ${VE.border}` }}>
             <LayersPanel
               iframeDoc={iframeDoc}
               selectedEl={selEl}
@@ -943,7 +1042,7 @@ const VisualEditor: React.FC = () => {
 
         {/* Iframe area */}
         <div
-          style={{ flex: 1, overflow: previewW ? 'auto' : 'hidden', position: 'relative', background: '#333', display: 'flex', justifyContent: 'center' }}
+          style={{ flex: 1, overflow: previewW ? 'auto' : 'hidden', position: 'relative', background: VE.canvas, display: 'flex', justifyContent: 'center' }}
         >
           <iframe
             ref={iframeRef}
@@ -979,8 +1078,13 @@ const VisualEditor: React.FC = () => {
                 e.preventDefault();
                 setPaletteDropping(true);
                 setDragGhost(prev => prev ? { ...prev, x: e.clientX + 14, y: e.clientY + 14 } : null);
+                const rect = e.currentTarget.getBoundingClientRect();
+                setDropPreview({
+                  x: Math.max(16, Math.min(rect.width - 16, e.clientX - rect.left)),
+                  y: Math.max(14, Math.min(rect.height - 14, e.clientY - rect.top)),
+                });
               }}
-              onDragLeave={() => setPaletteDropping(false)}
+              onDragLeave={() => { setPaletteDropping(false); setDropPreview(null); }}
               onDrop={e => {
                 e.preventDefault();
                 setPaletteDropping(false);
@@ -988,6 +1092,7 @@ const VisualEditor: React.FC = () => {
                 if (html) insertHtmlAtPoint(html, e.clientX, e.clientY);
                 setIsDraggingFromPalette(false);
                 setDragGhost(null);
+                setDropPreview(null);
               }}
             >
               <div style={{
@@ -1016,6 +1121,31 @@ const VisualEditor: React.FC = () => {
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#8a5a1e', marginBottom: 5 }}>{dragGhost.label}</div>
                   <div dangerouslySetInnerHTML={{ __html: dragGhost.html }} />
                 </div>
+              )}
+              {dropPreview && (
+                <>
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    top: dropPreview.y,
+                    borderTop: '2px dashed rgba(229,164,90,0.85)',
+                    zIndex: 215,
+                    pointerEvents: 'none',
+                  }} />
+                  <div style={{
+                    position: 'absolute',
+                    left: dropPreview.x - 8,
+                    top: dropPreview.y - 8,
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    border: '2px solid rgba(229,164,90,0.95)',
+                    background: 'rgba(0,0,0,0.35)',
+                    zIndex: 216,
+                    pointerEvents: 'none',
+                  }} />
+                </>
               )}
             </div>
           )}
@@ -1066,16 +1196,17 @@ const VisualEditor: React.FC = () => {
                     { label: 'Copy HTML', icon: '<>', action: () => navigator.clipboard.writeText(selEl.outerHTML) },
                     { label: 'Copy inline style', icon: 'CSS', action: () => navigator.clipboard.writeText(selEl.getAttribute('style') || '') },
                     { separator: true, label: '' },
-                    { label: 'Reset styles', icon: '↺', action: () => { selEl.removeAttribute('style'); setTick(t => t + 1); syncToSource(selEl); } },
+                    { label: 'Reset styles', icon: '↺', action: () => commitElementMutation(selEl, (target) => target.removeAttribute('style')) },
                     { label: 'Delete element', icon: '⌫', danger: true, action: () => {
                         updateHtmlSourceForElement(selEl, (target) => { target.remove(); });
                         selEl.remove();
                         selectedSelectorRef.current = null;
+                        selectedViIdRef.current = null;
                         setSelEl(null); setSelectedElement(null); setSelectedSelector(null);
                       }
                     },
                     { separator: true, label: '' },
-                    { label: 'Deselect', icon: '✕', action: () => { selectedSelectorRef.current = null; setSelEl(null); setSelectedElement(null); setMultiSel(new Set()); } },
+                    { label: 'Deselect', icon: '✕', action: () => { selectedSelectorRef.current = null; selectedViIdRef.current = null; setSelEl(null); setSelectedElement(null); setMultiSel(new Set()); } },
                   ]);
                 }}
               />
@@ -1149,14 +1280,14 @@ const VisualEditor: React.FC = () => {
 
         {/* Elements palette */}
         {showPalette && (
-          <div style={{ width: 160, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ width: 176, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${VE.border}` }}>
             <ElementsPalette
             onInsert={insertHtmlAtBody}
             onDragStart={(item: PaletteItem) => {
               setIsDraggingFromPalette(true);
               setDragGhost({ x: 0, y: 0, html: item.defaultHtml, label: item.label });
             }}
-            onDragEnd={() => { setIsDraggingFromPalette(false); setPaletteDropping(false); setDragGhost(null); }}
+            onDragEnd={() => { setIsDraggingFromPalette(false); setPaletteDropping(false); setDragGhost(null); setDropPreview(null); }}
           />
           </div>
         )}
@@ -1164,21 +1295,24 @@ const VisualEditor: React.FC = () => {
 
       {/* ── Breadcrumb bar ── */}
       <div style={{
-        height: 26, flexShrink: 0, background: '#1a1a1a', borderTop: '1px solid #2e2e2e',
+        height: 26, flexShrink: 0, background: VE.surface, borderTop: `1px solid ${VE.border}`,
         display: 'flex', alignItems: 'center', padding: '0 10px', gap: 0,
         overflow: 'hidden', zIndex: 5,
       }}>
+        <span style={{ fontSize: 10, color: VE.muted, marginRight: 6, flexShrink: 0 }}>
+          {interaction === 'select' ? 'Select Mode' : 'Interact Mode'}
+        </span>
         {breadcrumb.length > 0 ? (
           breadcrumb.map((el, i) => (
             <React.Fragment key={i}>
-              {i > 0 && <span style={{ fontSize: 10, color: '#444', margin: '0 4px' }}>›</span>}
+              {i > 0 && <span style={{ fontSize: 10, color: VE.border, margin: '0 4px' }}>›</span>}
               <button
                 onClick={() => selectElement(el)}
                 title={`Select <${breadcrumbLabel(el)}>`}
                 style={{
-                  background: el === selEl ? 'rgba(229,164,90,0.15)' : 'none',
+                  background: el === selEl ? VE.accentBg : 'transparent',
                   border: 'none', cursor: 'pointer', fontSize: 10, fontFamily: 'monospace',
-                  color: el === selEl ? '#e5a45a' : '#888',
+                  color: el === selEl ? VE.accent : VE.dim,
                   padding: '0 4px', borderRadius: 3,
                   fontWeight: el === selEl ? 700 : 400,
                 }}
@@ -1188,7 +1322,7 @@ const VisualEditor: React.FC = () => {
             </React.Fragment>
           ))
         ) : (
-          <span style={{ fontSize: 10, color: '#444' }}>
+          <span style={{ fontSize: 10, color: VE.muted }}>
             {selEl ? '' : 'Click any element to select • Shift+click to multi-select • Double-click to edit text • Shift+drag to snap to 8px grid'}
           </span>
         )}

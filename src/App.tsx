@@ -9,7 +9,7 @@ import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiMapPin } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
 /* ─── AI Status Button (shown in bottom status bar) ─── */
@@ -668,7 +668,7 @@ function DesktopApp() {
           { label: 'Mode: Split Layout', icon: '3', action: () => applyModePreset('split') },
           { separator: true, label: '' },
           { label: 'Refresh Preview', icon: '↻', action: () => useEditorStore.getState().refreshPreview() },
-          { label: 'Export ZIP', icon: '📦', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
+          { label: 'Export ZIP', icon: 'ZIP', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
           { separator: true, label: '' },
           { label: 'Reset Layout', icon: '↺', action: () => resetLayout() },
         ]);
@@ -719,7 +719,8 @@ function DesktopApp() {
               title={w.docked ? `${shortLabels[id]} (docked)` : `${shortLabels[id]} ${w.visible ? '(floating)' : '(hidden)'}`}
               style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit', background: w.visible ? (w.docked ? 'rgba(100,180,255,0.12)' : 'rgba(229,164,90,0.12)') : '#1a1a1a', border: `1px solid ${w.visible ? (w.docked ? 'rgba(100,180,255,0.35)' : 'rgba(229,164,90,0.4)') : '#3e3e3e'}`, color: w.visible ? (w.docked ? '#7ab8f5' : '#e5a45a') : '#666' }}
             >
-              {w.docked && w.visible ? '📌' : ''}{shortLabels[id]}
+              {w.docked && w.visible && <FiMapPin size={10} style={{ marginRight: 4, verticalAlign: -1 }} />}
+              {shortLabels[id]}
             </button>
           );
         })}
