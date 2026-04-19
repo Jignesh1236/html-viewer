@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import {
+  dbSaveFiles, dbLoadFiles, dbSaveFolders, dbLoadFolders,
+  dbSaveMeta, dbLoadMeta, syncFilesToMemFs, writeFileToMemFs,
+} from '../utils/fileSystemDB';
 
 export interface FileItem {
   id: string;
@@ -64,8 +68,11 @@ export interface PreviewTab {
   title: string;
   favicon: string;
   active: boolean;
-  previewType: 'page' | 'image';
+  tabType: 'static' | 'port' | 'image';
+  htmlFileId?: string;
+  portUrl?: string;
   imageFileId?: string;
+  viewport: 'desktop' | 'tablet' | 'mobile';
 }
 
 export interface TimelineTrack {
@@ -89,10 +96,13 @@ export interface TimelineState {
 interface EditorStore {
   files: FileItem[];
   activeFileId: string | null;
+  editorOpenIds: string[];
   addFile: (file: FileItem) => void;
   removeFile: (id: string) => void;
   updateFileContent: (id: string, content: string) => void;
   setActiveFile: (id: string) => void;
+  openInEditor: (id: string) => void;
+  closeInEditor: (id: string) => void;
   moveFileToFolder: (fileId: string, folder: string | undefined) => void;
 
   folders: string[];
@@ -127,7 +137,14 @@ interface EditorStore {
 
   previewTabs: PreviewTab[];
   activePreviewTabId: string;
-  addPreviewTab: (opts?: { fileId?: string; title?: string; previewType?: 'page' | 'image'; imageFileId?: string }) => void;
+  addPreviewTab: (opts?: {
+    tabType?: 'static' | 'port' | 'image';
+    title?: string;
+    htmlFileId?: string;
+    portUrl?: string;
+    imageFileId?: string;
+    viewport?: 'desktop' | 'tablet' | 'mobile';
+  }) => void;
   closePreviewTab: (id: string) => void;
   setActivePreviewTab: (id: string) => void;
   updatePreviewTab: (id: string, update: Partial<PreviewTab>) => void;
@@ -145,13 +162,18 @@ interface EditorStore {
   triggerTimelineRestart: () => void;
 
   timelineState: TimelineState;
-  setTimelineState: (update: Partial<TimelineState> | ((prev: TimelineState) => TimelineState)) => void;
-  resetTimelineState: () => void;
+  timelineStates: Record<string, TimelineState>;
+  setTimelineState: (update: Partial<TimelineState> | ((prev: TimelineState) => TimelineState), fileId?: string) => void;
+  resetTimelineState: (fileId?: string) => void;
+  getTimelineStateForFile: (fileId: string) => TimelineState;
 
   pendingFileDialog: { type: 'create' | 'rename'; fileId?: string } | null;
   setPendingFileDialog: (d: { type: 'create' | 'rename'; fileId?: string } | null) => void;
 
   resetFiles: (newFiles: FileItem[]) => void;
+
+  dbReady: boolean;
+  initFromDb: () => Promise<void>;
 }
 
 const DEFAULT_PKG = `{
@@ -382,10 +404,6 @@ nav a:hover { color: #61dafb; }
 .footer a:hover { text-decoration: underline; }
 `;
 
-const FILES_STORAGE_KEY    = 'html-editor-files-v2';
-const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v2';
-const ACTIVE_FILE_KEY      = 'html-editor-active-file-v2';
-const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v2';
 const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
   { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
   { id: '2', element: 'h1', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
@@ -402,7 +420,6 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
 
 const DEFAULT_FOLDERS = ['src'];
 
-/* ─── Files persistence ─── */
 const DEFAULT_FILES: FileItem[] = [
   { id: 'package.json',    name: 'package.json',    type: 'json', content: DEFAULT_PKG         },
   { id: 'vite.config.js',  name: 'vite.config.js',  type: 'js',   content: DEFAULT_VITE_CONFIG },
@@ -421,102 +438,129 @@ function serializeFiles(files: FileItem[]): FileItem[] {
   });
 }
 
-function saveFiles(files: FileItem[]) {
-  try {
-    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(serializeFiles(files)));
-  } catch { /* quota exceeded — ignore */ }
+function saveFilesAsync(files: FileItem[]) {
+  dbSaveFiles(serializeFiles(files)).catch(() => {});
 }
 
-function loadFiles(): FileItem[] {
-  try {
-    const raw = localStorage.getItem(FILES_STORAGE_KEY);
-    if (raw === null) return DEFAULT_FILES; // First ever visit → show demo project
-    const parsed = JSON.parse(raw) as FileItem[];
-    if (!Array.isArray(parsed)) return DEFAULT_FILES;
-    return parsed; // Empty array is valid (user cleared project)
-  } catch {
-    return DEFAULT_FILES;
-  }
+function saveFoldersAsync(folders: string[]) {
+  dbSaveFolders(folders).catch(() => {});
 }
 
-function saveFolders(folders: string[]) {
-  try { localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders)); } catch {}
+function saveActiveFileAsync(id: string | null) {
+  dbSaveMeta('activeFileId', id ?? '').catch(() => {});
 }
 
-function loadFolders(): string[] {
-  try {
-    const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : DEFAULT_FOLDERS;
-  } catch { return DEFAULT_FOLDERS; }
+function saveEditorOpenIdsAsync(ids: string[]) {
+  dbSaveMeta('editorOpenIds', ids).catch(() => {});
 }
 
-function saveActiveFile(id: string | null) {
-  try { localStorage.setItem(ACTIVE_FILE_KEY, id ?? ''); } catch {}
+function saveTimelineStatesAsync(states: Record<string, TimelineState>) {
+  dbSaveMeta('timelineStates', states).catch(() => {});
 }
-
-function loadActiveFile(files: FileItem[]): string | null {
-  try {
-    const id = localStorage.getItem(ACTIVE_FILE_KEY);
-    if (id && files.find(f => f.id === id)) return id;
-    return files[0]?.id ?? null;
-  } catch {
-    return files[0]?.id ?? null;
-  }
-}
-
-function loadTimelineState(): TimelineState {
-  try {
-    const raw = localStorage.getItem(TIMELINE_STORAGE_KEY);
-    if (!raw) return DEFAULT_TIMELINE_STATE;
-    const parsed = JSON.parse(raw) as Partial<TimelineState>;
-    if (!parsed || !Array.isArray(parsed.tracks)) return DEFAULT_TIMELINE_STATE;
-    return {
-      tracks: parsed.tracks,
-      playing: !!parsed.playing,
-      currentTime: typeof parsed.currentTime === 'number' ? parsed.currentTime : 0,
-      animationsApplied: !!parsed.animationsApplied,
-    };
-  } catch {
-    return DEFAULT_TIMELINE_STATE;
-  }
-}
-
-function saveTimelineState(state: TimelineState) {
-  try {
-    localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore quota/storage errors
-  }
-}
-
-const _initFiles = loadFiles();
-const _initActiveFileId = loadActiveFile(_initFiles);
-const _initFolders = loadFolders();
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
-  files: _initFiles,
-  activeFileId: _initActiveFileId,
+  files: DEFAULT_FILES,
+  activeFileId: DEFAULT_FILES[0]?.id ?? null,
+  editorOpenIds: DEFAULT_FILES.map(f => f.id),
+  dbReady: false,
+
+  initFromDb: async () => {
+    try {
+      /* ── Migrate localStorage → IndexedDB on first run ── */
+      const migratedFlag = await dbLoadMeta<boolean>('ls-migrated');
+      if (!migratedFlag) {
+        try {
+          const lsFiles = localStorage.getItem('html-editor-files-v2') ?? localStorage.getItem('html-editor-files-v1');
+          const lsFolders = localStorage.getItem('html-editor-folders-v2') ?? localStorage.getItem('html-editor-folders-v1');
+          const lsActive = localStorage.getItem('html-editor-active-file-v2') ?? localStorage.getItem('html-editor-active-file-v1');
+          const lsTimeline = localStorage.getItem('html-editor-timeline-state-v2') ?? localStorage.getItem('html-editor-timeline-state-v1');
+          if (lsFiles) {
+            const parsed = JSON.parse(lsFiles);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              await dbSaveFiles(parsed);
+              if (lsFolders) await dbSaveFolders(JSON.parse(lsFolders));
+              if (lsActive) await dbSaveMeta('activeFileId', JSON.parse(lsActive));
+              if (lsTimeline) {
+                const tlState = JSON.parse(lsTimeline);
+                const activeId = lsActive ? JSON.parse(lsActive) : null;
+                if (activeId) await dbSaveMeta('timelineStates', { [activeId]: tlState });
+              }
+            }
+          }
+          await dbSaveMeta('ls-migrated', true);
+          ['html-editor-files-v2','html-editor-files-v1','html-editor-folders-v2','html-editor-folders-v1',
+           'html-editor-active-file-v2','html-editor-active-file-v1','html-editor-timeline-state-v2','html-editor-timeline-state-v1',
+          ].forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        } catch { await dbSaveMeta('ls-migrated', true); }
+      }
+
+      const [dbFiles, dbFolders, dbActiveId, dbOpenIds, dbTimelineStates] = await Promise.all([
+        dbLoadFiles(),
+        dbLoadFolders(),
+        dbLoadMeta<string>('activeFileId'),
+        dbLoadMeta<string[]>('editorOpenIds'),
+        dbLoadMeta<Record<string, TimelineState>>('timelineStates'),
+      ]);
+
+      const files = (dbFiles && dbFiles.length > 0) ? dbFiles as FileItem[] : DEFAULT_FILES;
+      const folders = (dbFolders && dbFolders.length > 0) ? dbFolders : DEFAULT_FOLDERS;
+      const activeFileId = (dbActiveId && files.find(f => f.id === dbActiveId)) ? dbActiveId : (files[0]?.id ?? null);
+      const editorOpenIds = (dbOpenIds && Array.isArray(dbOpenIds) && dbOpenIds.length > 0)
+        ? dbOpenIds.filter(id => files.find(f => f.id === id))
+        : files.map(f => f.id);
+      const timelineStates = dbTimelineStates ?? {};
+
+      syncFilesToMemFs(files);
+
+      set({
+        files,
+        folders,
+        activeFileId,
+        editorOpenIds,
+        timelineStates,
+        timelineState: timelineStates[activeFileId ?? ''] ?? DEFAULT_TIMELINE_STATE,
+        dbReady: true,
+      });
+    } catch (e) {
+      console.warn('[EditorStore] initFromDb failed:', e);
+      syncFilesToMemFs(DEFAULT_FILES);
+      set({ dbReady: true });
+    }
+  },
 
   addFile: (file) => set((s) => {
     const next = [...s.files, file];
-    saveFiles(next);
-    return { files: next };
+    const nextOpenIds = [...s.editorOpenIds, file.id];
+    saveFilesAsync(next);
+    saveEditorOpenIdsAsync(nextOpenIds);
+    writeFileToMemFs(file.folder ? `${file.folder}/${file.name}` : file.name, file.content || '');
+    return { files: next, editorOpenIds: nextOpenIds, activeFileId: file.id };
   }),
+
   removeFile: (id) => set((s) => {
     const next = s.files.filter(f => f.id !== id);
-    const nextActive = s.activeFileId === id ? (next.find(f => f.id !== id)?.id ?? next[0]?.id ?? null) : s.activeFileId;
-    saveFiles(next);
-    saveActiveFile(nextActive);
-    return { files: next, activeFileId: nextActive };
+    const nextOpenIds = s.editorOpenIds.filter(oid => oid !== id);
+    const nextActive = s.activeFileId === id
+      ? (next.find(f => nextOpenIds.includes(f.id))?.id ?? next[0]?.id ?? null)
+      : s.activeFileId;
+    saveFilesAsync(next);
+    saveActiveFileAsync(nextActive);
+    saveEditorOpenIdsAsync(nextOpenIds);
+    return { files: next, activeFileId: nextActive, editorOpenIds: nextOpenIds };
   }),
+
   resetFiles: (newFiles) => set(() => {
     const firstId = newFiles[0]?.id ?? null;
     const folders = [...new Set(newFiles.map(f => f.folder).filter(Boolean) as string[])];
-    saveFiles(newFiles);
-    saveActiveFile(firstId);
-    saveFolders(folders);
-    return { files: newFiles, activeFileId: firstId, folders };
+    const openIds = newFiles.map(f => f.id);
+    saveFilesAsync(newFiles);
+    saveActiveFileAsync(firstId);
+    saveFoldersAsync(folders);
+    saveEditorOpenIdsAsync(openIds);
+    syncFilesToMemFs(newFiles);
+    return { files: newFiles, activeFileId: firstId, folders, editorOpenIds: openIds };
   }),
+
   updateFileContent: (id, content) => set((s) => {
     const file = s.files.find(f => f.id === id);
     const isHtmlFile = file?.type === 'html';
@@ -524,45 +568,76 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     let timelinePatch: Partial<EditorStore> = {};
     if (isHtmlFile && isBlank) {
       const clearedTimeline: TimelineState = { ...s.timelineState, animationsApplied: false, tracks: [], playing: false, currentTime: 0 };
-      saveTimelineState(clearedTimeline);
-      timelinePatch = { timelineState: clearedTimeline, timelineAnimationStyle: '' };
+      const nextTimelineStates = { ...s.timelineStates, [id]: clearedTimeline };
+      saveTimelineStatesAsync(nextTimelineStates);
+      timelinePatch = { timelineState: clearedTimeline, timelineAnimationStyle: '', timelineStates: nextTimelineStates };
     }
     const next = s.files.map(f => f.id === id ? { ...f, content } : f);
-    saveFiles(next);
+    saveFilesAsync(next);
+    const path = file ? (file.folder ? `${file.folder}/${file.name}` : file.name) : id;
+    writeFileToMemFs(path, content);
     return {
       files: next,
       previewRefreshKey: s.previewRefreshKey + 1,
       ...timelinePatch,
     };
   }),
+
   setActiveFile: (id) => {
-    saveActiveFile(id);
-    set({ activeFileId: id });
+    saveActiveFileAsync(id);
+    const s = get();
+    const timelineForFile = s.timelineStates[id] ?? DEFAULT_TIMELINE_STATE;
+    set({ activeFileId: id, timelineState: timelineForFile });
   },
+
+  openInEditor: (id) => {
+    const s = get();
+    const nextOpenIds = s.editorOpenIds.includes(id) ? s.editorOpenIds : [...s.editorOpenIds, id];
+    saveActiveFileAsync(id);
+    saveEditorOpenIdsAsync(nextOpenIds);
+    const timelineForFile = s.timelineStates[id] ?? DEFAULT_TIMELINE_STATE;
+    set({ activeFileId: id, editorOpenIds: nextOpenIds, timelineState: timelineForFile });
+  },
+
+  closeInEditor: (id) => {
+    const s = get();
+    const nextOpenIds = s.editorOpenIds.filter(oid => oid !== id);
+    const finalOpenIds = nextOpenIds.length === 0 ? [s.files[0]?.id ?? id] : nextOpenIds;
+    const nextActive = s.activeFileId === id
+      ? (s.files.find(f => finalOpenIds.includes(f.id) && f.id !== id)?.id ?? finalOpenIds[finalOpenIds.length - 1] ?? null)
+      : s.activeFileId;
+    saveActiveFileAsync(nextActive);
+    saveEditorOpenIdsAsync(finalOpenIds);
+    set({ editorOpenIds: finalOpenIds, activeFileId: nextActive });
+  },
+
   moveFileToFolder: (fileId, folder) => set((s) => {
     const next = s.files.map(f => f.id === fileId ? { ...f, folder } : f);
-    saveFiles(next);
+    saveFilesAsync(next);
+    syncFilesToMemFs(next);
     return { files: next };
   }),
 
-  folders: _initFolders,
+  folders: DEFAULT_FOLDERS,
   addFolder: (name) => set((s) => {
     const next = s.folders.includes(name) ? s.folders : [...s.folders, name];
-    saveFolders(next);
+    saveFoldersAsync(next);
     return { folders: next };
   }),
   removeFolder: (name) => set((s) => {
     const nextFolders = s.folders.filter(f => f !== name);
     const nextFiles = s.files.map(f => f.folder === name ? { ...f, folder: undefined } : f);
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+    saveFoldersAsync(nextFolders);
+    saveFilesAsync(nextFiles);
+    syncFilesToMemFs(nextFiles);
     return { folders: nextFolders, files: nextFiles };
   }),
   renameFolder: (oldName, newName) => set((s) => {
     const nextFolders = s.folders.map(f => f === oldName ? newName : f);
     const nextFiles = s.files.map(f => f.folder === oldName ? { ...f, folder: newName } : f);
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+    saveFoldersAsync(nextFolders);
+    saveFilesAsync(nextFiles);
+    syncFilesToMemFs(nextFiles);
     return { folders: nextFolders, files: nextFiles };
   }),
 
@@ -623,7 +698,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   clearConsole: () => set({ consoleEntries: [] }),
 
-  previewTabs: [{ id: 'tab-1', title: 'My Page', favicon: '', active: true, previewType: 'page' }],
+  previewTabs: [{ id: 'tab-1', title: 'Preview', favicon: '', active: true, tabType: 'static', viewport: 'desktop' }],
   activePreviewTabId: 'tab-1',
   addPreviewTab: (opts) => {
     const id = `tab-${Date.now()}`;
@@ -632,8 +707,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       title: opts?.title ?? 'New Tab',
       favicon: '',
       active: true,
-      previewType: opts?.previewType ?? 'page',
+      tabType: opts?.tabType ?? 'static',
+      htmlFileId: opts?.htmlFileId,
+      portUrl: opts?.portUrl,
       imageFileId: opts?.imageFileId,
+      viewport: opts?.viewport ?? 'desktop',
     };
     set((s) => ({
       previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), newTab],
@@ -673,16 +751,35 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   timelineRestartKey: 0,
   triggerTimelineRestart: () => set((s) => ({ timelineRestartKey: s.timelineRestartKey + 1 })),
 
-  timelineState: loadTimelineState(),
-  setTimelineState: (update) => set((s) => {
-    const nextState = typeof update === 'function' ? update(s.timelineState) : { ...s.timelineState, ...update };
-    saveTimelineState(nextState);
-    return { timelineState: nextState };
+  timelineState: DEFAULT_TIMELINE_STATE,
+  timelineStates: {},
+
+  setTimelineState: (update, fileId) => set((s) => {
+    const targetId = fileId ?? s.activeFileId ?? '';
+    const current = s.timelineStates[targetId] ?? s.timelineState;
+    const nextState = typeof update === 'function' ? update(current) : { ...current, ...update };
+    const nextTimelineStates = { ...s.timelineStates, [targetId]: nextState };
+    saveTimelineStatesAsync(nextTimelineStates);
+    return {
+      timelineState: targetId === (s.activeFileId ?? '') ? nextState : s.timelineState,
+      timelineStates: nextTimelineStates,
+    };
   }),
-  resetTimelineState: () => set(() => {
-    saveTimelineState(DEFAULT_TIMELINE_STATE);
-    return { timelineState: DEFAULT_TIMELINE_STATE };
+
+  resetTimelineState: (fileId) => set((s) => {
+    const targetId = fileId ?? s.activeFileId ?? '';
+    const nextTimelineStates = { ...s.timelineStates, [targetId]: DEFAULT_TIMELINE_STATE };
+    saveTimelineStatesAsync(nextTimelineStates);
+    return {
+      timelineState: targetId === (s.activeFileId ?? '') ? DEFAULT_TIMELINE_STATE : s.timelineState,
+      timelineStates: nextTimelineStates,
+    };
   }),
+
+  getTimelineStateForFile: (fileId) => {
+    const s = get();
+    return s.timelineStates[fileId] ?? DEFAULT_TIMELINE_STATE;
+  },
 
   pendingFileDialog: null,
   setPendingFileDialog: (d) => set({ pendingFileDialog: d }),
