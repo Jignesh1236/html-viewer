@@ -1,3 +1,6 @@
+import { Buffer } from "buffer";
+globalThis.Buffer = Buffer;
+
 import { createRoot } from "react-dom/client";
 import { Router, Route, Switch } from "wouter";
 import App from "./App";

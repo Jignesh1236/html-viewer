@@ -154,62 +154,123 @@ interface EditorStore {
   resetFiles: (newFiles: FileItem[]) => void;
 }
 
-const DEFAULT_HTML = `<!DOCTYPE html>
+const DEFAULT_PKG = `{
+  "name": "my-react-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+}`;
+
+const DEFAULT_VITE_CONFIG = `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})
+`;
+
+const DEFAULT_INDEX_HTML = `<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Page</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="header">
-    <h1>Welcome to HTML Editor</h1>
-    <nav>
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My React App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+`;
 
-  <main class="main">
-    <section class="hero">
-      <h2>Build Amazing Websites</h2>
-      <p>Switch to <strong>Visual mode</strong> to design your page like Photoshop — click any element to select, drag to move, use handles to resize and rotate.</p>
-      <button class="btn" onclick="alert('Hello from your page!')">Get Started</button>
-    </section>
+const DEFAULT_MAIN_JSX = `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import './App.css'
 
-    <section class="features">
-      <div class="card">
-        <h3>Code Editor</h3>
-        <p>Full Monaco editor with syntax highlighting, autocomplete, and formatting for HTML, CSS, and JS.</p>
-      </div>
-      <div class="card">
-        <h3>Visual Editor</h3>
-        <p>Click any element to select it, drag to reposition, and use the properties panel to style it.</p>
-      </div>
-      <div class="card">
-        <h3>Live Preview</h3>
-        <p>See your changes instantly. Export as ZIP or copy to clipboard when you're done.</p>
-      </div>
-    </section>
-  </main>
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+`;
 
-  <footer class="footer">
-    <p>&copy; 2024 My Website. Built with HTML Editor.</p>
-  </footer>
+const DEFAULT_APP_JSX = `import { useState } from 'react'
+import './App.css'
 
-  <script src="script.js"></script>
-</body>
-</html>`;
+export default function App() {
+  const [count, setCount] = useState(0)
 
-const DEFAULT_CSS = `* { box-sizing: border-box; margin: 0; padding: 0; }
+  return (
+    <div className="app">
+      <header className="header">
+        <div className="logo">⚛ My App</div>
+        <nav>
+          <a href="#">Home</a>
+          <a href="#">About</a>
+          <a href="#">Contact</a>
+        </nav>
+      </header>
+
+      <main>
+        <section className="hero">
+          <h1>Hello, React! 👋</h1>
+          <p>
+            Edit <code>src/App.jsx</code> and save to see changes instantly.
+          </p>
+          <div className="counter">
+            <button onClick={() => setCount(c => c - 1)}>−</button>
+            <span>{count}</span>
+            <button onClick={() => setCount(c => c + 1)}>+</button>
+          </div>
+        </section>
+
+        <section className="features">
+          {[
+            { icon: '⚡', title: 'Vite', desc: 'Lightning-fast dev server with instant HMR' },
+            { icon: '⚛', title: 'React 18', desc: 'Modern React with hooks and concurrent rendering' },
+            { icon: '🎨', title: 'Customizable', desc: 'Edit App.css to style your app your way' },
+          ].map(f => (
+            <div key={f.title} className="card">
+              <div className="card-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+            </div>
+          ))}
+        </section>
+      </main>
+
+      <footer className="footer">
+        <p>Built with React + Vite · <a href="https://react.dev" target="_blank">Docs</a></p>
+      </footer>
+    </div>
+  )
+}
+`;
+
+const DEFAULT_APP_CSS = `* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #333;
+  background: #0f0f1a;
+  color: #e0e0e0;
   line-height: 1.6;
 }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
 
 /* Header */
 .header {
@@ -217,18 +278,21 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 16px 40px;
-  background: #1a1a2e;
-  color: white;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
-.header h1 { font-size: 1.4rem; font-weight: 700; }
+.logo { font-size: 1.2rem; font-weight: 700; color: #61dafb; }
 nav a {
-  color: rgba(255,255,255,0.75);
+  color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
-  margin-left: 24px;
+  margin-left: 28px;
   font-size: 0.9rem;
   transition: color 0.2s;
 }
-nav a:hover { color: #f0a500; }
+nav a:hover { color: #61dafb; }
 
 /* Hero */
 .hero {
@@ -236,114 +300,96 @@ nav a:hover { color: #f0a500; }
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 80px 40px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: white;
-  min-height: 50vh;
-  justify-content: center;
+  padding: 100px 40px 80px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(97, 218, 251, 0.08) 0%, transparent 70%);
 }
-.hero h2 {
+.hero h1 {
   font-size: 3rem;
   font-weight: 800;
-  margin-bottom: 16px;
-  background: linear-gradient(90deg, #f0a500, #e94560);
+  background: linear-gradient(135deg, #61dafb, #a855f7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin-bottom: 16px;
 }
-.hero p {
-  font-size: 1.1rem;
-  color: rgba(255,255,255,0.75);
-  max-width: 560px;
-  margin-bottom: 36px;
+.hero p { font-size: 1.1rem; color: rgba(255, 255, 255, 0.55); margin-bottom: 40px; }
+.hero code {
+  background: rgba(97, 218, 251, 0.12);
+  color: #61dafb;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
-.btn {
-  padding: 14px 36px;
-  background: #f0a500;
-  color: #1a1a2e;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
+
+/* Counter */
+.counter { display: flex; align-items: center; gap: 20px; }
+.counter button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(97, 218, 251, 0.4);
+  background: rgba(97, 218, 251, 0.1);
+  color: #61dafb;
+  font-size: 1.4rem;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s;
 }
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(240,165,0,0.4);
+.counter button:hover {
+  background: rgba(97, 218, 251, 0.2);
+  border-color: #61dafb;
+  transform: scale(1.08);
+}
+.counter span {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 60px;
+  text-align: center;
 }
 
 /* Features */
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
   padding: 60px 40px;
-  background: #f8f9fa;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
 }
 .card {
-  background: white;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 28px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 }
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
-.card h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a2e;
-}
-.card p { color: #666; font-size: 0.9rem; }
+.card:hover { border-color: rgba(97, 218, 251, 0.3); background: rgba(97, 218, 251, 0.04); }
+.card-icon { font-size: 2rem; margin-bottom: 12px; }
+.card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; color: #fff; }
+.card p { color: rgba(255, 255, 255, 0.5); font-size: 0.88rem; }
 
 /* Footer */
 .footer {
+  margin-top: auto;
   text-align: center;
   padding: 24px;
-  background: #1a1a2e;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255, 255, 255, 0.3);
   font-size: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
+.footer a { color: #61dafb; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
 `;
 
-const DEFAULT_JS = `// JavaScript is live — edits here run instantly in preview
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Page ready!');
-
-  // Animate cards on scroll
-  const cards = document.querySelectorAll('.card');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }, i * 100);
-      }
-    });
-  }, { threshold: 0.1 });
-
-  cards.forEach(card => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(20px)';
-    card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-    observer.observe(card);
-  });
-});
-`;
-
-const FILES_STORAGE_KEY    = 'html-editor-files-v1';
-const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
-const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
-const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
+const FILES_STORAGE_KEY    = 'html-editor-files-v2';
+const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v2';
+const ACTIVE_FILE_KEY      = 'html-editor-active-file-v2';
+const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v2';
 const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
   { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
-  { id: '2', element: 'h2', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
-  { id: '3', element: '.btn', animation: 'zoom', duration: 0.5, delay: 0.8, color: '#9cdcfe', easing: 'ease', iteration: '1' },
+  { id: '2', element: 'h1', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
+  { id: '3', element: '.counter', animation: 'zoom', duration: 0.5, delay: 0.8, color: '#9cdcfe', easing: 'ease', iteration: '1' },
   { id: '4', element: '.card', animation: 'fadeIn', duration: 0.6, delay: 1.0, color: '#dcdcaa', easing: 'ease', iteration: '1' },
 ];
 
@@ -354,11 +400,16 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
   animationsApplied: false,
 };
 
+const DEFAULT_FOLDERS = ['src'];
+
 /* ─── Files persistence ─── */
 const DEFAULT_FILES: FileItem[] = [
-  { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
-  { id: 'styles.css', name: 'styles.css', type: 'css', content: DEFAULT_CSS },
-  { id: 'script.js',  name: 'script.js',  type: 'js',  content: DEFAULT_JS  },
+  { id: 'package.json',    name: 'package.json',    type: 'json', content: DEFAULT_PKG         },
+  { id: 'vite.config.js',  name: 'vite.config.js',  type: 'js',   content: DEFAULT_VITE_CONFIG },
+  { id: 'index.html',      name: 'index.html',      type: 'html', content: DEFAULT_INDEX_HTML  },
+  { id: 'src/main.jsx',    name: 'main.jsx',         type: 'jsx',  content: DEFAULT_MAIN_JSX,   folder: 'src' },
+  { id: 'src/App.jsx',     name: 'App.jsx',          type: 'jsx',  content: DEFAULT_APP_JSX,    folder: 'src' },
+  { id: 'src/App.css',     name: 'App.css',          type: 'css',  content: DEFAULT_APP_CSS,    folder: 'src' },
 ];
 
 function serializeFiles(files: FileItem[]): FileItem[] {
@@ -379,10 +430,10 @@ function saveFiles(files: FileItem[]) {
 function loadFiles(): FileItem[] {
   try {
     const raw = localStorage.getItem(FILES_STORAGE_KEY);
-    if (!raw) return DEFAULT_FILES;
+    if (raw === null) return DEFAULT_FILES; // First ever visit → show demo project
     const parsed = JSON.parse(raw) as FileItem[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_FILES;
-    return parsed;
+    if (!Array.isArray(parsed)) return DEFAULT_FILES;
+    return parsed; // Empty array is valid (user cleared project)
   } catch {
     return DEFAULT_FILES;
   }
@@ -395,8 +446,8 @@ function saveFolders(folders: string[]) {
 function loadFolders(): string[] {
   try {
     const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch { return []; }
+    return raw ? (JSON.parse(raw) as string[]) : DEFAULT_FOLDERS;
+  } catch { return DEFAULT_FOLDERS; }
 }
 
 function saveActiveFile(id: string | null) {
@@ -460,10 +511,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   }),
   resetFiles: (newFiles) => set(() => {
     const firstId = newFiles[0]?.id ?? null;
+    const folders = [...new Set(newFiles.map(f => f.folder).filter(Boolean) as string[])];
     saveFiles(newFiles);
     saveActiveFile(firstId);
-    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify([]));
-    return { files: newFiles, activeFileId: firstId, folders: [] };
+    saveFolders(folders);
+    return { files: newFiles, activeFileId: firstId, folders };
   }),
   updateFileContent: (id, content) => set((s) => {
     const file = s.files.find(f => f.id === id);

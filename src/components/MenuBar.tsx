@@ -410,34 +410,33 @@ function CloneRepoDialog({ onClose, onCloned }: CloneRepoDialogProps) {
         if (f.type !== 'blob') return false;
         const ext = f.path.split('.').pop()?.toLowerCase() ?? '';
         if (BINARY_EXTS.has(ext)) return false;
-        if (f.size && f.size > 500_000) return false; // skip files > 500KB
+        if (f.size && f.size > 300_000) return false;
         return true;
-      }).slice(0, 80); // cap at 80 files to avoid rate limiting
+      }).slice(0, 100);
 
       setProgress({ done: 0, total: blobs.length });
 
-      // 3. Fetch each file content
+      // 3. Fetch file content via raw.githubusercontent.com — no API rate limits!
       const fetchedFiles: FileItem[] = [];
-      for (let i = 0; i < blobs.length; i++) {
-        const blob = blobs[i];
-        setStatus(`Fetching ${blob.path} (${i + 1}/${blobs.length})…`);
+      const BATCH = 10; // parallel batch size
+      for (let i = 0; i < blobs.length; i += BATCH) {
+        const batch = blobs.slice(i, i + BATCH);
+        setStatus(`Downloading files ${i + 1}–${Math.min(i + BATCH, blobs.length)} of ${blobs.length}…`);
         setProgress({ done: i, total: blobs.length });
-        try {
-          const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${blob.path}?ref=${branch}`);
-          if (!fileRes.ok) continue;
-          const fileData = await fileRes.json() as { content?: string; encoding?: string };
-          if (!fileData.content || fileData.encoding !== 'base64') continue;
-          const content = atob(fileData.content.replace(/\n/g, ''));
-          const name = blob.path.split('/').pop() ?? blob.path;
-          const folder = blob.path.includes('/') ? blob.path.split('/').slice(0, -1).join('/') : undefined;
-          fetchedFiles.push({
-            id: blob.path,
-            name,
-            type: inferFileType(name),
-            content,
-            folder,
-          });
-        } catch { /* skip this file */ }
+        const results = await Promise.allSettled(
+          batch.map(async blob => {
+            const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${blob.path}`;
+            const res = await fetch(rawUrl);
+            if (!res.ok) return null;
+            const content = await res.text();
+            const name = blob.path.split('/').pop() ?? blob.path;
+            const folder = blob.path.includes('/') ? blob.path.split('/').slice(0, -1).join('/') : undefined;
+            return { id: blob.path, name, type: inferFileType(name), content, folder } as FileItem;
+          })
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) fetchedFiles.push(r.value);
+        }
       }
 
       if (fetchedFiles.length === 0) throw new Error('No readable text files found in this repository.');

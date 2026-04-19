@@ -1,368 +1,527 @@
-import React, {
-  useState, useRef, useEffect, useCallback,
-} from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { useEditorStore } from '../store/editorStore';
-import { spawnInContainer, mountFilesToContainer } from '../utils/webContainerRuntime';
+import type { FileItem } from '../store/editorStore';
+import {
+  spawnInContainer,
+  mountFilesToContainer,
+  readFileFromContainer,
+} from '../utils/webContainerRuntime';
 import { detectProjectType } from '../utils/fileTypes';
-import { FiTerminal, FiTrash2, FiX, FiChevronRight, FiLoader } from 'react-icons/fi';
 
-/* ── ANSI colour stripping ───────────────────────────────────────── */
-function stripAnsi(str: string): string {
-  return str.replace(/\x1B\[[0-9;]*[mGKHF]/g, '');
-}
+/* ── App color palette (matches VSCode-style theme) ── */
+const C = {
+  bg:         '#1e1e1e',
+  panel:      '#252526',
+  titlebar:   '#323233',
+  border:     '#3e3e3e',
+  text:       '#cccccc',
+  muted:      '#888888',
+  dimmed:     '#555555',
+  icon:       '#c5c5c5',
+  amber:      '#e5a45a',
+  green:      '#4ec9b0',
+  blue:       '#569cd6',
+  red:        '#f44747',
+  hover:      'rgba(255,255,255,0.05)',
+};
 
-/** Convert a handful of common ANSI codes to inline colour. */
-function ansiToJsx(raw: string, keyPrefix: string): React.ReactNode[] {
-  const COLOUR_MAP: Record<string, string> = {
-    '30': '#555', '31': '#f44747', '32': '#4ec9b0', '33': '#dcdcaa',
-    '34': '#9cdcfe', '35': '#c586c0', '36': '#4fc1ff', '37': '#ccc',
-    '90': '#666', '91': '#f97583', '92': '#85e89d', '93': '#ffea7f',
-    '94': '#79b8ff', '95': '#b392f0', '96': '#39d0d8', '97': '#eee',
-    '1': undefined as unknown as string,  // bold — handled separately
-  };
-
-  const segments = raw.split(/(\x1B\[[0-9;]*m)/);
-  const nodes: React.ReactNode[] = [];
-  let colour: string | null = null;
-  let bold = false;
-
-  segments.forEach((seg, i) => {
-    const escMatch = seg.match(/\x1B\[([0-9;]*)m/);
-    if (escMatch) {
-      const codes = escMatch[1].split(';');
-      for (const c of codes) {
-        if (c === '0' || c === '') { colour = null; bold = false; }
-        else if (c === '1') bold = true;
-        else if (COLOUR_MAP[c] !== undefined) colour = COLOUR_MAP[c] ?? colour;
-      }
-    } else if (seg) {
-      nodes.push(
-        <span
-          key={`${keyPrefix}-${i}`}
-          style={{ color: colour ?? undefined, fontWeight: bold ? 700 : undefined }}
-        >
-          {seg}
-        </span>
-      );
-    }
-  });
-
-  return nodes.length ? nodes : [<span key={keyPrefix}>{stripAnsi(raw)}</span>];
-}
-
-/* ── Line types ─────────────────────────────────────────────────── */
-type LineKind = 'output' | 'input' | 'info' | 'error' | 'success';
-interface TermLine {
+/* ── Types ── */
+interface TermSession {
   id: number;
-  kind: LineKind;
-  text: string;
+  name: string;
+  proc: { kill: () => void; write: (d: string) => void; exit: Promise<number> } | null;
+  alive: boolean;
 }
 
-let _lineId = 0;
-function mkLine(kind: LineKind, text: string): TermLine {
-  return { id: ++_lineId, kind, text };
-}
+let _sessId = 0;
 
-/* ── Quick-action presets ────────────────────────────────────────── */
+/* ── Quick-action presets ── */
 const QUICK_CMDS = [
-  { label: 'install', cmd: 'npm install',  title: 'npm install — install dependencies' },
-  { label: 'dev',     cmd: 'npm run dev',  title: 'npm run dev — start dev server' },
-  { label: 'build',   cmd: 'npm run build', title: 'npm run build — production build' },
-  { label: 'start',   cmd: 'npm start',    title: 'npm start' },
-  { label: 'node .',  cmd: 'node index.js', title: 'node index.js — run with Node' },
-  { label: 'ls',      cmd: 'ls -la',       title: 'List directory contents' },
+  { label: 'npm install', cmd: 'npm install', icon: '📦' },
+  { label: 'npm run dev', cmd: 'npm run dev', icon: '🚀' },
+  { label: 'npm run build', cmd: 'npm run build', icon: '🔨' },
+  { label: 'ls', cmd: 'ls -la', icon: '📂' },
+  { label: 'pwd', cmd: 'pwd', icon: '📍' },
 ];
 
-/* ── Main Component ──────────────────────────────────────────────── */
-const TerminalPane: React.FC = () => {
-  const { files } = useEditorStore();
+/* ── TerminalSession: one xterm.js instance ── */
+interface SessionProps {
+  active: boolean;
+  files: FileItem[];
+  mounted: boolean;
+  setMounted: (v: boolean) => void;
+  onFileSyncNeeded: () => void;
+}
+
+function TerminalSession({ active, files, mounted, setMounted, onFileSyncNeeded }: SessionProps) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<any>(null);
+  const fitRef = useRef<any>(null);
+  const procRef = useRef<{ kill: () => void; write: (d: string) => void; exit: Promise<number> } | null>(null);
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
+  const mountedOnce = useRef(false);
   const projectType = detectProjectType(files);
 
-  const [lines, setLines] = useState<TermLine[]>([
-    mkLine('info', 'WebContainer Terminal — type a command or use the quick actions above.'),
-    mkLine('info', 'First command will boot the WebContainer and mount your project files.'),
-  ]);
-  const [input, setInput] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  /* ── Boot xterm.js ── */
+  useEffect(() => {
+    if (!divRef.current || mountedOnce.current) return;
+    mountedOnce.current = true;
 
-  const histRef = useRef<string[]>([]);
-  const histIdxRef = useRef(-1);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const outputRef = useRef<HTMLDivElement>(null);
-  const killRef = useRef<(() => void) | null>(null);
+    let term: any;
+    let fitAddon: any;
+    let destroyed = false;
+    let ro: ResizeObserver | null = null;
 
-  const append = useCallback((kind: LineKind, text: string) => {
-    text.split('\n').forEach(line => {
-      if (line) setLines(ls => [...ls, mkLine(kind, line)]);
-    });
+    (async (): Promise<void> => {
+      try {
+        const [xtermMod, fitMod, webLinksMod] = await Promise.all([
+          import('@xterm/xterm'),
+          import('@xterm/addon-fit'),
+          import('@xterm/addon-web-links'),
+        ]);
+
+        if (destroyed) return;
+
+        term = new xtermMod.Terminal({
+          theme: {
+            background: C.bg,
+            foreground: C.text,
+            cursor: C.amber,
+            cursorAccent: C.bg,
+            selectionBackground: 'rgba(229,164,90,0.2)',
+            black: '#3c3c3c',
+            red: C.red,
+            green: C.green,
+            yellow: C.amber,
+            blue: C.blue,
+            magenta: '#c586c0',
+            cyan: '#9cdcfe',
+            white: C.text,
+            brightBlack: C.dimmed,
+            brightRed: '#f97583',
+            brightGreen: '#a8ff78',
+            brightYellow: '#ffdf5d',
+            brightBlue: '#79b8ff',
+            brightMagenta: '#e1acff',
+            brightCyan: '#b3f0ff',
+            brightWhite: '#e8e8e8',
+          },
+          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+          fontSize: 13,
+          lineHeight: 1.4,
+          cursorBlink: true,
+          cursorStyle: 'block',
+          scrollback: 5000,
+          allowProposedApi: true,
+          convertEol: true,
+        });
+
+        fitAddon = new fitMod.FitAddon();
+        const webLinksAddon = new webLinksMod.WebLinksAddon();
+
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+        term.open(divRef.current!);
+        fitAddon.fit();
+
+        xtermRef.current = term;
+        fitRef.current = fitAddon;
+
+        /* Welcome banner */
+        term.writeln('\x1b[1;33m╔══════════════════════════════════╗\x1b[0m');
+        term.writeln('\x1b[1;33m║  \x1b[1;36mWebContainer Terminal\x1b[1;33m           ║\x1b[0m');
+        term.writeln('\x1b[1;33m╚══════════════════════════════════╝\x1b[0m');
+        term.writeln('\x1b[90mType a command or use the quick actions above.\x1b[0m');
+        term.writeln('\x1b[90mFiles are synced automatically with the editor.\x1b[0m');
+        term.writeln('');
+
+        /* Handle user input — collect line, run on Enter */
+        let inputBuf = '';
+        let historyBuf: string[] = [];
+        let histIdx = -1;
+
+        term.onKey(async ({ key, domEvent }: { key: string; domEvent: KeyboardEvent }) => {
+          const ev = domEvent;
+
+          if (ev.ctrlKey && ev.key === 'c') {
+            if (procRef.current) {
+              procRef.current.kill();
+              procRef.current = null;
+              busyRef.current = false;
+              setBusy(false);
+            }
+            term.writeln('^C');
+            inputBuf = '';
+            writePrompt(term);
+            return;
+          }
+
+          if (ev.ctrlKey && ev.key === 'l') {
+            term.clear();
+            writePrompt(term);
+            return;
+          }
+
+          if (busyRef.current && key !== '\x03') {
+            /* In raw PTY mode, forward keystrokes to process */
+            if (procRef.current) {
+              procRef.current.write(key);
+            }
+            return;
+          }
+
+          if (ev.key === 'Enter') {
+            term.writeln('');
+            const cmd = inputBuf.trim();
+            inputBuf = '';
+            if (cmd) {
+              historyBuf = [cmd, ...historyBuf.filter(c => c !== cmd)].slice(0, 100);
+              histIdx = -1;
+              await runCommand(cmd, term);
+            } else {
+              writePrompt(term);
+            }
+          } else if (ev.key === 'Backspace') {
+            if (inputBuf.length > 0) {
+              inputBuf = inputBuf.slice(0, -1);
+              term.write('\b \b');
+            }
+          } else if (ev.key === 'ArrowUp') {
+            histIdx = Math.min(histIdx + 1, historyBuf.length - 1);
+            if (histIdx >= 0) {
+              clearLine(term, inputBuf.length);
+              inputBuf = historyBuf[histIdx];
+              term.write(inputBuf);
+            }
+          } else if (ev.key === 'ArrowDown') {
+            histIdx = Math.max(histIdx - 1, -1);
+            clearLine(term, inputBuf.length);
+            inputBuf = histIdx >= 0 ? historyBuf[histIdx] : '';
+            term.write(inputBuf);
+          } else if (ev.key === 'Tab') {
+            ev.preventDefault();
+          } else if (!ev.ctrlKey && !ev.metaKey && !ev.altKey && key.length === 1) {
+            inputBuf += key;
+            term.write(key);
+          }
+        });
+
+        writePrompt(term);
+
+        /* ResizeObserver for fit */
+        ro = new ResizeObserver(() => {
+          try { fitAddon.fit(); } catch {}
+        });
+        if (divRef.current) ro.observe(divRef.current);
+      } catch (err: any) {
+        setInitError(err?.message ?? 'Failed to load terminal');
+      }
+    })();
+
+    return () => {
+      destroyed = true;
+      if (ro) { try { ro.disconnect(); } catch {} }
+      if (term) { try { term.dispose(); } catch {} }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* Auto-scroll */
+  /* Fit when becoming active */
   useEffect(() => {
-    if (outputRef.current) {
-      outputRef.current.scrollTop = outputRef.current.scrollHeight;
+    if (active && fitRef.current) {
+      setTimeout(() => { try { fitRef.current.fit(); } catch {} }, 50);
     }
-  }, [lines]);
+  }, [active]);
 
-  const ensureMounted = useCallback(async () => {
-    if (mounted) return;
-    append('info', 'Booting WebContainer…');
+  function writePrompt(term: any) {
+    term.write('\r\x1b[90m$ \x1b[0m');
+  }
+
+  function clearLine(term: any, len: number) {
+    if (len > 0) {
+      term.write('\b'.repeat(len) + ' '.repeat(len) + '\b'.repeat(len));
+    }
+  }
+
+  const ensureMounted = useCallback(async (term: any) => {
+    if (mounted) return true;
+    term.writeln('\x1b[33mBooting WebContainer…\x1b[0m');
     try {
       await mountFilesToContainer(files, projectType);
       setMounted(true);
-      append('success', 'Project files mounted. Container ready.');
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
+      term.writeln('\x1b[32m✓ Project files mounted. Container ready.\x1b[0m');
+      return true;
+    } catch (e: any) {
+      const msg = e?.message ?? String(e);
       if (msg.toLowerCase().includes('cross-origin') || msg.toLowerCase().includes('sharedarraybuffer') || msg.toLowerCase().includes('isolated')) {
-        setLines(ls => [...ls,
-          mkLine('error', 'WebContainer requires Cross-Origin Isolation.'),
-          mkLine('info',  'This feature works when the app is opened directly in a browser tab.'),
-          mkLine('info',  'Open the app URL directly (not inside this workspace iframe) to use the terminal.'),
-          mkLine('info',  'In Replit: click the "Open in new tab" ↗ button in the preview pane toolbar.'),
-        ]);
+        term.writeln('\x1b[31mWebContainer requires Cross-Origin Isolation.\x1b[0m');
+        term.writeln('\x1b[90mOpen the app URL directly in a browser tab (not this iframe).\x1b[0m');
+        term.writeln('\x1b[90mIn Replit: click "Open in new tab" ↗ in the preview toolbar.\x1b[0m');
       } else {
-        append('error', `Boot failed: ${msg}`);
+        term.writeln(`\x1b[31mBoot failed: ${msg}\x1b[0m`);
       }
-      setBusy(false);
-      throw e;
+      return false;
     }
-  }, [mounted, files, projectType, append]);
+  }, [mounted, files, projectType, setMounted]);
 
-  const runCommand = useCallback(async (raw: string) => {
-    const cmd = raw.trim();
-    if (!cmd) return;
+  /* Commands that may modify files */
+  const FILE_MUTATION_CMDS = /^(touch|mkdir|rm|mv|cp|echo|printf|tee|cat\s+>|sed\s+-i|npm|node|git|yarn|pnpm)\s/;
 
-    /* History */
-    histRef.current = [cmd, ...histRef.current.filter(c => c !== cmd)].slice(0, 50);
-    histIdxRef.current = -1;
-
-    append('input', `$ ${cmd}`);
+  const runCommand = useCallback(async (cmd: string, term: any) => {
+    busyRef.current = true;
     setBusy(true);
 
-    try {
-      await ensureMounted();
-    } catch {
+    const ok = await ensureMounted(term);
+    if (!ok) {
+      busyRef.current = false;
       setBusy(false);
+      writePrompt(term);
       return;
     }
 
+    const dims = fitRef.current ? (() => { try { return { cols: (xtermRef.current as any)?.cols ?? 80, rows: (xtermRef.current as any)?.rows ?? 24 }; } catch { return { cols: 80, rows: 24 }; } })() : { cols: 80, rows: 24 };
+
     try {
-      const { exit, kill } = await spawnInContainer('sh', ['-c', cmd], (data) => {
-        data.split('\n').forEach(line => {
-          if (line) setLines(ls => [...ls, mkLine('output', line)]);
-        });
-      });
-      killRef.current = kill;
-      const code = await exit;
+      const proc = await spawnInContainer('sh', ['-c', cmd], (data) => {
+        term.write(data);
+      }, dims);
+      procRef.current = proc;
+
+      const code = await proc.exit;
+      procRef.current = null;
+
       if (code !== 0) {
-        append('error', `Process exited with code ${code}`);
+        term.writeln(`\r\n\x1b[31m[Process exited with code ${code}]\x1b[0m`);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      append('error', `Error: ${msg}`);
+
+      /* Sync files back if command likely mutated FS */
+      if (FILE_MUTATION_CMDS.test(cmd + ' ') || cmd.trim() === 'npm install') {
+        onFileSyncNeeded();
+      }
+    } catch (err: any) {
+      term.writeln(`\r\n\x1b[31mError: ${err?.message ?? err}\x1b[0m`);
     } finally {
+      busyRef.current = false;
       setBusy(false);
-      killRef.current = null;
-      inputRef.current?.focus();
+      writePrompt(term);
     }
-  }, [ensureMounted, append]);
+  }, [ensureMounted, onFileSyncNeeded]);
 
-  /* Re-mount on file changes */
-  useEffect(() => {
-    setMounted(false);
-  }, [files]);
+  /* Expose runCommand for quick actions */
+  const runQuickCmd = useCallback((cmd: string) => {
+    if (!xtermRef.current) return;
+    const term = xtermRef.current;
+    if (busyRef.current) return;
+    term.writeln(cmd);
+    runCommand(cmd, term);
+  }, [runCommand]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      runCommand(input);
-      setInput('');
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const next = histIdxRef.current + 1;
-      if (next < histRef.current.length) {
-        histIdxRef.current = next;
-        setInput(histRef.current[next]);
-      }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const next = histIdxRef.current - 1;
-      if (next < 0) { histIdxRef.current = -1; setInput(''); }
-      else { histIdxRef.current = next; setInput(histRef.current[next]); }
-    } else if (e.key === 'c' && e.ctrlKey) {
-      if (killRef.current) { killRef.current(); killRef.current = null; append('info', '^C'); setBusy(false); }
-    }
-  };
-
-  const clearTerminal = () => setLines([mkLine('info', 'Terminal cleared.')]);
-
-  /* ── Line colour map ─── */
-  const lineColour: Record<LineKind, string> = {
-    output:  '#ccc',
-    input:   '#e5a45a',
-    info:    '#888',
-    error:   '#f44747',
-    success: '#4ec9b0',
-  };
+  if (initError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg, color: C.red, fontFamily: 'monospace', fontSize: 13, padding: 16, justifyContent: 'center', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 24 }}>⚠</span>
+        <span style={{ fontWeight: 600 }}>Terminal init failed</span>
+        <span style={{ color: C.muted, fontSize: 11, textAlign: 'center', maxWidth: 400 }}>{initError}</span>
+        <span style={{ color: C.blue, fontSize: 11 }}>xterm.js requires a modern browser.</span>
+      </div>
+    );
+  }
 
   return (
-    <div
-      style={{
-        display: 'flex', flexDirection: 'column', height: '100%',
-        background: '#0d1117', fontFamily: 'var(--app-font-mono)', fontSize: 12,
-        color: '#ccc', overflow: 'hidden', userSelect: 'text',
-      }}
-      onClick={() => inputRef.current?.focus()}
-    >
-      {/* ── Header ─────────────────────────────────────────────── */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg, overflow: 'hidden' }}>
+      {/* Quick actions */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        height: 32, flexShrink: 0,
-        background: '#161b22', borderBottom: '1px solid #30363d',
-        padding: '0 10px',
+        display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', flexShrink: 0,
+        background: C.panel, borderBottom: `1px solid ${C.border}`, overflowX: 'auto',
       }}>
-        <FiTerminal size={13} style={{ color: '#4ec9b0', flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#8b949e', flex: 1 }}>
-          WebContainer Terminal
-        </span>
+        {QUICK_CMDS.map(({ label, cmd, icon }) => (
+          <button
+            key={cmd}
+            title={cmd}
+            disabled={busy}
+            onClick={() => runQuickCmd(cmd)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '3px 10px', fontSize: 11, borderRadius: 4,
+              background: busy ? 'rgba(86,156,214,0.04)' : 'rgba(86,156,214,0.08)',
+              border: `1px solid ${busy ? 'rgba(86,156,214,0.1)' : 'rgba(86,156,214,0.25)'}`,
+              color: busy ? C.dimmed : C.blue,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              fontFamily: "'JetBrains Mono', Menlo, monospace",
+              whiteSpace: 'nowrap', flexShrink: 0,
+              transition: 'all 0.12s',
+            }}
+            onMouseEnter={e => { if (!busy) { (e.currentTarget as HTMLElement).style.background = 'rgba(86,156,214,0.16)'; } }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = busy ? 'rgba(86,156,214,0.04)' : 'rgba(86,156,214,0.08)'; }}
+          >
+            <span>{icon}</span> {label}
+          </button>
+        ))}
+        <div style={{ flex: 1 }} />
         {busy && (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#e5a45a', fontSize: 11 }}>
-            <FiLoader size={11} style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontSize: 11, color: C.amber, display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
             running…
           </span>
         )}
         <button
-          title="Clear terminal"
-          onClick={e => { e.stopPropagation(); clearTerminal(); }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8b949e', padding: '2px 4px', borderRadius: 3, lineHeight: 1 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#8b949e'; }}
-        >
-          <FiTrash2 size={12} />
-        </button>
-        {busy && killRef.current && (
-          <button
-            title="Kill process (Ctrl+C)"
-            onClick={e => { e.stopPropagation(); killRef.current?.(); killRef.current = null; append('info', '^C — process killed'); setBusy(false); }}
-            style={{ background: 'rgba(244,71,71,0.12)', border: '1px solid rgba(244,71,71,0.35)', cursor: 'pointer', color: '#f44747', padding: '2px 7px', borderRadius: 3, fontSize: 11, lineHeight: 1, display: 'flex', alignItems: 'center', gap: 3 }}
-          >
-            <FiX size={10} /> Kill
-          </button>
-        )}
-      </div>
-
-      {/* ── Quick action bar ────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', gap: 4, flexShrink: 0, flexWrap: 'wrap',
-        padding: '5px 8px', background: '#161b22', borderBottom: '1px solid #21262d',
-      }}>
-        {QUICK_CMDS.map(({ label, cmd, title }) => (
-          <button
-            key={cmd}
-            title={title}
-            disabled={busy}
-            onClick={e => { e.stopPropagation(); runCommand(cmd); }}
-            style={{
-              padding: '2px 9px', fontSize: 11, borderRadius: 4,
-              background: busy ? 'rgba(229,164,90,0.04)' : 'rgba(229,164,90,0.08)',
-              border: '1px solid rgba(229,164,90,0.2)',
-              color: busy ? '#666' : '#e5a45a',
-              cursor: busy ? 'not-allowed' : 'pointer',
-              fontFamily: 'var(--app-font-mono)',
-              transition: 'all 0.12s',
-              lineHeight: 1.6,
-            }}
-            onMouseEnter={e => { if (!busy) (e.currentTarget as HTMLElement).style.background = 'rgba(229,164,90,0.15)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = busy ? 'rgba(229,164,90,0.04)' : 'rgba(229,164,90,0.08)'; }}
-          >
-            {label}
-          </button>
-        ))}
-        <div style={{ flex: 1 }} />
+          title="Clear terminal (Ctrl+L)"
+          onClick={() => xtermRef.current?.clear()}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: '3px 6px', borderRadius: 3, fontSize: 12, flexShrink: 0 }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.text; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
+        >✕ clear</button>
         <button
-          title="Re-mount project files to container"
+          title="Sync files to container"
           disabled={busy}
-          onClick={async e => {
-            e.stopPropagation();
+          onClick={async () => {
+            if (!xtermRef.current) return;
             setMounted(false);
-            append('info', 'Re-mounting project files…');
+            xtermRef.current.writeln('\r\n\x1b[33mRe-mounting project files…\x1b[0m');
             await mountFilesToContainer(files, projectType);
             setMounted(true);
-            append('success', 'Files re-mounted.');
+            xtermRef.current.writeln('\x1b[32m✓ Files synced.\x1b[0m');
+            writePrompt(xtermRef.current);
           }}
           style={{
-            padding: '2px 9px', fontSize: 11, borderRadius: 4,
-            background: 'rgba(78,201,176,0.07)',
-            border: '1px solid rgba(78,201,176,0.2)',
-            color: busy ? '#555' : '#4ec9b0',
+            background: busy ? 'rgba(78,201,176,0.04)' : 'rgba(78,201,176,0.08)',
+            border: `1px solid ${busy ? 'rgba(78,201,176,0.1)' : 'rgba(78,201,176,0.25)'}`,
+            color: busy ? C.dimmed : C.green,
             cursor: busy ? 'not-allowed' : 'pointer',
-            fontFamily: 'var(--app-font-mono)',
-            lineHeight: 1.6,
+            padding: '3px 10px', borderRadius: 4, fontSize: 11,
+            fontFamily: 'inherit', flexShrink: 0,
+          }}
+        >⟳ sync</button>
+      </div>
+
+      {/* xterm.js container */}
+      <div
+        ref={divRef}
+        style={{
+          flex: 1, overflow: 'hidden', padding: '6px 4px',
+          boxSizing: 'border-box',
+        }}
+      />
+    </div>
+  );
+}
+
+/* ── Main component with multi-tab support ── */
+const TerminalPane: React.FC = () => {
+  const { files, updateFileContent } = useEditorStore();
+  const projectType = detectProjectType(files);
+
+  const [sessions, setSessions] = useState<TermSession[]>([
+    { id: ++_sessId, name: 'Terminal 1', proc: null, alive: true },
+  ]);
+  const [activeId, setActiveId] = useState(sessions[0].id);
+  const [mounted, setMounted] = useState(false);
+
+  /* When files change in editor, mark container as needing remount */
+  useEffect(() => {
+    setMounted(false);
+  }, [files]);
+
+  /* Sync container FS → editor store after terminal mutates files */
+  const onFileSyncNeeded = useCallback(async () => {
+    const { readFileFromContainer: rfc } = await import('../utils/webContainerRuntime');
+    for (const f of files) {
+      if (f.type === 'image') continue;
+      const path = f.folder ? `${f.folder}/${f.name}` : f.name;
+      const content = await rfc(path);
+      if (content !== null && content !== f.content) {
+        updateFileContent(f.id, content);
+      }
+    }
+  }, [files, updateFileContent]);
+
+  const addSession = () => {
+    const id = ++_sessId;
+    const n = sessions.length + 1;
+    setSessions(s => [...s, { id, name: `Terminal ${n}`, proc: null, alive: true }]);
+    setActiveId(id);
+  };
+
+  const removeSession = (id: number) => {
+    const remaining = sessions.filter(s => s.id !== id);
+    if (remaining.length === 0) return;
+    setSessions(remaining);
+    if (activeId === id) setActiveId(remaining[remaining.length - 1].id);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg, overflow: 'hidden' }}>
+      {/* Tab bar */}
+      <div style={{
+        display: 'flex', alignItems: 'center', height: 35, flexShrink: 0,
+        background: C.titlebar, borderBottom: `1px solid ${C.border}`,
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', flex: 1, overflowX: 'auto', height: '100%' }}>
+          {sessions.map(sess => (
+            <div
+              key={sess.id}
+              onClick={() => setActiveId(sess.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '0 12px', height: '100%', cursor: 'pointer',
+                background: activeId === sess.id ? C.bg : 'transparent',
+                borderRight: `1px solid ${C.border}`,
+                borderTop: activeId === sess.id ? `1px solid ${C.amber}` : '1px solid transparent',
+                color: activeId === sess.id ? C.text : C.muted,
+                fontSize: 12, whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'all 0.12s',
+              }}
+              onMouseEnter={e => { if (activeId !== sess.id) (e.currentTarget as HTMLElement).style.color = C.icon; }}
+              onMouseLeave={e => { if (activeId !== sess.id) (e.currentTarget as HTMLElement).style.color = C.muted; }}
+            >
+              <span style={{ fontSize: 11 }}>⬡</span>
+              {sess.name}
+              {sessions.length > 1 && (
+                <span
+                  onClick={e => { e.stopPropagation(); removeSession(sess.id); }}
+                  style={{ cursor: 'pointer', color: C.dimmed, fontSize: 10, marginLeft: 2, lineHeight: 1 }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.red; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.dimmed; }}
+                  title="Close terminal"
+                >✕</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          title="New terminal"
+          onClick={addSession}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', color: C.muted,
+            padding: '0 12px', height: '100%', fontSize: 16, flexShrink: 0,
+            display: 'flex', alignItems: 'center',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.amber; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
+        >+</button>
+      </div>
+
+      {/* Sessions */}
+      {sessions.map(sess => (
+        <div
+          key={sess.id}
+          style={{
+            display: activeId === sess.id ? 'flex' : 'none',
+            flexDirection: 'column', flex: 1, overflow: 'hidden',
           }}
         >
-          ⟳ sync
-        </button>
-      </div>
-
-      {/* ── Output area ─────────────────────────────────────────── */}
-      <div
-        ref={outputRef}
-        style={{
-          flex: 1, overflowY: 'auto', padding: '6px 10px',
-          display: 'flex', flexDirection: 'column', gap: 1,
-        }}
-      >
-        {lines.map(line => (
-          <div
-            key={line.id}
-            style={{ display: 'flex', gap: 0, lineHeight: 1.55, flexShrink: 0 }}
-          >
-            <pre
-              style={{
-                margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-                color: lineColour[line.kind],
-                fontFamily: 'inherit',
-                fontSize: 'inherit',
-              }}
-            >
-              {line.kind === 'output'
-                ? ansiToJsx(line.text, String(line.id))
-                : line.text}
-            </pre>
-          </div>
-        ))}
-        {busy && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#555', marginTop: 2 }}>
-            <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⟳</span>
-          </div>
-        )}
-      </div>
-
-      {/* ── Input row ───────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        flexShrink: 0, padding: '5px 10px',
-        background: '#161b22', borderTop: '1px solid #21262d',
-      }}>
-        <FiChevronRight size={13} style={{ color: busy ? '#555' : '#4ec9b0', flexShrink: 0 }} />
-        <input
-          ref={inputRef}
-          value={input}
-          disabled={busy}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={busy ? 'Running… (Ctrl+C to kill)' : 'Type a command…'}
-          spellCheck={false}
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          style={{
-            flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            color: busy ? '#555' : '#e5a45a', fontFamily: 'var(--app-font-mono)',
-            fontSize: 12, caretColor: '#e5a45a',
-          }}
-        />
-      </div>
+          <TerminalSession
+            active={activeId === sess.id}
+            files={files}
+            mounted={mounted}
+            setMounted={setMounted}
+            onFileSyncNeeded={onFileSyncNeeded}
+          />
+        </div>
+      ))}
     </div>
   );
 };

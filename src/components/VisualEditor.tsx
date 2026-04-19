@@ -1042,6 +1042,43 @@ const VisualEditor: React.FC = () => {
             }}
           />
 
+          {/* React / Node project overlay — visual editing only works for static HTML */}
+          {projectType !== 'static' && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 150,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(30,30,30,0.92)', backdropFilter: 'blur(4px)',
+              gap: 12,
+            }}>
+              <div style={{ fontSize: 36, lineHeight: 1 }}>⚛</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: VE.text }}>
+                {projectType === 'react' ? 'React / Vite Project' : 'Node Project'}
+              </div>
+              <div style={{
+                fontSize: 11, color: VE.dim, textAlign: 'center', maxWidth: 300, lineHeight: 1.6,
+              }}>
+                Visual editor works with <strong style={{ color: VE.text }}>static HTML</strong> projects only.
+                <br />
+                Run your app in the terminal to see the live preview.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                {[
+                  { label: 'npm install', desc: 'Install dependencies' },
+                  { label: 'npm run dev', desc: 'Start dev server' },
+                ].map(cmd => (
+                  <div key={cmd.label} style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: VE.surface, border: `1px solid ${VE.border}`,
+                    borderRadius: 6, padding: '7px 14px',
+                  }}>
+                    <code style={{ color: VE.accent, fontFamily: 'monospace', fontSize: 12 }}>{cmd.label}</code>
+                    <span style={{ color: VE.muted, fontSize: 11 }}>{cmd.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Drop zone overlay — shows on top of iframe when dragging from palette, capturing drop events */}
           {isDraggingFromPalette && (
             <div

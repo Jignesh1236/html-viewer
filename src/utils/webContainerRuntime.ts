@@ -179,18 +179,38 @@ export async function stopWebContainerRuntime() {
   }
 }
 
-/** Spawn an arbitrary command in the WebContainer and return the process */
+/** Get the WebContainer instance (boots if needed) */
+export async function getWebContainer(): Promise<WebContainerInstance> {
+  return getContainer({});
+}
+
+/** Returns true if a WebContainer is already booted */
+export function isContainerBooted(): boolean {
+  return container !== null;
+}
+
+/** Spawn an arbitrary command in the WebContainer with xterm PTY support */
 export async function spawnInContainer(
   cmd: string,
   args: string[],
   onData: (data: string) => void,
-): Promise<{ exit: Promise<number>; kill: () => void }> {
+  options?: { cols?: number; rows?: number }
+): Promise<{ exit: Promise<number>; kill: () => void; write: (data: string) => void }> {
   const wc = await getContainer({});
-  const proc = await wc.spawn(cmd, args);
+  const proc = await wc.spawn(cmd, args, {
+    terminal: options ? { cols: options.cols || 80, rows: options.rows || 24 } : undefined,
+  });
   proc.output.pipeTo(new WritableStream({ write(d) { onData(String(d)); } })).catch(() => {});
   return {
     exit: proc.exit,
     kill: () => proc.kill(),
+    write: (data: string) => {
+      if (proc.input) {
+        const writer = proc.input.getWriter();
+        writer.write(data);
+        writer.releaseLock();
+      }
+    },
   };
 }
 
@@ -198,6 +218,62 @@ export async function spawnInContainer(
 export async function mountFilesToContainer(files: FileItem[], projectType: ProjectType) {
   const wc = await getContainer({});
   await wc.mount(createTree(files, projectType));
+}
+
+/** Write a single file to the container FS */
+export async function writeFileToContainer(path: string, content: string) {
+  if (!container) return;
+  try {
+    await container.fs.writeFile(path, content);
+  } catch {
+    // Container may not have the directory yet — try to create it
+    const parts = path.split('/');
+    if (parts.length > 1) {
+      const dir = parts.slice(0, -1).join('/');
+      try { await container.fs.mkdir(dir, { recursive: true }); } catch {}
+      await container.fs.writeFile(path, content);
+    }
+  }
+}
+
+/** Read a file from the container FS */
+export async function readFileFromContainer(path: string): Promise<string | null> {
+  if (!container) return null;
+  try {
+    const data = await container.fs.readFile(path, 'utf-8');
+    return String(data);
+  } catch {
+    return null;
+  }
+}
+
+/** List directory contents from container FS */
+export async function listDirFromContainer(path: string): Promise<string[]> {
+  if (!container) return [];
+  try {
+    const entries = await container.fs.readdir(path, { withFileTypes: true });
+    return entries.map((e: any) => (e.isDirectory ? `${e.name}/` : e.name));
+  } catch {
+    return [];
+  }
+}
+
+/** Sync container FS files back to the editor store (file content only) */
+export async function syncContainerFilesToStore(
+  filePaths: string[],
+  onUpdate: (path: string, content: string) => void
+) {
+  if (!container) return;
+  for (const path of filePaths) {
+    try {
+      const content = await container.fs.readFile(path, 'utf-8');
+      if (content !== null && content !== undefined) {
+        onUpdate(path, String(content));
+      }
+    } catch {
+      // file may not exist in container
+    }
+  }
 }
 
 export async function startWebContainerPreview(files: FileItem[], projectType: ProjectType, callbacks: RuntimeCallbacks = {}): Promise<RuntimeResult> {
@@ -236,7 +312,7 @@ export async function startWebContainerPreview(files: FileItem[], projectType: P
 
   const readyUrl = new Promise<string>((resolve, reject) => {
     const timeout = window.setTimeout(() => reject(new Error('Runtime started, but no preview server became ready within 25 seconds.')), 25000);
-    const off = wc.on('server-ready', (_port, url) => {
+    const off = wc.on('server-ready', (_port: number, url: string) => {
       window.clearTimeout(timeout);
       off();
       resolve(url);

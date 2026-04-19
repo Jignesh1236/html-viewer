@@ -2,7 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 const port = Number(process.env.PORT) || 5000;
 const isProduction = process.env.NODE_ENV === "production";
@@ -21,9 +22,16 @@ export default defineConfig(async () => {
   return {
     base: "/",
     plugins: [
+      nodePolyfills({
+        include: ["buffer", "path", "stream", "util", "events", "process"],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
+      }),
       react(),
       tailwindcss(),
-      runtimeErrorOverlay(),
       ...extraPlugins,
     ],
     resolve: {
@@ -42,6 +50,7 @@ export default defineConfig(async () => {
       reportCompressedSize: true,
       chunkSizeWarningLimit: 1000,
       rollupOptions: {
+        external: (id: string) => id.startsWith("@webcontainer/api"),
         output: {
           manualChunks: {
             "vendor-react": ["react", "react-dom"],
@@ -91,29 +100,8 @@ export default defineConfig(async () => {
       },
     },
     optimizeDeps: {
-      include: ["react", "react-dom", "zustand", "framer-motion"],
+      include: ["react", "react-dom", "zustand", "framer-motion", "buffer"],
       exclude: ["@monaco-editor/react", "@webcontainer/api"],
-    },
-    build: {
-      rollupOptions: {
-        external: (id: string) => id.startsWith("@webcontainer/api"),
-        output: {
-          manualChunks: {
-            "vendor-react": ["react", "react-dom"],
-            "vendor-monaco": ["@monaco-editor/react", "monaco-editor"],
-            "vendor-state": ["zustand"],
-            "vendor-ui": ["framer-motion", "@radix-ui/react-context-menu", "@radix-ui/react-tooltip"],
-            "vendor-utils": ["jszip", "file-saver"],
-          },
-          chunkFileNames: "assets/[name]-[hash].js",
-          entryFileNames: "assets/[name]-[hash].js",
-          assetFileNames: "assets/[name]-[hash].[ext]",
-        },
-      },
-      treeshake: {
-        moduleSideEffects: false,
-        propertyReadSideEffects: false,
-      },
     },
   };
 });
