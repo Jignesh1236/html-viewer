@@ -26,6 +26,7 @@ const PreviewPane: React.FC = () => {
     previewTabs, activePreviewTabId, addPreviewTab, closePreviewTab,
     setActivePreviewTab, updatePreviewTab,
     timelineAnimationStyle,
+    terminalWrite, terminalRunCommand,
   } = useEditorStore();
 
   const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
@@ -35,6 +36,8 @@ const PreviewPane: React.FC = () => {
   const [customPort, setCustomPort] = useState('3000');
   const [runtimeStatus, setRuntimeStatus] = useState('');
   const [runtimeRunning, setRuntimeRunning] = useState(false);
+  const [runCmdOverride, setRunCmdOverride] = useState('');
+  const [runCfgOpen, setRunCfgOpen] = useState(false);
   const [tabKeys, setTabKeys] = useState<Record<string, number>>({});
   const [tabLoaded, setTabLoaded] = useState<Record<string, boolean>>({});
   const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
@@ -124,8 +127,25 @@ const PreviewPane: React.FC = () => {
     }
   }, [files, addPreviewTab]);
 
+  const terminalWriteRef = useRef(terminalWrite);
+  const terminalRunRef   = useRef(terminalRunCommand);
+  useEffect(() => { terminalWriteRef.current = terminalWrite; }, [terminalWrite]);
+  useEffect(() => { terminalRunRef.current = terminalRunCommand; }, [terminalRunCommand]);
+
+  const writeToTerminal = useCallback((text: string) => {
+    terminalWriteRef.current?.(text);
+  }, []);
+
   const runProject = useCallback(async () => {
     setNewTabMenuOpen(false);
+    setRunCfgOpen(false);
+
+    // If there's a custom command override, just run it in the terminal
+    if (runCmdOverride.trim()) {
+      terminalRunRef.current?.(runCmdOverride.trim());
+      return;
+    }
+
     const existingPortTab = useEditorStore.getState().previewTabs.find(t => t.tabType === 'port');
     let portTabId: string;
     if (existingPortTab) {
@@ -140,17 +160,27 @@ const PreviewPane: React.FC = () => {
     setRuntimeStatus('Starting…');
     const runId = ++runtimeRunRef.current;
     const projectType = detectProjectType(files);
+
+    // Announce in terminal
+    writeToTerminal('\r\n\x1b[36m  ▶ Starting dev server via preview pane…\x1b[0m\r\n');
+
     try {
       const result = await startWebContainerPreview(files, projectType, {
         onStatus: (_phase, message) => {
-          if (runtimeRunRef.current === runId) setRuntimeStatus(message);
+          if (runtimeRunRef.current === runId) {
+            setRuntimeStatus(message);
+            writeToTerminal(`\r\n\x1b[2m  ${message}\x1b[0m`);
+          }
         },
         onConsole: (level, message) => {
           addConsoleEntry({ type: level as any, message, timestamp: new Date() });
+          const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[0m';
+          writeToTerminal(`\r\n${color}${message}\x1b[0m`);
         },
       });
       if (runtimeRunRef.current !== runId) return;
       setRuntimeStatus(`Running: ${result.command}`);
+      writeToTerminal(`\r\n\x1b[32m  ✓ Server ready — ${result.url}\x1b[0m\r\n`);
       updatePreviewTab(portTabId, { portUrl: result.url, title: 'Dev Server' });
       bumpTabKey(portTabId);
       setTabLoaded(l => ({ ...l, [portTabId]: false }));
@@ -159,9 +189,10 @@ const PreviewPane: React.FC = () => {
       const message = err instanceof Error ? err.message : String(err);
       setRuntimeStatus('Runtime unavailable');
       setRuntimeRunning(false);
+      writeToTerminal(`\r\n\x1b[31m  ✕ ${message}\x1b[0m\r\n`);
       addConsoleEntry({ type: 'error', message, timestamp: new Date() });
     }
-  }, [files, addPreviewTab, setActivePreviewTab, updatePreviewTab, addConsoleEntry, bumpTabKey]);
+  }, [files, addPreviewTab, setActivePreviewTab, updatePreviewTab, addConsoleEntry, bumpTabKey, runCmdOverride, writeToTerminal]);
 
   const stopProject = useCallback(() => {
     runtimeRunRef.current += 1;
@@ -345,28 +376,27 @@ const PreviewPane: React.FC = () => {
             )}
 
             {/* Dev Server / Port tab */}
-            <SectionHeader icon={<FiGlobe size={10} />} label="Dev Server / Port URL" />
+            <SectionHeader icon={<FiGlobe size={10} />} label="Dev Server" />
             <div style={{ padding: '6px 12px 4px' }}>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Dev Server Port</div>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                <input
-                  type="number"
-                  value={customPort}
-                  onChange={e => setCustomPort(e.target.value)}
-                  min={1024} max={65535}
-                  style={{
-                    flex: 1, background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: 4,
-                    color: '#ccc', fontSize: 12, padding: '4px 8px', outline: 'none',
-                    fontFamily: 'var(--app-font-mono)',
-                  }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'rgba(229,164,90,0.5)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#3a3a3a')}
-                  onClick={e => e.stopPropagation()}
-                />
-                <span style={{ fontSize: 11, color: '#555' }}>TCP</span>
-              </div>
+              <div style={{ fontSize: 10, color: '#666', marginBottom: 5 }}>Run command (leave blank for auto-detect)</div>
+              <input
+                type="text"
+                value={runCmdOverride}
+                onChange={e => setRunCmdOverride(e.target.value)}
+                placeholder="e.g. npm run dev"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: 4,
+                  color: '#ccc', fontSize: 12, padding: '5px 8px', outline: 'none',
+                  fontFamily: 'var(--app-font-mono)',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(229,164,90,0.5)')}
+                onBlur={e => (e.currentTarget.style.borderColor = '#3a3a3a')}
+                onClick={e => e.stopPropagation()}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); runProject(); } }}
+              />
               <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>
-                WebContainer will bind to this port
+                Output is streamed to the Terminal panel in real time.
               </div>
             </div>
             <div style={{ padding: '4px 12px 8px', display: 'flex', gap: 6 }}>
@@ -381,7 +411,7 @@ const PreviewPane: React.FC = () => {
                 onMouseEnter={e => (e.currentTarget.style.background = 'rgba(78,201,176,0.25)')}
                 onMouseLeave={e => (e.currentTarget.style.background = 'rgba(78,201,176,0.15)')}
               >
-                <FiPlay size={12} /> Run App
+                <FiPlay size={12} /> {runCmdOverride.trim() ? `Run: ${runCmdOverride.trim()}` : 'Run App'}
               </button>
               {runtimeRunning && (
                 <button

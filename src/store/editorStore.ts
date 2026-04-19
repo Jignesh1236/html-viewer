@@ -172,6 +172,12 @@ interface EditorStore {
 
   resetFiles: (newFiles: FileItem[]) => void;
 
+  /** Terminal bridge — TerminalPane registers these; PreviewPane/others call them */
+  terminalWrite: ((text: string) => void) | null;
+  terminalRunCommand: ((cmd: string) => void) | null;
+  setTerminalWrite: (fn: ((text: string) => void) | null) => void;
+  setTerminalRunCommand: (fn: ((cmd: string) => void) | null) => void;
+
   dbReady: boolean;
   initFromDb: () => Promise<void>;
 }
@@ -404,12 +410,7 @@ nav a:hover { color: #61dafb; }
 .footer a:hover { text-decoration: underline; }
 `;
 
-const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
-  { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
-  { id: '2', element: 'h1', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
-  { id: '3', element: '.counter', animation: 'zoom', duration: 0.5, delay: 0.8, color: '#9cdcfe', easing: 'ease', iteration: '1' },
-  { id: '4', element: '.card', animation: 'fadeIn', duration: 0.6, delay: 1.0, color: '#dcdcaa', easing: 'ease', iteration: '1' },
-];
+const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [];
 
 const DEFAULT_TIMELINE_STATE: TimelineState = {
   tracks: DEFAULT_TIMELINE_TRACKS,
@@ -458,6 +459,11 @@ function saveTimelineStatesAsync(states: Record<string, TimelineState>) {
   dbSaveMeta('timelineStates', states).catch(() => {});
 }
 
+function savePreviewTabsAsync(tabs: PreviewTab[], activeId: string) {
+  dbSaveMeta('previewTabs', tabs).catch(() => {});
+  dbSaveMeta('activePreviewTabId', activeId).catch(() => {});
+}
+
 export const useEditorStore = create<EditorStore>((set, get) => ({
   files: DEFAULT_FILES,
   activeFileId: DEFAULT_FILES[0]?.id ?? null,
@@ -494,12 +500,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         } catch { await dbSaveMeta('ls-migrated', true); }
       }
 
-      const [dbFiles, dbFolders, dbActiveId, dbOpenIds, dbTimelineStates] = await Promise.all([
+      const [dbFiles, dbFolders, dbActiveId, dbOpenIds, dbTimelineStates, dbPreviewTabs, dbActivePreviewTabId] = await Promise.all([
         dbLoadFiles(),
         dbLoadFolders(),
         dbLoadMeta<string>('activeFileId'),
         dbLoadMeta<string[]>('editorOpenIds'),
         dbLoadMeta<Record<string, TimelineState>>('timelineStates'),
+        dbLoadMeta<PreviewTab[]>('previewTabs'),
+        dbLoadMeta<string>('activePreviewTabId'),
       ]);
 
       const files = (dbFiles && dbFiles.length > 0) ? dbFiles as FileItem[] : DEFAULT_FILES;
@@ -510,6 +518,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         : files.map(f => f.id);
       const timelineStates = dbTimelineStates ?? {};
 
+      const DEFAULT_PREVIEW_TABS: PreviewTab[] = [
+        { id: 'tab-1', title: 'Preview', favicon: '', active: true, tabType: 'static', viewport: 'desktop' },
+      ];
+      const restoredTabs: PreviewTab[] = (dbPreviewTabs && dbPreviewTabs.length > 0)
+        ? dbPreviewTabs.filter(t => t.tabType !== 'devserver')
+        : DEFAULT_PREVIEW_TABS;
+      const restoredActiveTabId = (dbActivePreviewTabId && restoredTabs.find(t => t.id === dbActivePreviewTabId))
+        ? dbActivePreviewTabId
+        : restoredTabs[restoredTabs.length - 1]?.id ?? 'tab-1';
+      const restoredTabsMarked = restoredTabs.map(t => ({ ...t, active: t.id === restoredActiveTabId }));
+
       syncFilesToMemFs(files);
 
       set({
@@ -519,6 +538,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         editorOpenIds,
         timelineStates,
         timelineState: timelineStates[activeFileId ?? ''] ?? DEFAULT_TIMELINE_STATE,
+        previewTabs: restoredTabsMarked,
+        activePreviewTabId: restoredActiveTabId,
         dbReady: true,
       });
     } catch (e) {
@@ -713,28 +734,31 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       imageFileId: opts?.imageFileId,
       viewport: opts?.viewport ?? 'desktop',
     };
-    set((s) => ({
-      previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), newTab],
-      activePreviewTabId: id,
-    }));
+    set((s) => {
+      const nextTabs = [...s.previewTabs.map(t => ({ ...t, active: false })), newTab];
+      savePreviewTabsAsync(nextTabs, id);
+      return { previewTabs: nextTabs, activePreviewTabId: id };
+    });
   },
   closePreviewTab: (id) => set((s) => {
     const remaining = s.previewTabs.filter(t => t.id !== id);
     if (remaining.length === 0) return s;
     const wasActive = s.activePreviewTabId === id;
     const newActive = wasActive ? remaining[remaining.length - 1].id : s.activePreviewTabId;
-    return {
-      previewTabs: remaining.map(t => ({ ...t, active: t.id === newActive })),
-      activePreviewTabId: newActive,
-    };
+    const nextTabs = remaining.map(t => ({ ...t, active: t.id === newActive }));
+    savePreviewTabsAsync(nextTabs, newActive);
+    return { previewTabs: nextTabs, activePreviewTabId: newActive };
   }),
-  setActivePreviewTab: (id) => set((s) => ({
-    previewTabs: s.previewTabs.map(t => ({ ...t, active: t.id === id })),
-    activePreviewTabId: id,
-  })),
-  updatePreviewTab: (id, update) => set((s) => ({
-    previewTabs: s.previewTabs.map(t => t.id === id ? { ...t, ...update } : t),
-  })),
+  setActivePreviewTab: (id) => set((s) => {
+    const nextTabs = s.previewTabs.map(t => ({ ...t, active: t.id === id }));
+    savePreviewTabsAsync(nextTabs, id);
+    return { previewTabs: nextTabs, activePreviewTabId: id };
+  }),
+  updatePreviewTab: (id, update) => set((s) => {
+    const nextTabs = s.previewTabs.map(t => t.id === id ? { ...t, ...update } : t);
+    savePreviewTabsAsync(nextTabs, s.activePreviewTabId);
+    return { previewTabs: nextTabs };
+  }),
 
   notification: null,
   showNotification: (msg) => {
@@ -783,4 +807,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   pendingFileDialog: null,
   setPendingFileDialog: (d) => set({ pendingFileDialog: d }),
+
+  terminalWrite: null,
+  terminalRunCommand: null,
+  setTerminalWrite: (fn) => set({ terminalWrite: fn }),
+  setTerminalRunCommand: (fn) => set({ terminalRunCommand: fn }),
 }));

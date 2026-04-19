@@ -163,7 +163,7 @@ const ITEM_STYLE: React.CSSProperties = {
 
 const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ onClose, hideHeader }) => {
   const {
-    files, folders, activeFileId, setActiveFile, addFile, removeFile,
+    files, folders, activeFileId, setActiveFile, openInEditor, addFile, removeFile,
     addFolder, removeFolder, renameFolder, moveFileToFolder,
     updateFileContent, showNotification, pendingFileDialog, setPendingFileDialog,
   } = useEditorStore();
@@ -268,7 +268,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const starter = type === 'html' ? `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>New Page</title>\n</head>\n<body>\n\n</body>\n</html>` :
         type === 'css' ? `/* ${name} */\n` : (type === 'js' || type === 'ts' || type === 'tsx' || type === 'jsx') ? `// ${name}\n` : '';
       addFile({ id: fileId, name, type, content: starter, folder });
-      setActiveFile(fileId);
+      openInEditor(fileId);
       showNotification(`Created ${name}`);
     }
 
@@ -284,7 +284,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const newId = dialog.file.folder ? `${dialog.file.folder}/${newName}` : newName;
       removeFile(dialog.file.id);
       addFile({ ...dialog.file, id: newId, name: newName });
-      setActiveFile(newId);
+      openInEditor(newId);
       showNotification(`Renamed to ${newName}`);
     }
 
@@ -319,7 +319,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
     ] : [];
 
     showCtx(e, [
-      { label: 'Open', icon: '📂', action: () => { if (file.type !== 'image') setActiveFile(file.id); } },
+      { label: 'Open', icon: '📂', action: () => { if (file.type !== 'image') openInEditor(file.id); } },
       { separator: true, label: '' },
       { label: 'Rename', icon: '✏️', action: () => setDialog({ mode: 'rename-file', file }) },
       { label: 'Duplicate', icon: '📋', action: () => {
@@ -422,7 +422,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
         draggable
         onDragStart={e => { draggingFileIdRef.current = file.id; e.dataTransfer.setData('text/plain', file.id); e.dataTransfer.effectAllowed = 'move'; }}
         onDragEnd={() => { draggingFileIdRef.current = null; }}
-        onClick={() => file.type !== 'image' && setActiveFile(file.id)}
+        onClick={() => file.type !== 'image' && openInEditor(file.id)}
         onDoubleClick={() => setDialog({ mode: 'rename-file', file })}
         onContextMenu={e => { e.preventDefault(); e.stopPropagation(); handleFileCtx(e, file); }}
         style={{

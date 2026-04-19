@@ -2,10 +2,9 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import LayersPanel from './LayersPanel';
-import ElementsPalette, { PaletteItem } from './ElementsPalette';
 import {
-  FiBox, FiGrid, FiLayers, FiMaximize2, FiMonitor,
-  FiMousePointer, FiSmartphone, FiTablet, FiX,
+  FiBox, FiLayers, FiMaximize2, FiMonitor,
+  FiMousePointer, FiSmartphone, FiTablet, FiX, FiCode,
 } from 'react-icons/fi';
 import { buildStaticPreviewHtml } from '../utils/previewEngine';
 import { detectProjectType, projectTypeLabel } from '../utils/fileTypes';
@@ -209,15 +208,19 @@ const VisualEditor: React.FC = () => {
   // Responsive preview
   const [previewSize, setPreviewSize] = useState<PreviewSize>('full');
 
+  // Auto-height: size the iframe to its content so there's no empty dark space below
+  const [iframeContentHeight, setIframeContentHeight] = useState(400);
+  const iframeContentHeightRoRef = useRef<ResizeObserver | null>(null);
+  useEffect(() => () => { iframeContentHeightRoRef.current?.disconnect(); }, []);
+
   // Panels visibility
   const [showLayers, setShowLayers] = useState(true);
-  const [showPalette, setShowPalette] = useState(true);
 
-  // Drag from palette
-  const [paletteDropping, setPaletteDropping] = useState(false);
-  const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
-  const [dragGhost, setDragGhost] = useState<{ x: number; y: number; html: string; label: string } | null>(null);
-  const [dropPreview, setDropPreview] = useState<{ x: number; y: number } | null>(null);
+  // Multi-file: which HTML file is being visually edited
+  const htmlFiles = files.filter(f => f.type === 'html');
+  const [visualFileId, setVisualFileId] = useState<string>(() => htmlFiles[0]?.id ?? '');
+  const activeVisualFileId = htmlFiles.find(f => f.id === visualFileId)?.id ?? htmlFiles[0]?.id ?? '';
+
   const pendingInsertRef = useRef<string | null>(null);
 
   // iframe doc ref for layers
@@ -236,12 +239,17 @@ const VisualEditor: React.FC = () => {
     const editorCss = `<style>
 *{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}
 </style>`;
-    return buildStaticPreviewHtml(files, {
+    const targetHtmlFile = files.find(f => f.id === activeVisualFileId);
+    const scopedFiles = targetHtmlFile
+      ? [targetHtmlFile, ...files.filter(f => f.type === 'css' || f.type === 'js')]
+      : files;
+    return buildStaticPreviewHtml(scopedFiles, {
       editorCss,
       includeBridge: false,
+      htmlFileId: activeVisualFileId || undefined,
       fallbackHtml: '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>',
     });
-  }, [files, interaction]);
+  }, [files, interaction, activeVisualFileId]);
 
   const scheduleRebuild = useCallback(() => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
@@ -331,7 +339,7 @@ const VisualEditor: React.FC = () => {
   };
 
   const updateHtmlWithMutation = useCallback((mutate: (parsedDoc: Document, htmlFileId: string) => boolean | void) => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = files.find(f => f.id === activeVisualFileId) ?? files.find(f => f.type === 'html');
     if (!htmlFile) return false;
     const parser = new DOMParser();
     const parsedDoc = parser.parseFromString(htmlFile.content, 'text/html');
@@ -341,10 +349,10 @@ const VisualEditor: React.FC = () => {
     if (updated === htmlFile.content) return false;
     updateFileContent(htmlFile.id, updated);
     return true;
-  }, [files, updateFileContent]);
+  }, [files, updateFileContent, activeVisualFileId]);
 
   const updateHtmlSourceForElement = useCallback((el: HTMLElement, applyChange: (target: HTMLElement) => void) => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = files.find(f => f.id === activeVisualFileId) ?? files.find(f => f.type === 'html');
     if (!htmlFile) return;
     const selector = elementSelector(el);
     const parser = new DOMParser();
@@ -354,7 +362,7 @@ const VisualEditor: React.FC = () => {
     applyChange(target);
     const updated = serializeDoc(parsedDoc);
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+  }, [files, updateFileContent, activeVisualFileId]);
 
   const syncToSource = useCallback((el: HTMLElement) => {
     const style = el.getAttribute('style') || '';
@@ -902,7 +910,10 @@ const VisualEditor: React.FC = () => {
   const isDragging = activeOp !== null;
 
   const previewW = PREVIEW_WIDTHS[previewSize];
-  const projectType = detectProjectType(files);
+  // If there's an active HTML file being edited visually, treat as static regardless
+  // of other project files (e.g. JSX/package.json in the same project).
+  const activeHtmlFile = files.find(f => f.id === activeVisualFileId);
+  const projectType = activeHtmlFile ? 'static' : detectProjectType(files);
 
   /* Breadcrumb path */
   const breadcrumb = selEl ? buildBreadcrumb(selEl) : [];
@@ -920,20 +931,34 @@ const VisualEditor: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
           <span style={{ fontSize: 10, color: VE.muted }}>Panels</span>
           <button
-          title="Toggle Layers panel"
-          onClick={() => setShowLayers(l => !l)}
-          style={{ background: showLayers ? VE.blueBg : 'transparent', border: `1px solid ${showLayers ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showLayers ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
-        >
-          <FiLayers size={12} /> Layers
-        </button>
-        <button
-          title="Toggle Elements palette"
-          onClick={() => setShowPalette(p => !p)}
-          style={{ background: showPalette ? VE.blueBg : 'transparent', border: `1px solid ${showPalette ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showPalette ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
-        >
-          <FiGrid size={12} /> Elements
-        </button>
+            title="Toggle Layers panel"
+            onClick={() => setShowLayers(l => !l)}
+            style={{ background: showLayers ? VE.blueBg : 'transparent', border: `1px solid ${showLayers ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showLayers ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
+          >
+            <FiLayers size={12} /> Layers
+          </button>
         </div>
+
+        {/* File selector for multi-file visual editing */}
+        {htmlFiles.length > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
+            <FiCode size={11} style={{ color: VE.muted, flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: VE.muted, flexShrink: 0 }}>File:</span>
+            <select
+              value={activeVisualFileId}
+              onChange={e => setVisualFileId(e.target.value)}
+              style={{
+                background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4,
+                color: VE.text, fontSize: 10, padding: '2px 6px', fontFamily: 'inherit',
+                cursor: 'pointer', outline: 'none', maxWidth: 140,
+              }}
+            >
+              {htmlFiles.map(f => (
+                <option key={f.id} value={f.id}>{f.folder ? `${f.folder}/${f.name}` : f.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Responsive viewport buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
@@ -1020,7 +1045,7 @@ const VisualEditor: React.FC = () => {
 
         {/* Iframe area */}
         <div
-          style={{ flex: 1, overflow: previewW ? 'auto' : 'hidden', position: 'relative', background: VE.canvas, display: 'flex', justifyContent: 'center' }}
+          style={{ flex: 1, overflow: 'auto', position: 'relative', background: previewW ? VE.canvas : '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
         >
           <iframe
             ref={iframeRef}
@@ -1030,15 +1055,39 @@ const VisualEditor: React.FC = () => {
               eventsCleanupRef.current?.();
               const cleanup = attachEvents();
               eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
+
+              // Measure content height and track changes so there's no empty dark space below
+              iframeContentHeightRoRef.current?.disconnect();
+              const doc = iframeRef.current?.contentDocument;
+              if (doc) {
+                const measure = () => {
+                  const h = Math.max(
+                    doc.documentElement.scrollHeight,
+                    doc.body?.scrollHeight ?? 0,
+                    200,
+                  );
+                  setIframeContentHeight(h);
+                };
+                measure();
+                const ro = new ResizeObserver(measure);
+                ro.observe(doc.documentElement);
+                if (doc.body) ro.observe(doc.body);
+                iframeContentHeightRoRef.current = ro;
+              }
             }}
             srcDoc={srcDoc}
             sandbox="allow-scripts allow-same-origin"
-            style={{
-              border: 'none', background: '#fff',
-              width: previewW ? previewW + 'px' : '100%',
-              height: '100%',
+            style={previewW ? {
+              border: 'none',
+              width: previewW + 'px',
+              height: Math.max(iframeContentHeight, 200) + 'px',
               flexShrink: 0,
-              boxShadow: previewW ? '0 0 30px rgba(0,0,0,0.5)' : 'none',
+              boxShadow: '0 0 30px rgba(0,0,0,0.5)',
+            } : {
+              border: 'none',
+              width: '100%',
+              height: Math.max(iframeContentHeight, 200) + 'px',
+              display: 'block',
             }}
           />
 
@@ -1079,91 +1128,6 @@ const VisualEditor: React.FC = () => {
             </div>
           )}
 
-          {/* Drop zone overlay — shows on top of iframe when dragging from palette, capturing drop events */}
-          {isDraggingFromPalette && (
-            <div
-              style={{
-                position: 'absolute', inset: 0, zIndex: 200,
-                border: `3px dashed ${paletteDropping ? '#e5a45a' : 'rgba(229,164,90,0.4)'}`,
-                background: paletteDropping ? 'rgba(229,164,90,0.08)' : 'rgba(229,164,90,0.03)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.1s',
-              }}
-              onDragOver={e => {
-                e.preventDefault();
-                setPaletteDropping(true);
-                setDragGhost(prev => prev ? { ...prev, x: e.clientX + 14, y: e.clientY + 14 } : null);
-                const rect = e.currentTarget.getBoundingClientRect();
-                setDropPreview({
-                  x: Math.max(16, Math.min(rect.width - 16, e.clientX - rect.left)),
-                  y: Math.max(14, Math.min(rect.height - 14, e.clientY - rect.top)),
-                });
-              }}
-              onDragLeave={() => { setPaletteDropping(false); setDropPreview(null); }}
-              onDrop={e => {
-                e.preventDefault();
-                setPaletteDropping(false);
-                const html = e.dataTransfer.getData('text/html-element');
-                if (html) insertHtmlAtPoint(html, e.clientX, e.clientY);
-                setIsDraggingFromPalette(false);
-                setDragGhost(null);
-                setDropPreview(null);
-              }}
-            >
-              <div style={{
-                background: '#e5a45a', color: '#1a1a1a', padding: '8px 18px', borderRadius: 6, fontSize: 13, fontWeight: 700,
-                opacity: paletteDropping ? 1 : 0.7, transition: 'opacity 0.1s',
-              }}>
-                {paletteDropping ? 'Release to insert element' : 'Drag here to insert element'}
-              </div>
-              {dragGhost && (
-                <div style={{
-                  position: 'fixed',
-                  left: dragGhost.x,
-                  top: dragGhost.y,
-                  zIndex: 220,
-                  maxWidth: 260,
-                  pointerEvents: 'none',
-                  transform: 'scale(0.92)',
-                  transformOrigin: 'top left',
-                  background: 'rgba(255,255,255,0.92)',
-                  border: '1px solid rgba(229,164,90,0.9)',
-                  borderRadius: 8,
-                  boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-                  padding: 8,
-                  color: '#111',
-                }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#8a5a1e', marginBottom: 5 }}>{dragGhost.label}</div>
-                  <div dangerouslySetInnerHTML={{ __html: dragGhost.html }} />
-                </div>
-              )}
-              {dropPreview && (
-                <>
-                  <div style={{
-                    position: 'absolute',
-                    left: 0,
-                    right: 0,
-                    top: dropPreview.y,
-                    borderTop: '2px dashed rgba(229,164,90,0.85)',
-                    zIndex: 215,
-                    pointerEvents: 'none',
-                  }} />
-                  <div style={{
-                    position: 'absolute',
-                    left: dropPreview.x - 8,
-                    top: dropPreview.y - 8,
-                    width: 16,
-                    height: 16,
-                    borderRadius: '50%',
-                    border: '2px solid rgba(229,164,90,0.95)',
-                    background: 'rgba(0,0,0,0.35)',
-                    zIndex: 216,
-                    pointerEvents: 'none',
-                  }} />
-                </>
-              )}
-            </div>
-          )}
 
           {/* Hover outline */}
           {HR && !isDragging && (
@@ -1293,19 +1257,6 @@ const VisualEditor: React.FC = () => {
           )}
         </div>
 
-        {/* Elements palette */}
-        {showPalette && (
-          <div style={{ width: 176, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderLeft: `1px solid ${VE.border}` }}>
-            <ElementsPalette
-            onInsert={insertHtmlAtBody}
-            onDragStart={(item: PaletteItem) => {
-              setIsDraggingFromPalette(true);
-              setDragGhost({ x: 0, y: 0, html: item.defaultHtml, label: item.label });
-            }}
-            onDragEnd={() => { setIsDraggingFromPalette(false); setPaletteDropping(false); setDragGhost(null); setDropPreview(null); }}
-          />
-          </div>
-        )}
       </div>
 
       {/* ── Breadcrumb bar ── */}

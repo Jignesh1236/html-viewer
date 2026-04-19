@@ -1,6 +1,17 @@
 import type { FileItem, ProjectType } from '../store/editorStore';
 import { detectProjectType, isScriptFile } from './fileTypes';
 
+/**
+ * Returns true if a file is a build-tool config or lock file that should NEVER
+ * be injected into a browser preview (they contain Node.js / bundler syntax).
+ */
+const CONFIG_FILE_RE = /^(vite|webpack|rollup|parcel|esbuild|babel|jest|vitest|karma|mocha|playwright|cypress|postcss|tailwind|stylelint|eslint|prettier|tsup|turbo|nx|svelte\.config|nuxt\.config|next\.config|astro\.config|remix\.config|wrangler)\b.*\.(config|setup)\.(js|ts|mjs|cjs)$/i;
+const LOCK_FILE_RE = /^(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb)$/;
+
+function isBrowserInjectable(file: FileItem): boolean {
+  return !CONFIG_FILE_RE.test(file.name) && !LOCK_FILE_RE.test(file.name);
+}
+
 export type PreviewFrame =
   | { mode: 'srcdoc'; value: string; projectType: ProjectType; runtimeLabel: string; url: string; error?: string }
   | { mode: 'url'; value: string; projectType: ProjectType; runtimeLabel: string; url: string; error?: string };
@@ -71,12 +82,18 @@ export function buildPreviewBridgeScript() {
 }
 
 export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewOptions = {}) {
-  // For non-static projects, return a helpful "run in terminal" placeholder
-  // instead of trying to execute JSX/TSX which requires a build step
-  const projectType = detectProjectType(files);
-  if (projectType !== 'static') {
-    const cmd = projectType === 'react' ? 'npm install && npm run dev' : 'node index.js';
-    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+  // When a specific HTML file is requested, render it directly regardless of project type.
+  // Only show the "run in terminal" placeholder when no specific HTML file is targeted
+  // and the project has no plain HTML entry point.
+  const hasExplicitHtmlTarget = Boolean(options.htmlFileId
+    ? files.find(f => f.id === options.htmlFileId && f.type === 'html')
+    : files.find(f => f.type === 'html'));
+
+  if (!hasExplicitHtmlTarget) {
+    const projectType = detectProjectType(files);
+    if (projectType !== 'static') {
+      const cmd = projectType === 'react' ? 'npm install && npm run dev' : 'node index.js';
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
       *{margin:0;padding:0;box-sizing:border-box}
       body{background:#0f0f1a;color:#ccc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:32px}
       .card{background:#1a1a2e;border:1px solid #2a2a40;border-radius:14px;padding:36px 40px;max-width:380px;text-align:center}
@@ -94,6 +111,7 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
         <p style="margin-top:14px;font-size:0.78rem;color:#555">The preview updates automatically once the dev server is running.</p>
       </div>
     </body></html>`;
+    }
   }
 
   const htmlFile = options.htmlFileId
@@ -101,7 +119,13 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
     : files.find(f => f.type === 'html');
   let html = htmlFile?.content || options.fallbackHtml || '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
 
-  files.filter(f => f.type === 'css').forEach(css => {
+  // When previewing a SPECIFIC html file (htmlFileId set), only replace <link>/<script>
+  // references that are explicitly in that file — never auto-inject unreferenced assets.
+  // When doing a general preview (no htmlFileId), auto-inject unreferenced CSS/JS so
+  // simple static projects "just work", but skip build-tool config files.
+  const autoInject = !options.htmlFileId;
+
+  files.filter(f => f.type === 'css' && isBrowserInjectable(f)).forEach(css => {
     const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
     const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
     let matched = false;
@@ -113,11 +137,12 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
         break;
       }
     }
-    if (!matched) html = injectBefore(html, 'head', tag);
+    if (!matched && autoInject) html = injectBefore(html, 'head', tag);
   });
 
-  // Only inline plain JS files — JSX/TSX/TS require a build step and cannot run in srcdoc
-  files.filter(f => f.type === 'js').forEach(script => {
+  // Only inline plain JS files — JSX/TSX/TS require a build step and cannot run in srcdoc.
+  // Also skip build-tool config files (vite.config.js, webpack.config.js, etc.).
+  files.filter(f => f.type === 'js' && isBrowserInjectable(f)).forEach(script => {
     const tag = `<script data-src="${script.id}">\n${script.content}\n<\/script>`;
     const refs = [script.name, ...(script.id !== script.name ? [script.id] : [])];
     let matched = false;
@@ -129,7 +154,7 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
         break;
       }
     }
-    if (!matched) html = injectBefore(html, 'body', tag);
+    if (!matched && autoInject) html = injectBefore(html, 'body', tag);
   });
 
   // Strip any remaining <script src="..."> tags that reference files needing a build step
