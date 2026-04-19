@@ -10,6 +10,7 @@ export interface BuildPreviewOptions {
   editorCss?: string;
   includeBridge?: boolean;
   fallbackHtml?: string;
+  htmlFileId?: string;
 }
 
 function escRe(value: string) {
@@ -95,7 +96,9 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
     </body></html>`;
   }
 
-  const htmlFile = files.find(f => f.type === 'html');
+  const htmlFile = options.htmlFileId
+    ? files.find(f => f.id === options.htmlFileId)
+    : files.find(f => f.type === 'html');
   let html = htmlFile?.content || options.fallbackHtml || '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
 
   files.filter(f => f.type === 'css').forEach(css => {
