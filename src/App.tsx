@@ -454,11 +454,11 @@ function DesktopApp() {
     if (mode === 'visual') {
       return (
         <PanelGroup direction="horizontal" id="visual-editors" style={{ flex: 1, minHeight: 0 }}>
-          <Panel id="visual-canvas" order={1} minSize={40}>
+          <Panel id="visual-canvas" order={1} minSize={35}>
             <VisualEditor />
           </Panel>
           <ResizeBar dir="v" />
-          <Panel id="visual-props" order={2} defaultSize={25} minSize={15} maxSize={40}>
+          <Panel id="visual-props" order={2} defaultSize={28} minSize={20} maxSize={48}>
             <PropertiesPanel hideHeader />
           </Panel>
         </PanelGroup>
