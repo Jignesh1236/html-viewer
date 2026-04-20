@@ -2,9 +2,10 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import LayersPanel from './LayersPanel';
+import ElementsPalette from './ElementsPalette';
 import {
-  FiBox, FiLayers, FiMaximize2, FiMonitor,
-  FiMousePointer, FiSmartphone, FiTablet, FiX, FiCode,
+  FiBox, FiLayers, FiMaximize2, FiMinimize2, FiMonitor,
+  FiMousePointer, FiSmartphone, FiTablet, FiX, FiCode, FiGrid,
 } from 'react-icons/fi';
 import { buildStaticPreviewHtml } from '../utils/previewEngine';
 import { detectProjectType, projectTypeLabel } from '../utils/fileTypes';
@@ -26,24 +27,26 @@ function getHandlePos(h: Handle, r: { left: number; top: number; width: number; 
 const SKIP_TAGS = new Set(['html', 'head', 'body', 'script', 'style', 'meta', 'link', 'title', 'base', 'noscript']);
 const GRID = 8;
 
-/** Stable node handle for source sync (avoids ambiguous nth-of-type selectors). */
 const VI_ATTR = 'data-vi-id';
 
 const VE = {
-  bg: '#1e1e1e',
-  surface: '#252526',
-  border: '#3a3a3a',
-  borderHi: '#3e3e3e',
-  accent: '#e5a45a',
-  accentBg: 'rgba(229,164,90,0.15)',
-  accentBrd: 'rgba(229,164,90,0.45)',
-  blue: '#7ab8f5',
-  blueBg: 'rgba(100,160,255,0.15)',
-  blueBrd: 'rgba(100,160,255,0.4)',
-  text: '#ccc',
-  dim: '#888',
-  muted: '#666',
-  canvas: '#2a2a2a',
+  bg:        '#0d1117',
+  surface:   '#161b22',
+  surface2:  '#21262d',
+  border:    '#30363d',
+  borderHi:  '#3d444d',
+  accent:    '#e3b341',
+  accentBg:  'rgba(227,179,65,0.12)',
+  accentBrd: 'rgba(227,179,65,0.4)',
+  blue:      '#58a6ff',
+  blueBg:    'rgba(88,166,255,0.12)',
+  blueBrd:   'rgba(88,166,255,0.35)',
+  green:     '#3fb950',
+  greenBg:   'rgba(63,185,80,0.12)',
+  text:      '#c9d1d9',
+  muted:     '#8b949e',
+  dim:       '#484f58',
+  canvas:    '#161b22',
 } as const;
 
 function newViId() {
@@ -59,7 +62,6 @@ function ensureViNodeId(el: HTMLElement) {
   if (!el.getAttribute(VI_ATTR)) el.setAttribute(VI_ATTR, newViId());
 }
 
-/** After cloneNode(true), give the whole subtree fresh ids so selectors stay unique. */
 function regenerateViIdsSubtree(root: HTMLElement) {
   const all = [root, ...Array.from(root.querySelectorAll('*'))] as HTMLElement[];
   for (const e of all) e.setAttribute(VI_ATTR, newViId());
@@ -173,6 +175,8 @@ function findSelectableFallback(start: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
+type LeftTab = 'layers' | 'elements';
+
 const VisualEditor: React.FC = () => {
   const {
     files, updateFileContent, setSelectedElement, addConsoleEntry,
@@ -200,30 +204,22 @@ const VisualEditor: React.FC = () => {
   const { show: showCtx, element: ctxEl } = useContextMenu();
   const eventsCleanupRef = useRef<null | (() => void)>(null);
   const [interaction, setInteraction] = useState<'select' | 'interact'>('select');
-
-  // Multi-select
   const [multiSel, setMultiSel] = useState<Set<HTMLElement>>(new Set());
   const multiSelRef = useRef<Set<HTMLElement>>(new Set());
-
-  // Responsive preview
   const [previewSize, setPreviewSize] = useState<PreviewSize>('full');
-
-  // Auto-height: size the iframe to its content so there's no empty dark space below
   const [iframeContentHeight, setIframeContentHeight] = useState(400);
   const iframeContentHeightRoRef = useRef<ResizeObserver | null>(null);
+  const [leftTab, setLeftTab] = useState<LeftTab>('layers');
+  const [canvasMaximized, setCanvasMaximized] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
   useEffect(() => () => { iframeContentHeightRoRef.current?.disconnect(); }, []);
 
-  // Panels visibility
-  const [showLayers, setShowLayers] = useState(true);
-
-  // Multi-file: which HTML file is being visually edited
   const htmlFiles = files.filter(f => f.type === 'html');
   const [visualFileId, setVisualFileId] = useState<string>(() => htmlFiles[0]?.id ?? '');
   const activeVisualFileId = htmlFiles.find(f => f.id === visualFileId)?.id ?? htmlFiles[0]?.id ?? '';
 
   const pendingInsertRef = useRef<string | null>(null);
-
-  // iframe doc ref for layers
   const [iframeDoc, setIframeDoc] = useState<Document | null>(null);
 
   useEffect(() => { iframeOffRef.current = iframeOff; }, [iframeOff]);
@@ -234,7 +230,6 @@ const VisualEditor: React.FC = () => {
     return () => { eventsCleanupRef.current?.(); eventsCleanupRef.current = null; };
   }, []);
 
-  /* ── Build srcdoc ── */
   const buildSrcDoc = useCallback(() => {
     const editorCss = `<style>
 *{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}
@@ -290,7 +285,6 @@ const VisualEditor: React.FC = () => {
     if (!selector) { selectedViIdRef.current = null; setSelEl(null); setSelectedElement(null); setSelectedSelector(null); }
   }, [files, interaction, scheduleRebuild, setSelectedSelector, setSelectedElement]);
 
-  /* ── Track iframe offset ── */
   useEffect(() => {
     const update = () => {
       const r = iframeRef.current?.getBoundingClientRect();
@@ -419,7 +413,6 @@ const VisualEditor: React.FC = () => {
         const el = getSelectedDomEl();
         if (!el) return;
         el.style.setProperty(property, value);
-        // Apply same style to every multi-selected element
         for (const mel of multiSelRef.current) {
           if (mel.isConnected && mel !== el) {
             mel.style.setProperty(property, value);
@@ -454,7 +447,6 @@ const VisualEditor: React.FC = () => {
     injectAnimStyle(doc, timelineAnimationStyle);
   }, [timelineAnimationStyle, tick, injectAnimStyle]);
 
-  /* ── Select element ── */
   const selectElement = useCallback((el: HTMLElement, addToMulti = false) => {
     if (addToMulti) {
       setMultiSel(prev => {
@@ -498,7 +490,6 @@ const VisualEditor: React.FC = () => {
     });
   }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
-  /* ── Duplicate element ── */
   const duplicateElement = useCallback((el: HTMLElement) => {
     const selector = elementSelector(el);
     const changed = updateHtmlWithMutation((parsedDoc) => {
@@ -511,7 +502,6 @@ const VisualEditor: React.FC = () => {
       return true;
     });
     if (!changed) return;
-    // Also clone in live DOM
     const liveClone = el.cloneNode(true) as HTMLElement;
     liveClone.removeAttribute('id');
     regenerateViIdsSubtree(liveClone);
@@ -520,11 +510,9 @@ const VisualEditor: React.FC = () => {
     showNotification('Element duplicated');
   }, [showNotification, updateHtmlWithMutation]);
 
-  /* ── Insert HTML at body (palette) ── */
   const insertHtmlAtBody = useCallback((html: string) => {
     let insertedTag = '';
     const changed = updateHtmlWithMutation((parsedDoc) => {
-      // If an element is selected, insert after it; otherwise append to body
       const selEl = selElRef.current;
       let targetEl: HTMLElement | null = null;
       if (selEl?.isConnected) {
@@ -563,10 +551,9 @@ const VisualEditor: React.FC = () => {
       parsedDoc.body.appendChild(newEl);
       return true;
     });
-    if (changed && insertedTag) showNotification(`Inserted <${insertedTag}> near cursor`);
+    if (changed && insertedTag) showNotification(`Inserted <${insertedTag}> at position`);
   }, [showNotification, updateHtmlWithMutation]);
 
-  /* ── Reorder element in DOM (layers panel move) ── */
   const moveElementInDom = useCallback((el: HTMLElement, dir: 'up' | 'down') => {
     const selector = elementSelector(el);
     updateHtmlWithMutation((parsedDoc) => {
@@ -610,7 +597,6 @@ const VisualEditor: React.FC = () => {
     showNotification('Layer reordered');
   }, [showNotification, selectElement, updateHtmlWithMutation]);
 
-  /* ── Z-index helpers ── */
   const bringToFront = useCallback((el: HTMLElement) => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
@@ -634,7 +620,6 @@ const VisualEditor: React.FC = () => {
     showNotification('Sent to back');
   }, [syncToSource, showNotification]);
 
-  /* ── Attach iframe events ── */
   const attachEvents = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
     if (!doc) return;
@@ -688,15 +673,13 @@ const VisualEditor: React.FC = () => {
       if (interaction !== 'select') return;
       const target = e.target as HTMLElement;
       if (!target || SKIP_TAGS.has(target.tagName.toLowerCase())) return;
-      // Make element editable inline
       target.setAttribute('contenteditable', 'true');
       target.focus();
-      target.style.outline = '2px solid #7ab8f5';
+      target.style.outline = '2px solid #58a6ff';
       const onBlur = () => {
         target.removeAttribute('contenteditable');
         target.style.outline = '';
         target.removeEventListener('blur', onBlur);
-        // Sync content
         syncContentToSource(target);
         setTick(t => t + 1);
         showNotification('Text updated');
@@ -765,7 +748,6 @@ const VisualEditor: React.FC = () => {
     };
   }, [injectAnimStyle, interaction, selectElement, duplicateElement, bringToFront, sendToBack, setSelectedSelector, setSelectedElement, showCtx, syncToSource, syncContentToSource, updateHtmlSourceForElement, showNotification]);
 
-  /* ── Drag move / resize ── */
   const dragRef = useRef<{
     type: 'move' | Handle;
     startX: number; startY: number;
@@ -783,24 +765,19 @@ const VisualEditor: React.FC = () => {
     if (!win) return;
     const cs = win.getComputedStyle(el);
     const r = el.getBoundingClientRect();
-
-    // Capture multi-select positions
     const multiEls = Array.from(multiSelRef.current)
       .filter(mel => mel !== el && mel.isConnected)
       .map(mel => {
         const mcs = win.getComputedStyle(mel);
         return { el: mel, initLeft: parseFloat(mcs.left) || 0, initTop: parseFloat(mcs.top) || 0 };
       });
-
     dragRef.current = {
       type,
       startX: e.clientX, startY: e.clientY,
       initLeft: parseFloat(cs.left) || 0,
       initTop: parseFloat(cs.top) || 0,
       initW: r.width, initH: r.height,
-      el,
-      multiEls,
-      moved: false,
+      el, multiEls, moved: false,
     };
     const cursor = type === 'move' ? 'move' : CURSOR[type as Handle] || 'default';
     showDragCapture(cursor);
@@ -825,7 +802,6 @@ const VisualEditor: React.FC = () => {
         el.style.position = el.style.position || 'relative';
         el.style.left = newLeft + 'px';
         el.style.top = newTop + 'px';
-        // Move multi-selected elements together
         for (const { el: mel, initLeft: ml, initTop: mt } of d.multiEls) {
           mel.style.position = mel.style.position || 'relative';
           const nextLeft = Math.max(0, useSnap ? snap(ml + dx) : ml + dx);
@@ -863,7 +839,6 @@ const VisualEditor: React.FC = () => {
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
   }, [syncToSource]);
 
-  /* ── Rotation drag ── */
   const rotRef = useRef<{ cx: number; cy: number; startAngle: number; initRot: number; el: HTMLElement } | null>(null);
 
   const startRotate = useCallback((e: React.MouseEvent) => {
@@ -873,11 +848,7 @@ const VisualEditor: React.FC = () => {
     if (!OR || !el?.isConnected) return;
     const cx = OR.left + OR.width / 2;
     const cy = OR.top + OR.height / 2;
-    rotRef.current = {
-      cx, cy,
-      startAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI),
-      initRot: rotation, el,
-    };
+    rotRef.current = { cx, cy, startAngle: Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI), initRot: rotation, el };
     showDragCapture('crosshair');
     setActiveOp('rotate');
   }, [rotation, getSelOverlay]);
@@ -910,46 +881,31 @@ const VisualEditor: React.FC = () => {
   const isDragging = activeOp !== null;
 
   const previewW = PREVIEW_WIDTHS[previewSize];
-  // If there's an active HTML file being edited visually, treat as static regardless
-  // of other project files (e.g. JSX/package.json in the same project).
   const activeHtmlFile = files.find(f => f.id === activeVisualFileId);
   const projectType = activeHtmlFile ? 'static' : detectProjectType(files);
-
-  /* Breadcrumb path */
   const breadcrumb = selEl ? buildBreadcrumb(selEl) : [];
 
   return (
-    <div style={{ position: 'relative', flex: 1, overflow: 'hidden', background: VE.bg, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: VE.bg }}>
 
       {/* ── Top toolbar ── */}
       <div style={{
-        height: 34, flexShrink: 0, background: VE.surface,
-        borderBottom: `1px solid ${VE.borderHi}`,
+        height: 38, flexShrink: 0, background: VE.surface,
+        borderBottom: `1px solid ${VE.border}`,
         display: 'flex', alignItems: 'center', padding: '0 10px', gap: 6, zIndex: 5,
         flexWrap: 'nowrap', overflowX: 'auto',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
-          <span style={{ fontSize: 10, color: VE.muted }}>Panels</span>
-          <button
-            title="Toggle Layers panel"
-            onClick={() => setShowLayers(l => !l)}
-            style={{ background: showLayers ? VE.blueBg : 'transparent', border: `1px solid ${showLayers ? VE.blueBrd : VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: showLayers ? VE.blue : VE.muted, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
-          >
-            <FiLayers size={12} /> Layers
-          </button>
-        </div>
 
-        {/* File selector for multi-file visual editing */}
+        {/* HTML file selector */}
         {htmlFiles.length > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingRight: 8, borderRight: `1px solid ${VE.border}` }}>
             <FiCode size={11} style={{ color: VE.muted, flexShrink: 0 }} />
-            <span style={{ fontSize: 10, color: VE.muted, flexShrink: 0 }}>File:</span>
             <select
               value={activeVisualFileId}
               onChange={e => setVisualFileId(e.target.value)}
               style={{
-                background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4,
-                color: VE.text, fontSize: 10, padding: '2px 6px', fontFamily: 'inherit',
+                background: VE.surface2, border: `1px solid ${VE.border}`, borderRadius: 5,
+                color: VE.text, fontSize: 11, padding: '3px 8px', fontFamily: 'inherit',
                 cursor: 'pointer', outline: 'none', maxWidth: 140,
               }}
             >
@@ -960,53 +916,66 @@ const VisualEditor: React.FC = () => {
           </div>
         )}
 
-        {/* Responsive viewport buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingRight: 6, borderRight: `1px solid ${VE.border}` }}>
-          <span style={{ fontSize: 10, color: VE.dim, flexShrink: 0 }}>Preview</span>
+        {/* Viewport buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, paddingRight: 8, borderRight: `1px solid ${VE.border}` }}>
           {([
-          { key: 'mobile', icon: <FiSmartphone size={11} />, label: '375', title: 'Mobile (375px)' },
-          { key: 'tablet', icon: <FiTablet size={11} />, label: '768', title: 'Tablet (768px)' },
-          { key: 'desktop', icon: <FiMonitor size={11} />, label: '1280', title: 'Desktop (1280px)' },
-          { key: 'full', icon: <FiMaximize2 size={11} />, label: 'Full', title: 'Full width' },
-        ] as const).map(btn => (
-          <button key={btn.key} title={btn.title} onClick={() => setPreviewSize(btn.key)}
-            style={{
-              background: previewSize === btn.key ? VE.accentBg : 'transparent',
-              border: `1px solid ${previewSize === btn.key ? VE.accentBrd : VE.border}`,
-              borderRadius: 4, cursor: 'pointer', fontSize: 10,
-              color: previewSize === btn.key ? VE.accent : VE.dim,
-              padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0,
-              display: 'flex', alignItems: 'center', gap: 4,
-            }}>
-            {btn.icon}{btn.label}
-          </button>
+            { key: 'mobile',  icon: <FiSmartphone size={12} />, label: '375',  title: 'Mobile (375px)' },
+            { key: 'tablet',  icon: <FiTablet size={12} />,     label: '768',  title: 'Tablet (768px)' },
+            { key: 'desktop', icon: <FiMonitor size={12} />,    label: '1280', title: 'Desktop (1280px)' },
+            { key: 'full',    icon: <FiMaximize2 size={12} />,  label: 'Full', title: 'Full width' },
+          ] as const).map(btn => (
+            <button key={btn.key} title={btn.title} onClick={() => setPreviewSize(btn.key)}
+              style={{
+                background: previewSize === btn.key ? VE.accentBg : 'transparent',
+                border: `1px solid ${previewSize === btn.key ? VE.accentBrd : 'transparent'}`,
+                borderRadius: 5, cursor: 'pointer', fontSize: 10,
+                color: previewSize === btn.key ? VE.accent : VE.muted,
+                padding: '4px 8px', fontFamily: 'inherit', flexShrink: 0,
+                display: 'flex', alignItems: 'center', gap: 4,
+                transition: 'all 0.12s',
+              }}
+              onMouseEnter={e => { if (previewSize !== btn.key) { e.currentTarget.style.color = VE.text; e.currentTarget.style.borderColor = VE.border; } }}
+              onMouseLeave={e => { if (previewSize !== btn.key) { e.currentTarget.style.color = VE.muted; e.currentTarget.style.borderColor = 'transparent'; } }}
+            >
+              {btn.icon}{btn.label}
+            </button>
           ))}
         </div>
 
+        {/* Interaction mode */}
+        <button
+          onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
+          title={interaction === 'select' ? 'Switch to Interact mode' : 'Switch to Select mode'}
+          style={{
+            background: interaction === 'interact' ? VE.greenBg : VE.surface2,
+            border: `1px solid ${interaction === 'interact' ? VE.green : VE.border}`,
+            borderRadius: 5, cursor: 'pointer', fontSize: 11,
+            color: interaction === 'interact' ? VE.green : VE.muted,
+            padding: '4px 10px', fontFamily: 'inherit', flexShrink: 0,
+            display: 'flex', alignItems: 'center', gap: 5,
+            transition: 'all 0.12s',
+          }}
+        >
+          {interaction === 'select' ? <><FiMousePointer size={12} /> Select</> : <><FiBox size={12} /> Interact</>}
+        </button>
+
         <div style={{ flex: 1 }} />
+
+        {/* Project type badge */}
         <span style={{
-          fontSize: 10, color: projectType === 'static' ? VE.dim : VE.accent,
+          fontSize: 10, color: projectType === 'static' ? VE.muted : VE.accent,
           border: `1px solid ${projectType === 'static' ? VE.border : VE.accentBrd}`,
-          borderRadius: 10, padding: '1px 7px', flexShrink: 0,
+          borderRadius: 20, padding: '2px 8px', flexShrink: 0,
+          background: projectType === 'static' ? 'transparent' : VE.accentBg,
         }}>
           {projectTypeLabel(projectType)}
         </span>
 
-        {/* Mode toggle */}
-        <button
-          onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
-          style={{
-            background: VE.surface, border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer',
-            fontSize: 10, color: interaction === 'select' ? VE.accent : VE.blue,
-            padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0,
-            display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1,
-          }}
-          title={interaction === 'select' ? 'Switch to Interact mode (lets page events fire)' : 'Switch to Select mode (click to select elements)'}
-        >
-          {interaction === 'select' ? <><FiMousePointer size={11} /> Select</> : <><FiBox size={11} /> Interact</>}
-        </button>
-        <span style={{ fontSize: 10, color: selEl ? VE.accent : VE.muted, flexShrink: 0 }}>
-          {selEl ? `Selected ${multiSel.size > 0 ? multiSel.size + 1 : 1}` : 'No selection'}
+        {/* Selection info */}
+        <span style={{ fontSize: 11, color: selEl ? VE.accent : VE.dim, flexShrink: 0, minWidth: 80, textAlign: 'right' }}>
+          {selEl
+            ? `<${selEl.tagName.toLowerCase()}>${multiSel.size > 0 ? ` +${multiSel.size}` : ''}`
+            : 'Nothing selected'}
         </span>
 
         {selEl && (
@@ -1018,34 +987,130 @@ const VisualEditor: React.FC = () => {
               setSelectedElement(null); setSelectedSelector(null);
               setMultiSel(new Set());
             }}
-            style={{ background: 'transparent', border: `1px solid ${VE.border}`, borderRadius: 4, cursor: 'pointer', fontSize: 10, color: VE.dim, padding: '2px 8px', fontFamily: 'inherit', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, lineHeight: 1 }}
+            style={{
+              background: 'transparent', border: `1px solid ${VE.border}`,
+              borderRadius: 5, cursor: 'pointer', fontSize: 11,
+              color: VE.muted, padding: '4px 8px',
+              fontFamily: 'inherit', flexShrink: 0,
+              display: 'flex', alignItems: 'center', gap: 4,
+              transition: 'all 0.12s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = VE.text; e.currentTarget.style.borderColor = VE.muted; }}
+            onMouseLeave={e => { e.currentTarget.style.color = VE.muted; e.currentTarget.style.borderColor = VE.border; }}
           >
             <FiX size={11} /> Deselect
           </button>
         )}
+
+        <button
+          onClick={() => setCanvasMaximized(m => !m)}
+          title={canvasMaximized ? 'Restore panels' : 'Maximize canvas'}
+          style={{
+            background: 'transparent', border: `1px solid ${VE.border}`,
+            borderRadius: 5, cursor: 'pointer', color: VE.muted,
+            padding: '4px 7px', display: 'flex', alignItems: 'center',
+            transition: 'all 0.12s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = VE.text; }}
+          onMouseLeave={e => { e.currentTarget.style.color = VE.muted; }}
+        >
+          {canvasMaximized ? <FiMinimize2 size={12} /> : <FiGrid size={12} />}
+        </button>
       </div>
 
-      {/* ── Main editor area ── */}
+      {/* ── Main area: left panel + canvas ── */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
 
-        {/* Layers panel */}
-        {showLayers && (
-          <div style={{ width: 176, flexShrink: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', borderRight: `1px solid ${VE.border}` }}>
-            <LayersPanel
-              iframeDoc={iframeDoc}
-              selectedEl={selEl}
-              multiSel={multiSel}
-              tick={tick}
-              onSelect={(el, shift) => selectElement(el, shift)}
-              onMove={moveElementInDom}
-              onReorder={reorderElementInDom}
-            />
+        {/* ── Left panel: Layers / Elements tabs ── */}
+        {!canvasMaximized && (
+          <div style={{
+            width: 200, flexShrink: 0, display: 'flex', flexDirection: 'column',
+            borderRight: `1px solid ${VE.border}`, background: VE.surface, overflow: 'hidden',
+          }}>
+            {/* Tab headers */}
+            <div style={{
+              display: 'flex', flexShrink: 0, borderBottom: `1px solid ${VE.border}`,
+              background: VE.bg,
+            }}>
+              {([
+                { id: 'layers' as LeftTab,   label: 'Layers',   icon: <FiLayers size={11} /> },
+                { id: 'elements' as LeftTab, label: 'Elements', icon: <FiBox size={11} /> },
+              ]).map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setLeftTab(tab.id)}
+                  style={{
+                    flex: 1, height: 30, border: 'none', cursor: 'pointer',
+                    background: leftTab === tab.id ? VE.surface : 'transparent',
+                    borderBottom: `2px solid ${leftTab === tab.id ? VE.blue : 'transparent'}`,
+                    color: leftTab === tab.id ? VE.text : VE.muted,
+                    fontSize: 11, fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                    transition: 'all 0.12s',
+                  }}
+                  onMouseEnter={e => { if (leftTab !== tab.id) e.currentTarget.style.color = VE.text; }}
+                  onMouseLeave={e => { if (leftTab !== tab.id) e.currentTarget.style.color = VE.muted; }}
+                >
+                  {tab.icon}
+                  <span style={{ fontWeight: leftTab === tab.id ? 600 : 400 }}>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              {leftTab === 'layers' ? (
+                <LayersPanel
+                  iframeDoc={iframeDoc}
+                  selectedEl={selEl}
+                  multiSel={multiSel}
+                  tick={tick}
+                  onSelect={(el, shift) => selectElement(el, shift)}
+                  onMove={moveElementInDom}
+                  onReorder={reorderElementInDom}
+                />
+              ) : (
+                <ElementsPalette
+                  onInsert={html => {
+                    insertHtmlAtBody(html);
+                    setLeftTab('layers');
+                  }}
+                  onDragStart={() => {}}
+                  onDragEnd={() => {}}
+                />
+              )}
+            </div>
           </div>
         )}
 
-        {/* Iframe area */}
+        {/* ── Canvas / iframe ── */}
         <div
-          style={{ flex: 1, overflow: 'auto', position: 'relative', background: previewW ? VE.canvas : '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+          style={{
+            flex: 1, overflow: 'auto', position: 'relative',
+            background: previewW ? VE.canvas : '#ffffff',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            outline: isDragOver ? `2px dashed ${VE.blue}` : 'none',
+          }}
+          onDragOver={e => {
+            if (e.dataTransfer.types.includes('text/html-element')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+              setIsDragOver(true);
+            }
+          }}
+          onDragLeave={e => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+              setIsDragOver(false);
+            }
+          }}
+          onDrop={e => {
+            e.preventDefault();
+            setIsDragOver(false);
+            const html = e.dataTransfer.getData('text/html-element');
+            if (html) {
+              insertHtmlAtPoint(html, e.clientX, e.clientY);
+            }
+          }}
         >
           <iframe
             ref={iframeRef}
@@ -1056,7 +1121,6 @@ const VisualEditor: React.FC = () => {
               const cleanup = attachEvents();
               eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
 
-              // Measure content height and track changes so there's no empty dark space below
               iframeContentHeightRoRef.current?.disconnect();
               const doc = iframeRef.current?.contentDocument;
               if (doc) {
@@ -1082,7 +1146,10 @@ const VisualEditor: React.FC = () => {
               width: previewW + 'px',
               height: Math.max(iframeContentHeight, 200) + 'px',
               flexShrink: 0,
-              boxShadow: '0 0 30px rgba(0,0,0,0.5)',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.5)',
+              marginTop: 16,
+              marginBottom: 16,
+              borderRadius: 4,
             } : {
               border: 'none',
               width: '100%',
@@ -1091,24 +1158,38 @@ const VisualEditor: React.FC = () => {
             }}
           />
 
-          {/* React / Node project overlay — visual editing only works for static HTML */}
+          {/* Drop hint overlay */}
+          {isDragOver && (
+            <div style={{
+              position: 'absolute', inset: 0, zIndex: 200, pointerEvents: 'none',
+              background: 'rgba(88,166,255,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{
+                background: VE.surface2, border: `2px dashed ${VE.blue}`,
+                borderRadius: 10, padding: '16px 28px',
+                fontSize: 14, color: VE.blue, fontWeight: 600,
+              }}>
+                Drop to insert element
+              </div>
+            </div>
+          )}
+
+          {/* Non-static project overlay */}
           {projectType !== 'static' && (
             <div style={{
               position: 'absolute', inset: 0, zIndex: 150,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              background: 'rgba(30,30,30,0.92)', backdropFilter: 'blur(4px)',
-              gap: 12,
+              background: 'rgba(13,17,23,0.92)', backdropFilter: 'blur(6px)',
+              gap: 14,
             }}>
-              <div style={{ fontSize: 36, lineHeight: 1 }}>⚛</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: VE.text }}>
+              <div style={{ fontSize: 40, lineHeight: 1 }}>⚛</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: VE.text }}>
                 {projectType === 'react' ? 'React / Vite Project' : 'Node Project'}
               </div>
-              <div style={{
-                fontSize: 11, color: VE.dim, textAlign: 'center', maxWidth: 300, lineHeight: 1.6,
-              }}>
+              <div style={{ fontSize: 12, color: VE.muted, textAlign: 'center', maxWidth: 320, lineHeight: 1.7 }}>
                 Visual editor works with <strong style={{ color: VE.text }}>static HTML</strong> projects only.
-                <br />
-                Run your app in the terminal to see the live preview.
+                <br />Use the Preview tab to see your running app.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
                 {[
@@ -1116,9 +1197,9 @@ const VisualEditor: React.FC = () => {
                   { label: 'npm run dev', desc: 'Start dev server' },
                 ].map(cmd => (
                   <div key={cmd.label} style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
+                    display: 'flex', alignItems: 'center', gap: 12,
                     background: VE.surface, border: `1px solid ${VE.border}`,
-                    borderRadius: 6, padding: '7px 14px',
+                    borderRadius: 7, padding: '7px 16px',
                   }}>
                     <code style={{ color: VE.accent, fontFamily: 'monospace', fontSize: 12 }}>{cmd.label}</code>
                     <span style={{ color: VE.muted, fontSize: 11 }}>{cmd.desc}</span>
@@ -1128,13 +1209,13 @@ const VisualEditor: React.FC = () => {
             </div>
           )}
 
-
           {/* Hover outline */}
           {HR && !isDragging && (
             <div style={{
               position: 'fixed', zIndex: 50, pointerEvents: 'none',
               left: HR.left, top: HR.top, width: HR.width, height: HR.height,
-              outline: '1px dashed rgba(229,164,90,0.35)',
+              outline: `1px dashed rgba(88,166,255,0.4)`,
+              background: 'rgba(88,166,255,0.03)',
             }} />
           )}
 
@@ -1147,7 +1228,7 @@ const VisualEditor: React.FC = () => {
                 position: 'fixed', zIndex: 49, pointerEvents: 'none',
                 left: iframeOff.left + r.left, top: iframeOff.top + r.top,
                 width: r.width, height: r.height,
-                outline: '2px solid #64a0ff',
+                outline: `2px solid ${VE.blue}`,
               }} />
             );
           })}
@@ -1159,8 +1240,8 @@ const VisualEditor: React.FC = () => {
                 style={{
                   position: 'fixed', zIndex: 51,
                   left: OR.left, top: OR.top, width: OR.width, height: OR.height,
-                  outline: '2px solid #e5a45a',
-                  cursor: isDragging && activeOp === 'move' ? 'move' : 'move',
+                  outline: `2px solid ${VE.accent}`,
+                  cursor: 'move',
                 }}
                 onMouseDown={e => startDrag('move', e)}
                 onContextMenu={e => {
@@ -1193,10 +1274,10 @@ const VisualEditor: React.FC = () => {
               {/* Tag label */}
               <div style={{
                 position: 'fixed', zIndex: 55, pointerEvents: 'none',
-                left: OR.left, top: Math.max(0, OR.top - 20),
-                background: '#e5a45a', color: '#1a1a1a',
-                fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
-                padding: '1px 7px 2px', borderRadius: '3px 3px 0 0', whiteSpace: 'nowrap',
+                left: OR.left, top: Math.max(0, OR.top - 22),
+                background: VE.accent, color: '#0d1117',
+                fontSize: 11, fontFamily: 'monospace', fontWeight: 700,
+                padding: '2px 8px 2px', borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap',
               }}>
                 &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}&gt;
                 {' '}{Math.round(OR.width)}×{Math.round(OR.height)}
@@ -1211,9 +1292,11 @@ const VisualEditor: React.FC = () => {
                     key={h}
                     style={{
                       position: 'fixed', zIndex: 54,
-                      left: pos.x - 6, top: pos.y - 6, width: 12, height: 12,
-                      background: '#1e1e1e', border: '2px solid #e5a45a', borderRadius: 2,
+                      left: pos.x - 5, top: pos.y - 5, width: 10, height: 10,
+                      background: VE.accent, border: `2px solid ${VE.bg}`,
+                      borderRadius: 2,
                       cursor: CURSOR[h], boxSizing: 'border-box',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
                     }}
                     onMouseDown={e => { e.stopPropagation(); startDrag(h, e); }}
                   />
@@ -1225,9 +1308,9 @@ const VisualEditor: React.FC = () => {
                 title="Drag to rotate"
                 style={{
                   position: 'fixed', zIndex: 54,
-                  left: OR.left + OR.width / 2 - 8, top: OR.top - 38,
-                  width: 16, height: 16,
-                  background: '#1e1e1e', border: '2px solid #e5a45a',
+                  left: OR.left + OR.width / 2 - 7, top: OR.top - 36,
+                  width: 14, height: 14,
+                  background: VE.surface, border: `2px solid ${VE.accent}`,
                   borderRadius: '50%', cursor: 'crosshair', boxSizing: 'border-box',
                 }}
                 onMouseDown={startRotate}
@@ -1235,7 +1318,7 @@ const VisualEditor: React.FC = () => {
               <div style={{
                 position: 'fixed', zIndex: 52, pointerEvents: 'none',
                 left: OR.left + OR.width / 2 - 0.5, top: Math.max(0, OR.top - 22),
-                width: 1, height: 22, background: 'rgba(229,164,90,0.5)',
+                width: 1, height: 22, background: `rgba(227,179,65,0.4)`,
               }} />
 
               {/* Live dimensions */}
@@ -1244,52 +1327,56 @@ const VisualEditor: React.FC = () => {
                   position: 'fixed', zIndex: 60, pointerEvents: 'none',
                   left: OR.left + OR.width / 2, top: OR.top + OR.height + 8,
                   transform: 'translateX(-50%)',
-                  background: 'rgba(0,0,0,0.85)', color: '#ccc',
-                  fontSize: 11, fontFamily: 'monospace', padding: '2px 8px', borderRadius: 3, whiteSpace: 'nowrap',
+                  background: 'rgba(0,0,0,0.88)', color: VE.text,
+                  fontSize: 11, fontFamily: 'monospace', padding: '3px 10px', borderRadius: 4,
+                  whiteSpace: 'nowrap', border: `1px solid ${VE.border}`,
                 }}>
                   {activeOp === 'rotate'
                     ? `${rotation}°`
-                    : `${Math.round(OR.width)} × ${Math.round(OR.height)}${dragRef.current && (dragRef.current.type === 'move' || HANDLES.includes(dragRef.current.type as Handle)) ? ' (Shift=snap to 8px)' : ''}`
+                    : `${Math.round(OR.width)} × ${Math.round(OR.height)}${activeOp === 'move' ? ' · Shift=snap' : ''}`
                   }
                 </div>
               )}
             </>
           )}
         </div>
-
       </div>
 
       {/* ── Breadcrumb bar ── */}
       <div style={{
-        height: 26, flexShrink: 0, background: VE.surface, borderTop: `1px solid ${VE.border}`,
-        display: 'flex', alignItems: 'center', padding: '0 10px', gap: 0,
+        height: 28, flexShrink: 0, background: VE.surface,
+        borderTop: `1px solid ${VE.border}`,
+        display: 'flex', alignItems: 'center', padding: '0 12px', gap: 0,
         overflow: 'hidden', zIndex: 5,
       }}>
-        <span style={{ fontSize: 10, color: VE.muted, marginRight: 6, flexShrink: 0 }}>
-          {interaction === 'select' ? 'Select Mode' : 'Interact Mode'}
+        <span style={{ fontSize: 10, color: VE.dim, marginRight: 8, flexShrink: 0, fontFamily: 'monospace' }}>
+          {interaction === 'select' ? '↖ SELECT' : '⊹ INTERACT'}
         </span>
         {breadcrumb.length > 0 ? (
           breadcrumb.map((el, i) => (
             <React.Fragment key={i}>
-              {i > 0 && <span style={{ fontSize: 10, color: VE.border, margin: '0 4px' }}>›</span>}
+              {i > 0 && <span style={{ fontSize: 10, color: VE.dim, margin: '0 3px' }}>›</span>}
               <button
                 onClick={() => selectElement(el)}
                 title={`Select <${breadcrumbLabel(el)}>`}
                 style={{
                   background: el === selEl ? VE.accentBg : 'transparent',
                   border: 'none', cursor: 'pointer', fontSize: 10, fontFamily: 'monospace',
-                  color: el === selEl ? VE.accent : VE.dim,
-                  padding: '0 4px', borderRadius: 3,
+                  color: el === selEl ? VE.accent : VE.muted,
+                  padding: '1px 5px', borderRadius: 3,
                   fontWeight: el === selEl ? 700 : 400,
+                  transition: 'all 0.1s',
                 }}
+                onMouseEnter={e => { if (el !== selEl) e.currentTarget.style.color = VE.text; }}
+                onMouseLeave={e => { if (el !== selEl) e.currentTarget.style.color = VE.muted; }}
               >
                 {breadcrumbLabel(el)}
               </button>
             </React.Fragment>
           ))
         ) : (
-          <span style={{ fontSize: 10, color: VE.muted }}>
-            {selEl ? '' : 'Click any element to select • Shift+click to multi-select • Double-click to edit text • Shift+drag to snap to 8px grid'}
+          <span style={{ fontSize: 10, color: VE.dim }}>
+            Click to select · Shift+click multi-select · Double-click to edit text · Drag to move
           </span>
         )}
       </div>
