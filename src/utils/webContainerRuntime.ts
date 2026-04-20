@@ -195,21 +195,30 @@ export async function spawnInContainer(
   args: string[],
   onData: (data: string) => void,
   options?: { cols?: number; rows?: number }
-): Promise<{ exit: Promise<number>; kill: () => void; write: (data: string) => void }> {
+): Promise<{ exit: Promise<number>; kill: () => void; write: (data: string) => void; resize: (dims: { cols: number; rows: number }) => void }> {
   const wc = await getContainer({});
   const proc = await wc.spawn(cmd, args, {
     terminal: options ? { cols: options.cols || 80, rows: options.rows || 24 } : undefined,
   });
   proc.output.pipeTo(new WritableStream({ write(d) { onData(String(d)); } })).catch(() => {});
+
+  let writer: WritableStreamDefaultWriter<string> | null = null;
+  const getWriter = () => {
+    if (!writer && proc.input) {
+      try { writer = proc.input.getWriter(); } catch {}
+    }
+    return writer;
+  };
+
   return {
     exit: proc.exit,
-    kill: () => proc.kill(),
+    kill: () => { try { writer?.releaseLock(); } catch {} writer = null; proc.kill(); },
     write: (data: string) => {
-      if (proc.input) {
-        const writer = proc.input.getWriter();
-        writer.write(data);
-        writer.releaseLock();
-      }
+      const w = getWriter();
+      if (w) w.write(data).catch(() => {});
+    },
+    resize: (dims: { cols: number; rows: number }) => {
+      try { (proc as any).resize?.(dims); } catch {}
     },
   };
 }
