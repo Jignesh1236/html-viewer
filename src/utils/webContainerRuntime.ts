@@ -285,6 +285,69 @@ export async function syncContainerFilesToStore(
   }
 }
 
+export interface ScanResult {
+  /** All folder paths found (relative to root), e.g. "src", "node_modules" */
+  folders: string[];
+  /** All text files found (excluding contents of blacklisted dirs) */
+  files: { path: string; content: string }[];
+  /** Heavy/virtual dirs that exist but whose contents were not traversed */
+  heavyDirs: string[];
+}
+
+const HEAVY_DIRS = new Set(['node_modules', '.git', 'dist', '.cache', '.next', 'build', '.vite', '__pycache__']);
+const TEXT_EXTS  = new Set(['js','jsx','ts','tsx','json','html','css','scss','sass','less','md','txt','env','yaml','yml','sh','py','rb','php','go','rs','toml','xml','svg']);
+const MAX_DEPTH  = 6;
+const MAX_FILES  = 300;
+
+/**
+ * Recursively scans the WebContainer file system.
+ * - Skips contents of heavy dirs (node_modules, .git, dist, …) but records they exist
+ * - Returns flat lists of folder paths and file { path, content } objects
+ */
+export async function fullScanContainerFS(): Promise<ScanResult> {
+  if (!container) return { folders: [], files: [], heavyDirs: [] };
+
+  const result: ScanResult = { folders: [], files: [], heavyDirs: [] };
+  let fileCount = 0;
+
+  async function walk(dir: string, depth: number) {
+    if (depth > MAX_DEPTH || fileCount >= MAX_FILES) return;
+    let entries: any[];
+    try {
+      entries = await container!.fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const rel = dir === '/' ? entry.name : `${dir}/${entry.name}`.replace(/^\/+/, '');
+
+      if (entry.isDirectory()) {
+        if (HEAVY_DIRS.has(entry.name)) {
+          result.heavyDirs.push(rel);
+          result.folders.push(rel);
+        } else {
+          result.folders.push(rel);
+          await walk(`/${rel}`, depth + 1);
+        }
+      } else {
+        const ext = entry.name.split('.').pop()?.toLowerCase() ?? '';
+        if (!TEXT_EXTS.has(ext)) continue;
+        try {
+          const content = await container!.fs.readFile(`/${rel}`, 'utf-8');
+          result.files.push({ path: rel, content: String(content) });
+          fileCount++;
+        } catch {
+          // unreadable — skip
+        }
+      }
+    }
+  }
+
+  await walk('/', 0);
+  return result;
+}
+
 export async function startWebContainerPreview(files: FileItem[], projectType: ProjectType, callbacks: RuntimeCallbacks = {}): Promise<RuntimeResult> {
   const runId = ++activeRun;
   const command = getCommand(projectType, files);

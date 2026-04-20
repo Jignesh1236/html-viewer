@@ -586,16 +586,16 @@ const PreviewPane: React.FC = () => {
                     <div style={{
                       flex: 1, display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
-                      background: '#0f0f1a', color: '#ccc', width: '100%',
+                      background: '#1e1e1e', color: '#cccccc', width: '100%',
                       fontFamily: 'var(--app-font-sans)',
                     }}>
                       <div style={{
-                        background: '#1a1a2e', border: '1px solid #2a2a40', borderRadius: 14,
-                        padding: '36px 40px', maxWidth: 380, textAlign: 'center',
+                        background: '#252526', border: '1px solid #3e3e3e', borderRadius: 10,
+                        padding: '32px 36px', maxWidth: 380, textAlign: 'center',
                       }}>
                         <div style={{ fontSize: '3rem', marginBottom: 16 }}>⚛</div>
-                        <h2 style={{ color: '#fff', fontSize: '1.1rem', marginBottom: 10 }}>Dev Server Tab</h2>
-                        <p style={{ color: '#888', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 20 }}>
+                        <h2 style={{ color: '#e5a45a', fontSize: '1.1rem', marginBottom: 10 }}>Dev Server Tab</h2>
+                        <p style={{ color: '#888888', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 20 }}>
                           {runtimeStatus || 'Click "Run App" to start the dev server. The preview will appear here once it\'s running.'}
                         </p>
                         <button
@@ -624,8 +624,8 @@ const PreviewPane: React.FC = () => {
                         border: 'none',
                         flexShrink: 0,
                         overflow: 'hidden',
-                        transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease',
-                        opacity: loaded ? 1 : 0,
+                        transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease, opacity 0.15s ease',
+                        opacity: (tab.tabType === 'static' || loaded) ? 1 : 0,
                         willChange: 'opacity',
                       }}
                     />

@@ -158,17 +158,27 @@ function TabRow({ tabs, active, onTab, onClose, mode, onMode }: {
           return (
             <div key={tab}
               onClick={() => onTab(tab)}
+              className="tab-item"
               style={{ display: 'flex', alignItems: 'center', gap: 6, height: '100%', padding: '0 14px 0 12px', cursor: 'pointer', flexShrink: 0, background: isActive ? '#1e1e1e' : 'transparent', borderBottom: `2px solid ${isActive ? '#007acc' : 'transparent'}`, borderRight: '1px solid #1b1b1b', color: isActive ? '#cccccc' : '#8a8a8a', fontSize: 12, whiteSpace: 'nowrap', transition: 'color 0.1s, background 0.1s', userSelect: 'none' }}
-              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; }}
-              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              onMouseEnter={e => {
+                if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
+                const closeBtn = (e.currentTarget as HTMLElement).querySelector('.tab-close') as HTMLElement | null;
+                if (closeBtn) closeBtn.style.opacity = '1';
+              }}
+              onMouseLeave={e => {
+                if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
+                const closeBtn = (e.currentTarget as HTMLElement).querySelector('.tab-close') as HTMLElement | null;
+                if (closeBtn) closeBtn.style.opacity = '0';
+              }}
             >
               <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{TAB_META[tab].icon}</span>
               {TAB_META[tab].label}
               <span
+                className="tab-close"
                 onClick={e => { e.stopPropagation(); onClose(tab); }}
                 style={{ display: 'flex', alignItems: 'center', marginLeft: 2, opacity: 0, cursor: 'pointer', color: '#aaa', transition: 'opacity 0.1s' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; (e.currentTarget as HTMLElement).style.color = '#ff7b72'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '0'; }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ff7b72'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#aaa'; }}
                 title="Close tab"
               ><FiX size={11} /></span>
             </div>
@@ -585,7 +595,7 @@ function DesktopApp() {
             )}
 
             {/* Editor + bottom panel */}
-            <Panel id="editor-panel" order={2} minSize={25}>
+            <Panel id="editor-panel" order={2} minSize={25} style={{ position: 'relative' }}>
               <PanelGroup direction="vertical" id="main-v" style={{ height: '100%' }}>
 
                 {/* Editor pane */}

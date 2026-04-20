@@ -82,6 +82,32 @@ export function buildPreviewBridgeScript() {
 }
 
 export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewOptions = {}) {
+  // For non-static projects (React/Node) without a specific HTML file target,
+  // always show the dev-server placeholder — the raw index.html alone (stripped of
+  // JSX/TSX scripts) renders a blank page which is confusing and unhelpful.
+  const projectType = detectProjectType(files);
+  if (!options.htmlFileId && projectType !== 'static') {
+    const cmd = projectType === 'react' ? 'npm install && npm run dev' : 'node index.js';
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{background:#1e1e1e;color:#cccccc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:32px}
+      .card{background:#252526;border:1px solid #3e3e3e;border-radius:10px;padding:32px 36px;max-width:380px;text-align:center}
+      .icon{font-size:3rem;margin-bottom:16px}
+      h2{color:#e5a45a;font-size:1.1rem;margin-bottom:10px}
+      p{color:#888888;font-size:0.85rem;line-height:1.6;margin-bottom:20px}
+      .cmd{background:#1a1a1a;border:1px solid #3e3e3e;border-radius:6px;padding:8px 14px;font-family:'JetBrains Mono',Menlo,monospace;font-size:0.85rem;color:#4ec9b0;margin-bottom:6px;text-align:left}
+    </style></head><body>
+      <div class="card">
+        <div class="icon">${projectType === 'react' ? '⚛' : '⬡'}</div>
+        <h2>${projectType === 'react' ? 'React / Vite' : 'Node'} Project</h2>
+        <p>Open the terminal and run these commands to start your app:</p>
+        <div class="cmd">npm install</div>
+        <div class="cmd">${cmd.replace('npm install && ', '')}</div>
+        <p style="margin-top:14px;font-size:0.78rem;color:#555555">Once the dev server is running, use the Run App button to see a live preview.</p>
+      </div>
+    </body></html>`;
+  }
+
   // When a specific HTML file is requested, render it directly regardless of project type.
   // Only show the "run in terminal" placeholder when no specific HTML file is targeted
   // and the project has no plain HTML entry point.
@@ -90,25 +116,24 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
     : files.find(f => f.type === 'html'));
 
   if (!hasExplicitHtmlTarget) {
-    const projectType = detectProjectType(files);
     if (projectType !== 'static') {
       const cmd = projectType === 'react' ? 'npm install && npm run dev' : 'node index.js';
       return `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
       *{margin:0;padding:0;box-sizing:border-box}
-      body{background:#0f0f1a;color:#ccc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:32px}
-      .card{background:#1a1a2e;border:1px solid #2a2a40;border-radius:14px;padding:36px 40px;max-width:380px;text-align:center}
+      body{background:#1e1e1e;color:#cccccc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:32px}
+      .card{background:#252526;border:1px solid #3e3e3e;border-radius:10px;padding:32px 36px;max-width:380px;text-align:center}
       .icon{font-size:3rem;margin-bottom:16px}
-      h2{color:#fff;font-size:1.1rem;margin-bottom:10px}
-      p{color:#888;font-size:0.85rem;line-height:1.6;margin-bottom:20px}
-      .cmd{background:#0d0d1a;border:1px solid #2a2a40;border-radius:8px;padding:10px 16px;font-family:monospace;font-size:0.85rem;color:#e5a45a;margin-bottom:6px}
+      h2{color:#e5a45a;font-size:1.1rem;margin-bottom:10px}
+      p{color:#888888;font-size:0.85rem;line-height:1.6;margin-bottom:20px}
+      .cmd{background:#1a1a1a;border:1px solid #3e3e3e;border-radius:6px;padding:8px 14px;font-family:'JetBrains Mono',Menlo,monospace;font-size:0.85rem;color:#4ec9b0;margin-bottom:6px;text-align:left}
     </style></head><body>
       <div class="card">
-        <div class="icon">${projectType === 'react' ? '⚛' : '🟩'}</div>
+        <div class="icon">${projectType === 'react' ? '⚛' : '⬡'}</div>
         <h2>${projectType === 'react' ? 'React / Vite' : 'Node'} Project</h2>
         <p>Open the terminal and run these commands to start your app:</p>
         <div class="cmd">npm install</div>
         <div class="cmd">${cmd.replace('npm install && ', '')}</div>
-        <p style="margin-top:14px;font-size:0.78rem;color:#555">The preview updates automatically once the dev server is running.</p>
+        <p style="margin-top:14px;font-size:0.78rem;color:#555555">Once the dev server is running, use the Run App button to see a live preview.</p>
       </div>
     </body></html>`;
     }
@@ -121,9 +146,10 @@ export function buildStaticPreviewHtml(files: FileItem[], options: BuildPreviewO
 
   // When previewing a SPECIFIC html file (htmlFileId set), only replace <link>/<script>
   // references that are explicitly in that file — never auto-inject unreferenced assets.
-  // When doing a general preview (no htmlFileId), auto-inject unreferenced CSS/JS so
-  // simple static projects "just work", but skip build-tool config files.
-  const autoInject = !options.htmlFileId;
+  // When doing a general preview (no htmlFileId), auto-inject ONLY for simple single-HTML
+  // projects so new files don't accidentally inherit unrelated styles.
+  const htmlFileCount = files.filter(f => f.type === 'html').length;
+  const autoInject = !options.htmlFileId && htmlFileCount <= 1;
 
   files.filter(f => f.type === 'css' && isBrowserInjectable(f)).forEach(css => {
     const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
