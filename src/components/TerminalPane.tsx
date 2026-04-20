@@ -9,18 +9,20 @@ import {
 import { detectProjectType } from '../utils/fileTypes';
 
 const C = {
-  bg:       '#1e1e1e',
-  panel:    '#252526',
-  bar:      '#2d2d2d',
-  border:   '#3e3e3e',
-  text:     '#cccccc',
-  muted:    '#6e6e6e',
-  dim:      '#444',
-  amber:    '#e5a45a',
-  green:    '#4ec9b0',
-  blue:     '#569cd6',
-  red:      '#f44747',
-  cyan:     '#9cdcfe',
+  bg:       '#0d1117',
+  panel:    '#161b22',
+  bar:      '#21262d',
+  border:   '#30363d',
+  text:     '#c9d1d9',
+  muted:    '#6e7681',
+  dim:      '#3d444d',
+  amber:    '#e3b341',
+  green:    '#3fb950',
+  blue:     '#58a6ff',
+  red:      '#f85149',
+  cyan:     '#79c0ff',
+  purple:   '#bc8cff',
+  orange:   '#ffa657',
 };
 
 interface TermSession {
@@ -30,14 +32,40 @@ interface TermSession {
 
 let _sessId = 0;
 
-const QUICK_CMDS = [
-  { label: 'npm install',   cmd: 'npm install' },
-  { label: 'npm run dev',   cmd: 'npm run dev' },
-  { label: 'npm run build', cmd: 'npm run build' },
-  { label: 'npm start',     cmd: 'npm start' },
-  { label: 'ls -la',        cmd: 'ls -la' },
-  { label: 'node -v',       cmd: 'node -v' },
+type CmdCategory = 'npm' | 'git' | 'files';
+
+interface QuickCmd {
+  label: string;
+  cmd: string;
+  category: CmdCategory;
+  icon?: string;
+}
+
+const QUICK_CMDS: QuickCmd[] = [
+  { label: 'install',     cmd: 'npm install',       category: 'npm',   icon: '↓' },
+  { label: 'dev',         cmd: 'npm run dev',        category: 'npm',   icon: '▶' },
+  { label: 'build',       cmd: 'npm run build',      category: 'npm',   icon: '⬡' },
+  { label: 'start',       cmd: 'npm start',          category: 'npm',   icon: '▷' },
+  { label: 'test',        cmd: 'npm test',           category: 'npm',   icon: '✓' },
+  { label: 'status',      cmd: 'git status',         category: 'git',   icon: '◉' },
+  { label: 'add .',       cmd: 'git add .',          category: 'git',   icon: '+' },
+  { label: 'log',         cmd: 'git log --oneline -10', category: 'git', icon: '◎' },
+  { label: 'diff',        cmd: 'git diff',           category: 'git',   icon: '~' },
+  { label: 'pull',        cmd: 'git pull',           category: 'git',   icon: '⇓' },
+  { label: 'push',        cmd: 'git push',           category: 'git',   icon: '⇑' },
+  { label: 'branch',      cmd: 'git branch -a',      category: 'git',   icon: '⎇' },
+  { label: 'init',        cmd: 'git init',           category: 'git',   icon: '✦' },
+  { label: 'ls',          cmd: 'ls -la',             category: 'files', icon: '⊞' },
+  { label: 'pwd',         cmd: 'pwd',                category: 'files', icon: '⌂' },
+  { label: 'tree',        cmd: 'find . -not -path "*/node_modules/*" -not -path "*/.git/*" | head -40', category: 'files', icon: '⊳' },
+  { label: 'node -v',     cmd: 'node -v',            category: 'files', icon: '⬡' },
 ];
+
+const CATEGORY_COLORS: Record<CmdCategory, { fg: string; bg: string; border: string; label: string }> = {
+  npm:   { fg: C.green,  bg: 'rgba(63,185,80,0.08)',   border: 'rgba(63,185,80,0.25)',  label: 'NPM' },
+  git:   { fg: C.orange, bg: 'rgba(255,166,87,0.08)',  border: 'rgba(255,166,87,0.25)', label: 'GIT' },
+  files: { fg: C.cyan,   bg: 'rgba(121,192,255,0.08)', border: 'rgba(121,192,255,0.25)',label: 'SH' },
+};
 
 interface SessionProps {
   sessionId: number;
@@ -50,95 +78,39 @@ interface SessionProps {
   onUnready: () => void;
 }
 
+const FILE_MUTATION_RE = /^\s*(touch|mkdir|rm|mv|cp|echo|printf|tee|cat\s*>|sed\s+-i|npm|node|git|yarn|pnpm)\s/;
+
 function TerminalSession({
   active, files, containerMounted, setContainerMounted,
   onFileSyncNeeded, onReady, onUnready,
 }: SessionProps) {
-  const divRef    = useRef<HTMLDivElement>(null);
-  const xtermRef  = useRef<any>(null);
-  const fitRef    = useRef<any>(null);
-  const procRef   = useRef<{ kill: () => void; write: (d: string) => void; exit: Promise<number> } | null>(null);
-  const busyRef   = useRef(false);
-  const readyRef  = useRef(false);
-  const [busy, setBusy]           = useState(false);
+  const divRef       = useRef<HTMLDivElement>(null);
+  const xtermRef     = useRef<any>(null);
+  const fitRef       = useRef<any>(null);
+  const shellRef     = useRef<{ kill: () => void; write: (d: string) => void; exit: Promise<number> } | null>(null);
+  const readyRef     = useRef(false);
   const [initError, setInitError] = useState<string | null>(null);
-  const mountedOnce = useRef(false);
-  const projectType = detectProjectType(files);
+  const mountedOnce  = useRef(false);
+  const projectType  = detectProjectType(files);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const writePrompt = (term: any) => {
-    term.write('\r\n\x1b[2m~/project\x1b[0m \x1b[36m❯\x1b[0m ');
-  };
-
-  const clearLine = (term: any, len: number) => {
-    if (len > 0) term.write('\b'.repeat(len) + ' '.repeat(len) + '\b'.repeat(len));
-  };
-
-  const ensureMounted = useCallback(async (term: any) => {
-    if (containerMounted) return true;
-    term.writeln('\x1b[33m  Mounting project files into WebContainer…\x1b[0m');
-    try {
-      await mountFilesToContainer(files, projectType);
-      setContainerMounted(true);
-      term.writeln('\x1b[32m  ✓ Container ready.\x1b[0m');
-      return true;
-    } catch (e: any) {
-      const msg = String(e?.message ?? e);
-      if (/cross-origin|sharedarraybuffer|isolated/i.test(msg)) {
-        term.writeln('\x1b[31m  ✕ Cross-Origin Isolation required.\x1b[0m');
-        term.writeln('\x1b[2m  Open the app in a dedicated browser tab (not inside an iframe).\x1b[0m');
-      } else {
-        term.writeln(`\x1b[31m  ✕ ${msg}\x1b[0m`);
-      }
-      return false;
+  const scheduleSyncIfMutating = useCallback((cmd: string) => {
+    if (FILE_MUTATION_RE.test(cmd)) {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => { onFileSyncNeeded(); }, 1200);
     }
-  }, [containerMounted, files, projectType, setContainerMounted]);
-
-  const FILE_MUTATION_RE = /^(touch|mkdir|rm|mv|cp|echo|printf|tee|cat\s+>|sed\s+-i|npm|node|git|yarn|pnpm)\s/;
-
-  const runCommand = useCallback(async (cmd: string, term: any) => {
-    busyRef.current = true;
-    setBusy(true);
-
-    const ok = await ensureMounted(term);
-    if (!ok) { busyRef.current = false; setBusy(false); writePrompt(term); return; }
-
-    const dims = fitRef.current
-      ? { cols: (xtermRef.current as any)?.cols ?? 80, rows: (xtermRef.current as any)?.rows ?? 24 }
-      : { cols: 80, rows: 24 };
-
-    try {
-      const proc = await spawnInContainer('sh', ['-c', cmd], d => term.write(d), dims);
-      procRef.current = proc;
-      const code = await proc.exit;
-      procRef.current = null;
-      if (code !== 0) {
-        term.write(`\r\n\x1b[31m  [exit ${code}]\x1b[0m`);
-      }
-      if (FILE_MUTATION_RE.test(cmd + ' ') || cmd.trim() === 'npm install') {
-        onFileSyncNeeded();
-      }
-    } catch (err: any) {
-      term.write(`\r\n\x1b[31m  Error: ${err?.message ?? err}\x1b[0m`);
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
-      writePrompt(term);
-    }
-  }, [ensureMounted, onFileSyncNeeded]);
-
-  const runCommandRef = useRef(runCommand);
-  useEffect(() => { runCommandRef.current = runCommand; }, [runCommand]);
-
-  const runQuickCmd = useCallback((cmd: string) => {
-    const term = xtermRef.current;
-    if (!term || busyRef.current) return;
-    term.write(`\x1b[2m${cmd}\x1b[0m`);
-    runCommandRef.current(cmd, term);
-  }, []);
+  }, [onFileSyncNeeded]);
 
   const writeToTerminal = useCallback((text: string) => {
     xtermRef.current?.write(text);
   }, []);
+
+  const runQuickCmd = useCallback((cmd: string) => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    shell.write(cmd + '\r');
+    scheduleSyncIfMutating(cmd);
+  }, [scheduleSyncIfMutating]);
 
   useEffect(() => {
     if (!divRef.current || mountedOnce.current) return;
@@ -148,6 +120,7 @@ function TerminalSession({
     let fitAddon: any;
     let destroyed = false;
     let ro: ResizeObserver | null = null;
+    let fitTimer: ReturnType<typeof setTimeout> | null = null;
 
     (async () => {
       try {
@@ -165,33 +138,36 @@ function TerminalSession({
             foreground:          C.text,
             cursor:              C.amber,
             cursorAccent:        C.bg,
-            selectionBackground: 'rgba(229,164,90,0.18)',
-            black:               '#3c3c3c',
+            selectionBackground: 'rgba(58,105,163,0.35)',
+            black:               '#21262d',
             red:                 C.red,
             green:               C.green,
             yellow:              C.amber,
             blue:                C.blue,
-            magenta:             '#c586c0',
+            magenta:             C.purple,
             cyan:                C.cyan,
             white:               C.text,
-            brightBlack:         '#666',
-            brightRed:           '#f97583',
-            brightGreen:         '#a8ff78',
-            brightYellow:        '#ffdf5d',
-            brightBlue:          '#79b8ff',
-            brightMagenta:       '#e1acff',
+            brightBlack:         '#6e7681',
+            brightRed:           '#ffa198',
+            brightGreen:         '#56d364',
+            brightYellow:        '#e3b341',
+            brightBlue:          '#79c0ff',
+            brightMagenta:       '#d2a8ff',
             brightCyan:          '#b3f0ff',
-            brightWhite:         '#e8e8e8',
+            brightWhite:         '#e6edf3',
           },
-          fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
+          fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace",
           fontSize: 13,
-          lineHeight: 1.5,
-          letterSpacing: 0,
+          lineHeight: 1.55,
+          letterSpacing: 0.3,
           cursorBlink: true,
-          cursorStyle: 'underline',
-          scrollback: 8000,
+          cursorStyle: 'bar',
+          scrollback: 5000,
           allowProposedApi: true,
           convertEol: true,
+          fastScrollModifier: 'alt',
+          macOptionIsMeta: true,
+          smoothScrollDuration: 100,
         });
 
         fitAddon = new fitMod.FitAddon();
@@ -199,76 +175,71 @@ function TerminalSession({
         term.loadAddon(fitAddon);
         term.loadAddon(webLinksAddon);
         term.open(divRef.current!);
-        fitAddon.fit();
-        setTimeout(() => { try { fitAddon.fit(); } catch {} }, 50);
+
+        requestAnimationFrame(() => { try { fitAddon.fit(); } catch {} });
 
         xtermRef.current = term;
         fitRef.current   = fitAddon;
 
-        term.writeln('\x1b[2m  WebContainer Terminal  ·  Node 20\x1b[0m');
-        term.writeln('\x1b[2m  Type a command or use the quick-action bar.\x1b[0m');
-
-        let inputBuf  = '';
-        let histBuf: string[] = [];
-        let histIdx   = -1;
-
-        term.onKey(async ({ key, domEvent }: { key: string; domEvent: KeyboardEvent }) => {
-          const ev = domEvent;
-
-          if (ev.ctrlKey && ev.key === 'c') {
-            if (procRef.current) { procRef.current.kill(); procRef.current = null; }
-            busyRef.current = false; setBusy(false);
-            term.write('^C');
-            inputBuf = '';
-            writePrompt(term);
-            return;
+        /* ── Mount project files ── */
+        term.writeln('\x1b[2m  Mounting project files…\x1b[0m');
+        try {
+          await mountFilesToContainer(files, projectType);
+          setContainerMounted(true);
+          term.writeln('\x1b[2m  ✓ Files mounted · WebContainer Node 20\x1b[0m\r\n');
+        } catch (e: any) {
+          const msg = String(e?.message ?? e);
+          if (/cross-origin|sharedarraybuffer|isolated/i.test(msg)) {
+            term.writeln('\x1b[31m  ✕ Cross-Origin Isolation required\x1b[0m');
+            term.writeln('\x1b[2m  Open in a standalone browser tab for terminal support\x1b[0m');
+          } else {
+            term.writeln(`\x1b[31m  ✕ ${msg}\x1b[0m`);
           }
-          if (ev.ctrlKey && ev.key === 'l') { term.clear(); writePrompt(term); return; }
+        }
 
-          if (busyRef.current && key !== '\x03') {
-            procRef.current?.write(key);
-            return;
-          }
+        if (destroyed) return;
 
-          if (ev.key === 'Enter') {
-            term.writeln('');
-            const cmd = inputBuf.trim();
-            inputBuf = '';
-            if (cmd) {
-              histBuf = [cmd, ...histBuf.filter(c => c !== cmd)].slice(0, 200);
-              histIdx = -1;
-              await runCommand(cmd, term);
-            } else {
-              writePrompt(term);
-            }
-          } else if (ev.key === 'Backspace') {
-            if (inputBuf.length > 0) { inputBuf = inputBuf.slice(0, -1); term.write('\b \b'); }
-          } else if (ev.key === 'ArrowUp') {
-            histIdx = Math.min(histIdx + 1, histBuf.length - 1);
-            if (histIdx >= 0) { clearLine(term, inputBuf.length); inputBuf = histBuf[histIdx]; term.write(inputBuf); }
-          } else if (ev.key === 'ArrowDown') {
-            histIdx = Math.max(histIdx - 1, -1);
-            clearLine(term, inputBuf.length);
-            inputBuf = histIdx >= 0 ? histBuf[histIdx] : '';
-            term.write(inputBuf);
-          } else if (ev.key === 'Tab') {
-            ev.preventDefault();
-          } else if (!ev.ctrlKey && !ev.metaKey && !ev.altKey && key.length === 1) {
-            inputBuf += key;
-            term.write(key);
-          }
+        const dims = {
+          cols: term.cols ?? 80,
+          rows: term.rows ?? 24,
+        };
+
+        /* ── Spawn persistent interactive shell (jsh) ── */
+        const shell = await spawnInContainer('jsh', [], d => term.write(d), dims);
+        shellRef.current = shell;
+
+        /* ── Pipe all xterm input → shell stdin ── */
+        term.onData((data: string) => {
+          shellRef.current?.write(data);
         });
 
-        writePrompt(term);
+        /* ── Resize shell when terminal resizes ── */
+        term.onResize(({ cols, rows }: { cols: number; rows: number }) => {
+          (shellRef.current as any)?.resize?.({ cols, rows });
+        });
+
         readyRef.current = true;
         onReady(writeToTerminal, runQuickCmd);
 
-        let fitTimer: ReturnType<typeof setTimeout> | null = null;
         ro = new ResizeObserver(() => {
           if (fitTimer) clearTimeout(fitTimer);
-          fitTimer = setTimeout(() => { try { fitAddon.fit(); } catch {} }, 80);
+          fitTimer = setTimeout(() => {
+            if (!destroyed) {
+              requestAnimationFrame(() => {
+                try {
+                  fitAddon.fit();
+                } catch {}
+              });
+            }
+          }, 120);
         });
-        if (divRef.current) ro.observe(divRef.current.parentElement ?? divRef.current);
+        const watchEl = divRef.current?.parentElement ?? divRef.current;
+        if (watchEl) ro.observe(watchEl);
+
+        shell.exit.then(() => {
+          if (!destroyed) term.writeln('\r\n\x1b[2m  Shell exited\x1b[0m');
+        }).catch(() => {});
+
       } catch (err: any) {
         setInitError(err?.message ?? 'Failed to initialise terminal');
       }
@@ -276,7 +247,11 @@ function TerminalSession({
 
     return () => {
       destroyed = true;
+      if (fitTimer) clearTimeout(fitTimer);
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
       readyRef.current = false;
+      shellRef.current?.kill();
+      shellRef.current = null;
       onUnready();
       ro?.disconnect();
       try { term?.dispose(); } catch {}
@@ -285,7 +260,9 @@ function TerminalSession({
   }, []);
 
   useEffect(() => {
-    if (active && fitRef.current) setTimeout(() => { try { fitRef.current.fit(); } catch {} }, 50);
+    if (active && fitRef.current) {
+      requestAnimationFrame(() => { try { fitRef.current.fit(); } catch {} });
+    }
   }, [active]);
 
   if (initError) {
@@ -293,10 +270,10 @@ function TerminalSession({
       <div style={{
         display: 'flex', flexDirection: 'column', height: '100%',
         background: C.bg, color: C.red, fontFamily: 'monospace', fontSize: 13,
-        padding: 24, justifyContent: 'center', alignItems: 'center', gap: 8,
+        padding: 24, justifyContent: 'center', alignItems: 'center', gap: 10,
       }}>
-        <span style={{ fontSize: 20 }}>✕</span>
-        <span style={{ fontWeight: 600 }}>Terminal failed to initialise</span>
+        <span style={{ fontSize: 22, opacity: 0.8 }}>⚠</span>
+        <span style={{ fontWeight: 600 }}>Terminal init failed</span>
         <span style={{ color: C.muted, fontSize: 11, textAlign: 'center', maxWidth: 380 }}>{initError}</span>
       </div>
     );
@@ -304,81 +281,7 @@ function TerminalSession({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden', background: C.bg }}>
-      {/* Quick-action bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px',
-        background: C.bar, borderBottom: `1px solid ${C.border}`, flexShrink: 0,
-        overflowX: 'auto', minHeight: 30,
-      }}>
-        <span style={{ fontSize: 10, color: C.muted, marginRight: 4, flexShrink: 0, fontFamily: 'monospace' }}>
-          RUN
-        </span>
-        {QUICK_CMDS.map(({ label, cmd }) => (
-          <button
-            key={cmd}
-            title={cmd}
-            disabled={busy}
-            onClick={() => runQuickCmd(cmd)}
-            style={{
-              padding: '2px 9px', fontSize: 11, borderRadius: 3, cursor: busy ? 'not-allowed' : 'pointer',
-              background: busy ? 'transparent' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${busy ? C.dim : 'rgba(255,255,255,0.1)'}`,
-              color: busy ? C.dim : C.text,
-              fontFamily: "'JetBrains Mono', monospace",
-              whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.1s',
-            }}
-            onMouseEnter={e => { if (!busy) { (e.currentTarget as HTMLElement).style.borderColor = C.blue; (e.currentTarget as HTMLElement).style.color = C.blue; } }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = busy ? C.dim : 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color = busy ? C.dim : C.text; }}
-          >
-            {label}
-          </button>
-        ))}
-        <div style={{ flex: 1 }} />
-        {busy && (
-          <span style={{ fontSize: 10, color: C.amber, fontFamily: 'monospace', flexShrink: 0 }}>
-            ● running
-          </span>
-        )}
-        <button
-          title="Ctrl+L — Clear"
-          onClick={() => { xtermRef.current?.clear(); }}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', color: C.muted,
-            fontSize: 10, padding: '2px 6px', fontFamily: 'monospace', flexShrink: 0,
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.text; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
-        >
-          clear
-        </button>
-        <button
-          title="Re-mount project files"
-          disabled={busy}
-          onClick={async () => {
-            if (!xtermRef.current) return;
-            setContainerMounted(false);
-            xtermRef.current.write('\r\n\x1b[33m  Syncing project files…\x1b[0m');
-            await mountFilesToContainer(files, projectType);
-            setContainerMounted(true);
-            xtermRef.current.write('\r\n\x1b[32m  ✓ Files synced.\x1b[0m');
-            writePrompt(xtermRef.current);
-          }}
-          style={{
-            background: 'none', border: 'none', cursor: busy ? 'not-allowed' : 'pointer',
-            color: busy ? C.dim : C.muted,
-            fontSize: 10, padding: '2px 6px', fontFamily: 'monospace', flexShrink: 0,
-          }}
-          onMouseEnter={e => { if (!busy) (e.currentTarget as HTMLElement).style.color = C.green; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = busy ? C.dim : C.muted; }}
-        >
-          sync
-        </button>
-      </div>
-
-      {/* xterm.js canvas — no padding on this div; xterm measures offsetWidth/offsetHeight directly */}
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '4px 2px', boxSizing: 'border-box', background: C.bg }}>
-        <div ref={divRef} style={{ width: '100%', height: '100%', position: 'relative' }} />
-      </div>
+      <div ref={divRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden', padding: '4px 4px 0', boxSizing: 'border-box' }} />
     </div>
   );
 }
@@ -390,6 +293,7 @@ const TerminalPane: React.FC = () => {
   const [sessions, setSessions] = useState<TermSession[]>([{ id: ++_sessId, name: 'bash' }]);
   const [activeId, setActiveId]   = useState(sessions[0].id);
   const [containerMounted, setContainerMounted] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<CmdCategory>('npm');
 
   const sessionFnsRef = useRef<Map<number, { write: (t: string) => void; run: (c: string) => void }>>(new Map());
 
@@ -441,14 +345,24 @@ const TerminalPane: React.FC = () => {
     if (activeId === id) setActiveId(remaining[remaining.length - 1].id);
   };
 
+  const runQuick = (cmd: string) => {
+    const fns = sessionFnsRef.current.get(activeId);
+    fns?.run(cmd);
+  };
+
+  const filteredCmds = QUICK_CMDS.filter(c => c.category === activeCategory);
+  const catCfg = CATEGORY_COLORS[activeCategory];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden', background: C.bg }}>
-      {/* Tab bar */}
+
+      {/* ── Top bar: tabs + controls ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', height: 32, flexShrink: 0,
+        display: 'flex', alignItems: 'stretch', height: 33, flexShrink: 0,
         background: C.panel, borderBottom: `1px solid ${C.border}`,
       }}>
-        <div style={{ display: 'flex', flex: 1, overflowX: 'auto', height: '100%', alignItems: 'stretch' }}>
+        {/* Session tabs */}
+        <div style={{ display: 'flex', flex: 1, overflowX: 'auto', alignItems: 'stretch' }}>
           {sessions.map(sess => {
             const isActive = activeId === sess.id;
             return (
@@ -460,46 +374,166 @@ const TerminalPane: React.FC = () => {
                   padding: '0 14px', cursor: 'pointer', flexShrink: 0,
                   background: isActive ? C.bg : 'transparent',
                   borderRight: `1px solid ${C.border}`,
-                  borderTop: `2px solid ${isActive ? C.green : 'transparent'}`,
+                  borderBottom: `2px solid ${isActive ? C.green : 'transparent'}`,
                   color: isActive ? C.text : C.muted,
                   fontSize: 11,
                   fontFamily: "'JetBrains Mono', monospace",
-                  transition: 'color 0.1s',
+                  transition: 'color 0.1s, border-color 0.15s',
+                  userSelect: 'none',
                 }}
               >
-                <span style={{ fontSize: 9, opacity: 0.6 }}>▶</span>
+                <span style={{ fontSize: 9, color: isActive ? C.green : C.muted }}>$</span>
                 {sess.name}
                 {sessions.length > 1 && (
                   <span
                     onClick={e => { e.stopPropagation(); removeSession(sess.id); }}
-                    style={{ cursor: 'pointer', color: C.muted, fontSize: 9, lineHeight: 1 }}
+                    style={{ cursor: 'pointer', color: C.muted, fontSize: 9, lineHeight: 1, padding: '1px 2px', borderRadius: 2 }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.red; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
-                    title="Close"
+                    title="Close tab"
                   >✕</span>
                 )}
               </div>
             );
           })}
         </div>
+
+        {/* New tab + sync */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 0, borderLeft: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <button
+            title="New terminal"
+            onClick={addSession}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: C.muted, padding: '0 11px', height: '100%',
+              fontSize: 17, display: 'flex', alignItems: 'center',
+              transition: 'color 0.1s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.text; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
+          >+</button>
+          <button
+            title="Sync project files to container"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: C.muted, padding: '0 11px', height: '100%',
+              fontSize: 11, display: 'flex', alignItems: 'center',
+              fontFamily: "'JetBrains Mono', monospace",
+              transition: 'color 0.1s',
+            }}
+            onClick={async () => {
+              const fns = sessionFnsRef.current.get(activeId);
+              if (!fns) return;
+              fns.write('\r\n\x1b[33m  Syncing…\x1b[0m');
+              await mountFilesToContainer(files, projectType);
+              setContainerMounted(true);
+              fns.write('\r\n\x1b[32m  ✓ Synced\x1b[0m\r\n\x1b[38;2;88;166;255m❯\x1b[0m ');
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.cyan; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
+          >⟳</button>
+        </div>
+      </div>
+
+      {/* ── Quick command bar ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 0,
+        background: C.bar, borderBottom: `1px solid ${C.border}`,
+        flexShrink: 0, minHeight: 32,
+      }}>
+        {/* Category toggles */}
+        {(['npm', 'git', 'files'] as CmdCategory[]).map(cat => {
+          const cfg = CATEGORY_COLORS[cat];
+          const isActive = activeCategory === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              style={{
+                padding: '0 12px', height: 32, border: 'none', cursor: 'pointer',
+                background: isActive ? cfg.bg : 'transparent',
+                borderRight: `1px solid ${C.border}`,
+                borderBottom: `2px solid ${isActive ? cfg.fg : 'transparent'}`,
+                color: isActive ? cfg.fg : C.muted,
+                fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: 700, letterSpacing: '0.08em',
+                transition: 'all 0.12s', flexShrink: 0,
+              }}
+              onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = cfg.fg; }}
+              onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = C.muted; }}
+            >
+              {cfg.label}
+            </button>
+          );
+        })}
+
+        {/* Commands for active category */}
+        <div style={{ display: 'flex', gap: 3, padding: '0 8px', overflowX: 'auto', flex: 1, alignItems: 'center' }}>
+          {filteredCmds.map(({ label, cmd, icon }) => (
+            <button
+              key={cmd}
+              title={cmd}
+              onClick={() => runQuick(cmd)}
+              style={{
+                padding: '3px 9px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
+                background: catCfg.bg,
+                border: `1px solid ${catCfg.border}`,
+                color: catCfg.fg,
+                fontFamily: "'JetBrains Mono', monospace",
+                whiteSpace: 'nowrap', flexShrink: 0,
+                display: 'flex', alignItems: 'center', gap: 4,
+                transition: 'all 0.1s',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.background = catCfg.bg.replace('0.08', '0.18');
+                el.style.borderColor = catCfg.fg;
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.background = catCfg.bg;
+                el.style.borderColor = catCfg.border;
+              }}
+            >
+              {icon && <span style={{ fontSize: 9, opacity: 0.8 }}>{icon}</span>}
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Clear */}
         <button
-          title="New terminal"
-          onClick={addSession}
+          title="Clear (Ctrl+L)"
+          onClick={() => {
+            const fns = sessionFnsRef.current.get(activeId);
+            if (fns) {
+              const term = (sessionFnsRef.current as any)._termRef?.[activeId];
+              fns.write('\x1b[2J\x1b[H');
+            }
+            const allSessions = Array.from(sessionFnsRef.current.entries());
+            const current = allSessions.find(([id]) => id === activeId);
+            if (current) current[1].write('\x1b[2J\x1b[H\x1b[38;2;88;166;255m❯\x1b[0m ');
+          }}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: C.muted, padding: '0 12px', height: '100%',
-            fontSize: 16, display: 'flex', alignItems: 'center', flexShrink: 0,
+            color: C.muted, fontSize: 10, padding: '0 10px', height: 32,
+            fontFamily: "'JetBrains Mono', monospace", flexShrink: 0,
+            borderLeft: `1px solid ${C.border}`,
+            transition: 'color 0.1s',
           }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = C.text; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = C.muted; }}
-        >+</button>
+        >clr</button>
       </div>
 
-      {/* Sessions */}
+      {/* ── Terminal sessions ── */}
       {sessions.map(sess => (
         <div
           key={sess.id}
-          style={{ display: activeId === sess.id ? 'flex' : 'none', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
+          style={{
+            display: activeId === sess.id ? 'flex' : 'none',
+            flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden',
+          }}
         >
           <TerminalSession
             sessionId={sess.id}
