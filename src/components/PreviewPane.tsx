@@ -1,23 +1,12 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import {
   FiRefreshCw, FiMonitor, FiTablet, FiSmartphone,
-  FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
-  FiLock, FiTrash2, FiPlay, FiSquare, FiGlobe, FiCode,
+  FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
 } from 'react-icons/fi';
 import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
-import { buildStaticPreviewHtml } from '../utils/previewEngine';
-import { detectProjectType } from '../utils/fileTypes';
-import { startWebContainerPreview, stopWebContainerRuntime } from '../utils/webContainerRuntime';
 
-type DevToolsTab = 'console' | 'network' | 'styles';
-type Viewport = 'desktop' | 'tablet' | 'mobile';
-
-const VIEWPORT_STYLES: Record<Viewport, React.CSSProperties> = {
-  desktop: { width: '100%', height: '100%' },
-  tablet: { width: '768px', height: '100%', boxShadow: '0 0 0 1px #444, 0 4px 24px rgba(0,0,0,0.4)' },
-  mobile: { width: '390px', height: '844px', borderRadius: 24, boxShadow: '0 0 0 8px #222, 0 0 0 10px #333, 0 8px 32px rgba(0,0,0,0.6)' },
-};
+type DevToolsTab = 'console' | 'elements' | 'network' | 'styles';
 
 const PreviewPane: React.FC = () => {
   const {
@@ -26,72 +15,165 @@ const PreviewPane: React.FC = () => {
     previewTabs, activePreviewTabId, addPreviewTab, closePreviewTab,
     setActivePreviewTab, updatePreviewTab,
     timelineAnimationStyle,
-    terminalWrite, terminalRunCommand,
   } = useEditorStore();
 
-  const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
-
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [srcDoc, setSrcDoc] = useState<string>('');
+  const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [devtoolsTab, setDevtoolsTab] = useState<DevToolsTab>('console');
-  const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
-  const [customPort, setCustomPort] = useState('3000');
-  const [runtimeStatus, setRuntimeStatus] = useState('');
-  const [runtimeRunning, setRuntimeRunning] = useState(false);
-  const [runCmdOverride, setRunCmdOverride] = useState('');
-  const [runCfgOpen, setRunCfgOpen] = useState(false);
-  const [tabKeys, setTabKeys] = useState<Record<string, number>>({});
-  const [tabLoaded, setTabLoaded] = useState<Record<string, boolean>>({});
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
+  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [loading, setLoading] = useState(false);
+  const [fadeIn, setFadeIn] = useState(false);
+  const [elementsHtml, setElementsHtml] = useState('');
+  const [history, setHistory] = useState<string[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
+  const [currentUrl, setCurrentUrl] = useState('preview://localhost/');
+  const historyIdxRef = useRef(-1);
+  useEffect(() => { historyIdxRef.current = historyIdx; }, [historyIdx]);
 
-  const runtimeRunRef = useRef(0);
+  const [iframeKey, setIframeKey] = useState(0);
+  const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const newTabBtnRef = useRef<HTMLButtonElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
 
-  const bumpTabKey = useCallback((id: string) =>
-    setTabKeys(k => ({ ...k, [id]: (k[id] ?? 0) + 1 })), []);
+  const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
 
-  const markTabLoaded = useCallback((id: string) =>
-    setTabLoaded(l => ({ ...l, [id]: true })), []);
-
-  const previewableFiles = useMemo(() =>
-    files.filter(f => f.type === 'html' || f.type === 'image'), [files]);
-
-  const htmlFiles = useMemo(() => files.filter(f => f.type === 'html'), [files]);
-  const imageFiles = useMemo(() => files.filter(f => f.type === 'image'), [files]);
-
-  const errorCount = consoleEntries.filter(e => e.type === 'error').length;
-  const warnCount = consoleEntries.filter(e => e.type === 'warn').length;
-
-  const tabSrcDocs = useMemo(() => {
-    const docs: Record<string, string> = {};
-    for (const tab of previewTabs) {
-      if (tab.tabType === 'static') {
-        docs[tab.id] = buildStaticPreviewHtml(files, {
-          timelineAnimationStyle,
-          htmlFileId: tab.htmlFileId,
-        });
-      }
-    }
-    return docs;
-  }, [previewTabs, files, timelineAnimationStyle]);
-
-  useEffect(() => {
-    if (previewRefreshKey === 0 || !activeTab) return;
-    bumpTabKey(activeTab.id);
-    setTabLoaded(l => ({ ...l, [activeTab.id]: false }));
-  }, [previewRefreshKey]);
-
+  // Close new-tab menu when clicking outside
   useEffect(() => {
     if (!newTabMenuOpen) return;
     const handler = (e: MouseEvent) => {
       if (
         newTabBtnRef.current && !newTabBtnRef.current.contains(e.target as Node) &&
         newTabMenuRef.current && !newTabMenuRef.current.contains(e.target as Node)
-      ) setNewTabMenuOpen(false);
+      ) {
+        setNewTabMenuOpen(false);
+      }
     };
     window.addEventListener('mousedown', handler);
     return () => window.removeEventListener('mousedown', handler);
   }, [newTabMenuOpen]);
 
+  const openFileInTab = useCallback((fileId: string) => {
+    setNewTabMenuOpen(false);
+    const file = files.find(f => f.id === fileId);
+    if (!file) return;
+    if (file.type === 'image') {
+      addPreviewTab({ title: file.name, previewType: 'image', imageFileId: file.id });
+    } else if (file.type === 'html') {
+      addPreviewTab({ title: file.name, previewType: 'page' });
+    }
+  }, [files, addPreviewTab]);
+
+  // Build the srcdoc that injects all project files into the HTML
+  const buildSrcDoc = useCallback(() => {
+    const htmlFile = files.find(f => f.type === 'html');
+    if (!htmlFile) return '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
+
+    let html = htmlFile.content;
+
+    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    files.filter(f => f.type === 'css').forEach(css => {
+      const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
+      // Match by file.name or file.id (folder path like "styles/main.css")
+      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
+      let matched = false;
+      for (const ref of refs) {
+        const linkRe = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
+        if (linkRe.test(html)) { html = html.replace(linkRe, tag); matched = true; break; }
+      }
+      if (!matched) {
+        if (html.toLowerCase().includes('</head>')) {
+          html = html.replace(/<\/head>/i, `${tag}\n</head>`);
+        } else { html = `${tag}\n${html}`; }
+      }
+    });
+
+    files.filter(f => f.type === 'js').forEach(js => {
+      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
+      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
+      let matched = false;
+      for (const ref of refs) {
+        const scriptRe = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\/script>`, 'gi');
+        if (scriptRe.test(html)) { html = html.replace(scriptRe, tag); matched = true; break; }
+      }
+      if (!matched) { html = html.replace('</body>', `${tag}\n</body>`); }
+    });
+
+    files.filter(f => f.type === 'image' && f.url).forEach(img => {
+      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
+      for (const ref of refs) {
+        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
+      }
+    });
+
+    if (timelineAnimationStyle.trim()) {
+      const timelineStyleTag = `<style id="__timeline-preview-anim-style">\n${timelineAnimationStyle}\n</style>`;
+      if (html.toLowerCase().includes('</head>')) {
+        html = html.replace(/<\/head>/i, `${timelineStyleTag}\n</head>`);
+      } else {
+        html = `${timelineStyleTag}\n${html}`;
+      }
+    }
+
+    const bridgeScript = `<script>
+(function() {
+  const _types = ['log','error','warn','info','debug'];
+  _types.forEach(function(t) {
+    const orig = console[t].bind(console);
+    console[t] = function() {
+      orig.apply(console, arguments);
+      try {
+        const msg = Array.from(arguments).map(function(a) {
+          if (a === null) return 'null';
+          if (a === undefined) return 'undefined';
+          try { return typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a); }
+          catch(e) { return String(a); }
+        }).join(' ');
+        window.parent.postMessage({ __htmlEditor: true, type: 'console', level: t, message: msg }, '*');
+      } catch(e) {}
+    };
+  });
+  window.addEventListener('error', function(e) {
+    window.parent.postMessage({ __htmlEditor: true, type: 'console', level: 'error', message: 'Uncaught ' + e.message + '\\n  at ' + e.filename + ':' + e.lineno + ':' + e.colno }, '*');
+  });
+  window.addEventListener('unhandledrejection', function(e) {
+    window.parent.postMessage({ __htmlEditor: true, type: 'console', level: 'error', message: 'UnhandledPromiseRejection: ' + e.reason }, '*');
+  });
+  function sendMeta() {
+    var title = document.title || 'Untitled';
+    var favicon = '';
+    var links = document.querySelectorAll('link[rel*="icon"]');
+    if (links.length > 0) favicon = links[links.length - 1].href || '';
+    window.parent.postMessage({ __htmlEditor: true, type: 'meta', title: title, favicon: favicon }, '*');
+  }
+  document.addEventListener('DOMContentLoaded', sendMeta);
+  var titleEl = document.querySelector('title');
+  if (titleEl) {
+    var mo = new MutationObserver(sendMeta);
+    mo.observe(titleEl, { childList: true, characterData: true, subtree: true });
+  }
+  var _pushState = history.pushState.bind(history);
+  var _replaceState = history.replaceState.bind(history);
+  history.pushState = function() { _pushState.apply(history, arguments); sendNav(); };
+  history.replaceState = function() { _replaceState.apply(history, arguments); sendNav(); };
+  window.addEventListener('popstate', sendNav);
+  function sendNav() {
+    window.parent.postMessage({ __htmlEditor: true, type: 'navigate', url: location.href }, '*');
+  }
+})();
+<\/script>`;
+
+    if (html.includes('<head>')) {
+      html = html.replace('<head>', '<head>' + bridgeScript);
+    } else {
+      html = bridgeScript + html;
+    }
+
+    return html;
+  }, [files, timelineAnimationStyle]);
+
+  // Listen for postMessages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (!e.data?.__htmlEditor) return;
@@ -103,168 +185,116 @@ const PreviewPane: React.FC = () => {
           title: d.title || 'Untitled',
           favicon: d.favicon || '',
         });
+      } else if (d.type === 'navigate' && typeof d.url === 'string') {
+        setCurrentUrl(d.url);
+        setHistory(prev => {
+          const idx = historyIdxRef.current;
+          const base = idx >= 0 ? prev.slice(0, idx + 1) : prev;
+          if (base[base.length - 1] === d.url) return base;
+          const next = [...base, d.url];
+          setHistoryIdx(next.length - 1);
+          return next;
+        });
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [activePreviewTabId, addConsoleEntry, updatePreviewTab]);
 
-  useEffect(() => {
-    return () => {
-      runtimeRunRef.current += 1;
-      stopWebContainerRuntime().catch(() => {});
-    };
-  }, []);
-
-  const openFileInTab = useCallback((fileId: string) => {
-    setNewTabMenuOpen(false);
-    const file = files.find(f => f.id === fileId);
-    if (!file) return;
-    if (file.type === 'image') {
-      addPreviewTab({ tabType: 'image', imageFileId: file.id, title: file.name });
-    } else if (file.type === 'html') {
-      addPreviewTab({ tabType: 'static', htmlFileId: file.id, title: file.name });
-    }
-  }, [files, addPreviewTab]);
-
-  const terminalWriteRef = useRef(terminalWrite);
-  const terminalRunRef   = useRef(terminalRunCommand);
-  useEffect(() => { terminalWriteRef.current = terminalWrite; }, [terminalWrite]);
-  useEffect(() => { terminalRunRef.current = terminalRunCommand; }, [terminalRunCommand]);
-
-  const writeToTerminal = useCallback((text: string) => {
-    terminalWriteRef.current?.(text);
-  }, []);
-
-  const runProject = useCallback(async () => {
-    setNewTabMenuOpen(false);
-    setRunCfgOpen(false);
-
-    // If there's a custom command override, just run it in the terminal
-    if (runCmdOverride.trim()) {
-      terminalRunRef.current?.(runCmdOverride.trim());
-      return;
-    }
-
-    const existingPortTab = useEditorStore.getState().previewTabs.find(t => t.tabType === 'port');
-    let portTabId: string;
-    if (existingPortTab) {
-      setActivePreviewTab(existingPortTab.id);
-      portTabId = existingPortTab.id;
-    } else {
-      addPreviewTab({ tabType: 'port', title: 'Dev Server' });
-      await new Promise(r => setTimeout(r, 0));
-      portTabId = useEditorStore.getState().activePreviewTabId;
-    }
-    setRuntimeRunning(true);
-    setRuntimeStatus('Starting…');
-    const runId = ++runtimeRunRef.current;
-    const projectType = detectProjectType(files);
-
-    // Announce in terminal
-    writeToTerminal('\r\n\x1b[36m  ▶ Starting dev server via preview pane…\x1b[0m\r\n');
-
-    try {
-      const result = await startWebContainerPreview(files, projectType, {
-        onStatus: (_phase, message) => {
-          if (runtimeRunRef.current === runId) {
-            setRuntimeStatus(message);
-            writeToTerminal(`\r\n\x1b[2m  ${message}\x1b[0m`);
-          }
-        },
-        onConsole: (level, message) => {
-          addConsoleEntry({ type: level as any, message, timestamp: new Date() });
-          const color = level === 'error' ? '\x1b[31m' : level === 'warn' ? '\x1b[33m' : '\x1b[0m';
-          writeToTerminal(`\r\n${color}${message}\x1b[0m`);
-        },
-      });
-      if (runtimeRunRef.current !== runId) return;
-      setRuntimeStatus(`Running: ${result.command}`);
-      writeToTerminal(`\r\n\x1b[32m  ✓ Server ready — ${result.url}\x1b[0m\r\n`);
-      updatePreviewTab(portTabId, { portUrl: result.url, title: 'Dev Server' });
-      bumpTabKey(portTabId);
-      setTabLoaded(l => ({ ...l, [portTabId]: false }));
-    } catch (err) {
-      if (runtimeRunRef.current !== runId) return;
-      const message = err instanceof Error ? err.message : String(err);
-      setRuntimeStatus('Runtime unavailable');
-      setRuntimeRunning(false);
-      writeToTerminal(`\r\n\x1b[31m  ✕ ${message}\x1b[0m\r\n`);
-      addConsoleEntry({ type: 'error', message, timestamp: new Date() });
-    }
-  }, [files, addPreviewTab, setActivePreviewTab, updatePreviewTab, addConsoleEntry, bumpTabKey, runCmdOverride, writeToTerminal]);
-
-  const stopProject = useCallback(() => {
-    runtimeRunRef.current += 1;
-    setRuntimeRunning(false);
-    setRuntimeStatus('');
-    stopWebContainerRuntime().catch(() => {});
-    for (const tab of useEditorStore.getState().previewTabs) {
-      if (tab.tabType === 'port') {
-        updatePreviewTab(tab.id, { portUrl: undefined });
-      }
-    }
-  }, [updatePreviewTab]);
+  const scheduleRebuild = useCallback((forceRemount = false) => {
+    if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    rebuildTimerRef.current = setTimeout(() => {
+      setLoading(true);
+      setFadeIn(false);
+      setCurrentUrl('preview://localhost/');
+      setHistory(['preview://localhost/']);
+      setHistoryIdx(0);
+      if (forceRemount) setIframeKey(k => k + 1);
+      setSrcDoc(buildSrcDoc());
+    }, 120);
+  }, [buildSrcDoc]);
 
   const openInBrowser = useCallback(() => {
-    if (!activeTab) return;
-    if (activeTab.tabType === 'port' && activeTab.portUrl) {
-      window.open(activeTab.portUrl, '_blank');
-    } else if (activeTab.tabType === 'static') {
-      const html = tabSrcDocs[activeTab.id] || '';
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-    }
-  }, [activeTab, tabSrcDocs]);
+    const html = buildSrcDoc();
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }, [buildSrcDoc]);
 
-  const getTabUrl = (tab: typeof activeTab) => {
-    if (!tab) return '';
-    if (tab.tabType === 'port') return tab.portUrl || 'preview://runtime/waiting…';
-    if (tab.tabType === 'static') {
-      const file = tab.htmlFileId
-        ? files.find(f => f.id === tab.htmlFileId)
-        : files.find(f => f.type === 'html');
-      return `preview://static/${file?.name || 'index.html'}`;
-    }
-    return '';
+  // Rebuild srcdoc on file changes or explicit refresh
+  useEffect(() => {
+    if (activeTab?.previewType === 'image') return;
+    scheduleRebuild(false);
+    return () => {
+      if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+    };
+  }, [activeTab?.previewType, scheduleRebuild]);
+
+  // Force full remount on explicit refresh
+  useEffect(() => {
+    if (previewRefreshKey === 0) return;
+    if (activeTab?.previewType === 'image') return;
+    scheduleRebuild(true);
+  }, [previewRefreshKey]);
+
+  // When switching to a page tab, reload
+  useEffect(() => {
+    if (activeTab?.previewType !== 'page') return;
+    scheduleRebuild();
+  }, [activePreviewTabId, activeTab?.previewType, scheduleRebuild]);
+
+  const handleIframeLoad = () => {
+    setLoading(false);
+    requestAnimationFrame(() => setFadeIn(true));
+    try {
+      const doc = iframeRef.current?.contentDocument;
+      if (doc) setElementsHtml(formatHTML(doc.documentElement.outerHTML));
+    } catch {}
   };
 
-  const viewport = activeTab?.viewport ?? 'desktop';
-
-  const setViewport = (v: Viewport) => {
-    if (activeTab) updatePreviewTab(activeTab.id, { viewport: v });
+  const formatHTML = (html: string) => {
+    let indent = 0;
+    return html
+      .replace(/></g, '>\n<')
+      .split('\n')
+      .map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('</')) indent = Math.max(0, indent - 1);
+        const out = '  '.repeat(indent) + trimmed;
+        if (!trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.includes('</')) indent++;
+        return out;
+      })
+      .filter(Boolean)
+      .join('\n');
   };
 
-  const openNewTabMenu = () => {
-    if (newTabMenuOpen) { setNewTabMenuOpen(false); return; }
-    const rect = newTabBtnRef.current?.getBoundingClientRect();
-    if (rect) setDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-    setNewTabMenuOpen(true);
-  };
+  const viewportStyle = {
+    desktop: { width: '100%', height: '100%' },
+    tablet: { width: '768px', height: '100%', boxShadow: '0 0 0 1px #444, 0 4px 24px rgba(0,0,0,0.4)' },
+    mobile: { width: '390px', height: '844px', borderRadius: 24, boxShadow: '0 0 0 8px #222, 0 0 0 10px #333, 0 8px 32px rgba(0,0,0,0.6)' },
+  }[viewport];
 
-  const getTabIcon = (tab: (typeof previewTabs)[0]) => {
-    if (tab.tabType === 'image') return <FiImage size={11} style={{ color: '#8bc34a', flexShrink: 0 }} />;
-    if (tab.tabType === 'port') return <FiGlobe size={11} style={{ color: '#4ec9b0', flexShrink: 0 }} />;
-    if (tab.favicon) return <img src={tab.favicon} style={{ width: 12, height: 12, flexShrink: 0, borderRadius: 2 }} alt="" />;
-    return <FiCode size={11} style={{ color: '#e34c26', flexShrink: 0 }} />;
-  };
+  const errorCount = consoleEntries.filter(e => e.type === 'error').length;
+  const warnCount = consoleEntries.filter(e => e.type === 'warn').length;
 
-  const isImageTab = activeTab?.tabType === 'image';
-  const imageFile = isImageTab && activeTab?.imageFileId
+  // Files available to open in preview
+  const previewableFiles = files.filter(f => f.type === 'html' || f.type === 'image');
+
+  // Active tab image (for image preview tabs)
+  const imageFile = activeTab?.previewType === 'image' && activeTab.imageFileId
     ? files.find(f => f.id === activeTab.imageFileId)
     : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
 
-      {/* ── Tab Bar ── */}
+      {/* Browser Tab Bar */}
       <div style={{
         display: 'flex', alignItems: 'center', height: 32,
         background: '#2d2d2d', borderBottom: '1px solid #3e3e3e',
         padding: '0 4px', gap: 1, flexShrink: 0, position: 'relative',
-        overflowX: 'auto', overflowY: 'hidden',
       }}>
         {previewTabs.map(tab => (
           <div
@@ -272,41 +302,40 @@ const PreviewPane: React.FC = () => {
             onClick={() => setActivePreviewTab(tab.id)}
             style={{
               display: 'flex', alignItems: 'center', gap: 5,
-              height: '100%', minWidth: 90, maxWidth: 180,
-              padding: '0 10px',
+              height: 26, maxWidth: 180, minWidth: 80,
+              padding: '0 8px',
+              borderRadius: '4px 4px 0 0',
               background: tab.active ? '#1e1e1e' : 'transparent',
-              borderRight: '1px solid #333',
-              borderTop: tab.active
-                ? tab.tabType === 'port' ? '2px solid #4ec9b0' : '2px solid #e5a45a'
-                : '2px solid transparent',
+              border: tab.active ? '1px solid #3e3e3e' : '1px solid transparent',
+              borderBottom: tab.active ? '1px solid #1e1e1e' : 'none',
               cursor: 'pointer',
-              flex: '0 1 150px',
-              userSelect: 'none',
-              transition: 'background 0.1s',
-              flexShrink: 0,
+              position: 'relative',
+              top: tab.active ? 1 : 0,
+              flex: '0 1 160px',
             }}
-            onMouseEnter={e => { if (!tab.active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-            onMouseLeave={e => { if (!tab.active) e.currentTarget.style.background = 'transparent'; }}
           >
-            {getTabIcon(tab)}
+            {tab.previewType === 'image'
+              ? <FiImage size={11} style={{ color: '#8bc34a', flexShrink: 0 }} />
+              : (tab.favicon
+                ? <img src={tab.favicon} style={{ width: 12, height: 12, flexShrink: 0 }} alt="" />
+                : <div style={{ width: 12, height: 12, background: '#555', borderRadius: 2, flexShrink: 0 }} />
+              )
+            }
             <span style={{
-              fontSize: 12, color: tab.active ? '#d4d4d4' : '#888',
+              fontSize: 11, color: tab.active ? '#ccc' : '#888',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-              fontWeight: tab.active ? 500 : 400,
             }}>
-              {tab.title || 'Tab'}
+              {tab.title || 'Loading…'}
             </span>
             {previewTabs.length > 1 && (
               <div
                 onClick={e => { e.stopPropagation(); closePreviewTab(tab.id); }}
                 style={{
-                  width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: 3, opacity: 0, cursor: 'pointer', flexShrink: 0,
-                  transition: 'opacity 0.1s, background 0.1s',
+                  width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: 2, opacity: 0.5, cursor: 'pointer', flexShrink: 0,
                 }}
-                onMouseEnter={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(244,71,71,0.2)'; }}
-                onMouseLeave={e => { e.currentTarget.style.opacity = '0'; e.currentTarget.style.background = 'transparent'; }}
-                className="preview-tab-close"
+                onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
               >
                 <FiX size={10} />
               </div>
@@ -314,15 +343,15 @@ const PreviewPane: React.FC = () => {
           </div>
         ))}
 
-        {/* New Tab button */}
+        {/* New Tab button with file picker */}
         <button
           ref={newTabBtnRef}
-          onClick={openNewTabMenu}
+          onClick={() => setNewTabMenuOpen(o => !o)}
           style={{
             display: 'flex', alignItems: 'center', gap: 2,
-            height: 24, padding: '0 8px', flexShrink: 0,
-            background: newTabMenuOpen ? 'rgba(229,164,90,0.15)' : 'none',
-            border: newTabMenuOpen ? '1px solid rgba(229,164,90,0.4)' : '1px solid transparent',
+            height: 24, padding: '0 6px',
+            background: newTabMenuOpen ? 'rgba(229,164,90,0.12)' : 'none',
+            border: newTabMenuOpen ? '1px solid rgba(229,164,90,0.35)' : '1px solid transparent',
             cursor: 'pointer', color: newTabMenuOpen ? '#e5a45a' : '#888', borderRadius: 4,
           }}
           title="Open file in new tab"
@@ -331,110 +360,62 @@ const PreviewPane: React.FC = () => {
           <FiChevronDown size={10} />
         </button>
 
-        {/* New Tab Dropdown (fixed positioned) */}
+        {/* File picker dropdown */}
         {newTabMenuOpen && (
           <div
             ref={newTabMenuRef}
             style={{
-              position: 'fixed', top: dropdownPos.top, right: dropdownPos.right,
-              background: '#252526', border: '1px solid #3e3e3e', borderRadius: 8,
-              zIndex: 99999, minWidth: 260, boxShadow: '0 12px 32px rgba(0,0,0,0.6)', overflow: 'hidden',
+              position: 'absolute', top: 32, left: 'auto', right: 0,
+              background: '#252526', border: '1px solid #3e3e3e', borderRadius: 6,
+              zIndex: 9999, minWidth: 220, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+              overflow: 'hidden',
             }}
           >
-            {/* HTML Files → Static tabs */}
-            <SectionHeader icon={<FiCode size={10} />} label="HTML Preview (Static)" />
-            {htmlFiles.length === 0 ? (
-              <EmptyHint text="No HTML files in project" />
+            <div style={{
+              padding: '6px 10px 4px', fontSize: 10, color: '#666',
+              fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em',
+              borderBottom: '1px solid #3e3e3e',
+            }}>
+              Open file in new tab
+            </div>
+            {previewableFiles.length === 0 ? (
+              <div style={{ padding: '10px 12px', fontSize: 12, color: '#555' }}>
+                No HTML or image files found
+              </div>
             ) : (
-              htmlFiles.map(file => (
-                <DropdownFileBtn
+              previewableFiles.map(file => (
+                <button
                   key={file.id}
-                  icon={<VscFileCode size={14} style={{ color: '#e34c26' }} />}
-                  name={file.name}
-                  badge="STATIC"
-                  badgeColor="#e34c26"
                   onClick={() => openFileInTab(file.id)}
-                />
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    width: '100%', padding: '7px 12px',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    textAlign: 'left', fontSize: 12, color: '#ccc',
+                    fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                >
+                  {file.type === 'image'
+                    ? <FiImage size={13} style={{ color: '#8bc34a', flexShrink: 0 }} />
+                    : <VscFileCode size={14} style={{ color: '#e34c26', flexShrink: 0 }} />
+                  }
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {file.name}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>
+                    {file.type.toUpperCase()}
+                  </span>
+                </button>
               ))
             )}
-
-            {/* Image Files */}
-            {imageFiles.length > 0 && (
-              <>
-                <SectionHeader icon={<FiImage size={10} />} label="Image Viewer" />
-                {imageFiles.map(file => (
-                  <DropdownFileBtn
-                    key={file.id}
-                    icon={<FiImage size={13} style={{ color: '#8bc34a' }} />}
-                    name={file.name}
-                    badge="IMAGE"
-                    badgeColor="#8bc34a"
-                    onClick={() => openFileInTab(file.id)}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* Dev Server / Port tab */}
-            <SectionHeader icon={<FiGlobe size={10} />} label="Dev Server" />
-            <div style={{ padding: '6px 12px 4px' }}>
-              <div style={{ fontSize: 10, color: '#666', marginBottom: 5 }}>Run command (leave blank for auto-detect)</div>
-              <input
-                type="text"
-                value={runCmdOverride}
-                onChange={e => setRunCmdOverride(e.target.value)}
-                placeholder="e.g. npm run dev"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: '#1a1a1a', border: '1px solid #3a3a3a', borderRadius: 4,
-                  color: '#ccc', fontSize: 12, padding: '5px 8px', outline: 'none',
-                  fontFamily: 'var(--app-font-mono)',
-                }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(229,164,90,0.5)')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#3a3a3a')}
-                onClick={e => e.stopPropagation()}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); runProject(); } }}
-              />
-              <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>
-                Output is streamed to the Terminal panel in real time.
-              </div>
-            </div>
-            <div style={{ padding: '4px 12px 8px', display: 'flex', gap: 6 }}>
-              <button
-                onClick={() => runProject()}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  padding: '6px 0', fontSize: 12, borderRadius: 4, cursor: 'pointer',
-                  background: 'rgba(78,201,176,0.15)', border: '1px solid rgba(78,201,176,0.35)',
-                  color: '#4ec9b0', fontFamily: 'inherit',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(78,201,176,0.25)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'rgba(78,201,176,0.15)')}
-              >
-                <FiPlay size={12} /> {runCmdOverride.trim() ? `Run: ${runCmdOverride.trim()}` : 'Run App'}
-              </button>
-              {runtimeRunning && (
-                <button
-                  onClick={stopProject}
-                  style={{
-                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    padding: '6px 0', fontSize: 12, borderRadius: 4, cursor: 'pointer',
-                    background: 'rgba(244,71,71,0.1)', border: '1px solid rgba(244,71,71,0.3)',
-                    color: '#f44747', fontFamily: 'inherit',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(244,71,71,0.2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(244,71,71,0.1)')}
-                >
-                  <FiSquare size={11} /> Stop
-                </button>
-              )}
-            </div>
           </div>
         )}
       </div>
 
-      {/* ── Image Tab ── */}
-      {isImageTab ? (
+      {/* Image tab viewer */}
+      {activeTab?.previewType === 'image' ? (
         <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {imageFile ? (
             <InlineImageViewer file={imageFile} />
@@ -446,69 +427,46 @@ const PreviewPane: React.FC = () => {
         </div>
       ) : (
         <>
-          {/* ── Address Bar ── */}
+          {/* Browser Address Bar */}
           <div style={{
             display: 'flex', alignItems: 'center', height: 34,
             background: '#252526', borderBottom: '1px solid #3e3e3e',
             padding: '0 8px', gap: 6, flexShrink: 0,
           }}>
             <button
-              className="panel-icon-btn"
-              title="Refresh (Ctrl+R)"
+              className="panel-icon-btn" title="Back"
+              onClick={() => {}}
+              disabled
+              style={{ opacity: 0.3, cursor: 'not-allowed' }}
+            ><FiArrowLeft size={13} /></button>
+            <button
+              className="panel-icon-btn" title="Forward"
+              onClick={() => {}}
+              disabled
+              style={{ opacity: 0.3, cursor: 'not-allowed' }}
+            ><FiArrowRight size={13} /></button>
+            <button
+              className="panel-icon-btn" title="Refresh (Ctrl+R)"
               onClick={() => useEditorStore.getState().refreshPreview()}
+              style={{ color: loading ? 'var(--editor-amber)' : undefined }}
             >
-              <FiRefreshCw size={12} />
+              <FiRefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             </button>
-
-            {/* Static / Port toggle for active tab */}
-            {activeTab && (
-              <button
-                className="panel-icon-btn"
-                title={activeTab.tabType === 'port' ? 'Showing Dev Server URL' : 'Switch tab to Dev Server (Run App)'}
-                onClick={activeTab.tabType === 'port' ? undefined : runProject}
-                style={{
-                  color: activeTab.tabType === 'port' ? '#4ec9b0' : undefined,
-                  cursor: activeTab.tabType === 'port' ? 'default' : 'pointer',
-                }}
-              >
-                {activeTab.tabType === 'port' ? <FiGlobe size={12} /> : <FiPlay size={12} />}
-              </button>
-            )}
-
-            {/* Address input */}
             <div style={{
               flex: 1, background: '#1a1a1a', border: '1px solid #3e3e3e',
               borderRadius: 12, padding: '3px 12px',
               display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
             }}>
-              <FiLock size={11} style={{ color: '#4ec9b0', flexShrink: 0 }} />
+              <span style={{ color: '#4ec9b0', fontSize: 11 }}>🔒</span>
               <input
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
                   fontSize: 12, color: '#bbb', fontFamily: 'var(--app-font-mono)',
                 }}
-                value={getTabUrl(activeTab)}
+                value={currentUrl}
                 readOnly
               />
-              {activeTab?.tabType === 'port' && (
-                <span style={{
-                  fontSize: 10, color: '#4ec9b0', border: '1px solid rgba(78,201,176,0.35)',
-                  borderRadius: 10, padding: '1px 7px', flexShrink: 0,
-                }}>
-                  {runtimeStatus ? runtimeStatus : (activeTab.portUrl ? 'Running' : 'Waiting')}
-                </span>
-              )}
-              {activeTab?.tabType === 'static' && (
-                <span style={{
-                  fontSize: 10, color: '#888', border: '1px solid #333',
-                  borderRadius: 10, padding: '1px 7px', flexShrink: 0,
-                }}>
-                  Static
-                </span>
-              )}
             </div>
-
-            {/* Viewport controls */}
             <div style={{ display: 'flex', gap: 2 }}>
               {(['desktop', 'tablet', 'mobile'] as const).map(v => (
                 <button
@@ -522,12 +480,14 @@ const PreviewPane: React.FC = () => {
                 </button>
               ))}
             </div>
-
-            <button className="panel-icon-btn" title="Open in Browser" onClick={openInBrowser}>
+            <button
+              className="panel-icon-btn" title="Open in Browser"
+              onClick={openInBrowser}
+            >
               <FiExternalLink size={13} />
             </button>
             <button
-              className="panel-icon-btn" title="DevTools"
+              className="panel-icon-btn" title="DevTools (F12)"
               onClick={() => setPanels({ devtools: !panels.devtools })}
               style={{
                 color: panels.devtools ? 'var(--editor-amber)' : errorCount > 0 ? '#f44747' : undefined,
@@ -547,102 +507,45 @@ const PreviewPane: React.FC = () => {
             </button>
           </div>
 
-          {/* ── Preview Area — all iframes mounted, inactive hidden ── */}
-          <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-            {previewTabs.filter(t => t.tabType !== 'image').map(tab => {
-              const isActive = tab.id === activePreviewTabId;
-              const vp = tab.viewport ?? 'desktop';
-              const vpStyle = VIEWPORT_STYLES[vp];
-              const loaded = tabLoaded[tab.id] ?? false;
-              const key = `${tab.id}-${tabKeys[tab.id] ?? 0}`;
-
-              const isPortWaiting = tab.tabType === 'port' && !tab.portUrl;
-
-              return (
-                <div
-                  key={tab.id}
-                  style={{
-                    position: 'absolute', inset: 0,
-                    display: isActive ? 'flex' : 'none',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'flex-start',
-                    background: vp === 'desktop' ? '#fff' : '#2a2a2a',
-                    overflow: 'auto',
-                    padding: vp === 'desktop' ? 0 : 24,
-                  }}
-                >
-                  {/* Loading bar */}
-                  {isActive && !loaded && !isPortWaiting && (
-                    <div style={{
-                      position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-                      background: 'var(--editor-amber)', zIndex: 10,
-                      animation: 'shimmer 1s ease infinite',
-                    }} />
-                  )}
-
-                  {/* Port tab waiting state */}
-                  {isPortWaiting ? (
-                    <div style={{
-                      flex: 1, display: 'flex', flexDirection: 'column',
-                      alignItems: 'center', justifyContent: 'center',
-                      background: '#1e1e1e', color: '#cccccc', width: '100%',
-                      fontFamily: 'var(--app-font-sans)',
-                    }}>
-                      <div style={{
-                        background: '#252526', border: '1px solid #3e3e3e', borderRadius: 10,
-                        padding: '32px 36px', maxWidth: 380, textAlign: 'center',
-                      }}>
-                        <div style={{ fontSize: '3rem', marginBottom: 16 }}>⚛</div>
-                        <h2 style={{ color: '#e5a45a', fontSize: '1.1rem', marginBottom: 10 }}>Dev Server Tab</h2>
-                        <p style={{ color: '#888888', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 20 }}>
-                          {runtimeStatus || 'Click "Run App" to start the dev server. The preview will appear here once it\'s running.'}
-                        </p>
-                        <button
-                          onClick={runProject}
-                          style={{
-                            width: '100%', padding: '10px 0', fontSize: 13, borderRadius: 8,
-                            background: 'rgba(78,201,176,0.15)', border: '1px solid rgba(78,201,176,0.35)',
-                            color: '#4ec9b0', cursor: 'pointer', fontFamily: 'inherit',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                          }}
-                        >
-                          <FiPlay size={14} /> Run App
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <iframe
-                      key={key}
-                      title={tab.title || 'Preview'}
-                      onLoad={() => markTabLoaded(tab.id)}
-                      srcDoc={tab.tabType === 'static' ? tabSrcDocs[tab.id] : undefined}
-                      src={tab.tabType === 'port' && tab.portUrl ? tab.portUrl : undefined}
-                      sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
-                      style={{
-                        ...vpStyle,
-                        border: 'none',
-                        flexShrink: 0,
-                        overflow: 'hidden',
-                        transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease, opacity 0.15s ease',
-                        opacity: (tab.tabType === 'static' || loaded) ? 1 : 0,
-                        willChange: 'opacity',
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
+          {/* Preview Area */}
+          <div style={{
+            flex: 1, overflow: 'auto', background: viewport === 'desktop' ? '#fff' : '#2a2a2a',
+            display: 'flex', alignItems: viewport === 'mobile' ? 'center' : 'flex-start',
+            justifyContent: 'center', padding: viewport === 'desktop' ? 0 : 24,
+            position: 'relative',
+          }}>
+            {loading && (
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+                background: 'var(--editor-amber)', zIndex: 10,
+                animation: 'shimmer 1s ease infinite',
+              }} />
+            )}
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              title="Preview"
+              onLoad={handleIframeLoad}
+              srcDoc={srcDoc}
+              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
+              style={{
+                ...viewportStyle,
+                border: 'none', flexShrink: 0, overflow: 'hidden',
+                transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease',
+                opacity: fadeIn ? 1 : 0,
+                willChange: 'opacity',
+              }}
+            />
           </div>
 
-          {/* ── DevTools Panel ── */}
+          {/* DevTools Panel */}
           {panels.devtools && (
             <div style={{
               height: panels.devtoolsHeight, flexShrink: 0,
               borderTop: '1px solid #3e3e3e', background: '#1a1a1a',
-              display: 'flex', flexDirection: 'column', position: 'relative',
+              display: 'flex', flexDirection: 'column',
+              position: 'relative',
             }}>
-              {/* Resize handle */}
               <div
                 style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, cursor: 'row-resize', zIndex: 10 }}
                 onMouseDown={(e) => {
@@ -654,12 +557,11 @@ const PreviewPane: React.FC = () => {
                   window.addEventListener('mouseup', onUp);
                 }}
               />
-              {/* DevTools tab bar */}
               <div style={{
                 display: 'flex', alignItems: 'center', height: 30, flexShrink: 0,
                 background: '#252526', borderBottom: '1px solid #3e3e3e',
               }}>
-                {(['console', 'styles', 'network'] as DevToolsTab[]).map(t => (
+                {(['console', 'elements', 'styles', 'network'] as DevToolsTab[]).map(t => (
                   <div
                     key={t}
                     onClick={() => setDevtoolsTab(t)}
@@ -668,7 +570,8 @@ const PreviewPane: React.FC = () => {
                       fontSize: 12, cursor: 'pointer',
                       color: devtoolsTab === t ? '#ccc' : '#888',
                       borderBottom: devtoolsTab === t ? '2px solid var(--editor-amber)' : '2px solid transparent',
-                      fontFamily: 'var(--app-font-sans)', userSelect: 'none',
+                      fontFamily: 'var(--app-font-sans)',
+                      userSelect: 'none',
                     }}
                   >
                     {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -688,16 +591,13 @@ const PreviewPane: React.FC = () => {
                   onClick={clearConsole}
                   style={{ marginLeft: 'auto', marginRight: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#888' }}
                 >
-                  <FiTrash2 size={12} style={{ verticalAlign: -2, marginRight: 4 }} /> Clear
+                  🚫 Clear
                 </button>
               </div>
-              {/* DevTools content */}
               <div style={{ flex: 1, overflow: 'auto', fontFamily: 'var(--app-font-mono)', fontSize: 12 }}>
                 {devtoolsTab === 'console' && (
                   consoleEntries.length === 0 ? (
-                    <div style={{ padding: 12, color: '#555', fontSize: 12 }}>
-                      No console output. JavaScript console.log() calls will appear here.
-                    </div>
+                    <div style={{ padding: 12, color: '#555', fontSize: 12 }}>No console output. Your JavaScript console.log() calls will appear here.</div>
                   ) : (
                     consoleEntries.map(entry => (
                       <div
@@ -728,6 +628,11 @@ const PreviewPane: React.FC = () => {
                     ))
                   )
                 )}
+                {devtoolsTab === 'elements' && (
+                  <pre style={{ padding: 8, fontSize: 11, color: '#9cdcfe', whiteSpace: 'pre-wrap', wordBreak: 'break-word', margin: 0 }}>
+                    {elementsHtml || 'Elements will appear here after page loads.'}
+                  </pre>
+                )}
                 {devtoolsTab === 'styles' && (
                   <div style={{ padding: 10, color: '#888', fontSize: 12 }}>
                     Select an element in Visual mode to inspect its computed styles.
@@ -755,58 +660,7 @@ const PreviewPane: React.FC = () => {
   );
 };
 
-/* ── Small helper sub-components ── */
-
-function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div style={{
-      padding: '7px 12px 5px', fontSize: 10, color: '#555',
-      fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em',
-      borderTop: '1px solid #333', borderBottom: '1px solid #333',
-      display: 'flex', alignItems: 'center', gap: 6, marginTop: 2,
-    }}>
-      {icon} {label}
-    </div>
-  );
-}
-
-function EmptyHint({ text }: { text: string }) {
-  return (
-    <div style={{ padding: '6px 12px', fontSize: 12, color: '#555', fontStyle: 'italic' }}>
-      {text}
-    </div>
-  );
-}
-
-function DropdownFileBtn({ icon, name, badge, badgeColor, onClick }: {
-  icon: React.ReactNode; name: string; badge: string; badgeColor: string; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        width: '100%', padding: '6px 12px',
-        background: 'none', border: 'none', cursor: 'pointer',
-        textAlign: 'left', fontSize: 12, color: '#ccc', fontFamily: 'inherit',
-      }}
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
-      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-    >
-      {icon}
-      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-      <span style={{
-        fontSize: 10, color: badgeColor, flexShrink: 0,
-        background: '#1e1e1e', padding: '1px 5px', borderRadius: 3,
-        border: `1px solid ${badgeColor}44`,
-      }}>
-        {badge}
-      </span>
-    </button>
-  );
-}
-
-/* ── Inline Image Viewer ── */
+/* ── Inline Image Viewer (for image preview tabs) ── */
 interface InlineImageViewerProps {
   file: { name: string; url?: string; content: string; mimeType?: string };
 }
@@ -837,7 +691,7 @@ function InlineImageViewer({ file }: InlineImageViewerProps) {
               border: `1px solid ${bg === b ? 'rgba(229,164,90,0.5)' : '#3e3e3e'}`,
               color: bg === b ? '#e5a45a' : '#888', fontFamily: 'inherit',
             }}>
-            {b === 'checker' ? 'Grid' : b === 'dark' ? 'Dark' : 'Light'}
+            {b === 'checker' ? '⬛' : b === 'dark' ? 'Dark' : 'Light'}
           </button>
         ))}
         <div style={{ width: 1, height: 14, background: '#3e3e3e' }} />
@@ -857,14 +711,17 @@ function InlineImageViewer({ file }: InlineImageViewerProps) {
           <img
             src={src} alt={file.name}
             style={{
-              maxWidth: 'none', transform: `scale(${zoom})`, transformOrigin: 'center center',
-              display: 'block', imageRendering: zoom > 2 ? 'pixelated' : 'auto',
+              maxWidth: 'none',
+              transform: `scale(${zoom})`,
+              transformOrigin: 'center center',
+              display: 'block',
+              imageRendering: zoom > 2 ? 'pixelated' : 'auto',
               boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
             }}
           />
         ) : (
           <div style={{ color: '#555', fontSize: 13, textAlign: 'center' }}>
-            <FiImage size={32} style={{ marginBottom: 8, opacity: 0.3 }} />
+            <div style={{ fontSize: 32, marginBottom: 8, opacity: 0.3 }}>🖼</div>
             <div>Cannot display image</div>
           </div>
         )}

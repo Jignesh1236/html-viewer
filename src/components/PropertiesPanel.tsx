@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useContext } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import {
   FiChevronDown, FiChevronRight, FiType, FiLayout, FiBox,
   FiDroplet, FiSliders, FiZap, FiCode, FiMove, FiMaximize2,
-  FiAlignLeft, FiPlus, FiMinus, FiSearch, FiX,
 } from 'react-icons/fi';
 
 /* ─── Design tokens ───────────────────────────────────────── */
@@ -41,103 +40,34 @@ function injectPropertiesAnimationCssIntoHtml(html: string, css: string) {
   return `${block}\n${cleaned}`;
 }
 
-function injectClickAnimation(html: string, selector: string, animValue: string, keyframeCss: string): string {
-  const dataMatch = html.match(/<script\s+id=["']ve-click-data["'][^>]*>([\s\S]*?)<\/script>/i);
-  let data: Record<string, string> = {};
-  if (dataMatch) { try { data = JSON.parse(dataMatch[1]); } catch { data = {}; } }
-  data[selector] = animValue;
-  const jsonStr = JSON.stringify(data);
-  let result = html
-    .replace(/\n?\s*<script\s+id=["']ve-click-data["'][^>]*>[\s\S]*?<\/script>/i, '')
-    .replace(/\n?\s*<script\s+id=["']ve-click-anims["'][^>]*>[\s\S]*?<\/script>/i, '');
-  if (keyframeCss) result = injectPropertiesAnimationCssIntoHtml(result, keyframeCss);
-  const dataTag = `<script id="ve-click-data" type="application/json">${jsonStr}<\/script>`;
-  const scriptTag = `<script id="ve-click-anims">(function(){try{var d=JSON.parse(document.getElementById('ve-click-data').textContent||'{}');Object.entries(d).forEach(function(pair){document.querySelectorAll(pair[0]).forEach(function(el){el.addEventListener('click',function(e){e.stopPropagation();el.style.animation='none';void el.offsetWidth;el.style.animation=pair[1];});});});}catch(err){};}());<\/script>`;
-  if (result.includes('</body>')) return result.replace('</body>', `${dataTag}\n${scriptTag}\n</body>`);
-  return `${result}\n${dataTag}\n${scriptTag}`;
-}
-
-function injectHoverAnimation(html: string, selector: string, animValue: string, keyframeCss: string): string {
-  const styleMatch = html.match(/<style\s+id=["']ve-hover-anims["'][^>]*>([\s\S]*?)<\/style>/i);
-  let existingRules = styleMatch ? styleMatch[1] : '';
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  existingRules = existingRules.replace(new RegExp(`\\s*${escaped}:hover\\s*\\{[^}]*\\}`, 'g'), '');
-  const newRule = `${selector}:hover { animation: ${animValue} !important; }`;
-  const allRules = (existingRules.trim() ? existingRules.trim() + '\n' : '') + newRule;
-  let result = html.replace(/\n?\s*<style\s+id=["']ve-hover-anims["'][^>]*>[\s\S]*?<\/style>/i, '');
-  if (keyframeCss) result = injectPropertiesAnimationCssIntoHtml(result, keyframeCss);
-  const styleBlock = `<style id="ve-hover-anims">\n${allRules}\n</style>`;
-  if (result.includes('</head>')) return result.replace('</head>', `${styleBlock}\n</head>`);
-  return `${styleBlock}\n${result}`;
-}
-
-/* ─── Search context ──────────────────────────────────────── */
-const SearchCtx = React.createContext('');
-
-/* Section keyword sets used for no-results detection */
-const SECTION_KEYWORD_SETS: string[][] = [
-  ['content', 'html', 'text', 'inner', 'innerhtml', 'plain'],
-  ['alignment', 'align', 'text-align', 'vertical', 'justify', 'justify-content', 'align-items'],
-  ['typography', 'font', 'color', 'size', 'family', 'weight', 'line', 'line-height', 'decor', 'decoration', 'underline', 'case', 'transform', 'text'],
-  ['background', 'bg', 'color', 'colour', 'image', 'gradient', 'opacity', 'size', 'transparent', 'alpha'],
-  ['layout', 'display', 'position', 'width', 'height', 'overflow', 'z-index', 'zindex', 'left', 'top', 'right', 'bottom', 'absolute', 'relative', 'fixed', 'sticky', 'block', 'flex', 'grid', 'inline'],
-  ['flex', 'grid', 'flexbox', 'direction', 'row', 'column', 'justify', 'align', 'wrap', 'gap', 'columns', 'rows', 'template', 'fr'],
-  ['spacing', 'margin', 'padding', 'space', 'inset', 'gap'],
-  ['border', 'width', 'color', 'style', 'radius', 'rounded', 'solid', 'dashed', 'dotted', 'double', 'outline', 'corner'],
-  ['shadow', 'box-shadow', 'text-shadow', 'glow', 'drop', 'blur', 'elevation'],
-  ['transform', 'rotate', 'rotation', 'scale', 'scalex', 'scaley', 'skew', 'matrix', 'perspective', 'flip'],
-  ['animation', 'animate', 'preset', 'trigger', 'duration', 'delay', 'easing', 'timing', 'repeat', 'iteration', 'direction', 'fill', 'keyframes', 'fadein', 'slideup', 'bounce', 'pulse', 'spin', 'zoom', 'shake'],
-  ['css', 'custom', 'inline', 'style', 'raw', 'code', 'property', 'value'],
-];
-
 /* ─── Section ─────────────────────────────────────────────── */
-interface SectionProps {
-  title: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-  defaultOpen?: boolean;
-  keywords?: string[];
-}
-const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true, keywords = [] }) => {
+interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }
+const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen);
-  const query = useContext(SearchCtx);
-  const isFiltering = query.length > 0;
-
-  if (isFiltering) {
-    const q = query.toLowerCase();
-    const allKeys = [title.toLowerCase(), ...keywords.map(k => k.toLowerCase())];
-    if (!allKeys.some(k => k.includes(q))) return null;
-  }
-
-  const effectiveOpen = isFiltering || open;
-
   return (
     <div style={{ borderBottom: `1px solid ${C.border}` }}>
       <button
-        onClick={() => { if (!isFiltering) setOpen(o => !o); }}
+        onClick={() => setOpen(o => !o)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 6,
-          padding: '7px 10px', cursor: isFiltering ? 'default' : 'pointer',
-          border: 'none', outline: 'none',
-          background: effectiveOpen ? 'rgba(255,255,255,0.03)' : 'transparent',
+          padding: '7px 10px', cursor: 'pointer', border: 'none', outline: 'none',
+          background: open ? 'rgba(255,255,255,0.03)' : 'transparent',
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => { if (!isFiltering) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-        onMouseLeave={e => { if (!isFiltering) e.currentTarget.style.background = effectiveOpen ? 'rgba(255,255,255,0.03)' : 'transparent'; }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+        onMouseLeave={e => (e.currentTarget.style.background = open ? 'rgba(255,255,255,0.03)' : 'transparent')}
       >
-        {icon && <span style={{ color: effectiveOpen ? C.accent : C.muted, display: 'flex', transition: 'color 0.15s' }}>{icon}</span>}
+        {icon && <span style={{ color: open ? C.accent : C.muted, display: 'flex', transition: 'color 0.15s' }}>{icon}</span>}
         <span style={{
           flex: 1, textAlign: 'left', fontSize: 10, fontWeight: 700,
           letterSpacing: '0.09em', textTransform: 'uppercase',
-          color: effectiveOpen ? C.text : C.muted,
+          color: open ? C.text : C.muted,
         }}>{title}</span>
-        {!isFiltering && (
-          <span style={{ color: C.dim, display: 'flex' }}>
-            {effectiveOpen ? <FiChevronDown size={12} /> : <FiChevronRight size={12} />}
-          </span>
-        )}
+        <span style={{ color: C.dim, display: 'flex' }}>
+          {open ? <FiChevronDown size={12} /> : <FiChevronRight size={12} />}
+        </span>
       </button>
-      {effectiveOpen && (
+      {open && (
         <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 7 }}>
           {children}
         </div>
@@ -147,20 +77,12 @@ const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = 
 };
 
 /* ─── Row ─────────────────────────────────────────────────── */
-const Row: React.FC<{ label: string; children: React.ReactNode; keywords?: string[] }> = ({ label, children, keywords = [] }) => {
-  const query = useContext(SearchCtx);
-  if (query) {
-    const q = query.toLowerCase();
-    const allKeys = [label.toLowerCase(), ...keywords.map(k => k.toLowerCase())];
-    if (!allKeys.some(k => k.includes(q))) return null;
-  }
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 11, color: C.muted, width: 58, flexShrink: 0, userSelect: 'none' }}>{label}</span>
-      <div style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'center', minWidth: 0 }}>{children}</div>
-    </div>
-  );
-};
+const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <span style={{ fontSize: 11, color: C.muted, width: 58, flexShrink: 0, userSelect: 'none' }}>{label}</span>
+    <div style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'center', minWidth: 0 }}>{children}</div>
+  </div>
+);
 
 /* ─── Shared input style ──────────────────────────────────── */
 const inputBase: React.CSSProperties = {
@@ -208,7 +130,6 @@ function BtnGroup({ options, value, onChange, small }: { options: string[]; valu
               color: active ? C.accent : C.muted,
               transition: 'all 0.12s',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              lineHeight: 1.4,
             }}
             onMouseEnter={e => { if (!active) e.currentTarget.style.borderColor = C.muted; }}
             onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = C.border; }}
@@ -222,74 +143,33 @@ function BtnGroup({ options, value, onChange, small }: { options: string[]; valu
 }
 
 /* ─── ColorInput ──────────────────────────────────────────── */
-function ColorInput({
-  value,
-  onChange,
-  gradientValue,
-  onGradientChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  gradientValue?: string;
-  onGradientChange?: (v: string) => void;
-}) {
+function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [text, setText] = useState(value);
-  const [showGradient, setShowGradient] = useState(false);
   useEffect(() => setText(value), [value]);
-  const hasStoredGradient = parseGradient(gradientValue || '').type !== 'none';
   const hex = /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : '#000000';
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: 1, minWidth: 0 }}>
-      <div style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <div style={{
-            width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`,
-            background: gradientValue && parseGradient(gradientValue).type !== 'none' ? gradientValue : value || '#000', cursor: 'pointer', overflow: 'hidden',
-          }}>
-            <input
-              type="color" value={hex}
-              onChange={e => { onChange(e.target.value); setText(e.target.value); }}
-              style={{ width: 40, height: 40, opacity: 0, cursor: 'pointer', position: 'absolute', top: -4, left: -4 }}
-            />
-          </div>
+    <div style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`,
+          background: value || '#000', cursor: 'pointer', overflow: 'hidden',
+        }}>
+          <input
+            type="color" value={hex}
+            onChange={e => { onChange(e.target.value); setText(e.target.value); }}
+            style={{ width: 40, height: 40, opacity: 0, cursor: 'pointer', position: 'absolute', top: -4, left: -4 }}
+          />
         </div>
-        <input
-          style={inputBase} value={text}
-          onChange={e => setText(e.target.value)}
-          onBlur={() => onChange(text)}
-          onKeyDown={e => e.key === 'Enter' && onChange(text)}
-          placeholder="#000000 or rgba(...)"
-          onFocus={e => (e.target.style.borderColor = C.accentBrd)}
-          onBlurCapture={e => (e.target.style.borderColor = C.border)}
-        />
-        {onGradientChange && (
-          <button
-            onClick={() => {
-              if (showGradient) {
-                setShowGradient(false);
-                onGradientChange('none');
-              } else {
-                setShowGradient(true);
-                if (!hasStoredGradient) onGradientChange('linear-gradient(135deg, #ff7a18, #af002d)');
-              }
-            }}
-            title={showGradient ? 'Remove gradient' : hasStoredGradient ? 'Edit gradient' : 'Add gradient'}
-            style={{
-              width: 26, height: 26, borderRadius: 4, flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: (showGradient || hasStoredGradient) ? C.accentBg : C.surface2,
-              border: `1px solid ${(showGradient || hasStoredGradient) ? C.accentBrd : C.border}`,
-              color: (showGradient || hasStoredGradient) ? C.accent : C.muted,
-              cursor: 'pointer',
-            }}
-          >
-            {showGradient ? <FiMinus size={12} /> : <FiPlus size={12} />}
-          </button>
-        )}
       </div>
-      {showGradient && onGradientChange && (
-        <GradientControls value={gradientValue || ''} onChange={onGradientChange} />
-      )}
+      <input
+        style={inputBase} value={text}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => onChange(text)}
+        onKeyDown={e => e.key === 'Enter' && onChange(text)}
+        placeholder="#000000 or rgba(...)"
+        onFocus={e => (e.target.style.borderColor = C.accentBrd)}
+        onBlurCapture={e => (e.target.style.borderColor = C.border)}
+      />
     </div>
   );
 }
@@ -323,7 +203,6 @@ function ChipGroup({ options, value, onChange }: { options: string[]; value: str
             background: active ? C.accentBg : C.surface2,
             border: `1px solid ${active ? C.accentBrd : C.border}`,
             color: active ? C.accent : C.muted, transition: 'all 0.12s',
-            lineHeight: 1.6,
           }}>
             {o}
           </button>
@@ -350,9 +229,8 @@ function SpacingGrid({ props, getS, apply }: { props: [string, string][]; getS: 
 function parseGradient(value: string) {
   const raw = value || '';
   const type = raw.startsWith('radial-gradient') ? 'radial' : raw.startsWith('linear-gradient') ? 'linear' : 'none';
-  const colorMatches: string[] = (raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) ?? []) as string[];
-  const gradientKeywords: string[] = ['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'];
-  const usableColors = colorMatches.filter(v => !gradientKeywords.includes(v.toLowerCase()));
+  const colorMatches = raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) || [];
+  const usableColors = colorMatches.filter(v => !['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'].includes(v.toLowerCase()));
   const angleMatch = raw.match(/(-?\d+(?:\.\d+)?)deg/i);
   return {
     type,
@@ -469,7 +347,6 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     files,
     updateFileContent,
     setTimelineState,
-    showNotification,
   } = useEditorStore();
 
   const apply = (property: string, value: string) => applySelectedStyle(property, value);
@@ -479,7 +356,6 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
   const [rotateDeg, setRotateDeg] = useState(0);
   const [scaleX, setScaleX] = useState(1);
   const [scaleY, setScaleY] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setContentDraft(selectedElement?.innerHTML || '');
@@ -496,23 +372,6 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     const sy = next.scaleY ?? scaleY;
     apply('transform', `rotate(${r}deg) scaleX(${sx}) scaleY(${sy})`);
   }, [apply, rotateDeg, scaleX, scaleY]);
-
-  const applyTextGradient = useCallback((value: string) => {
-    apply('background-image', value);
-    if (parseGradient(value).type !== 'none') {
-      apply('background-clip', 'text');
-      apply('-webkit-background-clip', 'text');
-      apply('-webkit-text-fill-color', 'transparent');
-    } else {
-      apply('-webkit-text-fill-color', '');
-      apply('-webkit-background-clip', '');
-    }
-  }, [apply]);
-
-  const applyBorderGradient = useCallback((value: string) => {
-    apply('border-image-source', value);
-    apply('border-image-slice', parseGradient(value).type !== 'none' ? '1' : '');
-  }, [apply]);
 
   const persistPresetKeyframe = useCallback((preset: string) => {
     const keyframeCss = PRESET_KEYFRAMES[preset];
@@ -561,6 +420,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         ],
       };
     });
+    // Keep direct animation value applied to selected element.
     apply('animation', animationValue);
   }, [selectedElement, selectedSelector, setTimelineState, animationConfig, apply]);
 
@@ -604,524 +464,356 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
   const elId = selectedElement.id ? `#${selectedElement.id}` : '';
   const elClass = selectedElement.className?.trim().split(/\s+/)[0] ? `.${selectedElement.className.trim().split(/\s+/)[0]}` : '';
 
-  /* No-results detection */
-  const hasAnyMatch = !searchQuery || SECTION_KEYWORD_SETS.some(keys =>
-    keys.some(k => k.includes(searchQuery.toLowerCase()))
-  );
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden', background: C.bg }}>
 
       {/* ── Header ── */}
       {!hideHeader && (
         <div style={{
-          flexShrink: 0, display: 'flex', flexDirection: 'column',
-          borderBottom: `1px solid ${C.border}`, background: C.surface,
+          height: 36, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
+          padding: '0 10px', borderBottom: `1px solid ${C.border}`, background: C.surface,
         }}>
-          <div style={{ height: 36, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px' }}>
-            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.muted }}>Properties</span>
-            <code style={{
-              fontSize: 11, color: C.accent, background: C.accentBg,
-              border: `1px solid ${C.accentBrd}`, borderRadius: 4, padding: '1px 7px',
-            }}>
-              &lt;{tag}{elId || elClass}&gt;
-            </code>
-          </div>
-          {/* Search input */}
-          <div style={{ padding: '0 8px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <FiSearch size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: C.dim, pointerEvents: 'none' }} />
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search properties…"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: C.surface2, border: `1px solid ${C.border}`,
-                  borderRadius: 4, padding: '4px 28px 4px 26px',
-                  fontSize: 11, color: C.text, outline: 'none',
-                  transition: 'border-color 0.15s', fontFamily: 'var(--app-font-sans)',
-                }}
-                onFocus={e => (e.target.style.borderColor = C.accentBrd)}
-                onBlur={e => (e.target.style.borderColor = C.border)}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: C.dim,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                  }}
-                >
-                  <FiX size={11} />
-                </button>
-              )}
-            </div>
-          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.muted }}>Properties</span>
+          <code style={{
+            fontSize: 11, color: C.accent, background: C.accentBg,
+            border: `1px solid ${C.accentBrd}`, borderRadius: 4, padding: '1px 7px',
+          }}>
+            &lt;{tag}{elId || elClass}&gt;
+          </code>
         </div>
       )}
 
       {/* ── Mini breadcrumb when hideHeader ── */}
       {hideHeader && (
         <div style={{
-          flexShrink: 0, display: 'flex', flexDirection: 'column',
-          borderBottom: `1px solid ${C.border}`,
+          padding: '5px 10px', background: C.accentBg, borderBottom: `1px solid ${C.border}`,
+          flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          <div style={{
-            padding: '5px 10px', background: C.accentBg,
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
-            <code style={{ fontSize: 11, color: C.accent }}>&lt;{tag}{elId}&gt;</code>
-            {elClass && <span style={{ fontSize: 10, color: C.dim }}>{elClass}</span>}
-          </div>
-          {/* Search input for mobile/hideHeader mode */}
-          <div style={{ padding: '6px 8px', background: C.surface, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ position: 'relative', flex: 1 }}>
-              <FiSearch size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: C.dim, pointerEvents: 'none' }} />
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search properties…"
-                style={{
-                  width: '100%', boxSizing: 'border-box',
-                  background: C.surface2, border: `1px solid ${C.border}`,
-                  borderRadius: 4, padding: '4px 28px 4px 26px',
-                  fontSize: 11, color: C.text, outline: 'none',
-                  transition: 'border-color 0.15s', fontFamily: 'var(--app-font-sans)',
-                }}
-                onFocus={e => (e.target.style.borderColor = C.accentBrd)}
-                onBlur={e => (e.target.style.borderColor = C.border)}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer', color: C.dim,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-                  }}
-                >
-                  <FiX size={11} />
-                </button>
-              )}
-            </div>
-          </div>
+          <code style={{ fontSize: 11, color: C.accent }}>&lt;{tag}{elId}&gt;</code>
+          {elClass && <span style={{ fontSize: 10, color: C.dim }}>{elClass}</span>}
         </div>
       )}
 
       {/* ── Scrollable body ── */}
-      <SearchCtx.Provider value={searchQuery}>
-        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
-          {/* Content */}
-          <Section title="Content" icon={<FiCode size={12} />}
-            keywords={['content', 'html', 'text', 'inner', 'innerhtml', 'plain', 'innertext']}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 10, color: C.dim, marginBottom: 1 }}>Inner HTML</div>
-              <textarea
-                style={{ ...inputBase, height: 60, resize: 'vertical', width: '100%', flex: 'none', fontFamily: 'var(--app-font-mono)' } as any}
-                value={contentDraft}
-                onChange={e => setContentDraft(e.target.value)}
-                onBlur={() => applySelectedContent(contentDraft)}
-                onFocus={e => (e.target.style.borderColor = C.accentBrd)}
-                onBlurCapture={e => (e.target.style.borderColor = C.border)}
-              />
-            </div>
-            <Row label="Text" keywords={['content', 'plain', 'innertext', 'textcontent']}>
-              <PropInput value={selectedElement.textContent} placeholder="Plain text" onChange={v => applySelectedContent(v)} />
-            </Row>
-          </Section>
-
-          <Section title="Alignment" icon={<FiAlignLeft size={12} />}
-            keywords={['alignment', 'align', 'text-align', 'textalign', 'vertical', 'justify', 'justify-content', 'justifycontent', 'align-items', 'alignitems', 'center']}>
-            <Row label="Text" keywords={['text-align', 'textalign', 'align', 'center', 'left', 'right', 'justify']}>
-              <BtnGroup options={['left', 'center', 'right', 'justify']} value={getS('text-align') || 'left'} onChange={v => apply('text-align', v)} />
-            </Row>
-            <Row label="Vertical" keywords={['vertical', 'align-items', 'alignitems', 'baseline', 'stretch', 'center', 'flex-start', 'flex-end']}>
-              <select
-                style={selBase}
-                value={getS('align-items') || 'stretch'}
-                onChange={e => {
-                  const v = e.target.value;
-                  const display = getS('display');
-                  if (!display.includes('flex') && !display.includes('grid')) {
-                    apply('display', 'flex');
-                    apply('flex-direction', 'column');
-                  }
-                  apply('align-items', v);
-                }}
-              >
-                {['stretch', 'flex-start', 'center', 'flex-end', 'baseline'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-            <Row label="Justify" keywords={['justify-content', 'justifycontent', 'justify', 'space-between', 'space-around', 'center', 'flex-start', 'flex-end']}>
-              <select
-                style={selBase}
-                value={getS('justify-content') || 'flex-start'}
-                onChange={e => {
-                  const display = getS('display');
-                  if (!display.includes('flex') && !display.includes('grid')) apply('display', 'flex');
-                  apply('justify-content', e.target.value);
-                }}
-              >
-                {['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-          </Section>
-
-          {/* Typography */}
-          <Section title="Typography" icon={<FiType size={12} />}
-            keywords={['typography', 'font', 'color', 'colour', 'size', 'font-size', 'fontsize', 'family', 'font-family', 'weight', 'font-weight', 'bold', 'line-height', 'lineheight', 'leading', 'decoration', 'underline', 'strikethrough', 'case', 'transform', 'uppercase', 'lowercase', 'capitalize', 'text']}>
-            <Row label="Color" keywords={['color', 'colour', 'text-color', 'fill', 'foreground', 'rgb', 'hex', 'hsl', 'rgba']}>
-              <ColorInput value={getS('color') || '#333333'} onChange={v => apply('color', v)} gradientValue={getS('background-image')} onGradientChange={applyTextGradient} />
-            </Row>
-            <Row label="Size" keywords={['font-size', 'fontsize', 'size', 'px', 'em', 'rem', 'pt']}>
-              <PropInput value={getS('font-size') || '16px'} onChange={v => apply('font-size', v)} placeholder="16px" />
-            </Row>
-            <Row label="Family" keywords={['font-family', 'fontfamily', 'family', 'typeface', 'sans', 'serif', 'mono', 'arial', 'helvetica', 'georgia']}>
-              <select style={selBase} value={getS('font-family')} onChange={e => apply('font-family', e.target.value)}>
-                {['sans-serif', 'serif', 'monospace', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Tahoma'].map(f => <option key={f}>{f}</option>)}
-              </select>
-            </Row>
-            <Row label="Weight" keywords={['font-weight', 'fontweight', 'weight', 'bold', 'light', 'thin', 'heavy', '400', '700']}>
-              <BtnGroup options={['100', '300', '400', '600', '700', '900']} value={getS('font-weight') || '400'} onChange={v => apply('font-weight', v)} small />
-            </Row>
-            <Row label="Line H" keywords={['line-height', 'lineheight', 'leading', 'line', 'spacing']}>
-              <PropInput value={getS('line-height') || '1.6'} onChange={v => apply('line-height', v)} placeholder="1.6" />
-            </Row>
-            <Row label="Decor" keywords={['text-decoration', 'decoration', 'decor', 'underline', 'strikethrough', 'line-through', 'overline', 'none']}>
-              <BtnGroup options={['none', 'underline', 'line-through', 'overline']} value={getS('text-decoration') || 'none'} onChange={v => apply('text-decoration', v)} small />
-            </Row>
-            <Row label="Case" keywords={['text-transform', 'case', 'uppercase', 'lowercase', 'capitalize', 'transform', 'caps']}>
-              <BtnGroup options={['none', 'upper', 'lower', 'capitalize']}
-                value={(() => { const v = getS('text-transform') || 'none'; if (v === 'uppercase') return 'upper'; if (v === 'lowercase') return 'lower'; return v; })()}
-                onChange={v => apply('text-transform', v === 'upper' ? 'uppercase' : v === 'lower' ? 'lowercase' : v)} />
-            </Row>
-          </Section>
-
-          {/* Background */}
-          <Section title="Background" icon={<FiDroplet size={12} />}
-            keywords={['background', 'bg', 'color', 'colour', 'image', 'url', 'gradient', 'opacity', 'alpha', 'transparent', 'rgba', 'size', 'cover', 'contain']}>
-            <Row label="Color" keywords={['background-color', 'bg-color', 'color', 'colour', 'fill', 'hex', 'rgb', 'rgba', 'hsl', 'gradient']}>
-              <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} gradientValue={getS('background-image')} onGradientChange={v => apply('background-image', v)} />
-            </Row>
-            <Row label="Image" keywords={['background-image', 'image', 'url', 'src', 'photo', 'gradient', 'linear', 'radial']}>
-              <PropInput value={getS('background-image') || ''} onChange={v => apply('background-image', v)} placeholder="url(...) or gradient(...)" />
-            </Row>
-            <Row label="Size" keywords={['background-size', 'size', 'cover', 'contain', 'auto', 'fill']}>
-              <BtnGroup options={['auto', 'cover', 'contain']} value={getS('background-size') || 'auto'} onChange={v => apply('background-size', v)} />
-            </Row>
-            <Row label="Opacity" keywords={['opacity', 'alpha', 'transparent', 'visibility', 'fade']}>
-              <input
-                type="range" min="0" max="1" step="0.01"
-                value={getS('opacity') || '1'}
-                style={{ flex: 1, accentColor: C.accent } as any}
-                onChange={e => apply('opacity', (e.target as HTMLInputElement).value)}
-              />
-              <span style={{ fontSize: 11, color: C.muted, width: 32, textAlign: 'right', flexShrink: 0 }}>
-                {Math.round(parseFloat(getS('opacity') || '1') * 100)}%
-              </span>
-            </Row>
-          </Section>
-
-          {/* Layout */}
-          <Section title="Layout" icon={<FiLayout size={12} />}
-            keywords={['layout', 'display', 'position', 'absolute', 'relative', 'fixed', 'sticky', 'static', 'left', 'top', 'right', 'bottom', 'x', 'y', 'width', 'w', 'height', 'h', 'size', 'overflow', 'scroll', 'hidden', 'z-index', 'zindex', 'layer', 'stacking', 'block', 'flex', 'grid', 'inline', 'none']}>
-            <Row label="Display" keywords={['display', 'block', 'flex', 'grid', 'inline', 'none', 'visibility', 'show', 'hide']}>
-              <BtnGroup options={['block', 'flex', 'grid', 'inline', 'none']} value={getS('display') || 'block'} onChange={v => apply('display', v)} small />
-            </Row>
-            <Row label="Position" keywords={['position', 'absolute', 'relative', 'fixed', 'sticky', 'static', 'place']}>
-              <select style={selBase} value={getS('position') || 'static'} onChange={e => apply('position', e.target.value)}>
-                {['static', 'relative', 'absolute', 'fixed', 'sticky'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-              {([['left', 'X'], ['top', 'Y'], ['width', 'W'], ['height', 'H']] as [string, string][]).map(([prop, label]) => (
-                <div key={prop} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <PropInput value={getS(prop) || 'auto'} onChange={v => apply(prop, v)} placeholder="auto" />
-                  <div style={{ fontSize: 9, color: C.dim, textAlign: 'center', userSelect: 'none' }}>{label}</div>
-                </div>
-              ))}
-            </div>
-            <Row label="Overflow" keywords={['overflow', 'scroll', 'hidden', 'auto', 'visible', 'clip']}>
-              <BtnGroup options={['visible', 'hidden', 'auto', 'scroll']} value={getS('overflow') || 'visible'} onChange={v => apply('overflow', v)} small />
-            </Row>
-            <Row label="Z-Index" keywords={['z-index', 'zindex', 'layer', 'stacking', 'order', 'depth']}>
-              <PropInput value={getS('z-index') || 'auto'} onChange={v => apply('z-index', v)} placeholder="auto" />
-              <button onClick={() => apply('z-index', String((parseInt(getS('z-index') || '0') || 0) + 1))}
-                style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>+</button>
-              <button onClick={() => apply('z-index', String((parseInt(getS('z-index') || '0') || 0) - 1))}
-                style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 13, flexShrink: 0, lineHeight: 1 }}>−</button>
-            </Row>
-          </Section>
-
-          {/* Flex / Grid */}
-          <Section title="Flex / Grid" icon={<FiMaximize2 size={12} />} defaultOpen={false}
-            keywords={['flex', 'grid', 'flexbox', 'direction', 'row', 'column', 'reverse', 'justify-content', 'align-items', 'alignitems', 'flex-wrap', 'wrap', 'gap', 'gutter', 'grid-template-columns', 'grid-template-rows', 'columns', 'rows', 'fr', 'template']}>
-            <Row label="Direction" keywords={['flex-direction', 'direction', 'row', 'column', 'reverse', 'horizontal', 'vertical']}>
-              <BtnGroup options={['row', 'column', 'row-rev', 'col-rev']}
-                value={(() => { const v = getS('flex-direction') || 'row'; if (v === 'row-reverse') return 'row-rev'; if (v === 'column-reverse') return 'col-rev'; return v; })()}
-                onChange={v => apply('flex-direction', v === 'row-rev' ? 'row-reverse' : v === 'col-rev' ? 'column-reverse' : v)} small />
-            </Row>
-            <Row label="Justify" keywords={['justify-content', 'justify', 'space-between', 'space-around', 'center', 'flex-start', 'flex-end', 'evenly']}>
-              <select style={selBase} value={getS('justify-content') || 'flex-start'} onChange={e => apply('justify-content', e.target.value)}>
-                {['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-            <Row label="Align" keywords={['align-items', 'align', 'stretch', 'center', 'baseline', 'flex-start', 'flex-end']}>
-              <select style={selBase} value={getS('align-items') || 'stretch'} onChange={e => apply('align-items', e.target.value)}>
-                {['stretch', 'flex-start', 'center', 'flex-end', 'baseline'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-            <Row label="Wrap" keywords={['flex-wrap', 'wrap', 'nowrap', 'wrap-reverse', 'wrapping']}>
-              <BtnGroup options={['nowrap', 'wrap', 'wrap-rev']}
-                value={(() => { const v = getS('flex-wrap') || 'nowrap'; return v === 'wrap-reverse' ? 'wrap-rev' : v; })()}
-                onChange={v => apply('flex-wrap', v === 'wrap-rev' ? 'wrap-reverse' : v)} />
-            </Row>
-            <Row label="Gap" keywords={['gap', 'gutter', 'spacing', 'space', 'column-gap', 'row-gap']}>
-              <PropInput value={getS('gap') || '0px'} onChange={v => apply('gap', v)} placeholder="0px" />
-            </Row>
-            <Row label="Grid cols" keywords={['grid-template-columns', 'columns', 'col', 'fr', 'repeat', 'template']}>
-              <PropInput value={getS('grid-template-columns') || ''} onChange={v => apply('grid-template-columns', v)} placeholder="1fr 1fr 1fr" />
-            </Row>
-            <Row label="Grid rows" keywords={['grid-template-rows', 'rows', 'row', 'fr', 'repeat', 'template', 'auto']}>
-              <PropInput value={getS('grid-template-rows') || ''} onChange={v => apply('grid-template-rows', v)} placeholder="auto 1fr auto" />
-            </Row>
-          </Section>
-
-          {/* Spacing */}
-          <Section title="Spacing" icon={<FiMove size={12} />} defaultOpen={false}
-            keywords={['spacing', 'margin', 'padding', 'space', 'gap', 'inset', 'top', 'right', 'bottom', 'left', 'outer', 'inner']}>
-            <div style={{ fontSize: 10, color: C.dim, marginBottom: 2 }}>Margin</div>
-            <SpacingGrid
-              props={[['margin-top','↑'],['margin-right','→'],['margin-bottom','↓'],['margin-left','←']]}
-              getS={getS} apply={apply}
-            />
-            <div style={{ fontSize: 10, color: C.dim, marginTop: 4, marginBottom: 2 }}>Padding</div>
-            <SpacingGrid
-              props={[['padding-top','↑'],['padding-right','→'],['padding-bottom','↓'],['padding-left','←']]}
-              getS={getS} apply={apply}
-            />
-          </Section>
-
-          {/* Border */}
-          <Section title="Border" icon={<FiBox size={12} />} defaultOpen={false}
-            keywords={['border', 'border-width', 'border-color', 'border-style', 'border-radius', 'width', 'color', 'style', 'radius', 'rounded', 'corner', 'solid', 'dashed', 'dotted', 'double', 'outline', 'none']}>
-            <Row label="Width" keywords={['border-width', 'width', 'thickness', 'size', 'px']}>
-              <PropInput value={getS('border-width') || '0px'} onChange={v => apply('border-width', v)} placeholder="0px" />
-            </Row>
-            <Row label="Color" keywords={['border-color', 'color', 'colour', 'hex', 'rgb', 'rgba', 'gradient']}>
-              <ColorInput value={getS('border-color') || '#cccccc'} onChange={v => apply('border-color', v)} gradientValue={getS('border-image-source')} onGradientChange={applyBorderGradient} />
-            </Row>
-            <Row label="Style" keywords={['border-style', 'style', 'solid', 'dashed', 'dotted', 'double', 'none', 'groove', 'ridge']}>
-              <BtnGroup options={['none', 'solid', 'dashed', 'dotted', 'double']} value={getS('border-style') || 'none'} onChange={v => apply('border-style', v)} small />
-            </Row>
-            <Row label="Radius" keywords={['border-radius', 'radius', 'rounded', 'corner', 'round', 'pill', 'circle']}>
-              <PropInput value={getS('border-radius') || '0px'} onChange={v => apply('border-radius', v)} placeholder="0px" />
-            </Row>
-          </Section>
-
-          {/* Shadows */}
-          <Section title="Shadows" defaultOpen={false}
-            keywords={['shadow', 'shadows', 'box-shadow', 'boxshadow', 'text-shadow', 'textshadow', 'glow', 'drop', 'blur', 'elevation', 'depth', 'offset', 'spread', 'inset']}>
-            <div style={{ fontSize: 10, color: C.dim, marginBottom: 3 }}>Box Shadow</div>
-            <PropInput value={getS('box-shadow') || 'none'} onChange={v => apply('box-shadow', v)} placeholder="0 4px 12px rgba(0,0,0,0.2)" />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3 }}>
-              {(['none', '0 2px 4px rgba(0,0,0,0.1)', '0 4px 12px rgba(0,0,0,0.2)', '0 8px 24px rgba(0,0,0,0.3)', '0 0 0 3px rgba(229,164,90,0.5)', 'inset 0 2px 4px rgba(0,0,0,0.2)'] as string[]).map((s, i) => (
-                <button key={s} onClick={() => apply('box-shadow', s)} style={{
-                  fontSize: 10, padding: '3px 8px', background: C.surface2,
-                  border: `1px solid ${C.border}`, borderRadius: 12, cursor: 'pointer', color: C.muted,
-                  transition: 'border-color 0.12s', lineHeight: 1.4,
-                }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = C.muted)}
-                  onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
-                >
-                  {['None','Sm','Md','Lg','Glow','Inset'][i]}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 10, color: C.dim, marginTop: 8, marginBottom: 3 }}>Text Shadow</div>
-            <PropInput value={getS('text-shadow') || 'none'} onChange={v => apply('text-shadow', v)} placeholder="2px 2px 4px rgba(0,0,0,0.3)" />
-          </Section>
-
-          {/* Transform */}
-          <Section title="Transform" defaultOpen={false}
-            keywords={['transform', 'rotate', 'rotation', 'angle', 'deg', 'scale', 'scalex', 'scaley', 'scaleX', 'scaleY', 'skew', 'matrix', 'perspective', 'flip', 'mirror']}>
-            <Row label="Rotate" keywords={['rotate', 'rotation', 'angle', 'deg', 'spin', 'turn']}>
-              <input type="range" min="-180" max="180" step="1" value={rotateDeg}
-                style={{ flex: 1, accentColor: C.accent } as any}
-                onChange={e => {
-                  const v = parseFloat((e.target as HTMLInputElement).value);
-                  setRotateDeg(v);
-                  applyTransform({ rotate: v });
-                }} />
-              <span style={{ fontSize: 11, color: C.muted, width: 38, textAlign: 'right', flexShrink: 0 }}>{rotateDeg}°</span>
-            </Row>
-            <Row label="Scale X" keywords={['scale', 'scalex', 'scaleX', 'width', 'stretch', 'horizontal']}>
-              <input type="range" min="0.1" max="3" step="0.05" value={scaleX}
-                style={{ flex: 1, accentColor: C.accent } as any}
-                onChange={e => {
-                  const v = parseFloat((e.target as HTMLInputElement).value);
-                  setScaleX(v);
-                  applyTransform({ scaleX: v });
-                }} />
-              <span style={{ fontSize: 11, color: C.muted, width: 38, textAlign: 'right', flexShrink: 0 }}>{scaleX.toFixed(2)}</span>
-            </Row>
-            <Row label="Scale Y" keywords={['scale', 'scaley', 'scaleY', 'height', 'stretch', 'vertical']}>
-              <input type="range" min="0.1" max="3" step="0.05" value={scaleY}
-                style={{ flex: 1, accentColor: C.accent } as any}
-                onChange={e => {
-                  const v = parseFloat((e.target as HTMLInputElement).value);
-                  setScaleY(v);
-                  applyTransform({ scaleY: v });
-                }} />
-              <span style={{ fontSize: 11, color: C.muted, width: 38, textAlign: 'right', flexShrink: 0 }}>{scaleY.toFixed(2)}</span>
-            </Row>
-            <Row label="Custom" keywords={['transform', 'matrix', 'skew', 'perspective', 'custom', 'raw']}>
-              <PropInput value={getS('transform') || 'none'} onChange={v => apply('transform', v)} placeholder="rotate(45deg) scale(1.2)" />
-            </Row>
-          </Section>
-
-          {/* Animation */}
-          <Section title="Animation" icon={<FiZap size={12} />} defaultOpen={false}
-            keywords={['animation', 'animate', 'preset', 'trigger', 'duration', 'delay', 'easing', 'timing', 'repeat', 'iteration', 'direction', 'fill', 'fillmode', 'keyframes', 'fadein', 'fadeIn', 'slideup', 'slideUp', 'bounce', 'pulse', 'spin', 'zoom', 'shake', 'flip', 'motion', 'transition']}>
-            <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Preset</div>
-            <ChipGroup
-              options={['none','fadeIn','slideUp','slideLeft','slideRight','bounce','pulse','spin','zoom','shake','flip']}
-              value={animationConfig.preset}
-              onChange={v => setAnimationConfig({ preset: v })}
-            />
-            <Row label="Trigger" keywords={['trigger', 'load', 'hover', 'click', 'event']}>
-              <BtnGroup options={['load','hover','click']} value={animationConfig.trigger} onChange={v => setAnimationConfig({ trigger: v as any })} />
-            </Row>
-            <Row label="Duration" keywords={['duration', 'time', 'speed', 'ms', 's', 'seconds']}>
-              <PropInput value={animationConfig.duration} onChange={v => setAnimationConfig({ duration: v })} placeholder="0.6s" />
-            </Row>
-            <Row label="Delay" keywords={['delay', 'wait', 'start', 'offset', 'ms', 's']}>
-              <PropInput value={animationConfig.delay} onChange={v => setAnimationConfig({ delay: v })} placeholder="0s" />
-            </Row>
-            <Row label="Easing" keywords={['easing', 'timing', 'ease', 'linear', 'ease-in', 'ease-out', 'cubic-bezier', 'bounce']}>
-              <select style={selBase} value={animationConfig.easing} onChange={e => setAnimationConfig({ easing: e.target.value })}>
-                {['ease','linear','ease-in','ease-out','ease-in-out','cubic-bezier(0.68,-0.55,0.27,1.55)'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-            <Row label="Repeat" keywords={['repeat', 'iteration', 'loop', 'infinite', 'count', 'times']}>
-              <BtnGroup options={['1','2','3','infinite']} value={animationConfig.iteration} onChange={v => setAnimationConfig({ iteration: v })} />
-            </Row>
-            <Row label="Direction" keywords={['direction', 'normal', 'reverse', 'alternate', 'forward', 'backward']}>
-              <select style={selBase} value={animationConfig.direction} onChange={e => setAnimationConfig({ direction: e.target.value })}>
-                {['normal','reverse','alternate','alternate-reverse'].map(v => <option key={v}>{v}</option>)}
-              </select>
-            </Row>
-            <Row label="Fill" keywords={['fill', 'fillmode', 'fill-mode', 'forwards', 'backwards', 'both', 'none', 'retain']}>
-              <BtnGroup options={['none','forwards','backwards','both']} value={animationConfig.fillMode} onChange={v => setAnimationConfig({ fillMode: v })} small />
-            </Row>
-            <div style={{ marginTop: 4 }}>
-              <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Custom @keyframes</div>
-              <textarea
-                style={{ ...inputBase, width: '100%', height: 72, resize: 'none', flex: 'none' } as any}
-                placeholder="@keyframes myAnim { from { opacity: 0 } to { opacity: 1 } }"
-                value={animationConfig.customKeyframes}
-                onChange={e => setAnimationConfig({ customKeyframes: e.target.value })}
-                onFocus={e => (e.target.style.borderColor = C.accentBrd)}
-                onBlurCapture={e => (e.target.style.borderColor = C.border)}
-              />
-            </div>
-            <button
-              onClick={() => {
-                if (!selectedElement || animationConfig.preset === 'none') return;
-                const PRESETS: Record<string, string> = {
-                  fadeIn: 'fadeIn 0.6s ease forwards', slideUp: 'slideUp 0.6s ease forwards',
-                  slideLeft: 'slideLeft 0.6s ease forwards', slideRight: 'slideRight 0.6s ease forwards',
-                  bounce: 'bounce 1s ease infinite', pulse: 'pulse 1.5s ease infinite',
-                  spin: 'spin 1s linear infinite', zoom: 'zoom 0.4s ease forwards',
-                  shake: 'shake 0.5s ease', flip: 'flip 0.6s ease forwards',
-                };
-                const animationValue = PRESETS[animationConfig.preset] || animationConfig.preset;
-                const keyframeCss = PRESET_KEYFRAMES[animationConfig.preset] || animationConfig.customKeyframes || '';
-                const selectorCandidate = selectedElement.styles?.selector || selectedSelector;
-
-                if (animationConfig.trigger === 'click') {
-                  if (!selectorCandidate) return;
-                  const htmlFile = files.find(f => f.type === 'html');
-                  if (!htmlFile) return;
-                  const updated = injectClickAnimation(htmlFile.content, selectorCandidate, animationValue, keyframeCss);
-                  if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-                  showNotification('Click animation applied — switch to Interact mode to test');
-                } else if (animationConfig.trigger === 'hover') {
-                  if (!selectorCandidate) return;
-                  const htmlFile = files.find(f => f.type === 'html');
-                  if (!htmlFile) return;
-                  const updated = injectHoverAnimation(htmlFile.content, selectorCandidate, animationValue, keyframeCss);
-                  if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-                  showNotification('Hover animation applied — switch to Interact mode to test');
-                } else {
-                  // trigger === 'load': original behavior
-                  upsertTimelineTrackForSelection(animationConfig.preset, animationValue);
-                  persistPresetKeyframe(animationConfig.preset);
-                }
-              }}
-              style={{
-                padding: '6px 12px', background: C.accentBg,
-                border: `1px solid ${C.accentBrd}`, borderRadius: 5,
-                cursor: 'pointer', color: C.accent, fontSize: 11,
-                width: '100%', fontWeight: 600, letterSpacing: '0.03em',
-                transition: 'background 0.15s', lineHeight: 1.4,
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(229,164,90,0.2)')}
-              onMouseLeave={e => (e.currentTarget.style.background = C.accentBg)}
-            >
-              ▶ Apply Animation to Element
-            </button>
-          </Section>
-
-          {/* Custom CSS */}
-          <Section title="Custom CSS" icon={<FiCode size={12} />} defaultOpen={false}
-            keywords={['css', 'custom', 'inline', 'style', 'raw', 'code', 'property', 'value', 'override', 'manual']}>
-            <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Paste CSS property:value pairs</div>
+        {/* Content */}
+        <Section title="Content" icon={<FiCode size={12} />}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontSize: 10, color: C.dim, marginBottom: 1 }}>Inner HTML</div>
             <textarea
-              style={{ ...inputBase, width: '100%', height: 88, resize: 'none', flex: 'none' } as any}
-              placeholder={'color: red;\nbackground: blue;\nfont-size: 20px;'}
-              value={customCssDraft}
-              onChange={e => setCustomCssDraft(e.target.value)}
-              onBlur={() => {
-                customCssDraft.split(';').map(r => r.trim()).filter(Boolean).forEach(rule => {
-                  const [prop, ...vals] = rule.split(':');
-                  if (prop && vals.length) apply(prop.trim(), vals.join(':').trim());
-                });
-              }}
+              style={{ ...inputBase, height: 60, resize: 'vertical', width: '100%', flex: 'none', fontFamily: 'var(--app-font-mono)' } as any}
+              value={contentDraft}
+              onChange={e => setContentDraft(e.target.value)}
+              onBlur={() => applySelectedContent(contentDraft)}
               onFocus={e => (e.target.style.borderColor = C.accentBrd)}
               onBlurCapture={e => (e.target.style.borderColor = C.border)}
             />
-          </Section>
+          </div>
+          <Row label="Text">
+            <PropInput value={selectedElement.textContent} placeholder="Plain text" onChange={v => applySelectedContent(v)} />
+          </Row>
+        </Section>
 
-          {/* No results state */}
-          {searchQuery && !hasAnyMatch && (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: 8, padding: '32px 20px', textAlign: 'center',
-            }}>
-              <FiSearch size={20} color={C.dim} />
-              <div style={{ fontSize: 12, color: C.muted }}>No matching properties</div>
-              <div style={{ fontSize: 11, color: C.dim }}>
-                No results for <strong style={{ color: C.muted }}>"{searchQuery}"</strong>
+        {/* Typography */}
+        <Section title="Typography" icon={<FiType size={12} />}>
+          <Row label="Color">
+            <ColorInput value={getS('color') || '#333333'} onChange={v => apply('color', v)} />
+          </Row>
+          <Row label="Size">
+            <PropInput value={getS('font-size') || '16px'} onChange={v => apply('font-size', v)} placeholder="16px" />
+          </Row>
+          <Row label="Family">
+            <select style={selBase} value={getS('font-family')} onChange={e => apply('font-family', e.target.value)}>
+              {['sans-serif', 'serif', 'monospace', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Tahoma'].map(f => <option key={f}>{f}</option>)}
+            </select>
+          </Row>
+          <Row label="Weight">
+            <BtnGroup options={['100', '300', '400', '600', '700', '900']} value={getS('font-weight') || '400'} onChange={v => apply('font-weight', v)} small />
+          </Row>
+          <Row label="Align">
+            <BtnGroup options={['left', 'center', 'right', 'justify']} value={getS('text-align') || 'left'} onChange={v => apply('text-align', v)} />
+          </Row>
+          <Row label="Line H">
+            <PropInput value={getS('line-height') || '1.6'} onChange={v => apply('line-height', v)} placeholder="1.6" />
+          </Row>
+          <Row label="Decor">
+            <BtnGroup options={['none', 'underline', 'line-through', 'overline']} value={getS('text-decoration') || 'none'} onChange={v => apply('text-decoration', v)} small />
+          </Row>
+          <Row label="Case">
+            <BtnGroup options={['none', 'upper', 'lower', 'capitalize']}
+              value={(() => { const v = getS('text-transform') || 'none'; if (v === 'uppercase') return 'upper'; if (v === 'lowercase') return 'lower'; return v; })()}
+              onChange={v => apply('text-transform', v === 'upper' ? 'uppercase' : v === 'lower' ? 'lowercase' : v)} />
+          </Row>
+        </Section>
+
+        {/* Background */}
+        <Section title="Background" icon={<FiDroplet size={12} />}>
+          <Row label="Color">
+            <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} />
+          </Row>
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>Gradient</div>
+          <GradientControls value={getS('background-image') || ''} onChange={v => apply('background-image', v)} />
+          <Row label="Image">
+            <PropInput value={getS('background-image') || ''} onChange={v => apply('background-image', v)} placeholder="url(...) or gradient(...)" />
+          </Row>
+          <Row label="Size">
+            <BtnGroup options={['auto', 'cover', 'contain']} value={getS('background-size') || 'auto'} onChange={v => apply('background-size', v)} />
+          </Row>
+          <Row label="Opacity">
+            <input
+              type="range" min="0" max="1" step="0.01"
+              value={getS('opacity') || '1'}
+              style={{ flex: 1, accentColor: C.accent } as any}
+              onChange={e => apply('opacity', (e.target as HTMLInputElement).value)}
+            />
+            <span style={{ fontSize: 11, color: C.muted, width: 32, textAlign: 'right', flexShrink: 0 }}>
+              {Math.round(parseFloat(getS('opacity') || '1') * 100)}%
+            </span>
+          </Row>
+        </Section>
+
+        {/* Layout */}
+        <Section title="Layout" icon={<FiLayout size={12} />}>
+          <Row label="Display">
+            <BtnGroup options={['block', 'flex', 'grid', 'inline', 'none']} value={getS('display') || 'block'} onChange={v => apply('display', v)} small />
+          </Row>
+          <Row label="Position">
+            <select style={selBase} value={getS('position') || 'static'} onChange={e => apply('position', e.target.value)}>
+              {['static', 'relative', 'absolute', 'fixed', 'sticky'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+            {([['left', 'X'], ['top', 'Y'], ['width', 'W'], ['height', 'H']] as [string, string][]).map(([prop, label]) => (
+              <div key={prop} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <PropInput value={getS(prop) || 'auto'} onChange={v => apply(prop, v)} placeholder="auto" />
+                <div style={{ fontSize: 9, color: C.dim, textAlign: 'center', userSelect: 'none' }}>{label}</div>
               </div>
-              <button
-                onClick={() => setSearchQuery('')}
-                style={{
-                  marginTop: 4, padding: '4px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer',
-                  background: C.accentBg, border: `1px solid ${C.accentBrd}`, color: C.accent,
-                  lineHeight: 1.4,
-                }}
-              >
-                Clear search
-              </button>
-            </div>
-          )}
+            ))}
+          </div>
+          <Row label="Overflow">
+            <BtnGroup options={['visible', 'hidden', 'auto', 'scroll']} value={getS('overflow') || 'visible'} onChange={v => apply('overflow', v)} small />
+          </Row>
+          <Row label="Z-Index">
+            <PropInput value={getS('z-index') || 'auto'} onChange={v => apply('z-index', v)} placeholder="auto" />
+            <button onClick={() => apply('z-index', String((parseInt(getS('z-index') || '0') || 0) + 1))}
+              style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 13, flexShrink: 0 }}>+</button>
+            <button onClick={() => apply('z-index', String((parseInt(getS('z-index') || '0') || 0) - 1))}
+              style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 13, flexShrink: 0 }}>−</button>
+          </Row>
+        </Section>
 
-        </div>
-      </SearchCtx.Provider>
+        {/* Flex / Grid */}
+        <Section title="Flex / Grid" icon={<FiMaximize2 size={12} />} defaultOpen={false}>
+          <Row label="Direction">
+            <BtnGroup options={['row', 'column', 'row-rev', 'col-rev']}
+              value={(() => { const v = getS('flex-direction') || 'row'; if (v === 'row-reverse') return 'row-rev'; if (v === 'column-reverse') return 'col-rev'; return v; })()}
+              onChange={v => apply('flex-direction', v === 'row-rev' ? 'row-reverse' : v === 'col-rev' ? 'column-reverse' : v)} small />
+          </Row>
+          <Row label="Justify">
+            <select style={selBase} value={getS('justify-content') || 'flex-start'} onChange={e => apply('justify-content', e.target.value)}>
+              {['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Align">
+            <select style={selBase} value={getS('align-items') || 'stretch'} onChange={e => apply('align-items', e.target.value)}>
+              {['stretch', 'flex-start', 'center', 'flex-end', 'baseline'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Wrap">
+            <BtnGroup options={['nowrap', 'wrap', 'wrap-rev']}
+              value={(() => { const v = getS('flex-wrap') || 'nowrap'; return v === 'wrap-reverse' ? 'wrap-rev' : v; })()}
+              onChange={v => apply('flex-wrap', v === 'wrap-rev' ? 'wrap-reverse' : v)} />
+          </Row>
+          <Row label="Gap">
+            <PropInput value={getS('gap') || '0px'} onChange={v => apply('gap', v)} placeholder="0px" />
+          </Row>
+          <Row label="Grid cols">
+            <PropInput value={getS('grid-template-columns') || ''} onChange={v => apply('grid-template-columns', v)} placeholder="1fr 1fr 1fr" />
+          </Row>
+          <Row label="Grid rows">
+            <PropInput value={getS('grid-template-rows') || ''} onChange={v => apply('grid-template-rows', v)} placeholder="auto 1fr auto" />
+          </Row>
+        </Section>
+
+        {/* Spacing */}
+        <Section title="Spacing" icon={<FiMove size={12} />} defaultOpen={false}>
+          <div style={{ fontSize: 10, color: C.dim, marginBottom: 2 }}>Margin</div>
+          <SpacingGrid
+            props={[['margin-top','↑'],['margin-right','→'],['margin-bottom','↓'],['margin-left','←']]}
+            getS={getS} apply={apply}
+          />
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 4, marginBottom: 2 }}>Padding</div>
+          <SpacingGrid
+            props={[['padding-top','↑'],['padding-right','→'],['padding-bottom','↓'],['padding-left','←']]}
+            getS={getS} apply={apply}
+          />
+        </Section>
+
+        {/* Border */}
+        <Section title="Border" icon={<FiBox size={12} />} defaultOpen={false}>
+          <Row label="Width">
+            <PropInput value={getS('border-width') || '0px'} onChange={v => apply('border-width', v)} placeholder="0px" />
+          </Row>
+          <Row label="Color">
+            <ColorInput value={getS('border-color') || '#cccccc'} onChange={v => apply('border-color', v)} />
+          </Row>
+          <Row label="Style">
+            <BtnGroup options={['none', 'solid', 'dashed', 'dotted', 'double']} value={getS('border-style') || 'none'} onChange={v => apply('border-style', v)} small />
+          </Row>
+          <Row label="Radius">
+            <PropInput value={getS('border-radius') || '0px'} onChange={v => apply('border-radius', v)} placeholder="0px" />
+          </Row>
+        </Section>
+
+        {/* Shadows */}
+        <Section title="Shadows" defaultOpen={false}>
+          <div style={{ fontSize: 10, color: C.dim, marginBottom: 3 }}>Box Shadow</div>
+          <PropInput value={getS('box-shadow') || 'none'} onChange={v => apply('box-shadow', v)} placeholder="0 4px 12px rgba(0,0,0,0.2)" />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3 }}>
+            {(['none', '0 2px 4px rgba(0,0,0,0.1)', '0 4px 12px rgba(0,0,0,0.2)', '0 8px 24px rgba(0,0,0,0.3)', '0 0 0 3px rgba(229,164,90,0.5)', 'inset 0 2px 4px rgba(0,0,0,0.2)'] as string[]).map((s, i) => (
+              <button key={s} onClick={() => apply('box-shadow', s)} style={{
+                fontSize: 10, padding: '3px 8px', background: C.surface2,
+                border: `1px solid ${C.border}`, borderRadius: 12, cursor: 'pointer', color: C.muted,
+                transition: 'border-color 0.12s',
+              }}
+                onMouseEnter={e => (e.currentTarget.style.borderColor = C.muted)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor = C.border)}
+              >
+                {['None','Sm','Md','Lg','Glow','Inset'][i]}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 8, marginBottom: 3 }}>Text Shadow</div>
+          <PropInput value={getS('text-shadow') || 'none'} onChange={v => apply('text-shadow', v)} placeholder="2px 2px 4px rgba(0,0,0,0.3)" />
+        </Section>
+
+        {/* Transform */}
+        <Section title="Transform" defaultOpen={false}>
+          <Row label="Rotate">
+            <input type="range" min="-180" max="180" step="1" value={rotateDeg}
+              style={{ flex: 1, accentColor: C.accent } as any}
+              onChange={e => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setRotateDeg(v);
+                applyTransform({ rotate: v });
+              }} />
+          </Row>
+          <Row label="Scale X">
+            <input type="range" min="0.1" max="3" step="0.05" value={scaleX}
+              style={{ flex: 1, accentColor: C.accent } as any}
+              onChange={e => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setScaleX(v);
+                applyTransform({ scaleX: v });
+              }} />
+          </Row>
+          <Row label="Scale Y">
+            <input type="range" min="0.1" max="3" step="0.05" value={scaleY}
+              style={{ flex: 1, accentColor: C.accent } as any}
+              onChange={e => {
+                const v = parseFloat((e.target as HTMLInputElement).value);
+                setScaleY(v);
+                applyTransform({ scaleY: v });
+              }} />
+          </Row>
+          <Row label="Custom">
+            <PropInput value={getS('transform') || 'none'} onChange={v => apply('transform', v)} placeholder="rotate(45deg) scale(1.2)" />
+          </Row>
+        </Section>
+
+        {/* Animation */}
+        <Section title="Animation" icon={<FiZap size={12} />} defaultOpen={false}>
+          <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Preset</div>
+          <ChipGroup
+            options={['none','fadeIn','slideUp','slideLeft','slideRight','bounce','pulse','spin','zoom','shake','flip']}
+            value={animationConfig.preset}
+            onChange={v => setAnimationConfig({ preset: v })}
+          />
+          <Row label="Trigger">
+            <BtnGroup options={['load','hover','click']} value={animationConfig.trigger} onChange={v => setAnimationConfig({ trigger: v as any })} />
+          </Row>
+          <Row label="Duration">
+            <PropInput value={animationConfig.duration} onChange={v => setAnimationConfig({ duration: v })} placeholder="0.6s" />
+          </Row>
+          <Row label="Delay">
+            <PropInput value={animationConfig.delay} onChange={v => setAnimationConfig({ delay: v })} placeholder="0s" />
+          </Row>
+          <Row label="Easing">
+            <select style={selBase} value={animationConfig.easing} onChange={e => setAnimationConfig({ easing: e.target.value })}>
+              {['ease','linear','ease-in','ease-out','ease-in-out','cubic-bezier(0.68,-0.55,0.27,1.55)'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Repeat">
+            <BtnGroup options={['1','2','3','infinite']} value={animationConfig.iteration} onChange={v => setAnimationConfig({ iteration: v })} />
+          </Row>
+          <Row label="Direction">
+            <select style={selBase} value={animationConfig.direction} onChange={e => setAnimationConfig({ direction: e.target.value })}>
+              {['normal','reverse','alternate','alternate-reverse'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Fill">
+            <BtnGroup options={['none','forwards','backwards','both']} value={animationConfig.fillMode} onChange={v => setAnimationConfig({ fillMode: v })} small />
+          </Row>
+          <div style={{ marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Custom @keyframes</div>
+            <textarea
+              style={{ ...inputBase, width: '100%', height: 72, resize: 'none', flex: 'none' } as any}
+              placeholder="@keyframes myAnim { from { opacity: 0 } to { opacity: 1 } }"
+              value={animationConfig.customKeyframes}
+              onChange={e => setAnimationConfig({ customKeyframes: e.target.value })}
+              onFocus={e => (e.target.style.borderColor = C.accentBrd)}
+              onBlurCapture={e => (e.target.style.borderColor = C.border)}
+            />
+          </div>
+          <button
+            onClick={() => {
+              if (!selectedElement || animationConfig.preset === 'none') return;
+              const PRESETS: Record<string, string> = {
+                fadeIn: 'fadeIn 0.6s ease forwards', slideUp: 'slideUp 0.6s ease forwards',
+                slideLeft: 'slideLeft 0.6s ease forwards', slideRight: 'slideRight 0.6s ease forwards',
+                bounce: 'bounce 1s ease infinite', pulse: 'pulse 1.5s ease infinite',
+                spin: 'spin 1s linear infinite', zoom: 'zoom 0.4s ease forwards',
+                shake: 'shake 0.5s ease', flip: 'flip 0.6s ease forwards',
+              };
+              const animationValue = PRESETS[animationConfig.preset] || animationConfig.preset;
+              upsertTimelineTrackForSelection(animationConfig.preset, animationValue);
+              persistPresetKeyframe(animationConfig.preset);
+            }}
+            style={{
+              padding: '6px 12px', background: C.accentBg,
+              border: `1px solid ${C.accentBrd}`, borderRadius: 5,
+              cursor: 'pointer', color: C.accent, fontSize: 11,
+              width: '100%', fontWeight: 600, letterSpacing: '0.03em',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(229,164,90,0.2)')}
+            onMouseLeave={e => (e.currentTarget.style.background = C.accentBg)}
+          >
+            ▶ Apply Animation to Element
+          </button>
+        </Section>
+
+        {/* Custom CSS */}
+        <Section title="Custom CSS" icon={<FiCode size={12} />} defaultOpen={false}>
+          <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Paste CSS property:value pairs</div>
+          <textarea
+            style={{ ...inputBase, width: '100%', height: 88, resize: 'none', flex: 'none' } as any}
+            placeholder={'color: red;\nbackground: blue;\nfont-size: 20px;'}
+            value={customCssDraft}
+            onChange={e => setCustomCssDraft(e.target.value)}
+            onBlur={() => {
+              customCssDraft.split(';').map(r => r.trim()).filter(Boolean).forEach(rule => {
+                const [prop, ...vals] = rule.split(':');
+                if (prop && vals.length) apply(prop.trim(), vals.join(':').trim());
+              });
+            }}
+            onFocus={e => (e.target.style.borderColor = C.accentBrd)}
+            onBlurCapture={e => (e.target.style.borderColor = C.border)}
+          />
+        </Section>
+
+      </div>
     </div>
   );
 };

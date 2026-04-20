@@ -1,5 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useEditorStore } from './store/editorStore';
 import MenuBar from './components/MenuBar';
 import FilePanel from './components/FilePanel';
@@ -8,328 +7,443 @@ import PreviewPane from './components/PreviewPane';
 import VisualEditor from './components/VisualEditor';
 import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
-import TerminalPane from './components/TerminalPane';
-import GitPanel from './components/GitPanel';
+import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import {
-  FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder,
-  FiSliders, FiClock, FiTerminal, FiSearch, FiGitBranch, FiX,
-  FiMaximize2, FiMinimize2,
-} from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
 import { exportProject } from './utils/export';
-import { writeFileToContainer, isContainerBooted } from './utils/webContainerRuntime';
 
-export type Mode = 'code' | 'visual' | 'split';
-
-/* ─── AI Status Button ─── */
+/* ─── AI Status Button (shown in bottom status bar) ─── */
 function AiStatusButton() {
   const [aiState, setAiState] = useState(aiControl.state);
+
   useEffect(() => {
-    const h = () => setAiState(aiControl.state);
-    aiControl.listeners.add(h);
-    return () => { aiControl.listeners.delete(h); };
+    const handler = () => setAiState(aiControl.state);
+    aiControl.listeners.add(handler);
+    return () => { aiControl.listeners.delete(handler); };
   }, []);
-  const handleClick = () => { clearAiCache(); aiControl.triggerManual?.(); };
+
+  const handleClick = () => {
+    clearAiCache();
+    aiControl.triggerManual?.();
+  };
+
   const cfg = {
-    idle:    { dot: 'rgba(255,255,255,0.4)', text: '✦ AI', bg: 'transparent' },
-    loading: { dot: '#d29922',               text: '⟳ AI', bg: 'rgba(0,0,0,0.2)' },
-    ready:   { dot: '#3fb950',               text: '✓ AI', bg: 'rgba(0,0,0,0.2)' },
-    error:   { dot: '#ff7b72',               text: '✗ AI', bg: 'rgba(0,0,0,0.2)' },
+    idle:    { dot: 'rgba(255,255,255,0.5)', dotGlow: false, text: '✦ AI',  bg: 'rgba(0,0,0,0.15)',  label: 'Click to get AI suggestion' },
+    loading: { dot: '#fbbf24',               dotGlow: true,  text: '⟳ AI…', bg: 'rgba(0,0,0,0.25)',  label: 'AI is thinking…' },
+    ready:   { dot: '#4ade80',               dotGlow: true,  text: '✓ AI',  bg: 'rgba(0,0,0,0.25)',  label: 'Suggestion ready — Tab to accept · Click to refresh' },
+    error:   { dot: '#f87171',               dotGlow: false, text: '✗ AI',  bg: 'rgba(0,0,0,0.25)',  label: 'AI error — click to retry' },
   }[aiState];
+
   return (
-    <button onClick={handleClick} title="AI Suggestions"
-      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 12px', height: '100%', background: cfg.bg, border: 'none', borderLeft: '1px solid rgba(255,255,255,0.15)', color: '#ffffffcc', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', fontWeight: 600, letterSpacing: '0.03em', transition: 'background 0.15s' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.25)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = cfg.bg; }}
+    <button
+      title={cfg.label}
+      onClick={handleClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '0 10px',
+        height: '100%',
+        background: cfg.bg,
+        border: 'none',
+        borderLeft: '1px solid rgba(255,255,255,0.15)',
+        color: '#ffffff',
+        cursor: 'pointer',
+        fontSize: 11,
+        fontFamily: 'inherit',
+        fontWeight: 600,
+        letterSpacing: '0.04em',
+        transition: 'background 0.15s',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.3)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = cfg.bg; }}
     >
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.dot, flexShrink: 0, boxShadow: aiState !== 'idle' ? `0 0 6px ${cfg.dot}` : 'none' }} />
+      <span style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: cfg.dot,
+        display: 'inline-block',
+        flexShrink: 0,
+        boxShadow: cfg.dotGlow ? `0 0 6px ${cfg.dot}, 0 0 10px ${cfg.dot}88` : 'none',
+        transition: 'background 0.2s, box-shadow 0.2s',
+      }} />
       {cfg.text}
     </button>
   );
 }
 
-/* ─── Mobile check ─── */
+/* ─── mobile hook ─── */
 function useIsMobile() {
-  const [mob, setMob] = useState(() => window.innerWidth < 768);
+  const [mobile, setMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
-    const fn = () => setMob(window.innerWidth < 768);
+    const fn = () => setMobile(window.innerWidth < 768);
     window.addEventListener('resize', fn);
     return () => window.removeEventListener('resize', fn);
   }, []);
-  return mob;
+  return mobile;
 }
 
-/* ─── Types ─── */
-type SidebarView = 'files' | 'search' | 'git' | null;
-type BottomView  = 'terminal' | 'timeline';
-type EditorTab   = 'code' | 'preview' | 'visual' | 'properties';
+/* ─────────────────────────────────────────
+   Types
+   ───────────────────────────────────────── */
+export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
+export type Mode = 'code' | 'visual' | 'split';
 
-const LS = {
-  sidebar:    'hev-sidebar-v1',
-  terminal:   'hev-terminal-v1',
-  bottomView: 'hev-bottom-view-v1',
-  openTabs:   'hev-open-tabs-v1',
-  activeTab:  'hev-active-tab-v1',
-  mode:       'hev-mode-v1',
+interface WinState {
+  id: WinId;
+  title: string;
+  rect: WinRect;
+  visible: boolean;
+  minimized: boolean;
+  zIndex: number;
+  docked: boolean;
+}
+
+interface DockSizes {
+  leftW: number;         // width of left (files) panel
+  rightW: number;        // width of right panel in split mode (preview)
+  visualRightW: number;  // width of right panel in visual mode (properties)
+  bottomH: number;       // height of bottom (timeline) panel
+}
+
+const WIN_ICONS: Record<WinId, React.ReactNode> = {
+  files:      <FiFolder size={11} />,
+  code:       <FiCode size={11} />,
+  preview:    <FiMonitor size={11} />,
+  properties: <FiSliders size={11} />,
+  timeline:   <FiClock size={11} />,
 };
-function ls<T>(k: string, d: T): T {
-  try { const v = localStorage.getItem(k); return v !== null ? JSON.parse(v) : d; } catch { return d; }
-}
-function sv(k: string, v: unknown) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 
-/* ─── Resize handle ─── */
-function ResizeBar({ dir }: { dir: 'h' | 'v' }) {
+const WIN_LABELS: Record<WinId, string> = {
+  files: 'File Explorer', code: 'Code Editor', preview: 'Preview',
+  properties: 'Properties', timeline: 'Timeline',
+};
+
+/* ─────────────────────────────────────────
+   Dock slot calculator
+   ───────────────────────────────────────── */
+function getDockRect(id: WinId, wsW: number, wsH: number, mode: Mode, sizes: DockSizes, visible?: Set<WinId>): WinRect | null {
+  const { leftW, rightW, visualRightW, bottomH } = sizes;
+
+  if (mode === 'visual') {
+    const showFiles = !visible || visible.has('files');
+    const showProps = !visible || visible.has('properties');
+    const showTL    = !visible || visible.has('timeline');
+    const effLeft   = showFiles ? leftW : 0;
+    const effRight  = showProps ? visualRightW : 0;
+    const effBottom = showTL    ? bottomH : 0;
+    const cw = Math.max(160, wsW - effLeft - effRight);
+
+    if (id === 'files'      && showFiles) return { x: 0,               y: 0,             w: leftW,       h: wsH };
+    if (id === 'preview')                 return { x: effLeft,          y: 0,             w: cw,          h: wsH - effBottom };
+    if (id === 'timeline'   && showTL)    return { x: effLeft,          y: wsH - effBottom, w: cw + effRight, h: bottomH };
+    if (id === 'properties' && showProps) return { x: effLeft + cw,     y: 0,             w: visualRightW, h: wsH - effBottom };
+    return null;
+  } else if (mode === 'code') {
+    const showFiles = !visible || visible.has('files');
+    const effLeft   = showFiles ? leftW : 0;
+    if (id === 'files' && showFiles) return { x: 0,       y: 0, w: leftW,        h: wsH };
+    if (id === 'code')               return { x: effLeft,  y: 0, w: wsW - effLeft, h: wsH };
+    return null;
+  } else {
+    // split
+    const showFiles   = !visible || visible.has('files');
+    const showPreview = !visible || visible.has('preview');
+    const effLeft  = showFiles   ? leftW  : 0;
+    const effRight = showPreview ? rightW : 0;
+    const cw = Math.max(160, wsW - effLeft - effRight);
+
+    if (id === 'files'   && showFiles)   return { x: 0,              y: 0, w: leftW,  h: wsH };
+    if (id === 'code')                   return { x: effLeft,         y: 0, w: cw,     h: wsH };
+    if (id === 'preview' && showPreview) return { x: effLeft + cw,    y: 0, w: rightW, h: wsH };
+    return null;
+  }
+}
+
+/** All slots that exist in this mode (for snap zones) */
+function getSnapSlots(wsW: number, wsH: number, mode: Mode, sizes: DockSizes, visible?: Set<WinId>): { id: WinId; rect: WinRect }[] {
+  const ids: WinId[] =
+    mode === 'visual' ? ['files', 'preview', 'timeline', 'properties'] :
+    mode === 'code'   ? ['files', 'code'] :
+                        ['files', 'code', 'preview'];
+  return ids.flatMap(id => {
+    const r = getDockRect(id, wsW, wsH, mode, sizes, visible);
+    return r ? [{ id, rect: r }] : [];
+  });
+}
+
+function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
+  const defaults: Record<WinId, WinRect> = {
+    files:      { x: 20,  y: 20,  w: 200, h: Math.min(520, wsH - 60) },
+    code:       { x: 240, y: 20,  w: Math.max(420, wsW * 0.4),  h: Math.min(580, wsH - 60) },
+    preview:    { x: Math.max(240, wsW - Math.max(380, wsW * 0.38) - 20), y: 20, w: Math.max(380, wsW * 0.38), h: Math.min(500, wsH - 80) },
+    properties: { x: Math.max(0, wsW - 280), y: 60, w: 265, h: Math.min(440, wsH - 100) },
+    timeline:   { x: 20, y: Math.max(80, wsH - 200), w: Math.max(460, wsW * 0.6), h: 185 },
+  };
+  return defaults[id];
+}
+
+const DEFAULT_DOCK: DockSizes = { leftW: 200, rightW: 420, visualRightW: 240, bottomH: 160 };
+
+function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState[] {
+  const dockedPerMode: Record<Mode, WinId[]> = {
+    code:   ['files', 'code'],
+    split:  ['files', 'code', 'preview'],
+    visual: ['files', 'preview', 'timeline', 'properties'],
+  };
+  const dockedSet = new Set(dockedPerMode[mode]);
+  const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline'];
+  return allIds.map((id, i) => ({
+    id, title: WIN_LABELS[id],
+    rect: floatingDefault(id, wsW, wsH),
+    visible: dockedSet.has(id),
+    minimized: false,
+    zIndex: 10 + i,
+    docked: dockedSet.has(id),
+  }));
+}
+
+const LS_KEY = 'html-editor-win-layout-v6';
+const LS_DOCK = 'html-editor-dock-sizes-v2';
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function normalizeRect(rect: WinRect, wsW: number, wsH: number): WinRect {
+  const minW = 140;
+  const minH = 100;
+  const w = clamp(rect.w, minW, Math.max(minW, wsW));
+  const h = clamp(rect.h, minH, Math.max(minH, wsH));
+  const x = clamp(rect.x, 0, Math.max(0, wsW - w));
+  const y = clamp(rect.y, 0, Math.max(0, wsH - 34));
+  return { x, y, w, h };
+}
+
+function normalizeLayout(wins: WinState[], wsW: number, wsH: number): WinState[] {
+  return wins.map(w => ({ ...w, rect: normalizeRect(w.rect, wsW, wsH) }));
+}
+
+function loadLayout(wsW: number, wsH: number): WinState[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as WinState[];
+      if (Array.isArray(saved) && saved.length === 5) return normalizeLayout(saved, wsW, wsH);
+    }
+  } catch {}
+  return normalizeLayout(defaultLayout(wsW, wsH), wsW, wsH);
+}
+function loadDockSizes(): DockSizes {
+  try {
+    const raw = localStorage.getItem(LS_DOCK);
+    if (raw) return { ...DEFAULT_DOCK, ...JSON.parse(raw) };
+  } catch {}
+  return { ...DEFAULT_DOCK };
+}
+function saveLayout(wins: WinState[]) { try { localStorage.setItem(LS_KEY, JSON.stringify(wins)); } catch {} }
+function saveDockSizes(s: DockSizes)  { try { localStorage.setItem(LS_DOCK, JSON.stringify(s)); } catch {} }
+
+let _zTop = 20;
+function nextZ() { return ++_zTop; }
+
+/* ─────────────────────────────────────────
+   Divider component (resizes docked panels)
+   ───────────────────────────────────────── */
+interface DividerProps {
+  orientation: 'vertical' | 'horizontal';
+  pos: number; // pixel position (x for vertical, y for horizontal)
+  min: number;
+  max: number;
+  wsW: number;
+  wsH: number;
+  onChange: (newPos: number) => void;
+}
+function DockDivider({ orientation, pos, min, max, onChange }: DividerProps) {
   const [hov, setHov] = useState(false);
-  const isV = dir === 'v';
+  const [drag, setDrag] = useState(false);
+  const isV = orientation === 'vertical';
+
+  const onMd = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setDrag(true);
+    showCapture(isV ? 'col-resize' : 'row-resize');
+    const startMouse = isV ? e.clientX : e.clientY;
+    const startPos = pos;
+    const onMv = (ev: MouseEvent) => {
+      const delta = (isV ? ev.clientX : ev.clientY) - startMouse;
+      onChange(Math.max(min, Math.min(max, startPos + delta)));
+    };
+    const onUp = () => {
+      setDrag(false); hideCapture();
+      window.removeEventListener('mousemove', onMv);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMv);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  const SIZE = 4; // hit area
+  const style: React.CSSProperties = isV
+    ? { position: 'absolute', top: 0, bottom: 0, left: pos - SIZE / 2, width: SIZE, cursor: 'col-resize', zIndex: 500 }
+    : { position: 'absolute', left: 0, right: 0, top: pos - SIZE / 2, height: SIZE, cursor: 'row-resize', zIndex: 500 };
+
   return (
-    <PanelResizeHandle
-      style={isV
-        ? { width: 4, background: 'transparent', cursor: 'col-resize', flexShrink: 0, position: 'relative', zIndex: 10, transition: 'background 0.15s' }
-        : { height: 4, background: 'transparent', cursor: 'row-resize', flexShrink: 0, position: 'relative', zIndex: 10, transition: 'background 0.15s' }
-      }
-      onDragging={dragging => setHov(dragging)}
-    >
-      <div style={isV
-        ? { position: 'absolute', inset: 0, background: hov ? 'rgba(0,122,204,0.7)' : 'rgba(255,255,255,0.04)', transition: 'background 0.15s' }
-        : { position: 'absolute', inset: 0, background: hov ? 'rgba(0,122,204,0.7)' : 'rgba(255,255,255,0.04)', transition: 'background 0.15s' }
-      }
-        onMouseEnter={() => setHov(true)}
-        onMouseLeave={() => setHov(false)}
-      />
-    </PanelResizeHandle>
+    <div
+      onMouseDown={onMd}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        ...style,
+        background: (hov || drag) ? 'rgba(100,160,255,0.5)' : 'transparent',
+        transition: 'background 0.15s',
+      }}
+    />
   );
 }
 
-/* ─── Activity Bar ─── */
-function ActivityBar({ sidebar, onSidebar, terminalOpen, onTerminal }: {
-  sidebar: SidebarView;
-  onSidebar: (v: SidebarView) => void;
-  terminalOpen: boolean;
-  onTerminal: () => void;
+/* ─────────────────────────────────────────
+   Snap zone overlay (shown while dragging floating windows)
+   ───────────────────────────────────────── */
+function SnapZonesOverlay({
+  slots, dragPos, hoveredSlot,
+}: {
+  slots: { id: WinId; rect: WinRect }[];
+  dragPos: { x: number; y: number } | null;
+  hoveredSlot: WinId | null;
 }) {
-  const btns: { id: SidebarView; icon: React.ReactNode; title: string }[] = [
-    { id: 'files',  icon: <FiFolder size={21} />,    title: 'Explorer (Ctrl+Shift+E)' },
-    { id: 'search', icon: <FiSearch size={21} />,    title: 'Search (Ctrl+Shift+F)' },
-    { id: 'git',    icon: <FiGitBranch size={21} />, title: 'Source Control' },
-  ];
+  if (!dragPos) return null;
   return (
-    <div style={{ width: 48, flexShrink: 0, display: 'flex', flexDirection: 'column', background: '#2c2c2c', borderRight: '1px solid #1b1b1b', userSelect: 'none' }}>
-      {btns.map(b => (
-        <button key={b.id ?? ''} title={b.title}
-          onClick={() => onSidebar(sidebar === b.id ? null : b.id)}
-          style={{ width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: sidebar === b.id ? '#fff' : '#858585', borderLeft: `2px solid ${sidebar === b.id ? '#007acc' : 'transparent'}`, transition: 'color 0.1s', flexShrink: 0 }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = sidebar === b.id ? '#fff' : '#858585'; }}
-        >{b.icon}</button>
-      ))}
-      <div style={{ flex: 1 }} />
-      <button title="Toggle Terminal (Ctrl+`)"
-        onClick={onTerminal}
-        style={{ width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: terminalOpen ? '#3fb950' : '#858585', borderLeft: `2px solid ${terminalOpen ? '#3fb950' : 'transparent'}`, transition: 'color 0.1s', flexShrink: 0, marginBottom: 6 }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = terminalOpen ? '#3fb950' : '#858585'; }}
-      ><FiTerminal size={21} /></button>
-    </div>
-  );
-}
-
-/* ─── Tab Row ─── */
-const TAB_META: Record<EditorTab, { label: string; icon: React.ReactNode }> = {
-  code:       { label: 'Code Editor',    icon: <FiCode size={12} /> },
-  preview:    { label: 'Preview',        icon: <FiEye size={12} /> },
-  visual:     { label: 'Visual Editor',  icon: <FiLayout size={12} /> },
-  properties: { label: 'Properties',     icon: <FiSliders size={12} /> },
-};
-
-function TabRow({ tabs, active, onTab, onClose, mode, onMode }: {
-  tabs: EditorTab[];
-  active: EditorTab;
-  onTab: (t: EditorTab) => void;
-  onClose: (t: EditorTab) => void;
-  mode: Mode;
-  onMode: (m: Mode) => void;
-}) {
-  return (
-    <div style={{ height: 35, flexShrink: 0, display: 'flex', alignItems: 'stretch', background: '#252526', borderBottom: '1px solid #1b1b1b', overflow: 'hidden' }}>
-      {/* Tabs */}
-      <div style={{ display: 'flex', flex: 1, overflowX: 'auto', overflowY: 'hidden' }}>
-        {tabs.map(tab => {
-          const isActive = active === tab;
-          return (
-            <div key={tab}
-              onClick={() => onTab(tab)}
-              className="tab-item"
-              style={{ display: 'flex', alignItems: 'center', gap: 6, height: '100%', padding: '0 14px 0 12px', cursor: 'pointer', flexShrink: 0, background: isActive ? '#1e1e1e' : 'transparent', borderBottom: `2px solid ${isActive ? '#007acc' : 'transparent'}`, borderRight: '1px solid #1b1b1b', color: isActive ? '#cccccc' : '#8a8a8a', fontSize: 12, whiteSpace: 'nowrap', transition: 'color 0.1s, background 0.1s', userSelect: 'none' }}
-              onMouseEnter={e => {
-                if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
-                const closeBtn = (e.currentTarget as HTMLElement).querySelector('.tab-close') as HTMLElement | null;
-                if (closeBtn) closeBtn.style.opacity = '1';
-              }}
-              onMouseLeave={e => {
-                if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
-                const closeBtn = (e.currentTarget as HTMLElement).querySelector('.tab-close') as HTMLElement | null;
-                if (closeBtn) closeBtn.style.opacity = '0';
-              }}
-            >
-              <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{TAB_META[tab].icon}</span>
-              {TAB_META[tab].label}
-              <span
-                className="tab-close"
-                onClick={e => { e.stopPropagation(); onClose(tab); }}
-                style={{ display: 'flex', alignItems: 'center', marginLeft: 2, opacity: 0, cursor: 'pointer', color: '#aaa', transition: 'opacity 0.1s' }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ff7b72'; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#aaa'; }}
-                title="Close tab"
-              ><FiX size={11} /></span>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Layout switcher */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 8px', borderLeft: '1px solid #1b1b1b', flexShrink: 0 }}>
-        {([['split', FiLayout, 'Split (Ctrl+3)'], ['code', FiCode, 'Code (Ctrl+1)'], ['visual', FiEye, 'Visual (Ctrl+2)']] as const).map(([m, Icon, title]) => (
-          <button key={m} title={title} onClick={() => onMode(m)}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 500, background: mode === m ? 'rgba(0,122,204,0.22)' : 'transparent', border: `1px solid ${mode === m ? 'rgba(0,122,204,0.5)' : 'transparent'}`, color: mode === m ? '#58a6ff' : '#767676', fontFamily: 'inherit', transition: 'all 0.1s' }}
-          >
-            <Icon size={12} />{m === 'split' ? 'Split' : m === 'code' ? 'Code' : 'Visual'}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Panel Bottom Header ─── */
-function BottomHeader({ view, onView, onClose, maximized, onMaximize }: {
-  view: BottomView; onView: (v: BottomView) => void;
-  onClose: () => void; maximized: boolean; onMaximize: () => void;
-}) {
-  const views: { id: BottomView; label: string; icon: React.ReactNode }[] = [
-    { id: 'terminal', label: 'TERMINAL', icon: <FiTerminal size={11} /> },
-    { id: 'timeline', label: 'TIMELINE', icon: <FiClock size={11} /> },
-  ];
-  return (
-    <div style={{ height: 35, flexShrink: 0, display: 'flex', alignItems: 'stretch', background: '#1e1e1e', borderTop: '2px solid #007acc', userSelect: 'none' }}>
-      {views.map(v => (
-        <button key={v.id}
-          onClick={() => onView(v.id)}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 16px', background: 'none', border: 'none', borderBottom: `2px solid ${view === v.id ? '#007acc' : 'transparent'}`, color: view === v.id ? '#cccccc' : '#6e7681', cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: 'inherit', letterSpacing: '0.05em', transition: 'all 0.1s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = view === v.id ? '#ccc' : '#6e7681'; }}
-        >{v.icon}{v.label}</button>
-      ))}
-      <div style={{ flex: 1 }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 8px' }}>
-        <button onClick={onMaximize} title={maximized ? 'Restore Panel' : 'Maximize Panel'}
-          style={{ background: 'none', border: 'none', color: '#6e7681', cursor: 'pointer', padding: 5, borderRadius: 3, display: 'flex', alignItems: 'center', transition: 'color 0.1s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#6e7681'; }}
-        >{maximized ? <FiMinimize2 size={13} /> : <FiMaximize2 size={13} />}</button>
-        <button onClick={onClose} title="Close Panel"
-          style={{ background: 'none', border: 'none', color: '#6e7681', cursor: 'pointer', padding: 5, borderRadius: 3, display: 'flex', alignItems: 'center', transition: 'color 0.1s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ff7b72'; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#6e7681'; }}
-        ><FiX size={13} /></button>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Sidebar panels ─── */
-function SearchPanel() {
-  const [q, setQ] = useState('');
-  const { files, setActiveFile } = useEditorStore();
-  const results = q.length > 1
-    ? files.filter(f => f.content?.toLowerCase().includes(q.toLowerCase()))
-        .map(f => ({ file: f, count: (f.content?.match(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')) || []).length }))
-    : [];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#252526' }}>
-      <div style={{ padding: '10px 14px 8px', fontSize: 11, fontWeight: 700, color: '#bbb', letterSpacing: '0.08em', textTransform: 'uppercase', flexShrink: 0 }}>Search</div>
-      <div style={{ padding: '0 10px 8px', flexShrink: 0 }}>
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search in files…"
-          style={{ width: '100%', background: '#3c3c3c', border: '1px solid #494949', borderRadius: 3, color: '#ccc', padding: '5px 8px', fontSize: 12, fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
-          onFocus={e => { (e.currentTarget as HTMLElement).style.borderColor = '#007acc'; }}
-          onBlur={e => { (e.currentTarget as HTMLElement).style.borderColor = '#494949'; }}
-        />
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {results.map(({ file, count }) => (
-          <div key={file.id} onClick={() => setActiveFile(file.id)}
-            style={{ padding: '6px 14px', fontSize: 12, cursor: 'pointer', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
-          >
-            <div style={{ fontWeight: 600, color: '#ccc' }}>{file.name}</div>
-            <div style={{ color: '#6e7681', fontSize: 11 }}>{count} match{count !== 1 ? 'es' : ''}</div>
+    <>
+      {slots.map(({ id, rect }) => {
+        const isHov = hoveredSlot === id;
+        return (
+          <div key={id} style={{
+            position: 'absolute',
+            left: rect.x, top: rect.y, width: rect.w, height: rect.h,
+            zIndex: 9000,
+            pointerEvents: 'none',
+            border: `2px dashed ${isHov ? '#64a0ff' : 'rgba(100,160,255,0.3)'}`,
+            background: isHov ? 'rgba(100,160,255,0.12)' : 'rgba(100,160,255,0.04)',
+            borderRadius: 4,
+            transition: 'all 0.1s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {isHov && (
+              <div style={{
+                background: 'rgba(100,160,255,0.85)', borderRadius: 6,
+                padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              }}>
+                Drop to dock here
+              </div>
+            )}
           </div>
-        ))}
-        {q.length > 1 && results.length === 0 && <div style={{ padding: '12px 14px', fontSize: 12, color: '#555' }}>No results found.</div>}
-      </div>
-    </div>
+        );
+      })}
+    </>
   );
 }
 
-/* ─── Sidebar header ─── */
-function SidebarHeader({ view, onClose }: { view: SidebarView; onClose: () => void }) {
-  const labels: Record<NonNullable<SidebarView>, string> = { files: 'EXPLORER', search: 'SEARCH', git: 'SOURCE CONTROL' };
-  return (
-    <div style={{ height: 35, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', background: '#252526', borderBottom: '1px solid #1b1b1b', userSelect: 'none' }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#bbb', letterSpacing: '0.08em' }}>{view ? labels[view] : ''}</span>
-      <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#6e7681', cursor: 'pointer', padding: 3, borderRadius: 3, display: 'flex', alignItems: 'center', transition: 'color 0.1s' }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#6e7681'; }}
-      ><FiX size={13} /></button>
-    </div>
-  );
-}
+/* ─────────────────────────────────────────
+   Mobile App
+   ───────────────────────────────────────── */
+type MobileTab = 'code' | 'preview' | 'files' | 'props';
 
-/* ─── Mobile App ─── */
 function MobileApp() {
-  const [tab, setTab] = useState<'code' | 'preview' | 'files' | 'props'>('code');
+  const [tab, setTab] = useState<MobileTab>('code');
   const { files, mode, setMode, notification, showNotification } = useEditorStore();
-  const TABS = [
-    { id: 'files' as const, icon: <FiFolder size={18} />, label: 'Files' },
-    { id: 'code' as const, icon: <FiCode size={18} />, label: 'Code' },
-    { id: 'preview' as const, icon: <FiEye size={18} />, label: 'Preview' },
-    { id: 'props' as const, icon: <FiSliders size={18} />, label: 'Props' },
+
+  const TABS: { id: MobileTab; icon: React.ReactNode; label: string }[] = [
+    { id: 'files',   icon: <FiFolder size={18} />,  label: 'Files'   },
+    { id: 'code',    icon: <FiCode size={18} />,    label: 'Code'    },
+    { id: 'preview', icon: <FiEye size={18} />,     label: 'Preview' },
+    { id: 'props',   icon: <FiSliders size={18} />, label: 'Props'   },
   ];
+
+  const accent = '#e5a45a';
+  const bg = '#1e1e1e';
+  const bar = '#252526';
+  const border = '#3a3a3a';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100vw', background: '#1e1e1e', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", overflow: 'hidden' }}>
-      <div style={{ display: 'flex', alignItems: 'center', height: 46, flexShrink: 0, background: '#2c2c2c', borderBottom: '1px solid #3a3a3a', padding: '0 12px', gap: 10 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100vw', background: bg, color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", overflow: 'hidden' }}>
+
+      {/* ── Top header ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 46, flexShrink: 0, background: '#323233', borderBottom: `1px solid ${border}`, padding: '0 12px', gap: 10, zIndex: 100 }}>
+        <div style={{ width: 20, height: 20, borderRadius: 4, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#fff' }}>H</div>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#ccc', flex: 1 }}>HTML Editor</span>
-        <button onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))}
-          style={{ padding: '5px 10px', fontSize: 11, borderRadius: 4, cursor: 'pointer', background: 'rgba(0,122,204,0.12)', border: '1px solid rgba(0,122,204,0.3)', color: '#58a6ff', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: 2, background: '#1e1e1e', borderRadius: 6, padding: 2 }}>
+          {([['split', 'View'], ['visual', 'Visual']] as [Mode, string][]).map(([m, label]) => (
+            <button key={m} onClick={() => { setMode(m); setTab('preview'); }}
+              style={{ padding: '3px 10px', fontSize: 10, borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', border: 'none', background: mode === m ? accent : 'transparent', color: mode === m ? '#111' : '#666', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))}
+          style={{ padding: '5px 10px', fontSize: 11, borderRadius: 5, cursor: 'pointer', background: 'rgba(229,164,90,0.12)', border: `1px solid rgba(229,164,90,0.35)`, color: accent, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
           <FiDownload size={12} /> ZIP
         </button>
       </div>
+
+      {/* ── Panel area ── */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <div style={{ display: tab === 'files' ? 'flex' : 'none', flexDirection: 'column', height: '100%', background: '#252526' }}><FilePanel hideHeader /></div>
-        <div style={{ display: tab === 'code' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}><CodeEditor /></div>
-        <div style={{ display: tab === 'preview' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>{mode === 'visual' ? <VisualEditor /> : <PreviewPane />}</div>
-        <div style={{ display: tab === 'props' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}><PropertiesPanel hideHeader /></div>
+        <div style={{ display: tab === 'files' ? 'flex' : 'none', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
+          <FilePanel hideHeader />
+        </div>
+        <div style={{ display: tab === 'code' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+          <CodeEditor />
+        </div>
+        <div style={{ display: tab === 'preview' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>
+          {mode === 'visual' ? <VisualEditor /> : <PreviewPane />}
+        </div>
+        <div style={{ display: tab === 'props' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
+          <PropertiesPanel hideHeader />
+        </div>
       </div>
-      <div style={{ display: 'flex', height: 56, flexShrink: 0, background: '#252526', borderTop: '1px solid #1b1b1b', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+
+      {/* ── Bottom tab bar ── */}
+      <div style={{ display: 'flex', height: 58, flexShrink: 0, background: bar, borderTop: `1px solid ${border}`, paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 100 }}>
         {TABS.map(t => {
           const active = t.id === tab;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: active ? 'rgba(0,122,204,0.08)' : 'transparent', borderTop: `2px solid ${active ? '#007acc' : 'transparent'}`, color: active ? '#58a6ff' : '#666', transition: 'all 0.15s' }}>
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 3, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+              background: active ? 'rgba(229,164,90,0.08)' : 'transparent',
+              borderTop: `2px solid ${active ? accent : 'transparent'}`,
+              color: active ? accent : '#666',
+              transition: 'all 0.15s',
+            }}>
               {t.icon}
               <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t.label}</span>
             </button>
           );
         })}
       </div>
-      {notification && <div style={{ position: 'fixed', bottom: 68, left: '50%', transform: 'translateX(-50%)', zIndex: 100000, background: '#2d2d2d', border: '1px solid #454545', borderRadius: 6, padding: '8px 18px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.6)', whiteSpace: 'nowrap' }}>{notification}</div>}
+
+      {/* Toast */}
+      {notification && (
+        <div style={{ position: 'fixed', bottom: 70, left: '50%', transform: 'translateX(-50%)', zIndex: 1000000, background: '#3c3c3c', border: '1px solid #555', borderRadius: 8, padding: '8px 18px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
+          {notification}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ─── App ─── */
+/* ─────────────────────────────────────────
+   App (detects mobile)
+   ───────────────────────────────────────── */
 export default function App() {
-  const isMob = useIsMobile();
-  if (isMob) return <MobileApp />;
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileApp />;
   return <DesktopApp />;
 }
 
@@ -337,432 +451,400 @@ function DesktopApp() {
   const { mode, setMode, notification, files, showNotification, activeFileId } = useEditorStore();
   const { show: showCtx, element: ctxEl } = useContextMenu();
 
-  /* ── State ── */
-  const [sidebar, setSidebar]         = useState<SidebarView>(() => ls(LS.sidebar, 'files'));
-  const [terminalOpen, setTerminalOpen] = useState<boolean>(() => ls(LS.terminal, false));
-  const [bottomView, setBottomView]   = useState<BottomView>(() => ls(LS.bottomView, 'terminal'));
-  const [panelMax, setPanelMax]       = useState(false);
-  const [openTabs, setOpenTabs]       = useState<EditorTab[]>(() => ls<EditorTab[]>(LS.openTabs, ['code', 'preview']));
-  const [activeTab, setActiveTab]     = useState<EditorTab>(() => ls<EditorTab>(LS.activeTab, 'code'));
+  const wsRef = useRef<HTMLDivElement>(null);
+  const [wsSize, setWsSize] = useState({ w: 1200, h: 660 });
 
-  /* Persist */
-  useEffect(() => { sv(LS.sidebar, sidebar); },      [sidebar]);
-  useEffect(() => { sv(LS.terminal, terminalOpen); }, [terminalOpen]);
-  useEffect(() => { sv(LS.bottomView, bottomView); }, [bottomView]);
-  useEffect(() => { sv(LS.activeTab, activeTab); },  [activeTab]);
-  useEffect(() => { sv(LS.openTabs, openTabs); },    [openTabs]);
-
-  /* Init mode from store */
   useEffect(() => {
-    const saved = ls<Mode>(LS.mode, 'split');
-    setMode(saved);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    const upd = () => {
+      if (wsRef.current) {
+        const r = wsRef.current.getBoundingClientRect();
+        setWsSize({ w: Math.max(600, r.width), h: Math.max(400, r.height) });
+      }
+    };
+    upd();
+    const ro = new ResizeObserver(upd);
+    if (wsRef.current) ro.observe(wsRef.current);
+    window.addEventListener('resize', upd);
+    return () => { ro.disconnect(); window.removeEventListener('resize', upd); };
   }, []);
 
-  /* ── Helpers ── */
-  const ensureTab = useCallback((tab: EditorTab) => {
-    setOpenTabs(t => t.includes(tab) ? t : [...t, tab]);
+  const [wins, setWins] = useState<WinState[]>(() => {
+    const w = Math.max(600, window.innerWidth);
+    const h = Math.max(400, window.innerHeight - 90);
+    return loadLayout(w, h);
+  });
+  const [dockSizes, setDockSizes] = useState<DockSizes>(loadDockSizes);
+  const didInitLayoutRef = useRef(false);
+
+  // After workspace size is measured, re-load and clamp layout once.
+  useEffect(() => {
+    if (didInitLayoutRef.current) return;
+    if (!wsRef.current) return;
+    didInitLayoutRef.current = true;
+    setWins(loadLayout(wsSize.w, wsSize.h));
+  }, [wsSize.w, wsSize.h]);
+
+  /* Snap zone drag state */
+  const [dragState, setDragState] = useState<{
+    winId: WinId;
+    pos: { x: number; y: number };
+    hovered: WinId | null;
+  } | null>(null);
+
+  useEffect(() => { saveLayout(wins); }, [wins]);
+  useEffect(() => { saveDockSizes(dockSizes); }, [dockSizes]);
+
+  /* ── Window operations ── */
+  const updateWin = useCallback((id: WinId, patch: Partial<WinState>) => {
+    setWins(ws => ws.map(w => w.id === id ? { ...w, ...patch } : w));
   }, []);
 
-  const openTab = useCallback((tab: EditorTab) => {
-    setOpenTabs(t => t.includes(tab) ? t : [...t, tab]);
-    setActiveTab(tab);
+  const focusWin = useCallback((id: WinId) => {
+    setWins(ws => ws.map(w => w.id === id ? { ...w, zIndex: nextZ(), minimized: false } : w));
   }, []);
 
-  const closeTab = useCallback((tab: EditorTab) => {
-    setOpenTabs(prev => {
-      const next = prev.filter(x => x !== tab);
-      return next.length === 0 ? ['code'] : next;
-    });
-    setActiveTab(prev => prev === tab ? (openTabs.find(x => x !== tab) ?? 'code') : prev);
-  }, [openTabs]);
+  const floatWin = useCallback((id: WinId) => {
+    const fr = floatingDefault(id, wsSize.w, wsSize.h);
+    setWins(ws => ws.map(w =>
+      w.id === id ? { ...w, docked: false, zIndex: nextZ(), rect: normalizeRect(fr, wsSize.w, wsSize.h), visible: true, minimized: false } : w
+    ));
+  }, [wsSize]);
 
-  const handleMode = useCallback((m: Mode) => {
+  const dockWin = useCallback((id: WinId) => {
+    const slot = getDockRect(id, wsSize.w, wsSize.h, mode as Mode, dockSizes);
+    if (!slot) { showNotification(`No dock slot for "${WIN_LABELS[id]}" in ${mode} mode`); return; }
+    setWins(ws => ws.map(w => w.id === id ? { ...w, docked: true, zIndex: nextZ(), visible: true } : w));
+  }, [wsSize, mode, dockSizes, showNotification]);
+
+  const toggleWin = useCallback((id: WinId) => {
+    setWins(ws => ws.map(w =>
+      w.id !== id ? w : { ...w, visible: !w.visible, minimized: false, zIndex: !w.visible ? nextZ() : w.zIndex }
+    ));
+  }, []);
+
+  const openWin = useCallback((id: WinId, asDocked?: boolean) => {
+    setWins(ws => ws.map(w => {
+      if (w.id !== id) return w;
+      const docked = asDocked ?? w.docked;
+      return { ...w, visible: true, minimized: false, docked, zIndex: nextZ() };
+    }));
+  }, []);
+
+  /* ── Mode presets ── */
+  const applyModePreset = useCallback((m: Mode) => {
     setMode(m);
-    sv(LS.mode, m);
-    if (m === 'code') {
-      setOpenTabs(['code']);
-      setActiveTab('code');
-    } else if (m === 'visual') {
-      setOpenTabs(t => {
-        const next = t.filter(x => x !== 'preview' && x !== 'code');
-        if (!next.includes('visual')) next.push('visual');
-        if (!next.includes('properties')) next.push('properties');
-        return next;
-      });
-      setActiveTab('visual');
-    } else {
-      setOpenTabs(t => {
-        const next = [...t];
-        if (!next.includes('code')) next.unshift('code');
-        if (!next.includes('preview')) next.push('preview');
-        return next.filter(x => x !== 'visual' && x !== 'properties');
-      });
-      setActiveTab('code');
-    }
+    const dockMap: Record<Mode, WinId[]> = {
+      code:   ['files', 'code'],
+      split:  ['files', 'code', 'preview'],
+      visual: ['files', 'preview', 'timeline', 'properties'],
+    };
+    const visible = new Set(dockMap[m]);
+    setWins(ws => ws.map(w => ({
+      ...w, visible: visible.has(w.id), docked: visible.has(w.id),
+      minimized: false, zIndex: visible.has(w.id) ? nextZ() : w.zIndex,
+    })));
   }, [setMode]);
 
-  const toggleTerminal = useCallback(() => setTerminalOpen(t => !t), []);
-  const toggleSidebar  = useCallback((v: SidebarView) => setSidebar(s => s === v ? null : v), []);
+  const resetLayout = useCallback(() => {
+    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_DOCK);
+    setDockSizes({ ...DEFAULT_DOCK });
+    setWins(normalizeLayout(defaultLayout(wsSize.w, wsSize.h, mode as Mode), wsSize.w, wsSize.h));
+    showNotification('Layout reset to defaults');
+  }, [wsSize, mode, showNotification]);
 
-  /* ── File → Container sync ── */
-  useEffect(() => {
-    if (!isContainerBooted()) return;
-    files.forEach(f => {
-      if (f.type === 'image') return;
-      const path = f.folder ? `${f.folder}/${f.name}` : f.name;
-      writeFileToContainer(path, f.content || '').catch(() => {});
+  /* Set of window IDs that are currently visible AND docked — used to compute fill-on-close layout */
+  const visibleDockedSet = new Set<WinId>(
+    wins.filter(w => w.visible && w.docked).map(w => w.id)
+  );
+
+  /* ── Snap zone drag handlers ── */
+  const snapSlots = getSnapSlots(wsSize.w, wsSize.h, mode as Mode, dockSizes);
+  const SNAP_THRESH = 80; // px from slot edge to trigger snap
+
+  const onDragPos = useCallback((winId: WinId, cx: number, cy: number) => {
+    // cx, cy are client coords — need to convert to workspace-relative
+    const wsEl = wsRef.current;
+    if (!wsEl) return;
+    const br = wsEl.getBoundingClientRect();
+    const rx = cx - br.left, ry = cy - br.top;
+
+    // Find which slot the cursor is hovering
+    let hovered: WinId | null = null;
+    for (const { id, rect } of snapSlots) {
+      if (rx >= rect.x - SNAP_THRESH && rx <= rect.x + rect.w + SNAP_THRESH &&
+          ry >= rect.y - SNAP_THRESH && ry <= rect.y + rect.h + SNAP_THRESH) {
+        hovered = id;
+        break;
+      }
+    }
+    setDragState({ winId, pos: { x: rx, y: ry }, hovered });
+  }, [snapSlots]);
+
+  const onDragEnd = useCallback((winId: WinId, cx: number, cy: number) => {
+    setDragState(prev => {
+      if (prev?.hovered) {
+        // Snap! Dock the window to the hovered slot
+        const targetSlot = prev.hovered;
+        setTimeout(() => {
+          setWins(ws => ws.map(w =>
+            w.id === winId ? { ...w, docked: true, zIndex: nextZ() } : w
+          ));
+        }, 0);
+      }
+      return null;
     });
-  }, [files]);
+  }, []);
 
   /* ── Keyboard shortcuts ── */
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.shiftKey && e.key === 'E') { e.preventDefault(); toggleSidebar('files'); }
-      if (mod && e.shiftKey && e.key === 'F') { e.preventDefault(); toggleSidebar('search'); }
-      if (mod && e.key === '`')  { e.preventDefault(); toggleTerminal(); }
-      if (mod && e.key === '1')  { e.preventDefault(); handleMode('code'); }
-      if (mod && e.key === '2')  { e.preventDefault(); handleMode('visual'); }
-      if (mod && e.key === '3')  { e.preventDefault(); handleMode('split'); }
-      if (mod && e.key === 's')  { e.preventDefault(); showNotification('All files saved ✓'); }
-      if (mod && e.key === 'e')  { e.preventDefault(); exportProject(files).then(() => showNotification('Exported project.zip')); }
-      if (mod && e.key === 'r')  { e.preventDefault(); useEditorStore.getState().refreshPreview(); }
-      if (e.key === 'Escape')    { useEditorStore.getState().setSelectedElement(null); }
+      if (mod && e.key === '1') { e.preventDefault(); applyModePreset('code'); }
+      if (mod && e.key === '2') { e.preventDefault(); applyModePreset('visual'); }
+      if (mod && e.key === '3') { e.preventDefault(); applyModePreset('split'); }
+      if (mod && e.key === 's') { e.preventDefault(); showNotification('All files saved ✓'); }
+      if (mod && e.key === 'e') { e.preventDefault(); exportProject(files).then(() => showNotification('Exported project.zip')); }
+      if (mod && e.key === 'r') { e.preventDefault(); useEditorStore.getState().refreshPreview(); }
+      if (e.key === 'Escape')   { useEditorStore.getState().setSelectedElement(null); }
     };
-    window.addEventListener('keydown', fn);
-    return () => window.removeEventListener('keydown', fn);
-  }, [files, handleMode, showNotification, toggleSidebar, toggleTerminal]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [files, applyModePreset]);
 
-  const activeFileName = files.find(f => f.id === activeFileId)?.name ?? '';
+  const winMap = Object.fromEntries(wins.map(w => [w.id, w])) as Record<WinId, WinState>;
+  const activeFileName = files.find(f => f.id === activeFileId)?.name || '';
 
-  /* ── Render editor content ── */
-  function renderEditor() {
-    if (mode === 'split') {
-      return (
-        <PanelGroup direction="horizontal" id="split-editors" style={{ flex: 1, minHeight: 0 }}>
-          <Panel id="split-code" order={1} minSize={15}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 26, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 12px', background: '#2a2a2a', borderBottom: '1px solid #1b1b1b', fontSize: 11, color: '#767676', gap: 5 }}>
-                <FiCode size={11} /> Code Editor
-              </div>
-              <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}><CodeEditor /></div>
-            </div>
-          </Panel>
-          <ResizeBar dir="v" />
-          <Panel id="split-preview" order={2} minSize={15}>
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ height: 26, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 12px', background: '#2a2a2a', borderBottom: '1px solid #1b1b1b', fontSize: 11, color: '#767676', gap: 5 }}>
-                <FiEye size={11} /> Preview
-              </div>
-              <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}><PreviewPane /></div>
-            </div>
-          </Panel>
-        </PanelGroup>
-      );
-    }
-    if (mode === 'visual') {
-      return (
-        <PanelGroup direction="horizontal" id="visual-editors" style={{ flex: 1, minHeight: 0 }}>
-          <Panel id="visual-canvas" order={1} minSize={35}>
-            <VisualEditor />
-          </Panel>
-          <ResizeBar dir="v" />
-          <Panel id="visual-props" order={2} defaultSize={28} minSize={20} maxSize={48}>
-            <PropertiesPanel hideHeader />
-          </Panel>
-        </PanelGroup>
-      );
-    }
-    /* Code-only */
-    switch (activeTab) {
-      case 'code':       return <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}><CodeEditor /></div>;
-      case 'preview':    return <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}><PreviewPane /></div>;
-      case 'visual':     return <VisualEditor />;
-      case 'properties': return <PropertiesPanel hideHeader />;
-      default:           return <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}><CodeEditor /></div>;
+  /* Effective rect: docked → slot rect (with fill-on-close), floating → saved rect */
+  function getEffRect(id: WinId): WinRect {
+    const w = winMap[id];
+    if (w.docked) return getDockRect(id, wsSize.w, wsSize.h, mode as Mode, dockSizes, visibleDockedSet) ?? w.rect;
+    return w.rect;
+  }
+
+  function winContent(id: WinId) {
+    switch (id) {
+      case 'files':      return <FilePanel onClose={() => updateWin('files', { visible: false })} hideHeader />;
+      case 'code':       return <CodeEditor />;
+      case 'preview':    return mode === 'visual' ? <VisualEditor /> : <PreviewPane />;
+      case 'properties': return <PropertiesPanel onClose={() => updateWin('properties', { visible: false })} hideHeader />;
+      case 'timeline':   return <TimelinePanel onClose={() => updateWin('timeline', { visible: false })} />;
     }
   }
 
-  /* Fake wins list for MenuBar (adapted for new layout) */
-  const menuWins = [
-    { id: 'files' as const,      title: 'File Explorer',          visible: sidebar === 'files',  minimized: false, docked: true },
-    { id: 'terminal' as const,   title: 'Terminal',               visible: terminalOpen,          minimized: false, docked: true },
-    { id: 'code' as const,       title: 'Code Editor',            visible: openTabs.includes('code'),       minimized: false, docked: true },
-    { id: 'preview' as const,    title: 'Preview',                visible: openTabs.includes('preview'),    minimized: false, docked: true },
-    { id: 'properties' as const, title: 'Properties',             visible: openTabs.includes('properties'), minimized: false, docked: true },
-    { id: 'timeline' as const,   title: 'Timeline',               visible: bottomView === 'timeline' && terminalOpen, minimized: false, docked: true },
-  ];
+  /* Dock dividers — only between panels that are actually docked */
+  const showLeftDiv  = winMap.files.visible && winMap.files.docked &&
+                       (winMap.code.visible && winMap.code.docked || winMap.preview.visible && winMap.preview.docked);
+  const showRightDiv = (winMap.code.visible && winMap.code.docked || winMap.preview.visible && winMap.preview.docked) &&
+                       (winMap.preview.visible && winMap.preview.docked || winMap.properties.visible && winMap.properties.docked);
+  const showBotDiv   = mode === 'visual' && winMap.timeline.visible && winMap.timeline.docked &&
+                       winMap.preview.visible && winMap.preview.docked;
+
+  const sortedWins = [...wins].sort((a, b) => {
+    if (a.docked !== b.docked) return a.docked ? -1 : 1;
+    return a.zIndex - b.zIndex;
+  });
+
+  const winTitle: Record<WinId, string> = {
+    files: 'File Explorer', code: 'Code Editor',
+    preview: mode === 'visual' ? 'Visual Editor' : 'Preview',
+    properties: 'Properties', timeline: 'Timeline',
+  };
 
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#1e1e1e', color: '#cccccc', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", fontSize: 13, overflow: 'hidden' }}
-      onContextMenu={e => {
-        if ((e.target as HTMLElement).closest('input,textarea,select,[contenteditable]')) return;
+      style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#111', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}
+      onContextMenu={(e) => {
+        // Keep native context menu inside editable controls, but prevent it everywhere else.
+        if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable="true"]')) return;
         e.preventDefault();
-        if ((e.target as HTMLElement).closest('[data-file-item],[data-folder-item],button')) return;
+        e.stopPropagation();
+        // If a component (like FilePanel rows) wants to handle its own context menu,
+        // it should stopPropagation; we avoid showing the global menu for those.
+        if ((e.target as HTMLElement).closest('[data-file-item], [data-folder-item], button')) return;
         showCtx(e, [
-          { label: 'Split Layout',  icon: '3', action: () => handleMode('split') },
-          { label: 'Code Layout',   icon: '1', action: () => handleMode('code') },
-          { label: 'Visual Layout', icon: '2', action: () => handleMode('visual') },
+          { label: 'Mode: Code Layout', icon: '1', action: () => applyModePreset('code') },
+          { label: 'Mode: Visual Layout', icon: '2', action: () => applyModePreset('visual') },
+          { label: 'Mode: Split Layout', icon: '3', action: () => applyModePreset('split') },
           { separator: true, label: '' },
-          { label: 'Toggle Terminal', icon: '`', action: toggleTerminal },
           { label: 'Refresh Preview', icon: '↻', action: () => useEditorStore.getState().refreshPreview() },
-          { label: 'Export ZIP', icon: '↓', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
+          { label: 'Export ZIP', icon: '📦', action: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
+          { separator: true, label: '' },
+          { label: 'Reset Layout', icon: '↺', action: () => resetLayout() },
         ]);
       }}
     >
-      {/* ── Title / Menu Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 30, flexShrink: 0, background: '#323233', borderBottom: '1px solid #1b1b1b', position: 'relative', zIndex: 9999 }}>
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '0 12px', flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={{ width: 16, height: 16, borderRadius: 3, background: 'linear-gradient(135deg, #e34c26 0%, #f06529 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: '#fff', flexShrink: 0 }}>H</div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#cccccc', letterSpacing: '0.01em' }}>HTML Editor</span>
-        </div>
 
-        {/* MenuBar dropdowns */}
+      {/* Global drag-capture overlay */}
+      <div id="__drag-capture" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 999999, background: 'transparent' }} />
+
+      {/* ── Menu Bar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 30, flexShrink: 0, background: '#323233', borderBottom: '1px solid #3e3e3e', position: 'relative', zIndex: 9999 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', flexShrink: 0 }}>
+          <div style={{ width: 16, height: 16, borderRadius: 3, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: '#fff' }}>H</div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#ccc' }}>HTML Editor</span>
+        </div>
         <MenuBar
-          wins={menuWins}
-          onToggleWin={(id) => {
-            if (id === 'files') toggleSidebar('files');
-            else if (id === 'terminal') toggleTerminal();
-            else if (id === 'code') { ensureTab('code'); setActiveTab('code'); }
-            else if (id === 'preview') { ensureTab('preview'); setActiveTab('preview'); }
-            else if (id === 'properties') { ensureTab('properties'); setActiveTab('properties'); }
-            else if (id === 'timeline') { setBottomView('timeline'); setTerminalOpen(true); }
-          }}
-          onOpenWin={(id) => {
-            if (id === 'files') setSidebar('files');
-            else if (id === 'terminal') { setTerminalOpen(true); setBottomView('terminal'); }
-            else if (id === 'timeline') { setTerminalOpen(true); setBottomView('timeline'); }
-            else if (id === 'code') openTab('code');
-            else if (id === 'preview') openTab('preview');
-            else if (id === 'properties') openTab('properties');
-          }}
-          onResetLayout={() => {
-            setSidebar('files');
-            setOpenTabs(['code', 'preview']);
-            setActiveTab('code');
-            setTerminalOpen(false);
-            handleMode('split');
-            showNotification('Layout reset');
-          }}
-          onApplyModePreset={handleMode}
+          wins={wins}
+          onToggleWin={toggleWin}
+          onOpenWin={openWin}
+          onResetLayout={resetLayout}
+          onApplyModePreset={applyModePreset}
         />
-
-        {/* Active file indicator (center) */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 11, color: '#666', letterSpacing: '0.01em' }}>{activeFileName}</span>
-        </div>
-
-        {/* Right actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 8px', flexShrink: 0 }}>
-          <TitleBtn title="Refresh Preview (Ctrl+R)" icon={<FiRefreshCw size={13} />} onClick={() => useEditorStore.getState().refreshPreview()} />
-          <TitleBtn title="Export ZIP (Ctrl+E)" icon={<FiDownload size={13} />} onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))} />
-        </div>
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: '#555', padding: '0 12px' }}>
+          {activeFileName}
+        </span>
       </div>
 
-      {/* ── Body ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
+      {/* ── Toolbar ── */}
+      <div style={{ display: 'flex', alignItems: 'center', height: 36, flexShrink: 0, background: '#2d2d2d', borderBottom: '1px solid #3e3e3e', padding: '0 10px', gap: 4, position: 'relative', zIndex: 9998 }}>
+        <span style={{ fontSize: 11, color: '#555', marginRight: 2 }}>Layout:</span>
+        {([['split', 'Split', FiLayout, 'Ctrl+3'], ['code', 'Code', FiCode, 'Ctrl+1'], ['visual', 'Visual', FiEye, 'Ctrl+2']] as const).map(([m, label, Icon, sc]) => (
+          <button key={m} title={`${label} layout (${sc})`} onClick={() => applyModePreset(m)}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: mode === m ? 'rgba(229,164,90,0.15)' : 'transparent', border: `1px solid ${mode === m ? 'rgba(229,164,90,0.5)' : 'transparent'}`, color: mode === m ? '#e5a45a' : '#888' }}>
+            <Icon size={13} />{label}
+          </button>
+        ))}
+        <div style={{ width: 1, height: 20, background: '#3e3e3e', margin: '0 4px' }} />
+        <ToolbarBtn title="Refresh (Ctrl+R)" icon={<FiRefreshCw size={13} />} label="Refresh" onClick={() => useEditorStore.getState().refreshPreview()} />
+        <ToolbarBtn title="Export ZIP (Ctrl+E)" icon={<FiDownload size={13} />} label="Export" onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))} />
+        <div style={{ flex: 1 }} />
+        <span style={{ fontSize: 11, color: '#555' }}>Windows:</span>
+        {(['files', 'code', 'preview', 'properties', 'timeline'] as WinId[]).map(id => {
+          const w = winMap[id];
+          const shortLabels: Record<WinId, string> = { files: 'Explorer', code: 'Code', preview: 'Preview', properties: 'Props', timeline: 'Timeline' };
+          return (
+            <button key={id} onClick={() => toggleWin(id)}
+              title={w.docked ? `${shortLabels[id]} (docked)` : `${shortLabels[id]} ${w.visible ? '(floating)' : '(hidden)'}`}
+              style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit', background: w.visible ? (w.docked ? 'rgba(100,180,255,0.12)' : 'rgba(229,164,90,0.12)') : '#1a1a1a', border: `1px solid ${w.visible ? (w.docked ? 'rgba(100,180,255,0.35)' : 'rgba(229,164,90,0.4)') : '#3e3e3e'}`, color: w.visible ? (w.docked ? '#7ab8f5' : '#e5a45a') : '#666' }}
+            >
+              {w.docked && w.visible ? '📌' : ''}{shortLabels[id]}
+            </button>
+          );
+        })}
+        <button onClick={resetLayout} title="Reset layout"
+          style={{ marginLeft: 4, padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid #3e3e3e', color: '#777', fontFamily: 'inherit' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e5a45a'; (e.currentTarget as HTMLElement).style.color = '#e5a45a'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#3e3e3e'; (e.currentTarget as HTMLElement).style.color = '#777'; }}
+        >↺ Reset</button>
+      </div>
 
-        {/* Activity Bar */}
-        <ActivityBar
-          sidebar={sidebar}
-          onSidebar={toggleSidebar}
-          terminalOpen={terminalOpen}
-          onTerminal={toggleTerminal}
+      {/* ── Workspace ── */}
+      <div ref={wsRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', background: '#161616' }}>
+
+        {/* Snap zone overlay (shown while dragging a floating window) */}
+        <SnapZonesOverlay
+          slots={snapSlots}
+          dragPos={dragState?.pos ?? null}
+          hoveredSlot={dragState?.hovered ?? null}
         />
 
-        {/* Content area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, position: 'relative' }}>
-          <PanelGroup direction="horizontal" id="main-h" style={{ flex: 1, minHeight: 0 }}>
+        {/* Dock dividers (drag to resize docked panels) */}
+        {showLeftDiv && (
+          <DockDivider
+            orientation="vertical"
+            pos={dockSizes.leftW}
+            min={120} max={Math.max(121, wsSize.w - (mode === 'visual' ? dockSizes.visualRightW : dockSizes.rightW) - 160)}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, leftW: v }))}
+          />
+        )}
+        {showRightDiv && mode !== 'visual' && (
+          <DockDivider
+            orientation="vertical"
+            pos={wsSize.w - dockSizes.rightW}
+            min={Math.max(121, dockSizes.leftW + 160)} max={wsSize.w - 160}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, rightW: Math.max(160, wsSize.w - v) }))}
+          />
+        )}
+        {showBotDiv && (
+          <DockDivider
+            orientation="horizontal"
+            pos={wsSize.h - dockSizes.bottomH}
+            min={100} max={wsSize.h - 80}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, bottomH: Math.max(60, wsSize.h - v) }))}
+          />
+        )}
+        {/* Right divider in visual mode (properties panel — uses visualRightW) */}
+        {mode === 'visual' && winMap.properties.visible && winMap.properties.docked && (
+          <DockDivider
+            orientation="vertical"
+            pos={wsSize.w - dockSizes.visualRightW}
+            min={Math.max(121, dockSizes.leftW + 160)} max={wsSize.w - 160}
+            wsW={wsSize.w} wsH={wsSize.h}
+            onChange={v => setDockSizes(s => ({ ...s, visualRightW: Math.max(160, wsSize.w - v) }))}
+          />
+        )}
 
-            {/* Sidebar */}
-            {sidebar && (
-              <>
-                <Panel id="sidebar-panel" order={1} defaultSize={18} minSize={10} maxSize={40}>
-                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#252526', borderRight: '1px solid #1b1b1b' }}>
-                    <SidebarHeader view={sidebar} onClose={() => setSidebar(null)} />
-                    <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-                      {sidebar === 'files'  && <FilePanel hideHeader />}
-                      {sidebar === 'search' && <SearchPanel />}
-                      {sidebar === 'git'    && <GitPanel />}
-                    </div>
-                  </div>
-                </Panel>
-                <ResizeBar dir="v" />
-              </>
-            )}
-
-            {/* Editor + bottom panel */}
-            <Panel id="editor-panel" order={2} minSize={25} style={{ position: 'relative' }}>
-              <PanelGroup direction="vertical" id="main-v" style={{ height: '100%' }}>
-
-                {/* Editor pane */}
-                <Panel id="editor-top" order={1} minSize={15} style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                  {/* Tab bar */}
-                  <TabRow
-                    tabs={openTabs}
-                    active={activeTab}
-                    onTab={setActiveTab}
-                    onClose={closeTab}
-                    mode={mode}
-                    onMode={handleMode}
-                  />
-                  {/* Content */}
-                  <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                    {renderEditor()}
-                  </div>
-                </Panel>
-
-                {/* Bottom panel */}
-                {terminalOpen && !panelMax && (
-                  <>
-                    <ResizeBar dir="h" />
-                    <Panel id="bottom-panel" order={2} defaultSize={28} minSize={8} maxSize={75} style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-                      <BottomHeader
-                        view={bottomView} onView={setBottomView}
-                        onClose={() => setTerminalOpen(false)}
-                        maximized={false} onMaximize={() => setPanelMax(true)}
-                      />
-                      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-                        {bottomView === 'terminal' && <TerminalPane />}
-                        {bottomView === 'timeline' && <TimelinePanel onClose={() => setTerminalOpen(false)} />}
-                      </div>
-                    </Panel>
-                  </>
-                )}
-              </PanelGroup>
-
-              {/* Maximized overlay */}
-              {terminalOpen && panelMax && (
-                <div style={{ position: 'absolute', inset: 0, zIndex: 500, display: 'flex', flexDirection: 'column', background: '#0d1117' }}>
-                  <BottomHeader
-                    view={bottomView} onView={setBottomView}
-                    onClose={() => { setTerminalOpen(false); setPanelMax(false); }}
-                    maximized onMaximize={() => setPanelMax(false)}
-                  />
-                  <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-                    {bottomView === 'terminal' && <TerminalPane />}
-                    {bottomView === 'timeline' && <TimelinePanel onClose={() => setPanelMax(false)} />}
-                  </div>
-                </div>
-              )}
-            </Panel>
-          </PanelGroup>
-        </div>
+        {/* All windows */}
+        {sortedWins.map(w => {
+          const effRect = getEffRect(w.id);
+          const hasDockSlot = getDockRect(w.id, wsSize.w, wsSize.h, mode as Mode, dockSizes, visibleDockedSet) !== null;
+          return (
+            <FloatingWindow
+              key={w.id}
+              id={w.id}
+              title={winTitle[w.id]}
+              icon={WIN_ICONS[w.id]}
+              rect={effRect}
+              zIndex={w.zIndex}
+              visible={w.visible}
+              minimized={w.minimized}
+              docked={w.docked}
+              onFloat={w.docked ? () => floatWin(w.id) : undefined}
+              onDock={!w.docked && hasDockSlot ? () => dockWin(w.id) : undefined}
+              minW={140} minH={100}
+              workspaceW={wsSize.w}
+              workspaceH={wsSize.h}
+              onFocus={() => focusWin(w.id)}
+              onMove={(x, y) => updateWin(w.id, { rect: { ...w.rect, x, y } })}
+              onResize={rect => updateWin(w.id, { rect })}
+              onClose={() => updateWin(w.id, { visible: false })}
+              onMinimize={() => updateWin(w.id, { minimized: !w.minimized })}
+              onDragPos={!w.docked ? (cx, cy) => onDragPos(w.id, cx, cy) : undefined}
+              onDragEnd={!w.docked ? (cx, cy) => onDragEnd(w.id, cx, cy) : undefined}
+            >
+              {winContent(w.id)}
+            </FloatingWindow>
+          );
+        })}
       </div>
 
       {/* ── Status Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'stretch', height: 24, flexShrink: 0, background: '#007acc', fontSize: 11, color: 'rgba(255,255,255,0.95)', zIndex: 200, userSelect: 'none' }}>
-        {/* Left */}
-        <StatusItem
-          onClick={() => toggleSidebar('git')}
-          icon={<FiGitBranch size={12} />}
-          label="main"
-          title="Source Control"
-          bordered="right"
-        />
-        <StatusItem
-          onClick={() => handleMode(mode === 'split' ? 'code' : mode === 'code' ? 'visual' : 'split')}
-          icon={mode === 'split' ? <FiLayout size={11} /> : mode === 'code' ? <FiCode size={11} /> : <FiEye size={11} />}
-          label={mode === 'split' ? 'Split' : mode === 'code' ? 'Code' : 'Visual'}
-          title="Click to cycle layout (Ctrl+1/2/3)"
-          bordered="right"
-        />
+      <div style={{ display: 'flex', alignItems: 'center', height: 24, flexShrink: 0, background: '#007acc', padding: '0 0 0 12px', gap: 0, fontSize: 11, color: 'rgba(255,255,255,0.9)', zIndex: 200 }}>
+        <span style={{ fontWeight: 600, paddingRight: 12, borderRight: '1px solid rgba(255,255,255,0.2)' }}>HTML Editor</span>
+        <span style={{ padding: '0 12px' }}>Mode: {mode}</span>
+        <span style={{ padding: '0 12px', opacity: 0.8 }}>{activeFileName}</span>
         <div style={{ flex: 1 }} />
-        {/* Right */}
-        <StatusItem label={activeFileName} title="Active file" bordered="left" />
-        <StatusItem label={`${files.length} files`} title="Total files" bordered="left" />
-        <StatusItem
-          onClick={toggleTerminal}
-          icon={<FiTerminal size={11} />}
-          label="Terminal"
-          title="Toggle Terminal (Ctrl+`)"
-          bordered="left"
-          highlight={terminalOpen}
-        />
+        <span style={{ opacity: 0.6, fontSize: 10, paddingRight: 12 }}>
+          {wins.filter(w => w.visible && w.docked).map(w => winTitle[w.id]).join(' · ')}
+          {wins.some(w => w.visible && !w.docked) && <> + {wins.filter(w => w.visible && !w.docked).length} floating</>}
+        </span>
+        <span style={{ padding: '0 10px', borderLeft: '1px solid rgba(255,255,255,0.2)', opacity: 0.8 }}>{files.length} files</span>
+        <span style={{ padding: '0 10px', borderLeft: '1px solid rgba(255,255,255,0.2)', opacity: 0.8 }}>UTF-8</span>
         <AiStatusButton />
       </div>
 
-      {/* Toast */}
+      {/* ── Toast ── */}
       {notification && (
-        <div style={{ position: 'fixed', bottom: 36, right: 16, zIndex: 100000, background: '#2d2d2d', border: '1px solid #454545', borderLeft: '3px solid #007acc', borderRadius: 4, padding: '8px 14px', fontSize: 12, color: '#ccc', boxShadow: '0 4px 20px rgba(0,0,0,0.6)', pointerEvents: 'none', maxWidth: 340 }}>
+        <div style={{ position: 'fixed', bottom: 36, right: 16, zIndex: 1000000, background: '#3c3c3c', border: '1px solid #555', borderRadius: 6, padding: '8px 16px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>
           {notification}
         </div>
       )}
-
       {ctxEl}
-
-      {/* Global file upload shim */}
-      <input
-        id="global-file-upload"
-        type="file"
-        multiple
-        style={{ display: 'none' }}
-        onChange={e => {
-          const fs = e.target.files;
-          if (!fs) return;
-          Array.from(fs).forEach(file => {
-            const reader = new FileReader();
-            reader.onload = ev => {
-              const { addFile } = useEditorStore.getState();
-              const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-              const isImg = ['png','jpg','jpeg','gif','webp','svg','ico'].includes(ext);
-              addFile({
-                id: file.name,
-                name: file.name,
-                type: isImg ? 'image' : ext === 'css' ? 'css' : ext === 'js' ? 'js' : ext === 'html' ? 'html' : 'other',
-                content: isImg ? '' : String(ev.target?.result ?? ''),
-                url: isImg ? URL.createObjectURL(file) : undefined,
-                mimeType: file.type,
-              });
-            };
-            reader.readAsText(file);
-          });
-          e.target.value = '';
-        }}
-      />
     </div>
   );
 }
 
-/* ─── Small helpers ─── */
-function TitleBtn({ title, icon, onClick }: { title: string; icon: React.ReactNode; onClick: () => void }) {
+function ToolbarBtn({ title, icon, label, onClick }: { title: string; icon: React.ReactNode; label: string; onClick: () => void }) {
   return (
     <button title={title} onClick={onClick}
-      style={{ display: 'flex', alignItems: 'center', padding: '3px 8px', borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit', transition: 'all 0.1s' }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)'; (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
+      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: 'transparent', border: '1px solid transparent', color: '#888', fontFamily: 'inherit' }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#888'; }}
-    >{icon}</button>
-  );
-}
-
-function StatusItem({ icon, label, title, onClick, bordered, highlight }: {
-  icon?: React.ReactNode;
-  label: string;
-  title?: string;
-  onClick?: () => void;
-  bordered?: 'left' | 'right';
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      onClick={onClick}
-      title={title}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 4, padding: '0 10px', height: '100%',
-        cursor: onClick ? 'pointer' : 'default',
-        borderLeft: bordered === 'left' ? '1px solid rgba(255,255,255,0.15)' : undefined,
-        borderRight: bordered === 'right' ? '1px solid rgba(255,255,255,0.15)' : undefined,
-        background: highlight ? 'rgba(0,0,0,0.2)' : 'transparent',
-        transition: 'background 0.1s',
-        fontWeight: highlight ? 600 : 400,
-      }}
-      onMouseEnter={e => { if (onClick) (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.2)'; }}
-      onMouseLeave={e => { if (onClick) (e.currentTarget as HTMLElement).style.background = highlight ? 'rgba(0,0,0,0.2)' : 'transparent'; }}
-    >
-      {icon}{label}
-    </div>
+    >{icon}{label}</button>
   );
 }
