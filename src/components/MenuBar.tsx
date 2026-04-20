@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
+import type { FileItem, FileType } from '../store/editorStore';
 import { exportProject } from '../utils/export';
 
-type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
+type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'terminal';
 interface WinState { id: WinId; title: string; visible: boolean; minimized: boolean; docked: boolean; }
 
 interface MenuBarProps {
@@ -21,23 +22,24 @@ interface MenuItem {
   separator?: boolean;
   checked?: boolean;
   danger?: boolean;
-  badge?: string;        // small colored badge text
+  badge?: string;
   badgeColor?: string;
 }
 
 const WIN_LABELS: Record<WinId, string> = {
   files: 'File Explorer', code: 'Code Editor', preview: 'Preview / Visual Editor',
-  properties: 'Properties', timeline: 'Timeline',
+  properties: 'Properties', timeline: 'Timeline', terminal: 'Terminal',
 };
 const WIN_ICONS: Record<WinId, string> = {
-  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱',
+  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱', terminal: '>_',
 };
 
 const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder } = useEditorStore();
+  const [showCloneDialog, setShowCloneDialog] = useState(false);
+  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder, resetFiles } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -102,6 +104,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
     addFolder(name.trim());
     showNotification(`Folder "${name.trim()}" created`);
     close();
+  };
+
+  const clearAll = () => {
+    close();
+    if (!window.confirm('Delete all files and start a blank project? This cannot be undone.')) return;
+    const blankHtml: FileItem = {
+      id: 'index.html', name: 'index.html', type: 'html',
+      content: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>New Project</title>\n</head>\n<body>\n  \n</body>\n</html>',
+    };
+    resetFiles([blankHtml]);
+    showNotification('Project cleared — blank HTML file created');
   };
 
   /* Build the Window menu dynamically */
@@ -184,8 +197,11 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { label: 'Save All', shortcut: 'Ctrl+S', action: () => { showNotification('All files saved ✓'); close(); } },
         { separator: true, label: '' },
         { label: 'Import Files…', action: () => { document.getElementById('global-file-upload')?.click(); close(); } },
+        { label: '⬇ Clone Git Repo…', action: () => { setShowCloneDialog(true); close(); } },
         { separator: true, label: '' },
         { label: 'Export as ZIP', shortcut: 'Ctrl+E', action: () => { exportProject(files); showNotification('Exported as ZIP'); close(); } },
+        { separator: true, label: '' },
+        { label: '🗑 Clear All Files', danger: true, action: clearAll },
       ],
     },
     {
@@ -268,6 +284,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   ];
 
   return (
+    <>
     <div ref={menuRef} style={{ display: 'flex', alignItems: 'stretch', height: '100%' }}>
       {menus.map(menu => (
         <div
@@ -310,8 +327,262 @@ const MenuBar: React.FC<MenuBarProps> = ({
         </div>
       ))}
     </div>
+    {showCloneDialog && (
+      <CloneRepoDialog
+        onClose={() => setShowCloneDialog(false)}
+        onCloned={(newFiles) => {
+          resetFiles(newFiles);
+          setShowCloneDialog(false);
+          showNotification(`Cloned ${newFiles.length} files`);
+        }}
+      />
+    )}
+    </>
   );
 };
+
+/* ─────────────────────────────────────────────────────────────
+   Clone Repo Dialog
+   ───────────────────────────────────────────────────────────── */
+function inferFileType(filename: string): FileType {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  if (ext === 'html' || ext === 'htm') return 'html';
+  if (ext === 'css') return 'css';
+  if (ext === 'js' || ext === 'mjs' || ext === 'cjs') return 'js';
+  if (ext === 'ts') return 'ts';
+  if (ext === 'tsx') return 'tsx';
+  if (ext === 'jsx') return 'jsx';
+  if (ext === 'json') return 'json';
+  if (['png','jpg','jpeg','gif','webp','svg','ico','bmp'].includes(ext)) return 'image';
+  return 'other';
+}
+
+const BINARY_EXTS = new Set(['png','jpg','jpeg','gif','webp','ico','bmp','woff','woff2','ttf','eot','otf','zip','tar','gz','pdf','mp4','mp3','wav']);
+
+interface CloneRepoDialogProps {
+  onClose: () => void;
+  onCloned: (files: FileItem[]) => void;
+}
+
+function CloneRepoDialog({ onClose, onCloned }: CloneRepoDialogProps) {
+  const [url, setUrl] = useState('');
+  const [status, setStatus] = useState<string>('');
+  const [error, setError] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const parseRepo = (raw: string): { owner: string; repo: string } | null => {
+    const s = raw.trim().replace(/\.git$/, '');
+    const ghMatch = s.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (ghMatch) return { owner: ghMatch[1], repo: ghMatch[2] };
+    const shortMatch = s.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/);
+    if (shortMatch) return { owner: shortMatch[1], repo: shortMatch[2] };
+    return null;
+  };
+
+  const clone = useCallback(async () => {
+    setError('');
+    setStatus('');
+    setProgress(null);
+    const parsed = parseRepo(url);
+    if (!parsed) { setError('Invalid URL. Use https://github.com/owner/repo or owner/repo'); return; }
+    const { owner, repo } = parsed;
+    setLoading(true);
+    try {
+      // 1. Get default branch
+      setStatus('Fetching repository info…');
+      const infoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`);
+      if (!infoRes.ok) throw new Error(infoRes.status === 404 ? 'Repository not found. Make sure it is public.' : `GitHub API error ${infoRes.status}`);
+      const info = await infoRes.json() as { default_branch: string };
+      const branch = info.default_branch;
+
+      // 2. Get file tree
+      setStatus(`Fetching file tree (branch: ${branch})…`);
+      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`);
+      if (!treeRes.ok) throw new Error(`Could not fetch file tree (${treeRes.status})`);
+      const tree = await treeRes.json() as { tree: { path: string; type: string; size?: number; sha: string }[]; truncated: boolean };
+      if (tree.truncated) setStatus('Note: repository is large — showing first 1000 files only.');
+
+      const blobs = tree.tree.filter(f => {
+        if (f.type !== 'blob') return false;
+        const ext = f.path.split('.').pop()?.toLowerCase() ?? '';
+        if (BINARY_EXTS.has(ext)) return false;
+        if (f.size && f.size > 300_000) return false;
+        return true;
+      }).slice(0, 100);
+
+      setProgress({ done: 0, total: blobs.length });
+
+      // 3. Fetch file content via raw.githubusercontent.com — no API rate limits!
+      const fetchedFiles: FileItem[] = [];
+      const BATCH = 10; // parallel batch size
+      for (let i = 0; i < blobs.length; i += BATCH) {
+        const batch = blobs.slice(i, i + BATCH);
+        setStatus(`Downloading files ${i + 1}–${Math.min(i + BATCH, blobs.length)} of ${blobs.length}…`);
+        setProgress({ done: i, total: blobs.length });
+        const results = await Promise.allSettled(
+          batch.map(async blob => {
+            const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${blob.path}`;
+            const res = await fetch(rawUrl);
+            if (!res.ok) return null;
+            const content = await res.text();
+            const name = blob.path.split('/').pop() ?? blob.path;
+            const folder = blob.path.includes('/') ? blob.path.split('/').slice(0, -1).join('/') : undefined;
+            return { id: blob.path, name, type: inferFileType(name), content, folder } as FileItem;
+          })
+        );
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) fetchedFiles.push(r.value);
+        }
+      }
+
+      if (fetchedFiles.length === 0) throw new Error('No readable text files found in this repository.');
+      setProgress({ done: blobs.length, total: blobs.length });
+      setStatus(`Done! ${fetchedFiles.length} files loaded.`);
+      setTimeout(() => onCloned(fetchedFiles), 400);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  }, [url, onCloned]);
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 999999,
+      background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: '#1e1e1e', border: '1px solid #3e3e3e', borderRadius: 10,
+        width: 480, maxWidth: '90vw',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.8)',
+        overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 18px 12px', background: '#252526', borderBottom: '1px solid #333',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>⬇</span>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#d4d4d4' }}>Clone Public Repo</div>
+              <div style={{ fontSize: 11, color: '#666', marginTop: 1 }}>Imports text files from any public GitHub repository</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 18, lineHeight: 1, padding: 4, borderRadius: 4 }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#ccc')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#888')}
+          >✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '18px 20px' }}>
+          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 6 }}>
+            GitHub Repository URL or <code style={{ color: '#e5a45a' }}>owner/repo</code>
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              ref={inputRef}
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !loading) clone(); if (e.key === 'Escape') onClose(); }}
+              placeholder="https://github.com/owner/repo"
+              disabled={loading}
+              style={{
+                flex: 1, background: '#141414', border: '1px solid #3e3e3e', borderRadius: 6,
+                color: '#d4d4d4', fontSize: 13, padding: '8px 12px',
+                outline: 'none', fontFamily: 'var(--app-font-mono)',
+              }}
+              onFocus={e => (e.currentTarget.style.borderColor = 'rgba(229,164,90,0.6)')}
+              onBlur={e => (e.currentTarget.style.borderColor = '#3e3e3e')}
+            />
+            <button
+              onClick={clone}
+              disabled={loading || !url.trim()}
+              style={{
+                padding: '8px 18px', borderRadius: 6, cursor: loading ? 'wait' : 'pointer',
+                background: loading ? 'rgba(229,164,90,0.1)' : 'rgba(229,164,90,0.2)',
+                border: '1px solid rgba(229,164,90,0.4)',
+                color: '#e5a45a', fontSize: 13, fontFamily: 'inherit', fontWeight: 600,
+                opacity: !url.trim() ? 0.5 : 1, flexShrink: 0,
+              }}
+            >
+              {loading ? 'Cloning…' : 'Clone'}
+            </button>
+          </div>
+
+          {/* Progress bar */}
+          {progress && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666', marginBottom: 4 }}>
+                <span>Downloading files</span>
+                <span>{progress.done}/{progress.total}</span>
+              </div>
+              <div style={{ height: 4, background: '#2a2a2a', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', background: '#e5a45a', borderRadius: 2,
+                  width: `${progress.total > 0 ? (progress.done / progress.total) * 100 : 0}%`,
+                  transition: 'width 0.2s ease',
+                }} />
+              </div>
+            </div>
+          )}
+
+          {/* Status */}
+          {status && !error && (
+            <div style={{
+              marginTop: 12, padding: '8px 12px', background: 'rgba(78,201,176,0.08)',
+              border: '1px solid rgba(78,201,176,0.2)', borderRadius: 6,
+              fontSize: 12, color: '#4ec9b0', lineHeight: 1.5,
+            }}>
+              {status}
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div style={{
+              marginTop: 12, padding: '8px 12px', background: 'rgba(244,71,71,0.08)',
+              border: '1px solid rgba(244,71,71,0.25)', borderRadius: 6,
+              fontSize: 12, color: '#f88', lineHeight: 1.5,
+            }}>
+              ⚠ {error}
+            </div>
+          )}
+
+          {/* Info */}
+          {!loading && !error && !status && (
+            <div style={{ marginTop: 14, fontSize: 11, color: '#555', lineHeight: 1.7 }}>
+              <div>• Only <strong style={{ color: '#666' }}>public</strong> repositories are supported</div>
+              <div>• Text files only (HTML, CSS, JS, TS, JSON, etc.) — up to 80 files</div>
+              <div>• Files larger than 500 KB are skipped</div>
+              <div>• Current project will be replaced by the cloned files</div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          display: 'flex', justifyContent: 'flex-end', gap: 8,
+          padding: '12px 20px', background: '#252526', borderTop: '1px solid #333',
+        }}>
+          <button onClick={onClose} disabled={loading} style={{
+            padding: '6px 16px', borderRadius: 5, cursor: 'pointer',
+            background: 'none', border: '1px solid #444', color: '#888', fontSize: 12, fontFamily: 'inherit',
+          }}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MenuRow({ item }: { item: MenuItem }) {
   const [hov, setHov] = useState(false);

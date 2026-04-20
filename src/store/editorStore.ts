@@ -1,14 +1,21 @@
 import { create } from 'zustand';
+import {
+  dbSaveFiles, dbLoadFiles, dbSaveFolders, dbLoadFolders,
+  dbSaveMeta, dbLoadMeta, syncFilesToMemFs, writeFileToMemFs,
+} from '../utils/fileSystemDB';
 
 export interface FileItem {
   id: string;
   name: string;
-  type: 'html' | 'css' | 'js' | 'image' | 'other';
+  type: FileType;
   content: string;
   url?: string;
   mimeType?: string;
   folder?: string;
 }
+
+export type FileType = 'html' | 'css' | 'js' | 'ts' | 'tsx' | 'jsx' | 'json' | 'image' | 'other';
+export type ProjectType = 'static' | 'react' | 'node' | 'fullstack';
 
 export interface SelectedElement {
   tagName: string;
@@ -61,8 +68,11 @@ export interface PreviewTab {
   title: string;
   favicon: string;
   active: boolean;
-  previewType: 'page' | 'image';
+  tabType: 'static' | 'port' | 'image';
+  htmlFileId?: string;
+  portUrl?: string;
   imageFileId?: string;
+  viewport: 'desktop' | 'tablet' | 'mobile';
 }
 
 export interface TimelineTrack {
@@ -86,10 +96,13 @@ export interface TimelineState {
 interface EditorStore {
   files: FileItem[];
   activeFileId: string | null;
+  editorOpenIds: string[];
   addFile: (file: FileItem) => void;
   removeFile: (id: string) => void;
   updateFileContent: (id: string, content: string) => void;
   setActiveFile: (id: string) => void;
+  openInEditor: (id: string) => void;
+  closeInEditor: (id: string) => void;
   moveFileToFolder: (fileId: string, folder: string | undefined) => void;
 
   folders: string[];
@@ -124,7 +137,14 @@ interface EditorStore {
 
   previewTabs: PreviewTab[];
   activePreviewTabId: string;
-  addPreviewTab: (opts?: { fileId?: string; title?: string; previewType?: 'page' | 'image'; imageFileId?: string }) => void;
+  addPreviewTab: (opts?: {
+    tabType?: 'static' | 'port' | 'image';
+    title?: string;
+    htmlFileId?: string;
+    portUrl?: string;
+    imageFileId?: string;
+    viewport?: 'desktop' | 'tablet' | 'mobile';
+  }) => void;
   closePreviewTab: (id: string) => void;
   setActivePreviewTab: (id: string) => void;
   updatePreviewTab: (id: string, update: Partial<PreviewTab>) => void;
@@ -142,69 +162,143 @@ interface EditorStore {
   triggerTimelineRestart: () => void;
 
   timelineState: TimelineState;
-  setTimelineState: (update: Partial<TimelineState> | ((prev: TimelineState) => TimelineState)) => void;
-  resetTimelineState: () => void;
+  timelineStates: Record<string, TimelineState>;
+  setTimelineState: (update: Partial<TimelineState> | ((prev: TimelineState) => TimelineState), fileId?: string) => void;
+  resetTimelineState: (fileId?: string) => void;
+  getTimelineStateForFile: (fileId: string) => TimelineState;
 
   pendingFileDialog: { type: 'create' | 'rename'; fileId?: string } | null;
   setPendingFileDialog: (d: { type: 'create' | 'rename'; fileId?: string } | null) => void;
+
+  resetFiles: (newFiles: FileItem[]) => void;
+
+  /** Terminal bridge — TerminalPane registers these; PreviewPane/others call them */
+  terminalWrite: ((text: string) => void) | null;
+  terminalRunCommand: ((cmd: string) => void) | null;
+  setTerminalWrite: (fn: ((text: string) => void) | null) => void;
+  setTerminalRunCommand: (fn: ((cmd: string) => void) | null) => void;
+
+  dbReady: boolean;
+  initFromDb: () => Promise<void>;
 }
 
-const DEFAULT_HTML = `<!DOCTYPE html>
+const DEFAULT_PKG = `{
+  "name": "my-react-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
+  }
+}`;
+
+const DEFAULT_VITE_CONFIG = `import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+})
+`;
+
+const DEFAULT_INDEX_HTML = `<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Page</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="header">
-    <h1>Welcome to HTML Editor</h1>
-    <nav>
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
-  </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My React App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+`;
 
-  <main class="main">
-    <section class="hero">
-      <h2>Build Amazing Websites</h2>
-      <p>Switch to <strong>Visual mode</strong> to design your page like Photoshop — click any element to select, drag to move, use handles to resize and rotate.</p>
-      <button class="btn" onclick="alert('Hello from your page!')">Get Started</button>
-    </section>
+const DEFAULT_MAIN_JSX = `import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
+import './App.css'
 
-    <section class="features">
-      <div class="card">
-        <h3>Code Editor</h3>
-        <p>Full Monaco editor with syntax highlighting, autocomplete, and formatting for HTML, CSS, and JS.</p>
-      </div>
-      <div class="card">
-        <h3>Visual Editor</h3>
-        <p>Click any element to select it, drag to reposition, and use the properties panel to style it.</p>
-      </div>
-      <div class="card">
-        <h3>Live Preview</h3>
-        <p>See your changes instantly. Export as ZIP or copy to clipboard when you're done.</p>
-      </div>
-    </section>
-  </main>
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+)
+`;
 
-  <footer class="footer">
-    <p>&copy; 2024 My Website. Built with HTML Editor.</p>
-  </footer>
+const DEFAULT_APP_JSX = `import { useState } from 'react'
+import './App.css'
 
-  <script src="script.js"></script>
-</body>
-</html>`;
+export default function App() {
+  const [count, setCount] = useState(0)
 
-const DEFAULT_CSS = `* { box-sizing: border-box; margin: 0; padding: 0; }
+  return (
+    <div className="app">
+      <header className="header">
+        <div className="logo">⚛ My App</div>
+        <nav>
+          <a href="#">Home</a>
+          <a href="#">About</a>
+          <a href="#">Contact</a>
+        </nav>
+      </header>
+
+      <main>
+        <section className="hero">
+          <h1>Hello, React! 👋</h1>
+          <p>
+            Edit <code>src/App.jsx</code> and save to see changes instantly.
+          </p>
+          <div className="counter">
+            <button onClick={() => setCount(c => c - 1)}>−</button>
+            <span>{count}</span>
+            <button onClick={() => setCount(c => c + 1)}>+</button>
+          </div>
+        </section>
+
+        <section className="features">
+          {[
+            { icon: '⚡', title: 'Vite', desc: 'Lightning-fast dev server with instant HMR' },
+            { icon: '⚛', title: 'React 18', desc: 'Modern React with hooks and concurrent rendering' },
+            { icon: '🎨', title: 'Customizable', desc: 'Edit App.css to style your app your way' },
+          ].map(f => (
+            <div key={f.title} className="card">
+              <div className="card-icon">{f.icon}</div>
+              <h3>{f.title}</h3>
+              <p>{f.desc}</p>
+            </div>
+          ))}
+        </section>
+      </main>
+
+      <footer className="footer">
+        <p>Built with React + Vite · <a href="https://react.dev" target="_blank">Docs</a></p>
+      </footer>
+    </div>
+  )
+}
+`;
+
+const DEFAULT_APP_CSS = `* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #333;
+  background: #0f0f1a;
+  color: #e0e0e0;
   line-height: 1.6;
 }
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
 
 /* Header */
 .header {
@@ -212,18 +306,21 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 16px 40px;
-  background: #1a1a2e;
-  color: white;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
-.header h1 { font-size: 1.4rem; font-weight: 700; }
+.logo { font-size: 1.2rem; font-weight: 700; color: #61dafb; }
 nav a {
-  color: rgba(255,255,255,0.75);
+  color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
-  margin-left: 24px;
+  margin-left: 28px;
   font-size: 0.9rem;
   transition: color 0.2s;
 }
-nav a:hover { color: #f0a500; }
+nav a:hover { color: #61dafb; }
 
 /* Hero */
 .hero {
@@ -231,116 +328,89 @@ nav a:hover { color: #f0a500; }
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 80px 40px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: white;
-  min-height: 50vh;
-  justify-content: center;
+  padding: 100px 40px 80px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(97, 218, 251, 0.08) 0%, transparent 70%);
 }
-.hero h2 {
+.hero h1 {
   font-size: 3rem;
   font-weight: 800;
-  margin-bottom: 16px;
-  background: linear-gradient(90deg, #f0a500, #e94560);
+  background: linear-gradient(135deg, #61dafb, #a855f7);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  margin-bottom: 16px;
 }
-.hero p {
-  font-size: 1.1rem;
-  color: rgba(255,255,255,0.75);
-  max-width: 560px;
-  margin-bottom: 36px;
+.hero p { font-size: 1.1rem; color: rgba(255, 255, 255, 0.55); margin-bottom: 40px; }
+.hero code {
+  background: rgba(97, 218, 251, 0.12);
+  color: #61dafb;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
-.btn {
-  padding: 14px 36px;
-  background: #f0a500;
-  color: #1a1a2e;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
+
+/* Counter */
+.counter { display: flex; align-items: center; gap: 20px; }
+.counter button {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid rgba(97, 218, 251, 0.4);
+  background: rgba(97, 218, 251, 0.1);
+  color: #61dafb;
+  font-size: 1.4rem;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s;
 }
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(240,165,0,0.4);
+.counter button:hover {
+  background: rgba(97, 218, 251, 0.2);
+  border-color: #61dafb;
+  transform: scale(1.08);
+}
+.counter span {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 60px;
+  text-align: center;
 }
 
 /* Features */
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
   padding: 60px 40px;
-  background: #f8f9fa;
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
 }
 .card {
-  background: white;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 28px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: border-color 0.2s, background 0.2s;
 }
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
-.card h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a2e;
-}
-.card p { color: #666; font-size: 0.9rem; }
+.card:hover { border-color: rgba(97, 218, 251, 0.3); background: rgba(97, 218, 251, 0.04); }
+.card-icon { font-size: 2rem; margin-bottom: 12px; }
+.card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; color: #fff; }
+.card p { color: rgba(255, 255, 255, 0.5); font-size: 0.88rem; }
 
 /* Footer */
 .footer {
+  margin-top: auto;
   text-align: center;
   padding: 24px;
-  background: #1a1a2e;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255, 255, 255, 0.3);
   font-size: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
+.footer a { color: #61dafb; text-decoration: none; }
+.footer a:hover { text-decoration: underline; }
 `;
 
-const DEFAULT_JS = `// JavaScript is live — edits here run instantly in preview
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Page ready!');
-
-  // Animate cards on scroll
-  const cards = document.querySelectorAll('.card');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }, i * 100);
-      }
-    });
-  }, { threshold: 0.1 });
-
-  cards.forEach(card => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(20px)';
-    card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-    observer.observe(card);
-  });
-});
-`;
-
-const FILES_STORAGE_KEY    = 'html-editor-files-v1';
-const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
-const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
-const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
-const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
-  { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
-  { id: '2', element: 'h2', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
-  { id: '3', element: '.btn', animation: 'zoom', duration: 0.5, delay: 0.8, color: '#9cdcfe', easing: 'ease', iteration: '1' },
-  { id: '4', element: '.card', animation: 'fadeIn', duration: 0.6, delay: 1.0, color: '#dcdcaa', easing: 'ease', iteration: '1' },
-];
+const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [];
 
 const DEFAULT_TIMELINE_STATE: TimelineState = {
   tracks: DEFAULT_TIMELINE_TRACKS,
@@ -349,11 +419,15 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
   animationsApplied: false,
 };
 
-/* ─── Files persistence ─── */
+const DEFAULT_FOLDERS = ['src'];
+
 const DEFAULT_FILES: FileItem[] = [
-  { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
-  { id: 'styles.css', name: 'styles.css', type: 'css', content: DEFAULT_CSS },
-  { id: 'script.js',  name: 'script.js',  type: 'js',  content: DEFAULT_JS  },
+  { id: 'package.json',    name: 'package.json',    type: 'json', content: DEFAULT_PKG         },
+  { id: 'vite.config.js',  name: 'vite.config.js',  type: 'js',   content: DEFAULT_VITE_CONFIG },
+  { id: 'index.html',      name: 'index.html',      type: 'html', content: DEFAULT_INDEX_HTML  },
+  { id: 'src/main.jsx',    name: 'main.jsx',         type: 'jsx',  content: DEFAULT_MAIN_JSX,   folder: 'src' },
+  { id: 'src/App.jsx',     name: 'App.jsx',          type: 'jsx',  content: DEFAULT_APP_JSX,    folder: 'src' },
+  { id: 'src/App.css',     name: 'App.css',          type: 'css',  content: DEFAULT_APP_CSS,    folder: 'src' },
 ];
 
 function serializeFiles(files: FileItem[]): FileItem[] {
@@ -365,94 +439,149 @@ function serializeFiles(files: FileItem[]): FileItem[] {
   });
 }
 
-function saveFiles(files: FileItem[]) {
-  try {
-    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(serializeFiles(files)));
-  } catch { /* quota exceeded — ignore */ }
+function saveFilesAsync(files: FileItem[]) {
+  dbSaveFiles(serializeFiles(files)).catch(() => {});
 }
 
-function loadFiles(): FileItem[] {
-  try {
-    const raw = localStorage.getItem(FILES_STORAGE_KEY);
-    if (!raw) return DEFAULT_FILES;
-    const parsed = JSON.parse(raw) as FileItem[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_FILES;
-    return parsed;
-  } catch {
-    return DEFAULT_FILES;
-  }
+function saveFoldersAsync(folders: string[]) {
+  dbSaveFolders(folders).catch(() => {});
 }
 
-function saveFolders(folders: string[]) {
-  try { localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders)); } catch {}
+function saveActiveFileAsync(id: string | null) {
+  dbSaveMeta('activeFileId', id ?? '').catch(() => {});
 }
 
-function loadFolders(): string[] {
-  try {
-    const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch { return []; }
+function saveEditorOpenIdsAsync(ids: string[]) {
+  dbSaveMeta('editorOpenIds', ids).catch(() => {});
 }
 
-function saveActiveFile(id: string | null) {
-  try { localStorage.setItem(ACTIVE_FILE_KEY, id ?? ''); } catch {}
+function saveTimelineStatesAsync(states: Record<string, TimelineState>) {
+  dbSaveMeta('timelineStates', states).catch(() => {});
 }
 
-function loadActiveFile(files: FileItem[]): string | null {
-  try {
-    const id = localStorage.getItem(ACTIVE_FILE_KEY);
-    if (id && files.find(f => f.id === id)) return id;
-    return files[0]?.id ?? null;
-  } catch {
-    return files[0]?.id ?? null;
-  }
+function savePreviewTabsAsync(tabs: PreviewTab[], activeId: string) {
+  dbSaveMeta('previewTabs', tabs).catch(() => {});
+  dbSaveMeta('activePreviewTabId', activeId).catch(() => {});
 }
-
-function loadTimelineState(): TimelineState {
-  try {
-    const raw = localStorage.getItem(TIMELINE_STORAGE_KEY);
-    if (!raw) return DEFAULT_TIMELINE_STATE;
-    const parsed = JSON.parse(raw) as Partial<TimelineState>;
-    if (!parsed || !Array.isArray(parsed.tracks)) return DEFAULT_TIMELINE_STATE;
-    return {
-      tracks: parsed.tracks,
-      playing: !!parsed.playing,
-      currentTime: typeof parsed.currentTime === 'number' ? parsed.currentTime : 0,
-      animationsApplied: !!parsed.animationsApplied,
-    };
-  } catch {
-    return DEFAULT_TIMELINE_STATE;
-  }
-}
-
-function saveTimelineState(state: TimelineState) {
-  try {
-    localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore quota/storage errors
-  }
-}
-
-const _initFiles = loadFiles();
-const _initActiveFileId = loadActiveFile(_initFiles);
-const _initFolders = loadFolders();
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
-  files: _initFiles,
-  activeFileId: _initActiveFileId,
+  files: DEFAULT_FILES,
+  activeFileId: DEFAULT_FILES[0]?.id ?? null,
+  editorOpenIds: DEFAULT_FILES.map(f => f.id),
+  dbReady: false,
+
+  initFromDb: async () => {
+    try {
+      /* ── Migrate localStorage → IndexedDB on first run ── */
+      const migratedFlag = await dbLoadMeta<boolean>('ls-migrated');
+      if (!migratedFlag) {
+        try {
+          const lsFiles = localStorage.getItem('html-editor-files-v2') ?? localStorage.getItem('html-editor-files-v1');
+          const lsFolders = localStorage.getItem('html-editor-folders-v2') ?? localStorage.getItem('html-editor-folders-v1');
+          const lsActive = localStorage.getItem('html-editor-active-file-v2') ?? localStorage.getItem('html-editor-active-file-v1');
+          const lsTimeline = localStorage.getItem('html-editor-timeline-state-v2') ?? localStorage.getItem('html-editor-timeline-state-v1');
+          if (lsFiles) {
+            const parsed = JSON.parse(lsFiles);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              await dbSaveFiles(parsed);
+              if (lsFolders) await dbSaveFolders(JSON.parse(lsFolders));
+              if (lsActive) await dbSaveMeta('activeFileId', JSON.parse(lsActive));
+              if (lsTimeline) {
+                const tlState = JSON.parse(lsTimeline);
+                const activeId = lsActive ? JSON.parse(lsActive) : null;
+                if (activeId) await dbSaveMeta('timelineStates', { [activeId]: tlState });
+              }
+            }
+          }
+          await dbSaveMeta('ls-migrated', true);
+          ['html-editor-files-v2','html-editor-files-v1','html-editor-folders-v2','html-editor-folders-v1',
+           'html-editor-active-file-v2','html-editor-active-file-v1','html-editor-timeline-state-v2','html-editor-timeline-state-v1',
+          ].forEach(k => { try { localStorage.removeItem(k); } catch {} });
+        } catch { await dbSaveMeta('ls-migrated', true); }
+      }
+
+      const [dbFiles, dbFolders, dbActiveId, dbOpenIds, dbTimelineStates, dbPreviewTabs, dbActivePreviewTabId] = await Promise.all([
+        dbLoadFiles(),
+        dbLoadFolders(),
+        dbLoadMeta<string>('activeFileId'),
+        dbLoadMeta<string[]>('editorOpenIds'),
+        dbLoadMeta<Record<string, TimelineState>>('timelineStates'),
+        dbLoadMeta<PreviewTab[]>('previewTabs'),
+        dbLoadMeta<string>('activePreviewTabId'),
+      ]);
+
+      const files = (dbFiles && dbFiles.length > 0) ? dbFiles as FileItem[] : DEFAULT_FILES;
+      const folders = (dbFolders && dbFolders.length > 0) ? dbFolders : DEFAULT_FOLDERS;
+      const activeFileId = (dbActiveId && files.find(f => f.id === dbActiveId)) ? dbActiveId : (files[0]?.id ?? null);
+      const editorOpenIds = (dbOpenIds && Array.isArray(dbOpenIds) && dbOpenIds.length > 0)
+        ? dbOpenIds.filter(id => files.find(f => f.id === id))
+        : files.map(f => f.id);
+      const timelineStates = dbTimelineStates ?? {};
+
+      const DEFAULT_PREVIEW_TABS: PreviewTab[] = [
+        { id: 'tab-1', title: 'Preview', favicon: '', active: true, tabType: 'static', viewport: 'desktop' },
+      ];
+      const restoredTabs: PreviewTab[] = (dbPreviewTabs && dbPreviewTabs.length > 0)
+        ? dbPreviewTabs.filter(t => t.tabType !== 'devserver')
+        : DEFAULT_PREVIEW_TABS;
+      const restoredActiveTabId = (dbActivePreviewTabId && restoredTabs.find(t => t.id === dbActivePreviewTabId))
+        ? dbActivePreviewTabId
+        : restoredTabs[restoredTabs.length - 1]?.id ?? 'tab-1';
+      const restoredTabsMarked = restoredTabs.map(t => ({ ...t, active: t.id === restoredActiveTabId }));
+
+      syncFilesToMemFs(files);
+
+      set({
+        files,
+        folders,
+        activeFileId,
+        editorOpenIds,
+        timelineStates,
+        timelineState: timelineStates[activeFileId ?? ''] ?? DEFAULT_TIMELINE_STATE,
+        previewTabs: restoredTabsMarked,
+        activePreviewTabId: restoredActiveTabId,
+        dbReady: true,
+      });
+    } catch (e) {
+      console.warn('[EditorStore] initFromDb failed:', e);
+      syncFilesToMemFs(DEFAULT_FILES);
+      set({ dbReady: true });
+    }
+  },
 
   addFile: (file) => set((s) => {
     const next = [...s.files, file];
-    saveFiles(next);
-    return { files: next };
+    const nextOpenIds = [...s.editorOpenIds, file.id];
+    saveFilesAsync(next);
+    saveEditorOpenIdsAsync(nextOpenIds);
+    writeFileToMemFs(file.folder ? `${file.folder}/${file.name}` : file.name, file.content || '');
+    return { files: next, editorOpenIds: nextOpenIds, activeFileId: file.id };
   }),
+
   removeFile: (id) => set((s) => {
     const next = s.files.filter(f => f.id !== id);
-    const nextActive = s.activeFileId === id ? (next.find(f => f.id !== id)?.id ?? next[0]?.id ?? null) : s.activeFileId;
-    saveFiles(next);
-    saveActiveFile(nextActive);
-    return { files: next, activeFileId: nextActive };
+    const nextOpenIds = s.editorOpenIds.filter(oid => oid !== id);
+    const nextActive = s.activeFileId === id
+      ? (next.find(f => nextOpenIds.includes(f.id))?.id ?? next[0]?.id ?? null)
+      : s.activeFileId;
+    saveFilesAsync(next);
+    saveActiveFileAsync(nextActive);
+    saveEditorOpenIdsAsync(nextOpenIds);
+    return { files: next, activeFileId: nextActive, editorOpenIds: nextOpenIds };
   }),
+
+  resetFiles: (newFiles) => set(() => {
+    const firstId = newFiles[0]?.id ?? null;
+    const folders = [...new Set(newFiles.map(f => f.folder).filter(Boolean) as string[])];
+    const openIds = newFiles.map(f => f.id);
+    saveFilesAsync(newFiles);
+    saveActiveFileAsync(firstId);
+    saveFoldersAsync(folders);
+    saveEditorOpenIdsAsync(openIds);
+    syncFilesToMemFs(newFiles);
+    return { files: newFiles, activeFileId: firstId, folders, editorOpenIds: openIds };
+  }),
+
   updateFileContent: (id, content) => set((s) => {
     const file = s.files.find(f => f.id === id);
     const isHtmlFile = file?.type === 'html';
@@ -460,45 +589,76 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     let timelinePatch: Partial<EditorStore> = {};
     if (isHtmlFile && isBlank) {
       const clearedTimeline: TimelineState = { ...s.timelineState, animationsApplied: false, tracks: [], playing: false, currentTime: 0 };
-      saveTimelineState(clearedTimeline);
-      timelinePatch = { timelineState: clearedTimeline, timelineAnimationStyle: '' };
+      const nextTimelineStates = { ...s.timelineStates, [id]: clearedTimeline };
+      saveTimelineStatesAsync(nextTimelineStates);
+      timelinePatch = { timelineState: clearedTimeline, timelineAnimationStyle: '', timelineStates: nextTimelineStates };
     }
     const next = s.files.map(f => f.id === id ? { ...f, content } : f);
-    saveFiles(next);
+    saveFilesAsync(next);
+    const path = file ? (file.folder ? `${file.folder}/${file.name}` : file.name) : id;
+    writeFileToMemFs(path, content);
     return {
       files: next,
       previewRefreshKey: s.previewRefreshKey + 1,
       ...timelinePatch,
     };
   }),
+
   setActiveFile: (id) => {
-    saveActiveFile(id);
-    set({ activeFileId: id });
+    saveActiveFileAsync(id);
+    const s = get();
+    const timelineForFile = s.timelineStates[id] ?? DEFAULT_TIMELINE_STATE;
+    set({ activeFileId: id, timelineState: timelineForFile });
   },
+
+  openInEditor: (id) => {
+    const s = get();
+    const nextOpenIds = s.editorOpenIds.includes(id) ? s.editorOpenIds : [...s.editorOpenIds, id];
+    saveActiveFileAsync(id);
+    saveEditorOpenIdsAsync(nextOpenIds);
+    const timelineForFile = s.timelineStates[id] ?? DEFAULT_TIMELINE_STATE;
+    set({ activeFileId: id, editorOpenIds: nextOpenIds, timelineState: timelineForFile });
+  },
+
+  closeInEditor: (id) => {
+    const s = get();
+    const nextOpenIds = s.editorOpenIds.filter(oid => oid !== id);
+    const finalOpenIds = nextOpenIds.length === 0 ? [s.files[0]?.id ?? id] : nextOpenIds;
+    const nextActive = s.activeFileId === id
+      ? (s.files.find(f => finalOpenIds.includes(f.id) && f.id !== id)?.id ?? finalOpenIds[finalOpenIds.length - 1] ?? null)
+      : s.activeFileId;
+    saveActiveFileAsync(nextActive);
+    saveEditorOpenIdsAsync(finalOpenIds);
+    set({ editorOpenIds: finalOpenIds, activeFileId: nextActive });
+  },
+
   moveFileToFolder: (fileId, folder) => set((s) => {
     const next = s.files.map(f => f.id === fileId ? { ...f, folder } : f);
-    saveFiles(next);
+    saveFilesAsync(next);
+    syncFilesToMemFs(next);
     return { files: next };
   }),
 
-  folders: _initFolders,
+  folders: DEFAULT_FOLDERS,
   addFolder: (name) => set((s) => {
     const next = s.folders.includes(name) ? s.folders : [...s.folders, name];
-    saveFolders(next);
+    saveFoldersAsync(next);
     return { folders: next };
   }),
   removeFolder: (name) => set((s) => {
     const nextFolders = s.folders.filter(f => f !== name);
     const nextFiles = s.files.map(f => f.folder === name ? { ...f, folder: undefined } : f);
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+    saveFoldersAsync(nextFolders);
+    saveFilesAsync(nextFiles);
+    syncFilesToMemFs(nextFiles);
     return { folders: nextFolders, files: nextFiles };
   }),
   renameFolder: (oldName, newName) => set((s) => {
     const nextFolders = s.folders.map(f => f === oldName ? newName : f);
     const nextFiles = s.files.map(f => f.folder === oldName ? { ...f, folder: newName } : f);
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+    saveFoldersAsync(nextFolders);
+    saveFilesAsync(nextFiles);
+    syncFilesToMemFs(nextFiles);
     return { folders: nextFolders, files: nextFiles };
   }),
 
@@ -559,7 +719,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   clearConsole: () => set({ consoleEntries: [] }),
 
-  previewTabs: [{ id: 'tab-1', title: 'My Page', favicon: '', active: true, previewType: 'page' }],
+  previewTabs: [{ id: 'tab-1', title: 'Preview', favicon: '', active: true, tabType: 'static', viewport: 'desktop' }],
   activePreviewTabId: 'tab-1',
   addPreviewTab: (opts) => {
     const id = `tab-${Date.now()}`;
@@ -568,31 +728,37 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       title: opts?.title ?? 'New Tab',
       favicon: '',
       active: true,
-      previewType: opts?.previewType ?? 'page',
+      tabType: opts?.tabType ?? 'static',
+      htmlFileId: opts?.htmlFileId,
+      portUrl: opts?.portUrl,
       imageFileId: opts?.imageFileId,
+      viewport: opts?.viewport ?? 'desktop',
     };
-    set((s) => ({
-      previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), newTab],
-      activePreviewTabId: id,
-    }));
+    set((s) => {
+      const nextTabs = [...s.previewTabs.map(t => ({ ...t, active: false })), newTab];
+      savePreviewTabsAsync(nextTabs, id);
+      return { previewTabs: nextTabs, activePreviewTabId: id };
+    });
   },
   closePreviewTab: (id) => set((s) => {
     const remaining = s.previewTabs.filter(t => t.id !== id);
     if (remaining.length === 0) return s;
     const wasActive = s.activePreviewTabId === id;
     const newActive = wasActive ? remaining[remaining.length - 1].id : s.activePreviewTabId;
-    return {
-      previewTabs: remaining.map(t => ({ ...t, active: t.id === newActive })),
-      activePreviewTabId: newActive,
-    };
+    const nextTabs = remaining.map(t => ({ ...t, active: t.id === newActive }));
+    savePreviewTabsAsync(nextTabs, newActive);
+    return { previewTabs: nextTabs, activePreviewTabId: newActive };
   }),
-  setActivePreviewTab: (id) => set((s) => ({
-    previewTabs: s.previewTabs.map(t => ({ ...t, active: t.id === id })),
-    activePreviewTabId: id,
-  })),
-  updatePreviewTab: (id, update) => set((s) => ({
-    previewTabs: s.previewTabs.map(t => t.id === id ? { ...t, ...update } : t),
-  })),
+  setActivePreviewTab: (id) => set((s) => {
+    const nextTabs = s.previewTabs.map(t => ({ ...t, active: t.id === id }));
+    savePreviewTabsAsync(nextTabs, id);
+    return { previewTabs: nextTabs, activePreviewTabId: id };
+  }),
+  updatePreviewTab: (id, update) => set((s) => {
+    const nextTabs = s.previewTabs.map(t => t.id === id ? { ...t, ...update } : t);
+    savePreviewTabsAsync(nextTabs, s.activePreviewTabId);
+    return { previewTabs: nextTabs };
+  }),
 
   notification: null,
   showNotification: (msg) => {
@@ -609,17 +775,41 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   timelineRestartKey: 0,
   triggerTimelineRestart: () => set((s) => ({ timelineRestartKey: s.timelineRestartKey + 1 })),
 
-  timelineState: loadTimelineState(),
-  setTimelineState: (update) => set((s) => {
-    const nextState = typeof update === 'function' ? update(s.timelineState) : { ...s.timelineState, ...update };
-    saveTimelineState(nextState);
-    return { timelineState: nextState };
+  timelineState: DEFAULT_TIMELINE_STATE,
+  timelineStates: {},
+
+  setTimelineState: (update, fileId) => set((s) => {
+    const targetId = fileId ?? s.activeFileId ?? '';
+    const current = s.timelineStates[targetId] ?? s.timelineState;
+    const nextState = typeof update === 'function' ? update(current) : { ...current, ...update };
+    const nextTimelineStates = { ...s.timelineStates, [targetId]: nextState };
+    saveTimelineStatesAsync(nextTimelineStates);
+    return {
+      timelineState: targetId === (s.activeFileId ?? '') ? nextState : s.timelineState,
+      timelineStates: nextTimelineStates,
+    };
   }),
-  resetTimelineState: () => set(() => {
-    saveTimelineState(DEFAULT_TIMELINE_STATE);
-    return { timelineState: DEFAULT_TIMELINE_STATE };
+
+  resetTimelineState: (fileId) => set((s) => {
+    const targetId = fileId ?? s.activeFileId ?? '';
+    const nextTimelineStates = { ...s.timelineStates, [targetId]: DEFAULT_TIMELINE_STATE };
+    saveTimelineStatesAsync(nextTimelineStates);
+    return {
+      timelineState: targetId === (s.activeFileId ?? '') ? DEFAULT_TIMELINE_STATE : s.timelineState,
+      timelineStates: nextTimelineStates,
+    };
   }),
+
+  getTimelineStateForFile: (fileId) => {
+    const s = get();
+    return s.timelineStates[fileId] ?? DEFAULT_TIMELINE_STATE;
+  },
 
   pendingFileDialog: null,
   setPendingFileDialog: (d) => set({ pendingFileDialog: d }),
+
+  terminalWrite: null,
+  terminalRunCommand: null,
+  setTerminalWrite: (fn) => set({ terminalWrite: fn }),
+  setTerminalRunCommand: (fn) => set({ terminalRunCommand: fn }),
 }));
