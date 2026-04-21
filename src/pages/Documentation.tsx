@@ -178,6 +178,18 @@ const Documentation: React.FC = () => {
                 ))}
               </nav>
 
+                  <nav className="space-y-2">
+                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">AI & Intelligence</h3>
+                {[
+                  { id: 'ai-assistant', label: 'AI Code Copilot', icon: <FiCpu /> },
+                  { id: 'ai-suggestions', label: 'Smart Suggestions', icon: <FiZap /> },
+                ].map(item => (
+                  <a key={item.id} href={`#${item.id}`} className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-[#666] hover:text-white font-bold transition-all group">
+                    <span className="text-yellow-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.label}
+                  </a>
+                ))}
+              </nav>
+
               <nav className="space-y-2">
                 <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Support</h3>
                 {[
@@ -755,6 +767,72 @@ const Documentation: React.FC = () => {
                       </div>
                    </div>
                 </Alert>
+              </div>
+            </section>
+
+            {/* Section: AI Intelligence */}
+            <section id="ai-assistant" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
+              <SectionHeader 
+                title="AI Code Copilot" 
+                subtitle="High-performance code completion powered by Pollinations AI."
+                icon={<FiCpu />}
+                color="yellow"
+              />
+
+              <div className="space-y-16">
+                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed text-lg">
+                  <p>
+                    Our editor features a state-of-the-art <strong>AI Code Copilot</strong> that predicts your next lines of code in real-time. 
+                    Built on the <code>pollinations.ai</code> API, it understands context, follows your coding style, and suggests entire functions instantly.
+                  </p>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-12">
+                   <div className="space-y-8">
+                      <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
+                         <FiZap className="text-yellow-500" /> How It Works
+                      </h4>
+                      <div className="space-y-6">
+                         <div className="flex gap-5">
+                            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 flex-shrink-0 shadow-lg">
+                               <FiType />
+                            </div>
+                            <div>
+                               <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Ghost Text Preview</h5>
+                               <p className="text-xs text-[#666] leading-relaxed font-medium">As you type, suggestions appear in <strong>Ghost Text</strong> (grayed out). This is exactly how GitHub Copilot functions.</p>
+                            </div>
+                         </div>
+                         <div className="flex gap-5">
+                            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 flex-shrink-0 shadow-lg">
+                               <FiCheck />
+                            </div>
+                            <div>
+                               <h5 className="text-white font-bold mb-1 uppercase tracking-tight">One-Key Acceptance</h5>
+                               <p className="text-xs text-[#666] leading-relaxed font-medium">Simply press the <strong>Tab</strong> key to accept the suggestion. It will be instantly committed to your code.</p>
+                            </div>
+                         </div>
+                      </div>
+                   </div>
+
+                   <Card className="bg-[#0a0a0a] border-[#222] p-8 space-y-8 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><FiCommand size={100} /></div>
+                      <h4 className="text-white font-black uppercase tracking-widest text-xs border-b border-[#1a1a1a] pb-4">AI Pro Tips</h4>
+                      <ul className="space-y-4">
+                         <li className="flex items-start gap-3">
+                            <FiChevronRight className="text-yellow-500 mt-1 flex-shrink-0" />
+                            <p className="text-xs text-[#777] font-medium leading-relaxed"><strong>Force Trigger:</strong> If the AI is idle, press <code>Ctrl + Space</code> or use the AI button in the status bar.</p>
+                         </li>
+                         <li className="flex items-start gap-3">
+                            <FiChevronRight className="text-yellow-500 mt-1 flex-shrink-0" />
+                            <p className="text-xs text-[#777] font-medium leading-relaxed"><strong>Context Awareness:</strong> The AI looks at 2000 characters before your cursor to ensure the suggestion fits perfectly.</p>
+                         </li>
+                         <li className="flex items-start gap-3">
+                            <FiChevronRight className="text-yellow-500 mt-1 flex-shrink-0" />
+                            <p className="text-xs text-[#777] font-medium leading-relaxed"><strong>Language Support:</strong> Works across HTML, CSS, JavaScript, and 20+ other programming languages.</p>
+                         </li>
+                      </ul>
+                   </Card>
+                </div>
               </div>
             </section>
 
