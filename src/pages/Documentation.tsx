@@ -42,7 +42,23 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiBox,
-  FiDroplet
+  FiDroplet,
+  FiMaximize2,
+  FiMove,
+  FiType,
+  FiCheck,
+  FiX,
+  FiSquare,
+  FiZoomIn,
+  FiZoomOut,
+  FiCommand,
+  FiMousePointer,
+  FiMenu,
+  FiLayers,
+  FiGrid,
+  FiScissors,
+  FiSave,
+  FiFilePlus
 } from 'react-icons/fi';
 
 /* ─── Components ────────────────────────────────────────── */
@@ -149,6 +165,7 @@ const Documentation: React.FC = () => {
               <nav className="space-y-2">
                 <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Panels & Workflows</h3>
                 {[
+                  { id: 'menu-system', label: 'Menu Dictionary', icon: <FiMenu />, color: 'cyan' },
                   { id: 'file-explorer', label: 'File Explorer', icon: <FiFolder />, color: 'orange' },
                   { id: 'code-editor', label: 'Monaco Engine', icon: <FiCode />, color: 'blue' },
                   { id: 'visual-builder', label: 'Visual Designer', icon: <FiEye />, color: 'green' },
@@ -162,13 +179,14 @@ const Documentation: React.FC = () => {
               </nav>
 
               <nav className="space-y-2">
-                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Control System</h3>
+                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Support</h3>
                 {[
-                  { id: 'menu-system', label: 'Menu Dictionary', icon: <FiSettings /> },
                   { id: 'shortcuts', label: 'Hotkeys List', icon: <FiTerminal /> },
+                  { id: 'pro-tips', label: 'Tips & Tricks', icon: <FiZap /> },
+                  { id: 'deployment', label: 'Deployment', icon: <FiShare2 /> },
                 ].map(item => (
                   <a key={item.id} href={`#${item.id}`} className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-[#666] hover:text-white font-bold transition-all group">
-                    <span className="text-cyan-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.label}
+                    <span className="text-green-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.label}
                   </a>
                 ))}
               </nav>
@@ -219,37 +237,138 @@ const Documentation: React.FC = () => {
               </div>
             </section>
 
-            {/* Section: Interface Breakdown */}
-            <section id="interface" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Workspace Layout" 
-                subtitle="A modular, dockable environment designed for maximum productivity."
-                icon={<FiLayout />}
-                color="blue"
-              />
+            {/* Section: Quick Start */}
+            <section id="quick-start" className="scroll-mt-32 space-y-12 pt-12 border-t border-[#1a1a1a]">
+              <div className="space-y-4 text-center max-w-2xl mx-auto">
+                <h2 className="text-3xl font-black text-white uppercase tracking-tight">Quick Start Guide</h2>
+                <p className="text-[#666]">Build your first web page in under 3 minutes following these steps.</p>
+              </div>
 
-              <div className="grid md:grid-cols-3 gap-8">
-                <Card className="bg-[#111] border-[#222] p-8 space-y-4 md:col-span-2">
-                  <h4 className="text-xl text-white font-black uppercase tracking-tight">Window Management</h4>
-                  <p className="text-[#888] leading-relaxed font-medium">
-                    Our workspace is built on a custom windowing system. Every panel can be **Docked** into a slot, **Floated** anywhere on screen, or **Minimized** to the status bar. 
-                    Drag the title bar of any window to reposition it, and use the snap zones to dock it back.
-                  </p>
-                  <div className="flex gap-4 pt-4">
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Snap Zones</Badge>
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Multi-Z-Index</Badge>
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Auto-Layout</Badge>
+              <div className="grid md:grid-cols-4 gap-8">
+                {[
+                  { step: '01', title: 'Init', desc: 'Create your index.html in the File Explorer.' },
+                  { step: '02', title: 'Layout', desc: 'Drag components onto the visual stage.' },
+                  { step: '03', title: 'Animate', desc: 'Add keyframes to the CSS timeline.' },
+                  { step: '04', title: 'Ship', desc: 'Export your production-ready ZIP file.' },
+                ].map((s, i) => (
+                  <div key={i} className="relative group">
+                    <div className="text-5xl font-black text-[#1a1a1a] absolute -top-4 -left-2 group-hover:text-orange-500/5 transition-colors">{s.step}</div>
+                    <div className="relative pt-6">
+                      <h4 className="text-white font-black text-sm uppercase tracking-widest mb-2">{s.title}</h4>
+                      <p className="text-xs text-[#777] leading-relaxed">{s.desc}</p>
+                    </div>
                   </div>
-                </Card>
-                <div className="bg-[#111] border border-[#222] rounded-3xl p-8 flex flex-col justify-center items-center text-center group">
-                   <div className="text-orange-500 mb-6 group-hover:scale-110 transition-transform"><FiMonitor size={48} /></div>
-                   <h5 className="text-white font-black mb-2 uppercase tracking-widest text-sm">Preset Modes</h5>
-                   <p className="text-xs text-[#666] font-medium leading-relaxed">Toggle between Code, Visual, or Split layouts with Ctrl+1, 2, or 3.</p>
-                </div>
+                ))}
               </div>
             </section>
 
             <AdPlaceholder slot="DOCS_CONTENT_MID_1" />
+
+            {/* Section: Menu Dictionary - DETAILED */}
+            <section id="menu-system" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
+              <SectionHeader 
+                title="Menu Dictionary" 
+                subtitle="Every function and tool explained in detail."
+                icon={<FiMenu />}
+                color="cyan"
+              />
+
+              <div className="space-y-16">
+                <div className="grid md:grid-cols-2 gap-12">
+                  {/* File Menu */}
+                  <div className="space-y-6">
+                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-cyan-500 pl-4">1. File Menu</h4>
+                    <p className="text-sm text-[#777] leading-relaxed font-medium">Project and file management controls.</p>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'New File', icon: <FiFilePlus />, desc: 'Create a new file. Use .html, .css, or .js extensions.' },
+                        { label: 'New Folder', icon: <FiFolderPlus />, desc: 'Create a folder to organize your assets.' },
+                        { label: 'Save All', icon: <FiSave />, desc: 'Manually commit all changes to browser storage.' },
+                        { label: 'Import Files', icon: <FiUpload />, desc: 'Upload existing files from your local machine.' },
+                        { label: 'Export ZIP', icon: <FiDownload />, desc: 'Download your entire project as a clean ZIP.' },
+                      ].map((item, i) => (
+                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-cyan-500/30 transition-all">
+                          <div className="text-cyan-500 group-hover:scale-110 transition-transform">{item.icon}</div>
+                          <div>
+                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
+                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tools Menu */}
+                  <div className="space-y-6">
+                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-blue-500 pl-4">2. Tools Menu</h4>
+                    <p className="text-sm text-[#777] leading-relaxed font-medium">Advanced quality and formatting tools.</p>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Validate HTML', icon: <FiCheckCircle />, desc: 'Check for unclosed tags or syntax errors in HTML.' },
+                        { label: 'Accessibility', icon: <FiSearch />, desc: 'Check for missing alt tags and aria-labels.' },
+                        { label: 'Format HTML', icon: <FiLayers />, desc: 'Clean up your code with proper indentation.' },
+                        { label: 'Minify HTML', icon: <FiScissors />, desc: 'Compress HTML for production performance.' },
+                        { label: 'Clear Console', icon: <FiTrash2 />, desc: 'Reset the output console logs.' },
+                      ].map((item, i) => (
+                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-blue-500/30 transition-all">
+                          <div className="text-blue-500 group-hover:scale-110 transition-transform">{item.icon}</div>
+                          <div>
+                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
+                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-12">
+                  {/* Window Menu */}
+                  <div className="space-y-6">
+                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-purple-500 pl-4">3. Window Menu</h4>
+                    <p className="text-sm text-[#777] leading-relaxed font-medium">Control the workspace layout and panels.</p>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Layout Presets', icon: <FiGrid />, desc: 'Switch between Code, Visual, and Split layouts.' },
+                        { label: 'Panel Visibility', icon: <FiMaximize2 />, desc: 'Toggle specific panels like File Explorer or Timeline.' },
+                        { label: 'Docking System', icon: <FiLayout />, desc: 'Dock panels to slots or float them as windows.' },
+                        { label: 'Reset Layout', icon: <FiRefreshCw />, desc: 'Reset all panels to their default positions.' },
+                      ].map((item, i) => (
+                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-purple-500/30 transition-all">
+                          <div className="text-purple-500 group-hover:scale-110 transition-transform">{item.icon}</div>
+                          <div>
+                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
+                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Export Menu */}
+                  <div className="space-y-6">
+                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-orange-500 pl-4">4. Export Menu</h4>
+                    <p className="text-sm text-[#777] leading-relaxed font-medium">Options for downloading your project.</p>
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Export ZIP', icon: <FiDownload />, desc: 'Complete project bundle with all assets.' },
+                        { label: 'Export HTML Only', icon: <FiFileText />, desc: 'Download only the active HTML file.' },
+                        { label: 'Export CSS Only', icon: <FiDroplet />, desc: 'Download the active CSS stylesheet.' },
+                        { label: 'Copy to Clipboard', icon: <FiCopy />, desc: 'Copy current code for quick sharing.' },
+                      ].map((item, i) => (
+                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-orange-500/30 transition-all">
+                          <div className="text-orange-500 group-hover:scale-110 transition-transform">{item.icon}</div>
+                          <div>
+                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
+                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {/* Section: File Explorer Deep-Dive */}
             <section id="file-explorer" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
@@ -261,9 +380,9 @@ const Documentation: React.FC = () => {
               />
 
               <div className="space-y-10">
-                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed">
+                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed text-lg">
                   <p>
-                    Located by default on the left, the File Explorer manages all assets within your current session. It supports a virtual file system that persists in your browser's local storage.
+                    The File Explorer manages all assets within your current session. It supports a virtual file system that persists in your browser's local storage.
                   </p>
                 </div>
 
@@ -273,24 +392,24 @@ const Documentation: React.FC = () => {
                       <FiPlusSquare className="text-orange-500" /> Key Operations
                     </h4>
                     <ul className="space-y-6">
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-[#222] flex items-center justify-center text-orange-500 flex-shrink-0"><FiPlus /></div>
+                      <li className="flex gap-4 p-4 rounded-2xl bg-[#111] border border-[#222] hover:bg-orange-500/5 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0"><FiPlus /></div>
                         <div>
-                          <strong className="text-white block mb-1">Create File</strong>
+                          <strong className="text-white block mb-1 uppercase tracking-tight">New File</strong>
                           <span className="text-xs text-[#777]">Supports .html, .css, .js, .json, and .md. Extension determines the editor mode.</span>
                         </div>
                       </li>
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-[#222] flex items-center justify-center text-orange-500 flex-shrink-0"><FiFolderPlus /></div>
+                      <li className="flex gap-4 p-4 rounded-2xl bg-[#111] border border-[#222] hover:bg-orange-500/5 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0"><FiFolderPlus /></div>
                         <div>
-                          <strong className="text-white block mb-1">Create Folder</strong>
+                          <strong className="text-white block mb-1 uppercase tracking-tight">New Folder</strong>
                           <span className="text-xs text-[#777]">Organize your components and assets into a clean directory structure.</span>
                         </div>
                       </li>
-                      <li className="flex gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-[#1a1a1a] border border-[#222] flex items-center justify-center text-orange-500 flex-shrink-0"><FiUpload /></div>
+                      <li className="flex gap-4 p-4 rounded-2xl bg-[#111] border border-[#222] hover:bg-orange-500/5 transition-colors">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0"><FiUpload /></div>
                         <div>
-                          <strong className="text-white block mb-1">Smart Import</strong>
+                          <strong className="text-white block mb-1 uppercase tracking-tight">Smart Import</strong>
                           <span className="text-xs text-[#777]">Drag and drop files from your OS directly into the panel to import them.</span>
                         </div>
                       </li>
@@ -306,7 +425,7 @@ const Documentation: React.FC = () => {
                         { label: 'Delete', icon: <FiTrash2 />, desc: 'Permanent removal from virtual storage.' },
                         { label: 'Export ZIP', icon: <FiDownload />, desc: 'Convert virtual files to a physical .zip file.' },
                       ].map((action, i) => (
-                        <div key={i} className="flex items-center gap-4 group cursor-default">
+                        <div key={i} className="flex items-center gap-4 group cursor-default p-2 rounded-xl hover:bg-white/5 transition-colors">
                           <div className="text-[#444] group-hover:text-orange-500 transition-colors">{action.icon}</div>
                           <div className="flex-1">
                             <span className="text-white text-xs font-bold block">{action.label}</span>
@@ -331,52 +450,53 @@ const Documentation: React.FC = () => {
 
               <div className="grid lg:grid-cols-[1fr_350px] gap-12">
                 <div className="space-y-8">
-                  <p className="text-[#888] font-medium leading-relaxed">
-                    Our Code Editor is built on **Monaco**, the same engine powering VS Code. It provides a native development experience with desktop-grade performance.
+                  <p className="text-[#888] font-medium leading-relaxed text-lg">
+                    Our Code Editor is built on <strong>Monaco</strong>, the same engine powering VS Code. It provides a native development experience with desktop-grade performance.
                   </p>
                   
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-6 bg-[#111] rounded-3xl border border-[#222]">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-3 text-blue-500">Feature 01</h5>
-                      <h4 className="text-white font-bold mb-2">IntelliSense</h4>
-                      <p className="text-xs text-[#666]">Smart completions for HTML tags, CSS properties, and JavaScript functions.</p>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
+                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 01</h5>
+                      <h4 className="text-xl text-white font-bold mb-3">IntelliSense</h4>
+                      <p className="text-sm text-[#666] leading-relaxed">Smart completions for HTML tags, CSS properties, and JavaScript functions.</p>
                     </div>
-                    <div className="p-6 bg-[#111] rounded-3xl border border-[#222]">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-3 text-blue-500">Feature 02</h5>
-                      <h4 className="text-white font-bold mb-2">Multi-Cursor</h4>
-                      <p className="text-xs text-[#666]">Hold Alt and click to place multiple cursors for bulk editing.</p>
+                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
+                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 02</h5>
+                      <h4 className="text-xl text-white font-bold mb-3">Multi-Cursor</h4>
+                      <p className="text-sm text-[#666] leading-relaxed">Hold Alt and click to place multiple cursors for bulk editing tasks.</p>
                     </div>
-                    <div className="p-6 bg-[#111] rounded-3xl border border-[#222]">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-3 text-blue-500">Feature 03</h5>
-                      <h4 className="text-white font-bold mb-2">Prettier Sync</h4>
-                      <p className="text-xs text-[#666]">Automatic formatting ensures your code always meets professional standards.</p>
+                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
+                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 03</h5>
+                      <h4 className="text-xl text-white font-bold mb-3">Prettier Sync</h4>
+                      <p className="text-sm text-[#666] leading-relaxed">Automatic formatting ensures your code meets professional standards.</p>
                     </div>
-                    <div className="p-6 bg-[#111] rounded-3xl border border-[#222]">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-3 text-blue-500">Feature 04</h5>
-                      <h4 className="text-white font-bold mb-2">Emmet</h4>
-                      <p className="text-xs text-[#666]">Write HTML lightning fast with Emmet abbreviations support.</p>
+                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
+                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 04</h5>
+                      <h4 className="text-xl text-white font-bold mb-3">Emmet Support</h4>
+                      <p className="text-sm text-[#666] leading-relaxed">Write HTML lightning fast with standard Emmet abbreviations.</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-6">
-                  <div className="p-8 bg-blue-500/5 border border-blue-500/20 rounded-3xl space-y-6">
+                  <div className="p-10 bg-blue-500/5 border border-blue-500/20 rounded-3xl space-y-8 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none"><FiCpu size={120} /></div>
                     <h4 className="text-blue-400 font-black uppercase tracking-widest text-xs">AI Intelligence</h4>
-                    <p className="text-xs text-[#777] leading-relaxed">
+                    <p className="text-sm text-[#777] leading-relaxed font-medium">
                       Look for the <span className="text-blue-400 font-bold">✦ AI Status Button</span> in the status bar. 
-                      It provides real-time suggestions, bug fixes, and boilerplate generation based on your current file context.
+                      It provides real-time suggestions, bug fixes, and boilerplate generation based on your file context.
                     </p>
-                    <div className="flex flex-col gap-2">
-                      <Badge className="bg-blue-500/20 text-blue-400 border-none justify-start">✓ Suggestion Ready (Tab)</Badge>
-                      <Badge className="bg-yellow-500/20 text-yellow-400 border-none justify-start">⟳ AI Thinking...</Badge>
-                      <Badge className="bg-white/5 text-[#555] border-none justify-start">✦ AI Idle</Badge>
+                    <div className="flex flex-col gap-3">
+                      <Badge className="bg-blue-500/10 text-blue-400 border-none py-2 px-4 justify-start font-bold">✓ Suggestion Ready (Tab)</Badge>
+                      <Badge className="bg-yellow-500/10 text-yellow-400 border-none py-2 px-4 justify-start font-bold">⟳ AI Thinking...</Badge>
+                      <Badge className="bg-white/5 text-[#444] border-none py-2 px-4 justify-start font-bold">✦ AI Idle</Badge>
                     </div>
                   </div>
-                  <Alert className="bg-[#111] border-[#222] rounded-3xl">
+                  <Alert className="bg-[#111] border-[#222] rounded-3xl p-6">
                     <FiCheckCircle className="text-green-500" />
-                    <AlertTitle className="text-white font-black text-xs uppercase">Live Refresh</AlertTitle>
-                    <AlertDescription className="text-[10px] text-[#666]">
-                      Every keystroke is synchronized. No need to hit save to see changes in the preview.
+                    <AlertTitle className="text-white font-black text-xs uppercase mb-2">Live Refresh</AlertTitle>
+                    <AlertDescription className="text-xs text-[#666] leading-relaxed">
+                      Every keystroke is synchronized. No need to hit save to see changes in the preview pane.
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -395,56 +515,69 @@ const Documentation: React.FC = () => {
               />
 
               <div className="space-y-12">
-                <div className="grid md:grid-cols-[300px_1fr] gap-12 items-center">
-                  <div className="space-y-6">
-                    <h4 className="text-white font-black uppercase tracking-widest text-sm">Interactive Canvas</h4>
-                    <p className="text-[#888] text-sm leading-relaxed font-medium">
-                      The Visual Designer provides a true-to-life preview of your web project. But it's more than just a preview—it's an interactive staging area.
-                    </p>
-                    <div className="space-y-4">
-                       <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black">1</div>
-                          <span className="text-xs text-[#666]">**Select:** Click any element to focus it in the Properties Panel.</span>
+                <div className="grid md:grid-cols-[350px_1fr] gap-16 items-start">
+                  <div className="space-y-10">
+                    <div>
+                      <h4 className="text-white font-black uppercase tracking-widest text-sm mb-4">Interactive Canvas</h4>
+                      <p className="text-[#888] text-lg leading-relaxed font-medium">
+                        The Visual Designer provides a true-to-life preview that doubles as an interactive staging area.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-6">
+                       <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group">
+                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black group-hover:bg-green-500 group-hover:text-white transition-all">1</div>
+                          <div>
+                            <strong className="text-white block mb-1 uppercase tracking-tight">Select & Focus</strong>
+                            <span className="text-xs text-[#666] leading-relaxed block font-medium">Click any element to focus it. Its CSS properties will automatically load in the Properties Panel.</span>
+                          </div>
                        </div>
-                       <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black">2</div>
-                          <span className="text-xs text-[#666]">**Edit:** Right-click elements for visual-specific actions.</span>
+                       <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group">
+                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black group-hover:bg-green-500 group-hover:text-white transition-all">2</div>
+                          <div>
+                            <strong className="text-white block mb-1 uppercase tracking-tight">Context Actions</strong>
+                            <span className="text-xs text-[#666] leading-relaxed block font-medium">Right-click elements on the canvas to duplicate, delete, or wrap them in new containers.</span>
+                          </div>
                        </div>
-                       <div className="flex items-start gap-3">
-                          <div className="w-6 h-6 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black">3</div>
-                          <span className="text-xs text-[#666]">**Sync:** Drag elements to reorder them (Pro only).</span>
+                       <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group">
+                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black group-hover:bg-green-500 group-hover:text-white transition-all">3</div>
+                          <div>
+                            <strong className="text-white block mb-1 uppercase tracking-tight">Responsive Toggles</strong>
+                            <span className="text-xs text-[#666] leading-relaxed block font-medium">Use the viewport icons to test your design on Mobile, Tablet, and Desktop resolutions.</span>
+                          </div>
                        </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-[#0d0d0d] rounded-3xl border border-[#222] shadow-3xl overflow-hidden">
-                    {/* Visual Editor Preview Mockup */}
-                    <div className="flex items-center justify-between mb-4 pb-2 border-b border-[#1a1a1a]">
-                      <div className="flex gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-500/50" />
-                        <div className="w-2 h-2 rounded-full bg-yellow-500/50" />
-                        <div className="w-2 h-2 rounded-full bg-green-500/50" />
+                  
+                  <div className="p-6 bg-[#0a0a0a] rounded-[2.5rem] border border-[#222] shadow-3xl overflow-hidden group relative">
+                    <div className="absolute top-0 right-0 p-8 opacity-[0.02] group-hover:opacity-10 transition-opacity pointer-events-none"><FiMousePointer size={200} /></div>
+                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#1a1a1a]">
+                      <div className="flex gap-2.5">
+                        <div className="w-3 h-3 rounded-full bg-red-500/40" />
+                        <div className="w-3 h-3 rounded-full bg-yellow-500/40" />
+                        <div className="w-3 h-3 rounded-full bg-green-500/40" />
                       </div>
-                      <div className="text-[9px] text-[#444] font-black uppercase tracking-widest">Visual-Stage.v2</div>
+                      <div className="text-[10px] text-[#444] font-black uppercase tracking-[0.2em]">Visual-Stage.Pro.v2</div>
                     </div>
-                    <div className="grid grid-cols-[1fr_180px] gap-4 h-[320px]">
-                      <div className="bg-white/[0.02] rounded-2xl border-2 border-dashed border-green-500/20 flex flex-col items-center justify-center p-10 text-center group">
-                        <div className="w-20 h-20 rounded-3xl bg-green-500/10 flex items-center justify-center text-green-500 mb-6 group-hover:scale-110 transition-transform shadow-2xl">
-                          <FiLayout size={38} />
+                    <div className="grid grid-cols-[1fr_220px] gap-6 h-[400px]">
+                      <div className="bg-white/[0.02] rounded-3xl border-2 border-dashed border-green-500/20 flex flex-col items-center justify-center p-12 text-center group/stage">
+                        <div className="w-24 h-24 rounded-[2rem] bg-green-500/10 flex items-center justify-center text-green-500 mb-8 group-hover/stage:scale-110 transition-transform shadow-2xl group-hover/stage:bg-green-500 group-hover/stage:text-white">
+                          <FiLayout size={44} />
                         </div>
-                        <h4 className="text-white font-black text-sm uppercase tracking-widest mb-2">Drop Components</h4>
-                        <p className="text-[10px] text-[#555] font-medium leading-relaxed max-w-[140px]">The stage reacts to your component drops in real-time.</p>
+                        <h4 className="text-white font-black text-lg uppercase tracking-widest mb-3">Drop Zone</h4>
+                        <p className="text-xs text-[#555] font-medium leading-relaxed max-w-[180px]">Components dropped here are instantly converted to clean HTML/CSS.</p>
                       </div>
-                      <div className="bg-[#111] rounded-2xl border border-[#222] p-4 space-y-6">
-                        <div className="text-[9px] font-black text-[#333] uppercase tracking-widest">Active Props</div>
-                        <div className="space-y-3">
-                          <div className="h-1.5 w-full bg-[#1a1a1a] rounded-full" />
-                          <div className="h-7 w-full bg-[#1a1a1a] rounded-lg border border-white/5" />
-                          <div className="h-1.5 w-2/3 bg-[#1a1a1a] rounded-full" />
-                          <div className="h-7 w-full bg-[#1a1a1a] rounded-lg border border-white/5" />
-                          <div className="pt-6 grid grid-cols-3 gap-2">
-                            <div className="aspect-square rounded-md bg-orange-500/20 border border-orange-500/40" />
-                            <div className="aspect-square rounded-md bg-blue-500/20 border border-blue-500/40" />
-                            <div className="aspect-square rounded-md bg-green-500/20 border border-green-500/40" />
+                      <div className="bg-[#111] rounded-3xl border border-[#222] p-6 space-y-8">
+                        <div className="text-[10px] font-black text-[#333] uppercase tracking-[0.2em]">Active Properties</div>
+                        <div className="space-y-4">
+                          <div className="h-2 w-full bg-[#1a1a1a] rounded-full" />
+                          <div className="h-10 w-full bg-[#161616] rounded-xl border border-white/5" />
+                          <div className="h-2 w-2/3 bg-[#1a1a1a] rounded-full" />
+                          <div className="h-10 w-full bg-[#161616] rounded-xl border border-white/5" />
+                          <div className="pt-8 grid grid-cols-3 gap-3">
+                            <div className="aspect-square rounded-xl bg-orange-500/10 border border-orange-500/30 shadow-lg shadow-orange-500/5 hover:bg-orange-500 hover:scale-110 transition-all cursor-pointer" />
+                            <div className="aspect-square rounded-xl bg-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/5 hover:bg-blue-500 hover:scale-110 transition-all cursor-pointer" />
+                            <div className="aspect-square rounded-xl bg-green-500/10 border border-green-500/30 shadow-lg shadow-green-500/5 hover:bg-green-500 hover:scale-110 transition-all cursor-pointer" />
                           </div>
                         </div>
                       </div>
@@ -463,25 +596,26 @@ const Documentation: React.FC = () => {
                 color="purple"
               />
 
-              <div className="grid md:grid-cols-2 gap-12">
-                 <div className="space-y-8">
-                    <p className="text-[#888] font-medium leading-relaxed">
-                       When an element is selected in the Visual Designer, the Properties Panel becomes active. It categorizes CSS properties into logical groups for rapid styling.
+              <div className="grid md:grid-cols-2 gap-16">
+                 <div className="space-y-10">
+                    <p className="text-[#888] font-medium leading-relaxed text-lg">
+                       The Properties Panel is your visual CSS engine. It categorizes hundreds of properties into logical groups for rapid styling and experimentation.
                     </p>
-                    <Accordion type="single" collapsible className="w-full">
+                    <Accordion type="single" collapsible className="w-full space-y-2">
                        {[
-                          { title: 'Layout & Box Model', icon: <FiBox />, desc: 'Control Display (Flex/Grid), Width, Height, Margins, and Padding.' },
-                          { title: 'Typography', icon: <FiFileText />, desc: 'Font family, size, weight, line-height, and alignment.' },
-                          { title: 'Backgrounds', icon: <FiDroplet />, desc: 'Solid colors, linear gradients, and radial gradients.' },
-                          { title: 'Effects & Borders', icon: <FiZap />, desc: 'Border radius, shadow, opacity, and custom filters.' },
+                          { title: 'Layout & Box Model', icon: <FiBox />, desc: 'Master the geometry: Display (Flex/Grid/Block), Width, Height, Aspect Ratio, Margins, and Padding.' },
+                          { title: 'Typography & Fonts', icon: <FiType />, desc: 'Craft your message: Font family, size, weight, letter-spacing, line-height, and text alignment.' },
+                          { title: 'Colors & Backgrounds', icon: <FiDroplet />, desc: 'Set the mood: Solid colors, complex linear/radial gradients, and background image positioning.' },
+                          { title: 'Borders & Shadows', icon: <FiMaximize2 />, desc: 'Add depth: Border radius, border styles, box-shadows, and element opacity.' },
+                          { title: 'Spacing Controls', icon: <FiMove />, desc: 'Pixel-perfect alignment: Detailed control over individual sides for margins and padding.' },
                        ].map((item, i) => (
-                          <AccordionItem key={i} value={`item-${i}`} className="border-[#1a1a1a] py-1">
-                             <AccordionTrigger className="text-white hover:text-purple-500 font-bold text-sm uppercase tracking-widest no-underline py-4">
-                                <div className="flex items-center gap-3">
-                                   <span className="text-purple-500">{item.icon}</span> {item.title}
+                          <AccordionItem key={i} value={`item-${i}`} className="border border-[#1a1a1a] rounded-2xl px-4 bg-[#111]/50">
+                             <AccordionTrigger className="text-white hover:text-purple-500 font-bold text-xs uppercase tracking-[0.15em] no-underline py-5 group">
+                                <div className="flex items-center gap-4">
+                                   <span className="text-purple-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.title}
                                 </div>
                              </AccordionTrigger>
-                             <AccordionContent className="text-[#666] text-xs leading-relaxed font-medium pl-8">
+                             <AccordionContent className="text-[#666] text-xs leading-relaxed font-medium pl-10 pb-5">
                                 {item.desc}
                              </AccordionContent>
                           </AccordionItem>
@@ -489,18 +623,21 @@ const Documentation: React.FC = () => {
                     </Accordion>
                  </div>
                  
-                 <div className="p-8 bg-purple-500/5 border border-purple-500/20 rounded-3xl space-y-6">
-                    <h4 className="text-purple-400 font-black uppercase tracking-widest text-xs">Prop Intelligence</h4>
-                    <p className="text-xs text-[#777] leading-relaxed">
-                       Our properties panel is context-aware. If you select a `flex` container, it will automatically show alignment and justification controls. 
-                       If you select an image, it will show aspect ratio and object-fit settings.
+                 <div className="p-10 bg-purple-500/5 border border-purple-500/20 rounded-[2.5rem] space-y-8 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none"><FiSliders size={150} /></div>
+                    <h4 className="text-purple-400 font-black uppercase tracking-widest text-xs">Contextual Intelligence</h4>
+                    <p className="text-sm text-[#777] leading-relaxed font-medium">
+                       Our panel is context-aware. If you select a container set to <strong>flex</strong>, it will automatically inject alignment and justification controls. 
+                       For images, it prioritize aspect ratio and object-fit settings.
                     </p>
-                    <div className="bg-[#080808] p-4 rounded-2xl border border-[#1a1a1a] font-mono text-[10px] text-purple-400/60 leading-tight">
+                    <div className="bg-[#080808] p-6 rounded-2xl border border-[#1a1a1a] font-mono text-xs text-purple-400/70 leading-relaxed shadow-inner">
+                       <span className="text-[#444] block mb-2">// Auto-generated Styles</span>
                        {`.selected-element {
   display: flex;
   align-items: center;
-  background: linear-gradient(...);
-  border-radius: 12px;
+  justify-content: center;
+  background: linear-gradient(45deg, ...);
+  border-radius: 24px;
 }`}
                     </div>
                  </div>
@@ -513,105 +650,113 @@ const Documentation: React.FC = () => {
             <section id="timeline-animation" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
               <SectionHeader 
                 title="Motion Engine" 
-                subtitle="Bring your web pages to life with visual keyframing."
+                subtitle="The definitive guide to CSS Keyframing and Timelines."
                 icon={<FiClock />}
                 color="red"
               />
 
-              <div className="space-y-10">
-                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed">
+              <div className="space-y-16">
+                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed text-lg">
                   <p>
-                    The Timeline Panel is a unique feature that allows you to create complex CSS @keyframes animations using a drag-and-drop time-scrubber. 
-                    No more writing complex transform strings—just set your keyframes and we handle the rest.
+                    The Timeline Panel is a professional-grade animation suite. It allows you to create complex CSS @keyframes animations using a visual interface. 
+                    Every track you create is converted into standard CSS, ensuring your animations work on any modern browser without external libraries.
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-8">
-                   <div className="p-6 bg-[#111] rounded-3xl border border-[#222] space-y-4">
-                      <FiPlay className="text-red-500" size={24} />
-                      <h4 className="text-white font-black text-xs uppercase tracking-widest">Keyframe Setup</h4>
-                      <p className="text-[11px] text-[#666] leading-relaxed font-medium">Select an element, click "Add Keyframe" on the timeline, and move the scrubber to a new time. Change the element's style, and a transition is born.</p>
+                {/* Detailed Button Breakdown */}
+                <div className="grid md:grid-cols-2 gap-12">
+                   <div className="space-y-8">
+                      <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
+                         <FiSettings className="text-red-500" /> Toolbar Controls
+                      </h4>
+                      <div className="grid gap-4">
+                         {[
+                            { icon: <FiPlus />, label: 'Add Track', desc: 'Adds a new animation lane. If an element is selected in Visual mode, it automatically uses that selector.' },
+                            { icon: <FiPlay />, label: 'Play / Preview', desc: 'Runs all animations in real-time on the stage so you can check timing and feel.' },
+                            { icon: <FiRefreshCw />, label: 'Reset Playhead', desc: 'Instantly stops playback and returns the playhead to 0.00s.' },
+                            { icon: <FiCheck />, label: 'Apply to Page', desc: 'Injects the generated CSS into your HTML file. This makes animations permanent.' },
+                            { icon: <FiZoomIn />, label: 'Timeline Zoom', desc: 'Scale the timeline ruler for finer precision (up to 0.1s increments).' },
+                         ].map((btn, i) => (
+                            <div key={i} className="flex gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] hover:bg-red-500/5 transition-colors">
+                               <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 flex-shrink-0">{btn.icon}</div>
+                               <div>
+                                  <strong className="text-white text-sm block mb-1 uppercase tracking-wider">{btn.label}</strong>
+                                  <span className="text-xs text-[#666] leading-relaxed font-medium">{btn.desc}</span>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
                    </div>
-                   <div className="p-6 bg-[#111] rounded-3xl border border-[#222] space-y-4">
-                      <FiShare2 className="text-red-500" size={24} />
-                      <h4 className="text-white font-black text-xs uppercase tracking-widest">Preset Library</h4>
-                      <p className="text-[11px] text-[#666] leading-relaxed font-medium">Don't want to start from scratch? Use our library of FadeIn, SlideUp, Bounce, and Pulse presets to animate instantly.</p>
-                   </div>
-                   <div className="p-6 bg-[#111] rounded-3xl border border-[#222] space-y-4">
-                      <FiRefreshCw className="text-red-500" size={24} />
-                      <h4 className="text-white font-black text-xs uppercase tracking-widest">Live Playback</h4>
-                      <p className="text-[11px] text-[#666] leading-relaxed font-medium">Preview your animations directly on the stage. Loop them, reverse them, or trigger them on specific user actions.</p>
+
+                   <div className="space-y-8">
+                      <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
+                         <FiMousePointer className="text-red-500" /> Direct Interaction
+                      </h4>
+                      <Card className="bg-[#0a0a0a] border-[#222] p-8 space-y-8">
+                         <div className="space-y-6">
+                            <div className="flex gap-5">
+                               <div className="w-12 h-12 rounded-2xl bg-[#111] border border-[#222] flex items-center justify-center text-red-500 flex-shrink-0 shadow-lg">
+                                  <FiMove />
+                               </div>
+                               <div>
+                                  <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Drag to Move (Delay)</h5>
+                                  <p className="text-xs text-[#666] leading-relaxed font-medium">Click and hold the middle of any track bar to move it. This changes the <strong>animation-delay</strong> property.</p>
+                               </div>
+                            </div>
+                            <div className="flex gap-5">
+                               <div className="w-12 h-12 rounded-2xl bg-[#111] border border-[#222] flex items-center justify-center text-red-500 flex-shrink-0 shadow-lg">
+                                  <FiMaximize2 />
+                               </div>
+                               <div>
+                                  <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Resize to Scale (Duration)</h5>
+                                  <p className="text-xs text-[#666] leading-relaxed font-medium">Drag the right handle of a track bar to stretch it. This changes the <strong>animation-duration</strong> property.</p>
+                               </div>
+                            </div>
+                            <div className="flex gap-5">
+                               <div className="w-12 h-12 rounded-2xl bg-[#111] border border-[#222] flex items-center justify-center text-red-500 flex-shrink-0 shadow-lg">
+                                  <FiCommand />
+                               </div>
+                               <div>
+                                  <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Context Menu</h5>
+                                  <p className="text-xs text-[#666] leading-relaxed font-medium">Right-click any track to Duplicate it, Reset its position, or change its Animation Preset instantly.</p>
+                               </div>
+                            </div>
+                         </div>
+                      </Card>
                    </div>
                 </div>
 
-                <Alert className="bg-red-500/5 border-red-500/20 text-red-400 rounded-3xl p-6">
-                   <FiAlertCircle className="h-5 w-5" />
-                   <AlertTitle className="text-white font-black text-xs uppercase ml-2">Exporting Animations</AlertTitle>
-                   <AlertDescription className="text-xs text-[#777] ml-2 leading-relaxed mt-2">
-                      When you export your project, all timeline animations are converted into standard CSS @keyframes and injected into your stylesheet. They work on any browser without our editor.
-                   </AlertDescription>
+                <div className="space-y-10">
+                   <h4 className="text-white font-black uppercase tracking-widest text-sm text-center">The Track Inspector</h4>
+                   <div className="grid md:grid-cols-3 gap-6">
+                      {[
+                         { title: 'Animation Presets', desc: 'Choose from professional presets like FadeIn, Bounce, Spin, Shake, or Flip. Each one generates custom @keyframes.' },
+                         { title: 'Easing Functions', desc: 'Control the feel of the motion with Linear, Ease-In, Ease-Out, or Ease-In-Out timing functions.' },
+                         { title: 'Iteration Count', desc: 'Set how many times the animation plays. Use "infinite" for continuous loops or "1" for a single trigger.' },
+                      ].map((box, i) => (
+                         <div key={i} className="p-8 bg-[#111] rounded-3xl border border-[#222] text-center space-y-4 hover:border-red-500/20 transition-all">
+                            <h5 className="text-white font-black uppercase tracking-widest text-xs text-red-500">{box.title}</h5>
+                            <p className="text-xs text-[#666] leading-relaxed font-medium">{box.desc}</p>
+                         </div>
+                      ))}
+                   </div>
+                </div>
+
+                <Alert className="bg-red-500/5 border-red-500/20 text-red-400 rounded-[2rem] p-8 shadow-2xl">
+                   <div className="flex gap-6 items-center">
+                      <FiAlertCircle size={40} className="flex-shrink-0" />
+                      <div>
+                         <AlertTitle className="text-white font-black text-lg uppercase tracking-tight mb-2">How It Works (Technical)</AlertTitle>
+                         <AlertDescription className="text-sm text-[#777] leading-relaxed font-medium">
+                            When you click <strong>Apply to Page</strong>, our engine parses your tracks and generates a standard CSS block. 
+                            It then injects this into a <code>&lt;style id="timeline-animations"&gt;</code> tag in your HTML. 
+                            This means your animations are native, fast, and SEO-friendly.
+                         </AlertDescription>
+                      </div>
+                   </div>
                 </Alert>
               </div>
             </section>
-
-            {/* Section: Menu Dictionary */}
-            <section id="menu-system" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Menu Dictionary" 
-                subtitle="Every function explained, from File to Help."
-                icon={<FiSettings />}
-                color="cyan"
-              />
-
-              <div className="grid md:grid-cols-2 gap-8">
-                 <div className="space-y-6">
-                    <h4 className="text-white font-black uppercase tracking-widest text-sm border-l-4 border-cyan-500 pl-4">File & Export</h4>
-                    <div className="space-y-4">
-                       <div className="p-4 bg-[#111] rounded-2xl border border-[#222] flex justify-between items-center group">
-                          <div>
-                             <span className="text-white text-xs font-bold block">New File / Folder</span>
-                             <span className="text-[10px] text-[#555]">Create virtual assets in the current project.</span>
-                          </div>
-                          <Badge className="bg-cyan-500/10 text-cyan-500 border-none uppercase text-[8px] font-black">Ctrl+N</Badge>
-                       </div>
-                       <div className="p-4 bg-[#111] rounded-2xl border border-[#222] flex justify-between items-center">
-                          <div>
-                             <span className="text-white text-xs font-bold block">Save All</span>
-                             <span className="text-[10px] text-[#555]">Sync all virtual files to browser storage.</span>
-                          </div>
-                          <Badge className="bg-cyan-500/10 text-cyan-500 border-none uppercase text-[8px] font-black">Ctrl+S</Badge>
-                       </div>
-                       <div className="p-4 bg-[#111] rounded-2xl border border-[#222] flex justify-between items-center">
-                          <div>
-                             <span className="text-white text-xs font-bold block">Export ZIP</span>
-                             <span className="text-[10px] text-[#555]">Download entire project for hosting.</span>
-                          </div>
-                          <Badge className="bg-cyan-500/10 text-cyan-500 border-none uppercase text-[8px] font-black">Ctrl+E</Badge>
-                       </div>
-                    </div>
-                 </div>
-
-                 <div className="space-y-6">
-                    <h4 className="text-white font-black uppercase tracking-widest text-sm border-l-4 border-blue-500 pl-4">Tools & Window</h4>
-                    <div className="space-y-4">
-                       <div className="p-4 bg-[#111] rounded-2xl border border-[#222]">
-                          <span className="text-white text-xs font-bold block mb-1">HTML Validator</span>
-                          <span className="text-[10px] text-[#555]">Checks your active HTML file for syntax errors and unclosed tags.</span>
-                       </div>
-                       <div className="p-4 bg-[#111] rounded-2xl border border-[#222]">
-                          <span className="text-white text-xs font-bold block mb-1">A11y Checker</span>
-                          <span className="text-[10px] text-[#555]">Quick-check for alt tags and ARIA labels to ensure accessibility.</span>
-                       </div>
-                       <div className="p-4 bg-[#111] rounded-2xl border border-[#222]">
-                          <span className="text-white text-xs font-bold block mb-1">Layout Presets</span>
-                          <span className="text-[10px] text-[#555]">Instantly snap windows into Code, Visual, or Split layouts.</span>
-                       </div>
-                    </div>
-                 </div>
-              </div>
-            </section>
-
-            <AdPlaceholder slot="DOCS_CONTENT_BOTTOM" />
 
             {/* Section: Shortcuts */}
             <section id="shortcuts" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
@@ -634,28 +779,86 @@ const Documentation: React.FC = () => {
                   { key: 'Tab', action: 'Accept AI Suggestion' },
                   { key: 'Esc', action: 'Deselect Element' },
                 ].map((s, i) => (
-                  <div key={i} className="flex justify-between items-center p-5 bg-[#111] rounded-2xl border border-[#222] hover:border-green-500/20 transition-all">
-                    <span className="text-[#888] text-xs font-bold uppercase tracking-widest">{s.action}</span>
-                    <kbd className="bg-[#1a1a1a] px-3 py-1 rounded-lg text-[10px] text-green-500 font-black border border-[#222] shadow-inner">{s.key}</kbd>
+                  <div key={i} className="flex justify-between items-center p-6 bg-[#111] rounded-2xl border border-[#222] hover:border-green-500/40 hover:bg-[#161616] transition-all group">
+                    <span className="text-[#888] text-[10px] font-black uppercase tracking-[0.2em] group-hover:text-white transition-colors">{s.action}</span>
+                    <kbd className="bg-[#1a1a1a] px-3 py-1.5 rounded-lg text-[11px] text-green-500 font-black border border-[#222] shadow-2xl group-hover:scale-110 transition-transform">{s.key}</kbd>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* Footer */}
-            <footer className="border-t border-[#1a1a1a] pt-20 pb-32 text-center space-y-8">
-              <div className="flex justify-center items-center gap-3">
-                 <div className="w-8 h-8 rounded-lg bg-[#e34c26] flex items-center justify-center text-white font-black text-xs">H</div>
-                 <span className="text-white font-black tracking-widest text-xs uppercase">HTML Editor Pro v2.0</span>
+            {/* Section: Pro Tips */}
+            <section id="pro-tips" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
+              <SectionHeader 
+                title="Pro Tips & Tricks" 
+                subtitle="Advanced workflows to push your development speed to the limit."
+                icon={<FiZap />}
+                color="orange"
+              />
+
+              <div className="grid md:grid-cols-2 gap-8">
+                 <Card className="bg-[#111] border-[#222] p-8 space-y-4 hover:border-orange-500/30 transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-2"><FiCode /></div>
+                    <h4 className="text-white font-black uppercase tracking-tight">Emmet Mastery</h4>
+                    <p className="text-sm text-[#666] leading-relaxed font-medium">
+                       Don't write tags manually. Type <code>div.container&gt;ul&gt;li*5</code> and press <strong>Tab</strong> in the code editor to generate a full list structure instantly.
+                    </p>
+                 </Card>
+                 <Card className="bg-[#111] border-[#222] p-8 space-y-4 hover:border-orange-500/30 transition-all">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-2"><FiMousePointer /></div>
+                    <h4 className="text-white font-black uppercase tracking-tight">Multi-Select Magic</h4>
+                    <p className="text-sm text-[#666] leading-relaxed font-medium">
+                       Hold <strong>Alt</strong> and click in multiple places in the code editor to type in several lines at once. Perfect for changing multiple class names.
+                    </p>
+                 </Card>
               </div>
-              <p className="text-[#444] text-xs font-medium max-w-lg mx-auto leading-relaxed">
-                Designed for the next generation of web creators. No install, no limits. 
-                Built with React, Monaco, and Framer Motion.
+            </section>
+
+            {/* Section: Deployment */}
+            <section id="deployment" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
+              <SectionHeader 
+                title="Deployment Guide" 
+                subtitle="How to take your project from the editor to a live server."
+                icon={<FiShare2 />}
+                color="blue"
+              />
+
+              <div className="space-y-10">
+                 <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed">
+                    <p>
+                       Once your project is ready, you need to host it. Since our editor generates clean, standard HTML/CSS/JS, you can host it anywhere.
+                    </p>
+                 </div>
+
+                 <div className="grid md:grid-cols-3 gap-6">
+                    {[
+                       { title: 'Vercel / Netlify', desc: 'The easiest way. Simply upload your exported ZIP or connect a GitHub repo.' },
+                       { title: 'GitHub Pages', desc: 'Free hosting for static sites. Create a repo, push your files, and enable Pages in settings.' },
+                       { title: 'Shared Hosting', desc: 'Use FileZilla or any FTP client to upload your files to the `public_html` folder.' },
+                    ].map((step, i) => (
+                       <div key={i} className="p-6 bg-[#111] rounded-3xl border border-[#222] space-y-3">
+                          <h5 className="text-white font-black uppercase tracking-widest text-[10px] text-blue-500">Method 0{i+1}</h5>
+                          <h4 className="text-white font-bold">{step.title}</h4>
+                          <p className="text-xs text-[#666] leading-relaxed">{step.desc}</p>
+                       </div>
+                    ))}
+                 </div>
+              </div>
+            </section>
+
+            {/* Footer */}
+            <footer className="border-t border-[#1a1a1a] pt-24 pb-32 text-center space-y-10">
+              <div className="flex justify-center items-center gap-4">
+                 <div className="w-10 h-10 rounded-xl bg-[#e34c26] flex items-center justify-center text-white font-black text-sm shadow-2xl shadow-orange-500/20">H</div>
+                 <span className="text-white font-black tracking-[0.4em] text-sm uppercase">HTML Editor Pro v2.0</span>
+              </div>
+              <p className="text-[#444] text-sm font-bold max-w-xl mx-auto leading-relaxed italic">
+                "Built for the dreamers, the coders, and the designers who refuse to compromise."
               </p>
-              <div className="flex justify-center gap-8 text-[10px] font-black text-[#333] uppercase tracking-[0.2em]">
-                <a href="#" className="hover:text-orange-500 transition-colors">Privacy</a>
-                <a href="#" className="hover:text-orange-500 transition-colors">Terms</a>
-                <a href="#" className="hover:text-orange-500 transition-colors">Contact</a>
+              <div className="flex justify-center gap-10 text-[11px] font-black text-[#222] uppercase tracking-[0.3em]">
+                <Link href="/privacy" className="hover:text-orange-500 transition-colors no-underline">Privacy Policy</Link>
+                <Link href="/terms" className="hover:text-orange-500 transition-colors no-underline">Terms of Service</Link>
+                <a href="#" className="hover:text-orange-500 transition-colors">Contact Engineering</a>
               </div>
             </footer>
           </div>

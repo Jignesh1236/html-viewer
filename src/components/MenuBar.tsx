@@ -258,6 +258,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
       label: 'Help',
       items: [
         { label: '📖 User Guide / Documentation', action: () => { window.location.href = '/docs'; close(); } },
+        { label: '🛡️ Privacy Policy', action: () => { window.location.href = '/privacy'; close(); } },
+        { label: '📜 Terms of Service', action: () => { window.location.href = '/terms'; close(); } },
         { separator: true, label: '' },
         { label: 'Keyboard Shortcuts', action: () => { showNotification('Ctrl+1/2/3 Layout | Ctrl+S Save | Ctrl+E Export | Ctrl+R Refresh'); close(); } },
         { label: 'Drag floating window to dock slot', disabled: true },

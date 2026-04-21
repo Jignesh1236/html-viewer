@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Router, Route, Switch } from 'wouter';
 import Documentation from './pages/Documentation';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 import { useEditorStore } from './store/editorStore';
 import MenuBar from './components/MenuBar';
 import FilePanel from './components/FilePanel';
@@ -449,6 +451,8 @@ export default function App() {
     <Router>
       <Switch>
         <Route path="/docs" component={Documentation} />
+        <Route path="/privacy" component={PrivacyPolicy} />
+        <Route path="/terms" component={TermsOfService} />
         <Route path="/">
           {isMobile ? <MobileApp /> : <DesktopApp />}
         </Route>
