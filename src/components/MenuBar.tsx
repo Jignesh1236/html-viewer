@@ -257,6 +257,8 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Help',
       items: [
+        { label: '📖 User Guide / Documentation', action: () => { window.location.href = '/docs'; close(); } },
+        { separator: true, label: '' },
         { label: 'Keyboard Shortcuts', action: () => { showNotification('Ctrl+1/2/3 Layout | Ctrl+S Save | Ctrl+E Export | Ctrl+R Refresh'); close(); } },
         { label: 'Drag floating window to dock slot', disabled: true },
         { label: 'Right-click docked panel to float', disabled: true },

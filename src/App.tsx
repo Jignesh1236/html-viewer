@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Router, Route, Switch } from 'wouter';
+import Documentation from './pages/Documentation';
 import { useEditorStore } from './store/editorStore';
 import MenuBar from './components/MenuBar';
 import FilePanel from './components/FilePanel';
@@ -439,12 +441,20 @@ function MobileApp() {
 }
 
 /* ─────────────────────────────────────────
-   App (detects mobile)
+   App (detects mobile + routing)
    ───────────────────────────────────────── */
 export default function App() {
   const isMobile = useIsMobile();
-  if (isMobile) return <MobileApp />;
-  return <DesktopApp />;
+  return (
+    <Router>
+      <Switch>
+        <Route path="/docs" component={Documentation} />
+        <Route path="/">
+          {isMobile ? <MobileApp /> : <DesktopApp />}
+        </Route>
+      </Switch>
+    </Router>
+  );
 }
 
 function DesktopApp() {

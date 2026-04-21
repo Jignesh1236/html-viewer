@@ -86,9 +86,6 @@
     @apply font-sans antialiased;
     background: var(--editor-bg);
     color: var(--editor-text);
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
   }
 }
 
