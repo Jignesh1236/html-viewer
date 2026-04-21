@@ -1,947 +1,1187 @@
 import React, { useState } from 'react';
 import { Link } from 'wouter';
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
-} from '@/components/ui/accordion';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  FiCode, 
-  FiEye, 
-  FiLayout, 
-  FiDownload, 
-  FiRefreshCw, 
-  FiFolder, 
-  FiSliders, 
-  FiClock, 
-  FiMonitor,
-  FiBookOpen,
-  FiInfo,
-  FiTerminal,
-  FiZap,
-  FiPlus,
-  FiSettings,
-  FiShare2,
-  FiChevronRight,
-  FiPlay,
-  FiCpu,
-  FiFileText,
-  FiSearch,
-  FiUpload,
-  FiPlusSquare,
-  FiFolderPlus,
-  FiCopy,
-  FiTrash2,
-  FiEdit,
-  FiCheckCircle,
-  FiAlertCircle,
-  FiBox,
-  FiDroplet,
-  FiMaximize2,
-  FiMove,
-  FiType,
-  FiCheck,
-  FiX,
-  FiSquare,
-  FiZoomIn,
-  FiZoomOut,
-  FiCommand,
-  FiMousePointer,
-  FiMenu,
-  FiLayers,
-  FiGrid,
-  FiScissors,
-  FiSave,
-  FiFilePlus
+import {
+  FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock,
+  FiMonitor, FiBookOpen, FiInfo, FiTerminal, FiZap, FiPlus, FiSettings, FiShare2,
+  FiChevronRight, FiPlay, FiCpu, FiFileText, FiSearch, FiUpload, FiPlusSquare,
+  FiFolderPlus, FiCopy, FiTrash2, FiEdit, FiCheckCircle, FiAlertCircle, FiBox,
+  FiDroplet, FiMaximize2, FiMove, FiType, FiCheck, FiX, FiSquare, FiZoomIn,
+  FiZoomOut, FiCommand, FiMousePointer, FiMenu, FiLayers, FiGrid, FiScissors,
+  FiSave, FiFilePlus, FiPause, FiStopCircle, FiAlignLeft, FiAlignCenter,
+  FiAlignRight, FiUnderline, FiBold, FiItalic, FiMinus, FiCornerDownRight,
+  FiPackage, FiDatabase, FiGlobe, FiSmartphone, FiTablet, FiStar, FiArrowRight,
+  FiRotateCcw, FiLock, FiUnlock, FiTarget, FiTrendingUp, FiShield,
 } from 'react-icons/fi';
 
-/* ─── Components ────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   Re-usable UI components
+   ───────────────────────────────────────────────────────────────────────── */
 
-const AdPlaceholder: React.FC<{ className?: string; slot?: string }> = ({ className, slot = "XXXXXXXXXX" }) => (
-  <div className={`bg-[#111] border border-[#222] rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 min-h-[140px] shadow-inner ${className}`}>
-    <span className="text-[10px] text-[#333] font-black uppercase tracking-[0.2em] mb-3">Sponsor / Advertisement</span>
-    <ins className="adsbygoogle"
-         style={{ display: 'block', width: '100%' }}
-         data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-         data-ad-slot={slot}
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
-    <script>
-         (window.adsbygoogle = window.adsbygoogle || []).push({});
-    </script>
-    <div className="text-[10px] text-[#222] mt-3 italic font-medium tracking-tight">Monetization Slot: {slot}</div>
+const KbdKey: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <kbd className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#1a1a1a] border border-[#333] text-[10px] font-black text-[#aaa] font-mono tracking-wide shadow-sm">
+    {children}
+  </kbd>
+);
+
+const StepBadge: React.FC<{ n: number | string; color?: string }> = ({ n, color = 'orange' }) => (
+  <div className={`w-9 h-9 rounded-xl bg-${color}-500/10 border border-${color}-500/20 flex items-center justify-center text-${color}-400 font-black text-sm flex-shrink-0`}>
+    {n}
   </div>
 );
 
-const SectionHeader: React.FC<{ title: string; subtitle: string; icon: React.ReactNode; color?: string }> = ({ title, subtitle, icon, color = "orange" }) => (
-  <div className="flex items-center gap-6 mb-10">
-    <div className={`w-16 h-16 rounded-3xl bg-${color}-500/10 flex items-center justify-center text-${color}-500 border border-${color}-500/20 shadow-lg shadow-${color}-500/5`}>
-      {React.cloneElement(icon as React.ReactElement, { size: 32 })}
+const Tag: React.FC<{ children: React.ReactNode; color?: string }> = ({ children, color = 'orange' }) => (
+  <span className={`inline-block px-2 py-0.5 rounded-md bg-${color}-500/10 border border-${color}-500/20 text-${color}-400 text-[10px] font-black uppercase tracking-widest`}>
+    {children}
+  </span>
+);
+
+const InfoBox: React.FC<{ title: string; icon?: React.ReactNode; color?: string; children: React.ReactNode }> = ({
+  title, icon, color = 'blue', children,
+}) => (
+  <div className={`p-5 bg-${color}-500/5 border border-${color}-500/20 rounded-2xl space-y-2`}>
+    <div className={`flex items-center gap-2 text-${color}-400 font-black text-xs uppercase tracking-widest`}>
+      {icon} {title}
+    </div>
+    <div className="text-xs text-[#666] leading-relaxed">{children}</div>
+  </div>
+);
+
+const FeatureRow: React.FC<{ icon: React.ReactNode; label: string; desc: string; shortcut?: string; color?: string }> = ({
+  icon, label, desc, shortcut, color = 'orange',
+}) => (
+  <div className={`flex items-start gap-4 p-4 rounded-2xl bg-[#111] border border-[#1e1e1e] hover:border-${color}-500/20 transition-all group`}>
+    <div className={`text-${color}-500 mt-0.5 group-hover:scale-110 transition-transform flex-shrink-0`}>{icon}</div>
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-white text-xs font-black uppercase tracking-tight">{label}</span>
+        {shortcut && <KbdKey>{shortcut}</KbdKey>}
+      </div>
+      <p className="text-[10px] text-[#555] leading-relaxed mt-0.5 font-medium">{desc}</p>
+    </div>
+  </div>
+);
+
+const SectionDivider: React.FC<{ icon: React.ReactNode; title: string; subtitle: string; color?: string }> = ({
+  icon, title, subtitle, color = 'orange',
+}) => (
+  <div className={`flex items-center gap-6 mb-12 pb-8 border-b border-[#1a1a1a]`}>
+    <div className={`w-14 h-14 rounded-2xl bg-${color}-500/10 border border-${color}-500/20 flex items-center justify-center text-${color}-500 flex-shrink-0 shadow-lg shadow-${color}-500/10`}>
+      {React.cloneElement(icon as React.ReactElement, { size: 26 })}
     </div>
     <div>
-      <h2 className="text-4xl font-black text-white tracking-tighter uppercase">{title}</h2>
-      <p className="text-[#888] text-lg font-medium">{subtitle}</p>
+      <h2 className={`text-3xl font-black text-white tracking-tighter`}>{title}</h2>
+      <p className="text-[#555] text-sm font-medium mt-0.5">{subtitle}</p>
     </div>
   </div>
 );
 
-const FeatureCard: React.FC<{ title: string; desc: string; icon: React.ReactNode; id: string }> = ({ title, desc, icon, id }) => (
-  <a href={`#${id}`} className="p-6 rounded-3xl bg-[#111] border border-[#222] hover:border-orange-500/40 hover:bg-[#161616] transition-all group no-underline block shadow-xl hover:-translate-y-1">
-    <div className="w-12 h-12 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-6 group-hover:scale-110 transition-transform group-hover:bg-orange-500 group-hover:text-white">
-      {icon}
+const PresetCard: React.FC<{ name: string; desc: string; css: string }> = ({ name, desc, css }) => (
+  <div className="p-4 bg-[#0c0c0c] border border-[#1e1e1e] rounded-2xl hover:border-red-500/20 transition-all group">
+    <div className="flex items-center justify-between mb-2">
+      <span className="text-white text-xs font-black uppercase tracking-tight group-hover:text-red-400 transition-colors">{name}</span>
     </div>
-    <h4 className="text-xl text-white font-black mb-3 group-hover:text-orange-500 transition-colors tracking-tight">{title}</h4>
-    <p className="text-sm text-[#777] leading-relaxed font-medium">{desc}</p>
-    <div className="mt-6 flex items-center gap-2 text-[10px] font-black text-orange-500 uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity">
-      View Deep-Dive <FiChevronRight />
-    </div>
-  </a>
+    <p className="text-[10px] text-[#555] mb-3 leading-relaxed">{desc}</p>
+    <code className="text-[9px] text-red-400/60 font-mono block bg-[#060606] px-2 py-1.5 rounded-lg border border-[#1a1a1a] leading-relaxed">{css}</code>
+  </div>
 );
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Table of contents data
+   ───────────────────────────────────────────────────────────────────────── */
+
+const NAV_SECTIONS = [
+  {
+    heading: 'Getting Started',
+    items: [
+      { id: 'overview', label: 'What Is HTML Editor?', icon: <FiInfo size={13} /> },
+      { id: 'quick-start', label: 'Quick Start in 5 Steps', icon: <FiZap size={13} /> },
+      { id: 'interface-overview', label: 'Interface Overview', icon: <FiLayout size={13} /> },
+      { id: 'modes', label: 'Editor Modes', icon: <FiGrid size={13} /> },
+    ],
+    color: 'orange',
+  },
+  {
+    heading: 'Panels In Depth',
+    items: [
+      { id: 'file-explorer', label: 'File Explorer', icon: <FiFolder size={13} /> },
+      { id: 'code-editor', label: 'Code Editor (Monaco)', icon: <FiCode size={13} /> },
+      { id: 'preview-pane', label: 'Live Preview', icon: <FiMonitor size={13} /> },
+      { id: 'visual-designer', label: 'Visual Designer', icon: <FiEye size={13} /> },
+      { id: 'properties-panel', label: 'Properties Panel', icon: <FiSliders size={13} /> },
+      { id: 'timeline', label: 'CSS Timeline', icon: <FiClock size={13} /> },
+    ],
+    color: 'blue',
+  },
+  {
+    heading: 'Menus & Commands',
+    items: [
+      { id: 'menu-file', label: 'File Menu', icon: <FiFileText size={13} /> },
+      { id: 'menu-export', label: 'Export Menu', icon: <FiDownload size={13} /> },
+      { id: 'menu-tools', label: 'Tools Menu', icon: <FiSettings size={13} /> },
+      { id: 'menu-window', label: 'Window Menu', icon: <FiMenu size={13} /> },
+      { id: 'menu-help', label: 'Help Menu', icon: <FiBookOpen size={13} /> },
+    ],
+    color: 'cyan',
+  },
+  {
+    heading: 'AI & Intelligence',
+    items: [
+      { id: 'ai-copilot', label: 'AI Copilot System', icon: <FiCpu size={13} /> },
+      { id: 'ai-states', label: 'AI Status States', icon: <FiZap size={13} /> },
+    ],
+    color: 'yellow',
+  },
+  {
+    heading: 'Window System',
+    items: [
+      { id: 'docking', label: 'Dock & Float Panels', icon: <FiLayers size={13} /> },
+      { id: 'resizing', label: 'Resizing Panels', icon: <FiMaximize2 size={13} /> },
+      { id: 'snap-zones', label: 'Snap Zones', icon: <FiTarget size={13} /> },
+    ],
+    color: 'purple',
+  },
+  {
+    heading: 'Storage & Data',
+    items: [
+      { id: 'persistence', label: 'Auto-Save & Storage', icon: <FiDatabase size={13} /> },
+      { id: 'import-export', label: 'Import & Export', icon: <FiPackage size={13} /> },
+    ],
+    color: 'green',
+  },
+  {
+    heading: 'Reference',
+    items: [
+      { id: 'shortcuts', label: 'All Keyboard Shortcuts', icon: <FiTerminal size={13} /> },
+      { id: 'animation-presets', label: 'Animation Presets', icon: <FiStar size={13} /> },
+      { id: 'mobile', label: 'Mobile Interface', icon: <FiSmartphone size={13} /> },
+      { id: 'faq', label: 'FAQ', icon: <FiSearch size={13} /> },
+    ],
+    color: 'pink',
+  },
+];
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Main Documentation Page
+   ───────────────────────────────────────────────────────────────────────── */
+
 const Documentation: React.FC = () => {
+  const [activeSection, setActiveSection] = useState('overview');
+
   React.useEffect(() => {
-    document.title = "Official Documentation | HTML Editor Pro Edition";
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) {
-      metaDesc.setAttribute('content', 'Comprehensive guide to HTML Editor Pro. Learn about Visual Designer, Monaco Editor, CSS Timeline, and full project management.');
-    }
-    // Fix scroll to hash
+    document.title = 'Full Documentation | HTML Editor Pro';
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute('content', 'Complete detailed documentation for HTML Editor Pro — every panel, every menu, every shortcut explained step by step.');
     if (window.location.hash) {
-      const el = document.querySelector(window.location.hash);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        const el = document.querySelector(window.location.hash);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#080808] text-[#ccc] font-sans selection:bg-orange-500/30">
-      {/* ── Top Header ── */}
-      <header className="sticky top-0 z-[100] w-full border-b border-[#1a1a1a] bg-[#080808]/90 backdrop-blur-2xl">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-4 no-underline group">
-            <div className="w-11 h-11 rounded-2xl bg-[#e34c26] flex items-center justify-center text-white font-black shadow-[0_8px_25px_rgba(227,76,38,0.4)] group-hover:scale-105 transition-transform">H</div>
-            <div className="flex flex-col">
-              <span className="text-lg font-black text-white tracking-tighter leading-none">HTML EDITOR <span className="text-orange-500">PRO</span></span>
-              <span className="text-[10px] font-black text-[#555] tracking-[0.3em] mt-1.5 uppercase">Official Documentation</span>
+    <div className="min-h-screen bg-[#080808] text-[#ccc] font-sans">
+      {/* ── Sticky Header ── */}
+      <header className="sticky top-0 z-[200] w-full border-b border-[#141414] bg-[#080808]/95 backdrop-blur-xl">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-3 no-underline group">
+            <div className="w-9 h-9 rounded-xl bg-[#e34c26] flex items-center justify-center text-white font-black text-sm shadow-lg shadow-orange-600/30 group-hover:scale-105 transition-transform">H</div>
+            <div>
+              <span className="text-sm font-black text-white tracking-tight leading-none block">HTML EDITOR <span className="text-orange-500">PRO</span></span>
+              <span className="text-[9px] font-black text-[#444] tracking-[0.25em] uppercase block mt-0.5">Official Documentation</span>
             </div>
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <Link href="/">
-              <Button variant="ghost" className="text-xs font-black hover:bg-white/5 uppercase tracking-[0.15em] px-6 h-10 border border-white/5 rounded-full">Editor</Button>
+              <button className="px-4 h-8 rounded-full text-[11px] font-black text-[#666] hover:text-white border border-[#222] hover:border-[#333] bg-transparent transition-all uppercase tracking-widest">
+                Open Editor
+              </button>
             </Link>
-            <Button className="bg-orange-500 hover:bg-orange-600 text-white border-none text-xs font-black px-8 h-10 rounded-full shadow-2xl shadow-orange-500/30 tracking-widest uppercase">
-              Download Desktop
-            </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-16">
-          
-          {/* ── Persistent Navigation Sidebar ── */}
-          <aside className="hidden lg:block space-y-12 sticky top-32 h-[calc(100vh-160px)] overflow-y-auto pr-6 scrollbar-hide">
-            <AdPlaceholder slot="DOCS_SIDEBAR_TOP" />
+      <div className="container mx-auto px-6 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-12">
 
-            <div className="space-y-10">
-              <nav className="space-y-2">
-                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Introduction</h3>
-                {[
-                  { id: 'introduction', label: 'Welcome Pro', icon: <FiInfo /> },
-                  { id: 'quick-start', label: '3-Min Startup', icon: <FiZap /> },
-                  { id: 'interface', label: 'Interface Guide', icon: <FiLayout /> },
-                ].map(item => (
-                  <a key={item.id} href={`#${item.id}`} className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-[#666] hover:text-white font-bold transition-all group">
-                    <span className="text-orange-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.label}
-                  </a>
-                ))}
-              </nav>
-
-              <nav className="space-y-2">
-                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Panels & Workflows</h3>
-                {[
-                  { id: 'menu-system', label: 'Menu Dictionary', icon: <FiMenu />, color: 'cyan' },
-                  { id: 'file-explorer', label: 'File Explorer', icon: <FiFolder />, color: 'orange' },
-                  { id: 'code-editor', label: 'Monaco Engine', icon: <FiCode />, color: 'blue' },
-                  { id: 'visual-builder', label: 'Visual Designer', icon: <FiEye />, color: 'green' },
-                  { id: 'properties-panel', label: 'Properties Panel', icon: <FiSliders />, color: 'purple' },
-                  { id: 'timeline-animation', label: 'CSS Timeline', icon: <FiClock />, color: 'red' },
-                ].map(item => (
-                  <a key={item.id} href={`#${item.id}`} className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-[#666] hover:text-white font-bold transition-all group">
-                    <span className={`text-${item.color}-500 group-hover:scale-110 transition-transform`}>{item.icon}</span> {item.label}
-                  </a>
-                ))}
-              </nav>
-
-                  <nav className="space-y-2">
-                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">AI & Intelligence</h3>
-                {[
-                  { id: 'ai-assistant', label: 'AI Code Copilot', icon: <FiCpu /> },
-                  { id: 'ai-suggestions', label: 'Smart Suggestions', icon: <FiZap /> },
-                ].map(item => (
-                  <a key={item.id} href={`#${item.id}`} className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-[#666] hover:text-white font-bold transition-all group">
-                    <span className="text-yellow-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.label}
-                  </a>
-                ))}
-              </nav>
-
-              <nav className="space-y-2">
-                <h3 className="text-[11px] font-black text-[#333] uppercase tracking-[0.3em] px-3 mb-6">Support</h3>
-                {[
-                  { id: 'shortcuts', label: 'Hotkeys List', icon: <FiTerminal /> },
-                  { id: 'pro-tips', label: 'Tips & Tricks', icon: <FiZap /> },
-                  { id: 'deployment', label: 'Deployment', icon: <FiShare2 /> },
-                ].map(item => (
-                  <a key={item.id} href={`#${item.id}`} className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-white/5 text-[#666] hover:text-white font-bold transition-all group">
-                    <span className="text-green-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.label}
-                  </a>
-                ))}
-              </nav>
-            </div>
-
-            <AdPlaceholder slot="DOCS_SIDEBAR_BOTTOM" />
+          {/* ── Sidebar Navigation ── */}
+          <aside className="hidden lg:block sticky top-28 h-[calc(100vh-120px)] overflow-y-auto pr-4 space-y-8" style={{ scrollbarWidth: 'thin', scrollbarColor: '#222 transparent' }}>
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.heading}>
+                <p className={`text-[9px] font-black text-[#2a2a2a] uppercase tracking-[0.3em] px-3 mb-3`}>{section.heading}</p>
+                <nav className="space-y-0.5">
+                  {section.items.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      onClick={() => setActiveSection(item.id)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all group no-underline ${
+                        activeSection === item.id
+                          ? `bg-${section.color}-500/10 text-${section.color}-400`
+                          : 'text-[#444] hover:text-[#999] hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className={activeSection === item.id ? `text-${section.color}-400` : `text-[#333] group-hover:text-[#666]`}>
+                        {item.icon}
+                      </span>
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            ))}
           </aside>
 
-          {/* ── Main Documentation Content ── */}
-          <div className="space-y-32">
-            <AdPlaceholder slot="DOCS_CONTENT_HERO" />
+          {/* ── Main Content ── */}
+          <main className="min-w-0 space-y-24">
 
-            {/* Section: Welcome */}
-            <section id="introduction" className="scroll-mt-32 space-y-10">
-              <div className="space-y-6">
-                <Badge className="bg-orange-500/10 text-orange-500 border-orange-500/20 px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-orange-500/5">Enterprise Standard</Badge>
-                <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-[0.9]">The All-In-One <span className="text-transparent bg-clip-text bg-gradient-to-br from-orange-500 to-red-600">Web Forge</span></h1>
-                <p className="text-2xl text-[#777] leading-relaxed max-w-3xl font-medium">
-                  Welcome to the definitive guide for HTML Editor Pro. Whether you're a designer seeking visual perfection or a coder demanding precision, our workspace adapts to your flow.
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Overview
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="overview" className="scroll-mt-28 space-y-10">
+              <div>
+                <Tag color="orange">v2.0 · Free Forever · No Login</Tag>
+                <h1 className="text-5xl font-black text-white tracking-tighter mt-4 leading-[0.95]">
+                  HTML Editor Pro<br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">Complete Guide</span>
+                </h1>
+                <p className="text-lg text-[#666] leading-relaxed max-w-2xl mt-5 font-medium">
+                  HTML Editor Pro is a fully browser-based web development environment. It runs entirely in your browser with no server, no login, and no installation required. Every project is stored in your browser's local storage and can be exported as a ZIP at any time.
                 </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <FeatureCard 
-                  id="visual-builder"
-                  icon={<FiEye />} 
-                  title="Low-Code Designer" 
-                  desc="A drag-and-drop ecosystem with high-fidelity canvas and property inspector." 
-                />
-                <FeatureCard 
-                  id="code-editor"
-                  icon={<FiCode />} 
-                  title="VS Code Engine" 
-                  desc="Native Monaco integration with IntelliSense, emmet, and syntax highlighting." 
-                />
-                <FeatureCard 
-                  id="timeline-animation"
-                  icon={<FiClock />} 
-                  title="Motion Engine" 
-                  desc="Keyframe-based timeline to build complex CSS animations without code." 
-                />
-                <FeatureCard 
-                  id="file-explorer"
-                  icon={<FiFolder />} 
-                  title="Project Core" 
-                  desc="Virtual file system with folder support, image hosting, and ZIP deployment." 
-                />
-              </div>
-            </section>
-
-            {/* Section: Quick Start */}
-            <section id="quick-start" className="scroll-mt-32 space-y-12 pt-12 border-t border-[#1a1a1a]">
-              <div className="space-y-4 text-center max-w-2xl mx-auto">
-                <h2 className="text-3xl font-black text-white uppercase tracking-tight">Quick Start Guide</h2>
-                <p className="text-[#666]">Build your first web page in under 3 minutes following these steps.</p>
-              </div>
-
-              <div className="grid md:grid-cols-4 gap-8">
+              <div className="grid sm:grid-cols-2 gap-4">
                 {[
-                  { step: '01', title: 'Init', desc: 'Create your index.html in the File Explorer.' },
-                  { step: '02', title: 'Layout', desc: 'Drag components onto the visual stage.' },
-                  { step: '03', title: 'Animate', desc: 'Add keyframes to the CSS timeline.' },
-                  { step: '04', title: 'Ship', desc: 'Export your production-ready ZIP file.' },
-                ].map((s, i) => (
-                  <div key={i} className="relative group">
-                    <div className="text-5xl font-black text-[#1a1a1a] absolute -top-4 -left-2 group-hover:text-orange-500/5 transition-colors">{s.step}</div>
-                    <div className="relative pt-6">
-                      <h4 className="text-white font-black text-sm uppercase tracking-widest mb-2">{s.title}</h4>
-                      <p className="text-xs text-[#777] leading-relaxed">{s.desc}</p>
-                    </div>
-                  </div>
+                  { icon: <FiCode />, title: 'Monaco Code Editor', desc: 'The same engine as Visual Studio Code — IntelliSense, syntax highlighting, multi-cursor, Emmet, and AI completions.', color: 'blue' },
+                  { icon: <FiEye />, title: 'Visual Designer', desc: 'Click-to-select any HTML element, drag to reposition, use handles to resize and rotate — all without touching code.', color: 'green' },
+                  { icon: <FiClock />, title: 'CSS Timeline', desc: 'A visual keyframe timeline to design CSS animations. Drag track bars to set delay and duration, then export standard @keyframes CSS.', color: 'red' },
+                  { icon: <FiFolder />, title: 'Virtual File System', desc: 'Manage HTML, CSS, JS, and image files in a virtual folder structure. Everything is auto-saved to localStorage.', color: 'orange' },
+                  { icon: <FiMonitor />, title: 'Live Preview', desc: 'Every keystroke refreshes the preview instantly. Tabbed preview supports multiple pages simultaneously.', color: 'cyan' },
+                  { icon: <FiCpu />, title: 'AI Copilot', desc: 'An inline AI assistant that analyzes your file context and suggests completions. Press Tab to accept instantly.', color: 'yellow' },
+                ].map((f, i) => (
+                  <a href={`#${['code-editor','visual-designer','timeline','file-explorer','preview-pane','ai-copilot'][i]}`} key={i}
+                    className={`p-5 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${f.color}-500/30 transition-all group no-underline`}>
+                    <div className={`text-${f.color}-500 mb-3 group-hover:scale-110 transition-transform inline-block`}>{f.icon}</div>
+                    <h3 className="text-white text-sm font-black mb-1.5 tracking-tight">{f.title}</h3>
+                    <p className="text-[11px] text-[#555] leading-relaxed">{f.desc}</p>
+                  </a>
                 ))}
               </div>
             </section>
 
-            <AdPlaceholder slot="DOCS_CONTENT_MID_1" />
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Quick Start
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="quick-start" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiZap />} title="Quick Start in 5 Steps" subtitle="From zero to a working web page in under 3 minutes." color="orange" />
 
-            {/* Section: Menu Dictionary - DETAILED */}
-            <section id="menu-system" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Menu Dictionary" 
-                subtitle="Every function and tool explained in detail."
-                icon={<FiMenu />}
-                color="cyan"
-              />
-
-              <div className="space-y-16">
-                <div className="grid md:grid-cols-2 gap-12">
-                  {/* File Menu */}
-                  <div className="space-y-6">
-                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-cyan-500 pl-4">1. File Menu</h4>
-                    <p className="text-sm text-[#777] leading-relaxed font-medium">Project and file management controls.</p>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'New File', icon: <FiFilePlus />, desc: 'Create a new file. Use .html, .css, or .js extensions.' },
-                        { label: 'New Folder', icon: <FiFolderPlus />, desc: 'Create a folder to organize your assets.' },
-                        { label: 'Save All', icon: <FiSave />, desc: 'Manually commit all changes to browser storage.' },
-                        { label: 'Import Files', icon: <FiUpload />, desc: 'Upload existing files from your local machine.' },
-                        { label: 'Export ZIP', icon: <FiDownload />, desc: 'Download your entire project as a clean ZIP.' },
-                      ].map((item, i) => (
-                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-cyan-500/30 transition-all">
-                          <div className="text-cyan-500 group-hover:scale-110 transition-transform">{item.icon}</div>
-                          <div>
-                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
-                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tools Menu */}
-                  <div className="space-y-6">
-                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-blue-500 pl-4">2. Tools Menu</h4>
-                    <p className="text-sm text-[#777] leading-relaxed font-medium">Advanced quality and formatting tools.</p>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'Validate HTML', icon: <FiCheckCircle />, desc: 'Check for unclosed tags or syntax errors in HTML.' },
-                        { label: 'Accessibility', icon: <FiSearch />, desc: 'Check for missing alt tags and aria-labels.' },
-                        { label: 'Format HTML', icon: <FiLayers />, desc: 'Clean up your code with proper indentation.' },
-                        { label: 'Minify HTML', icon: <FiScissors />, desc: 'Compress HTML for production performance.' },
-                        { label: 'Clear Console', icon: <FiTrash2 />, desc: 'Reset the output console logs.' },
-                      ].map((item, i) => (
-                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-blue-500/30 transition-all">
-                          <div className="text-blue-500 group-hover:scale-110 transition-transform">{item.icon}</div>
-                          <div>
-                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
-                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-12">
-                  {/* Window Menu */}
-                  <div className="space-y-6">
-                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-purple-500 pl-4">3. Window Menu</h4>
-                    <p className="text-sm text-[#777] leading-relaxed font-medium">Control the workspace layout and panels.</p>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'Layout Presets', icon: <FiGrid />, desc: 'Switch between Code, Visual, and Split layouts.' },
-                        { label: 'Panel Visibility', icon: <FiMaximize2 />, desc: 'Toggle specific panels like File Explorer or Timeline.' },
-                        { label: 'Docking System', icon: <FiLayout />, desc: 'Dock panels to slots or float them as windows.' },
-                        { label: 'Reset Layout', icon: <FiRefreshCw />, desc: 'Reset all panels to their default positions.' },
-                      ].map((item, i) => (
-                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-purple-500/30 transition-all">
-                          <div className="text-purple-500 group-hover:scale-110 transition-transform">{item.icon}</div>
-                          <div>
-                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
-                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Export Menu */}
-                  <div className="space-y-6">
-                    <h4 className="text-xl text-white font-black uppercase tracking-widest border-l-4 border-orange-500 pl-4">4. Export Menu</h4>
-                    <p className="text-sm text-[#777] leading-relaxed font-medium">Options for downloading your project.</p>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'Export ZIP', icon: <FiDownload />, desc: 'Complete project bundle with all assets.' },
-                        { label: 'Export HTML Only', icon: <FiFileText />, desc: 'Download only the active HTML file.' },
-                        { label: 'Export CSS Only', icon: <FiDroplet />, desc: 'Download the active CSS stylesheet.' },
-                        { label: 'Copy to Clipboard', icon: <FiCopy />, desc: 'Copy current code for quick sharing.' },
-                      ].map((item, i) => (
-                        <div key={i} className="p-4 bg-[#111] rounded-2xl border border-[#222] flex gap-4 items-center group hover:border-orange-500/30 transition-all">
-                          <div className="text-orange-500 group-hover:scale-110 transition-transform">{item.icon}</div>
-                          <div>
-                            <span className="text-white text-xs font-black block uppercase tracking-tight">{item.label}</span>
-                            <span className="text-[10px] text-[#555] font-medium leading-relaxed">{item.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Section: File Explorer Deep-Dive */}
-            <section id="file-explorer" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="File Explorer" 
-                subtitle="The nerve center of your project organization."
-                icon={<FiFolder />}
-                color="orange"
-              />
-
-              <div className="space-y-10">
-                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed text-lg">
-                  <p>
-                    The File Explorer manages all assets within your current session. It supports a virtual file system that persists in your browser's local storage.
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-10">
-                  <div className="space-y-8">
-                    <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
-                      <FiPlusSquare className="text-orange-500" /> Key Operations
-                    </h4>
-                    <ul className="space-y-6">
-                      <li className="flex gap-4 p-4 rounded-2xl bg-[#111] border border-[#222] hover:bg-orange-500/5 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0"><FiPlus /></div>
-                        <div>
-                          <strong className="text-white block mb-1 uppercase tracking-tight">New File</strong>
-                          <span className="text-xs text-[#777]">Supports .html, .css, .js, .json, and .md. Extension determines the editor mode.</span>
-                        </div>
-                      </li>
-                      <li className="flex gap-4 p-4 rounded-2xl bg-[#111] border border-[#222] hover:bg-orange-500/5 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0"><FiFolderPlus /></div>
-                        <div>
-                          <strong className="text-white block mb-1 uppercase tracking-tight">New Folder</strong>
-                          <span className="text-xs text-[#777]">Organize your components and assets into a clean directory structure.</span>
-                        </div>
-                      </li>
-                      <li className="flex gap-4 p-4 rounded-2xl bg-[#111] border border-[#222] hover:bg-orange-500/5 transition-colors">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 flex-shrink-0"><FiUpload /></div>
-                        <div>
-                          <strong className="text-white block mb-1 uppercase tracking-tight">Smart Import</strong>
-                          <span className="text-xs text-[#777]">Drag and drop files from your OS directly into the panel to import them.</span>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <Card className="bg-[#0a0a0a] border-[#222] p-8 space-y-6">
-                    <h4 className="text-white font-black uppercase tracking-widest text-xs border-b border-[#1a1a1a] pb-4">Context Menu Actions</h4>
-                    <div className="space-y-4">
-                      {[
-                        { label: 'Rename', icon: <FiEdit />, desc: 'Safely change names with path auto-update.' },
-                        { label: 'Duplicate', icon: <FiCopy />, desc: 'Instant clone of any file or directory.' },
-                        { label: 'Delete', icon: <FiTrash2 />, desc: 'Permanent removal from virtual storage.' },
-                        { label: 'Export ZIP', icon: <FiDownload />, desc: 'Convert virtual files to a physical .zip file.' },
-                      ].map((action, i) => (
-                        <div key={i} className="flex items-center gap-4 group cursor-default p-2 rounded-xl hover:bg-white/5 transition-colors">
-                          <div className="text-[#444] group-hover:text-orange-500 transition-colors">{action.icon}</div>
-                          <div className="flex-1">
-                            <span className="text-white text-xs font-bold block">{action.label}</span>
-                            <span className="text-[10px] text-[#555]">{action.desc}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            </section>
-
-            {/* Section: Code Editor Deep-Dive */}
-            <section id="code-editor" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Monaco Engine" 
-                subtitle="The world's most advanced code editor, now in your browser."
-                icon={<FiCode />}
-                color="blue"
-              />
-
-              <div className="grid lg:grid-cols-[1fr_350px] gap-12">
-                <div className="space-y-8">
-                  <p className="text-[#888] font-medium leading-relaxed text-lg">
-                    Our Code Editor is built on <strong>Monaco</strong>, the same engine powering VS Code. It provides a native development experience with desktop-grade performance.
-                  </p>
-                  
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 01</h5>
-                      <h4 className="text-xl text-white font-bold mb-3">IntelliSense</h4>
-                      <p className="text-sm text-[#666] leading-relaxed">Smart completions for HTML tags, CSS properties, and JavaScript functions.</p>
-                    </div>
-                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 02</h5>
-                      <h4 className="text-xl text-white font-bold mb-3">Multi-Cursor</h4>
-                      <p className="text-sm text-[#666] leading-relaxed">Hold Alt and click to place multiple cursors for bulk editing tasks.</p>
-                    </div>
-                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 03</h5>
-                      <h4 className="text-xl text-white font-bold mb-3">Prettier Sync</h4>
-                      <p className="text-sm text-[#666] leading-relaxed">Automatic formatting ensures your code meets professional standards.</p>
-                    </div>
-                    <div className="p-8 bg-[#111] rounded-3xl border border-[#222] hover:border-blue-500/30 transition-all">
-                      <h5 className="text-white font-black uppercase tracking-widest text-[10px] mb-4 text-blue-500">Feature 04</h5>
-                      <h4 className="text-xl text-white font-bold mb-3">Emmet Support</h4>
-                      <p className="text-sm text-[#666] leading-relaxed">Write HTML lightning fast with standard Emmet abbreviations.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="p-10 bg-blue-500/5 border border-blue-500/20 rounded-3xl space-y-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none"><FiCpu size={120} /></div>
-                    <h4 className="text-blue-400 font-black uppercase tracking-widest text-xs">AI Intelligence</h4>
-                    <p className="text-sm text-[#777] leading-relaxed font-medium">
-                      Look for the <span className="text-blue-400 font-bold">✦ AI Status Button</span> in the status bar. 
-                      It provides real-time suggestions, bug fixes, and boilerplate generation based on your file context.
-                    </p>
-                    <div className="flex flex-col gap-3">
-                      <Badge className="bg-blue-500/10 text-blue-400 border-none py-2 px-4 justify-start font-bold">✓ Suggestion Ready (Tab)</Badge>
-                      <Badge className="bg-yellow-500/10 text-yellow-400 border-none py-2 px-4 justify-start font-bold">⟳ AI Thinking...</Badge>
-                      <Badge className="bg-white/5 text-[#444] border-none py-2 px-4 justify-start font-bold">✦ AI Idle</Badge>
-                    </div>
-                  </div>
-                  <Alert className="bg-[#111] border-[#222] rounded-3xl p-6">
-                    <FiCheckCircle className="text-green-500" />
-                    <AlertTitle className="text-white font-black text-xs uppercase mb-2">Live Refresh</AlertTitle>
-                    <AlertDescription className="text-xs text-[#666] leading-relaxed">
-                      Every keystroke is synchronized. No need to hit save to see changes in the preview pane.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-              </div>
-            </section>
-
-            <AdPlaceholder slot="DOCS_CONTENT_MID_2" />
-
-            {/* Section: Visual Designer Deep-Dive */}
-            <section id="visual-builder" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Visual Designer" 
-                subtitle="The ultimate bridge between design and code."
-                icon={<FiEye />}
-                color="green"
-              />
-
-              <div className="space-y-12">
-                <div className="grid md:grid-cols-[350px_1fr] gap-16 items-start">
-                  <div className="space-y-10">
+              <div className="space-y-4">
+                {[
+                  {
+                    n: 1, color: 'orange', title: 'Open the Editor',
+                    desc: 'The editor loads with a starter project already created — index.html, styles.css, and script.js are ready to go. You can immediately start editing or create fresh files.',
+                  },
+                  {
+                    n: 2, color: 'blue', title: 'Write or Paste Your Code',
+                    desc: 'Click any file in the File Explorer (left panel) to open it. Start typing in the Monaco Code Editor. Your changes sync to the Live Preview instantly on every keystroke.',
+                  },
+                  {
+                    n: 3, color: 'green', title: 'Switch to Visual Mode to Design',
+                    desc: 'Press Ctrl+2 or go to Window → Visual Layout. Now click any element directly in the canvas to select it. Use the Properties Panel on the right to change colors, fonts, spacing, and more — without writing CSS.',
+                  },
+                  {
+                    n: 4, color: 'red', title: 'Add Animations with the Timeline',
+                    desc: 'Click the Timeline panel tab at the bottom. Press "+" to add an animation track. Choose your CSS selector (e.g. .hero), pick a preset (FadeIn, SlideUp, Bounce), drag the bar to set timing, then click "Apply to Page" to inject the @keyframes CSS.',
+                  },
+                  {
+                    n: 5, color: 'purple', title: 'Export Your Project',
+                    desc: 'Click File → Export as ZIP (or press Ctrl+E). A zip archive with all your HTML, CSS, JS, and image files downloads instantly. Upload it to any web host to go live.',
+                  },
+                ].map((step) => (
+                  <div key={step.n} className={`flex gap-5 p-5 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${step.color}-500/20 transition-all`}>
+                    <StepBadge n={step.n} color={step.color} />
                     <div>
-                      <h4 className="text-white font-black uppercase tracking-widest text-sm mb-4">Interactive Canvas</h4>
-                      <p className="text-[#888] text-lg leading-relaxed font-medium">
-                        The Visual Designer provides a true-to-life preview that doubles as an interactive staging area.
-                      </p>
+                      <h4 className="text-white font-black text-sm uppercase tracking-tight mb-1">{step.title}</h4>
+                      <p className="text-xs text-[#555] leading-relaxed">{step.desc}</p>
                     </div>
-                    
-                    <div className="space-y-6">
-                       <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group">
-                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black group-hover:bg-green-500 group-hover:text-white transition-all">1</div>
-                          <div>
-                            <strong className="text-white block mb-1 uppercase tracking-tight">Select & Focus</strong>
-                            <span className="text-xs text-[#666] leading-relaxed block font-medium">Click any element to focus it. Its CSS properties will automatically load in the Properties Panel.</span>
-                          </div>
-                       </div>
-                       <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group">
-                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black group-hover:bg-green-500 group-hover:text-white transition-all">2</div>
-                          <div>
-                            <strong className="text-white block mb-1 uppercase tracking-tight">Context Actions</strong>
-                            <span className="text-xs text-[#666] leading-relaxed block font-medium">Right-click elements on the canvas to duplicate, delete, or wrap them in new containers.</span>
-                          </div>
-                       </div>
-                       <div className="flex items-start gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors group">
-                          <div className="w-8 h-8 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500 flex-shrink-0 text-xs font-black group-hover:bg-green-500 group-hover:text-white transition-all">3</div>
-                          <div>
-                            <strong className="text-white block mb-1 uppercase tracking-tight">Responsive Toggles</strong>
-                            <span className="text-xs text-[#666] leading-relaxed block font-medium">Use the viewport icons to test your design on Mobile, Tablet, and Desktop resolutions.</span>
-                          </div>
-                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="p-6 bg-[#0a0a0a] rounded-[2.5rem] border border-[#222] shadow-3xl overflow-hidden group relative">
-                    <div className="absolute top-0 right-0 p-8 opacity-[0.02] group-hover:opacity-10 transition-opacity pointer-events-none"><FiMousePointer size={200} /></div>
-                    <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#1a1a1a]">
-                      <div className="flex gap-2.5">
-                        <div className="w-3 h-3 rounded-full bg-red-500/40" />
-                        <div className="w-3 h-3 rounded-full bg-yellow-500/40" />
-                        <div className="w-3 h-3 rounded-full bg-green-500/40" />
-                      </div>
-                      <div className="text-[10px] text-[#444] font-black uppercase tracking-[0.2em]">Visual-Stage.Pro.v2</div>
-                    </div>
-                    <div className="grid grid-cols-[1fr_220px] gap-6 h-[400px]">
-                      <div className="bg-white/[0.02] rounded-3xl border-2 border-dashed border-green-500/20 flex flex-col items-center justify-center p-12 text-center group/stage">
-                        <div className="w-24 h-24 rounded-[2rem] bg-green-500/10 flex items-center justify-center text-green-500 mb-8 group-hover/stage:scale-110 transition-transform shadow-2xl group-hover/stage:bg-green-500 group-hover/stage:text-white">
-                          <FiLayout size={44} />
-                        </div>
-                        <h4 className="text-white font-black text-lg uppercase tracking-widest mb-3">Drop Zone</h4>
-                        <p className="text-xs text-[#555] font-medium leading-relaxed max-w-[180px]">Components dropped here are instantly converted to clean HTML/CSS.</p>
-                      </div>
-                      <div className="bg-[#111] rounded-3xl border border-[#222] p-6 space-y-8">
-                        <div className="text-[10px] font-black text-[#333] uppercase tracking-[0.2em]">Active Properties</div>
-                        <div className="space-y-4">
-                          <div className="h-2 w-full bg-[#1a1a1a] rounded-full" />
-                          <div className="h-10 w-full bg-[#161616] rounded-xl border border-white/5" />
-                          <div className="h-2 w-2/3 bg-[#1a1a1a] rounded-full" />
-                          <div className="h-10 w-full bg-[#161616] rounded-xl border border-white/5" />
-                          <div className="pt-8 grid grid-cols-3 gap-3">
-                            <div className="aspect-square rounded-xl bg-orange-500/10 border border-orange-500/30 shadow-lg shadow-orange-500/5 hover:bg-orange-500 hover:scale-110 transition-all cursor-pointer" />
-                            <div className="aspect-square rounded-xl bg-blue-500/10 border border-blue-500/30 shadow-lg shadow-blue-500/5 hover:bg-blue-500 hover:scale-110 transition-all cursor-pointer" />
-                            <div className="aspect-square rounded-xl bg-green-500/10 border border-green-500/30 shadow-lg shadow-green-500/5 hover:bg-green-500 hover:scale-110 transition-all cursor-pointer" />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            {/* Section: Properties Panel */}
-            <section id="properties-panel" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Properties Panel" 
-                subtitle="Fine-tune every pixel without touching the CSS file."
-                icon={<FiSliders />}
-                color="purple"
-              />
-
-              <div className="grid md:grid-cols-2 gap-16">
-                 <div className="space-y-10">
-                    <p className="text-[#888] font-medium leading-relaxed text-lg">
-                       The Properties Panel is your visual CSS engine. It categorizes hundreds of properties into logical groups for rapid styling and experimentation.
-                    </p>
-                    <Accordion type="single" collapsible className="w-full space-y-2">
-                       {[
-                          { title: 'Layout & Box Model', icon: <FiBox />, desc: 'Master the geometry: Display (Flex/Grid/Block), Width, Height, Aspect Ratio, Margins, and Padding.' },
-                          { title: 'Typography & Fonts', icon: <FiType />, desc: 'Craft your message: Font family, size, weight, letter-spacing, line-height, and text alignment.' },
-                          { title: 'Colors & Backgrounds', icon: <FiDroplet />, desc: 'Set the mood: Solid colors, complex linear/radial gradients, and background image positioning.' },
-                          { title: 'Borders & Shadows', icon: <FiMaximize2 />, desc: 'Add depth: Border radius, border styles, box-shadows, and element opacity.' },
-                          { title: 'Spacing Controls', icon: <FiMove />, desc: 'Pixel-perfect alignment: Detailed control over individual sides for margins and padding.' },
-                       ].map((item, i) => (
-                          <AccordionItem key={i} value={`item-${i}`} className="border border-[#1a1a1a] rounded-2xl px-4 bg-[#111]/50">
-                             <AccordionTrigger className="text-white hover:text-purple-500 font-bold text-xs uppercase tracking-[0.15em] no-underline py-5 group">
-                                <div className="flex items-center gap-4">
-                                   <span className="text-purple-500 group-hover:scale-110 transition-transform">{item.icon}</span> {item.title}
-                                </div>
-                             </AccordionTrigger>
-                             <AccordionContent className="text-[#666] text-xs leading-relaxed font-medium pl-10 pb-5">
-                                {item.desc}
-                             </AccordionContent>
-                          </AccordionItem>
-                       ))}
-                    </Accordion>
-                 </div>
-                 
-                 <div className="p-10 bg-purple-500/5 border border-purple-500/20 rounded-[2.5rem] space-y-8 relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none"><FiSliders size={150} /></div>
-                    <h4 className="text-purple-400 font-black uppercase tracking-widest text-xs">Contextual Intelligence</h4>
-                    <p className="text-sm text-[#777] leading-relaxed font-medium">
-                       Our panel is context-aware. If you select a container set to <strong>flex</strong>, it will automatically inject alignment and justification controls. 
-                       For images, it prioritize aspect ratio and object-fit settings.
-                    </p>
-                    <div className="bg-[#080808] p-6 rounded-2xl border border-[#1a1a1a] font-mono text-xs text-purple-400/70 leading-relaxed shadow-inner">
-                       <span className="text-[#444] block mb-2">// Auto-generated Styles</span>
-                       {`.selected-element {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(45deg, ...);
-  border-radius: 24px;
-}`}
-                    </div>
-                 </div>
-              </div>
-            </section>
-
-            <AdPlaceholder slot="DOCS_CONTENT_MID_3" />
-
-            {/* Section: Timeline & Animation */}
-            <section id="timeline-animation" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Motion Engine" 
-                subtitle="The definitive guide to CSS Keyframing and Timelines."
-                icon={<FiClock />}
-                color="red"
-              />
-
-              <div className="space-y-16">
-                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed text-lg">
-                  <p>
-                    The Timeline Panel is a professional-grade animation suite. It allows you to create complex CSS @keyframes animations using a visual interface. 
-                    Every track you create is converted into standard CSS, ensuring your animations work on any modern browser without external libraries.
-                  </p>
-                </div>
-
-                {/* Detailed Button Breakdown */}
-                <div className="grid md:grid-cols-2 gap-12">
-                   <div className="space-y-8">
-                      <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
-                         <FiSettings className="text-red-500" /> Toolbar Controls
-                      </h4>
-                      <div className="grid gap-4">
-                         {[
-                            { icon: <FiPlus />, label: 'Add Track', desc: 'Adds a new animation lane. If an element is selected in Visual mode, it automatically uses that selector.' },
-                            { icon: <FiPlay />, label: 'Play / Preview', desc: 'Runs all animations in real-time on the stage so you can check timing and feel.' },
-                            { icon: <FiRefreshCw />, label: 'Reset Playhead', desc: 'Instantly stops playback and returns the playhead to 0.00s.' },
-                            { icon: <FiCheck />, label: 'Apply to Page', desc: 'Injects the generated CSS into your HTML file. This makes animations permanent.' },
-                            { icon: <FiZoomIn />, label: 'Timeline Zoom', desc: 'Scale the timeline ruler for finer precision (up to 0.1s increments).' },
-                         ].map((btn, i) => (
-                            <div key={i} className="flex gap-4 p-5 rounded-2xl bg-[#111] border border-[#222] hover:bg-red-500/5 transition-colors">
-                               <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 flex-shrink-0">{btn.icon}</div>
-                               <div>
-                                  <strong className="text-white text-sm block mb-1 uppercase tracking-wider">{btn.label}</strong>
-                                  <span className="text-xs text-[#666] leading-relaxed font-medium">{btn.desc}</span>
-                               </div>
-                            </div>
-                         ))}
-                      </div>
-                   </div>
-
-                   <div className="space-y-8">
-                      <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
-                         <FiMousePointer className="text-red-500" /> Direct Interaction
-                      </h4>
-                      <Card className="bg-[#0a0a0a] border-[#222] p-8 space-y-8">
-                         <div className="space-y-6">
-                            <div className="flex gap-5">
-                               <div className="w-12 h-12 rounded-2xl bg-[#111] border border-[#222] flex items-center justify-center text-red-500 flex-shrink-0 shadow-lg">
-                                  <FiMove />
-                               </div>
-                               <div>
-                                  <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Drag to Move (Delay)</h5>
-                                  <p className="text-xs text-[#666] leading-relaxed font-medium">Click and hold the middle of any track bar to move it. This changes the <strong>animation-delay</strong> property.</p>
-                               </div>
-                            </div>
-                            <div className="flex gap-5">
-                               <div className="w-12 h-12 rounded-2xl bg-[#111] border border-[#222] flex items-center justify-center text-red-500 flex-shrink-0 shadow-lg">
-                                  <FiMaximize2 />
-                               </div>
-                               <div>
-                                  <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Resize to Scale (Duration)</h5>
-                                  <p className="text-xs text-[#666] leading-relaxed font-medium">Drag the right handle of a track bar to stretch it. This changes the <strong>animation-duration</strong> property.</p>
-                               </div>
-                            </div>
-                            <div className="flex gap-5">
-                               <div className="w-12 h-12 rounded-2xl bg-[#111] border border-[#222] flex items-center justify-center text-red-500 flex-shrink-0 shadow-lg">
-                                  <FiCommand />
-                               </div>
-                               <div>
-                                  <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Context Menu</h5>
-                                  <p className="text-xs text-[#666] leading-relaxed font-medium">Right-click any track to Duplicate it, Reset its position, or change its Animation Preset instantly.</p>
-                               </div>
-                            </div>
-                         </div>
-                      </Card>
-                   </div>
-                </div>
-
-                <div className="space-y-10">
-                   <h4 className="text-white font-black uppercase tracking-widest text-sm text-center">The Track Inspector</h4>
-                   <div className="grid md:grid-cols-3 gap-6">
-                      {[
-                         { title: 'Animation Presets', desc: 'Choose from professional presets like FadeIn, Bounce, Spin, Shake, or Flip. Each one generates custom @keyframes.' },
-                         { title: 'Easing Functions', desc: 'Control the feel of the motion with Linear, Ease-In, Ease-Out, or Ease-In-Out timing functions.' },
-                         { title: 'Iteration Count', desc: 'Set how many times the animation plays. Use "infinite" for continuous loops or "1" for a single trigger.' },
-                      ].map((box, i) => (
-                         <div key={i} className="p-8 bg-[#111] rounded-3xl border border-[#222] text-center space-y-4 hover:border-red-500/20 transition-all">
-                            <h5 className="text-white font-black uppercase tracking-widest text-xs text-red-500">{box.title}</h5>
-                            <p className="text-xs text-[#666] leading-relaxed font-medium">{box.desc}</p>
-                         </div>
-                      ))}
-                   </div>
-                </div>
-
-                <Alert className="bg-red-500/5 border-red-500/20 text-red-400 rounded-[2rem] p-8 shadow-2xl">
-                   <div className="flex gap-6 items-center">
-                      <FiAlertCircle size={40} className="flex-shrink-0" />
-                      <div>
-                         <AlertTitle className="text-white font-black text-lg uppercase tracking-tight mb-2">How It Works (Technical)</AlertTitle>
-                         <AlertDescription className="text-sm text-[#777] leading-relaxed font-medium">
-                            When you click <strong>Apply to Page</strong>, our engine parses your tracks and generates a standard CSS block. 
-                            It then injects this into a <code>&lt;style id="timeline-animations"&gt;</code> tag in your HTML. 
-                            This means your animations are native, fast, and SEO-friendly.
-                         </AlertDescription>
-                      </div>
-                   </div>
-                </Alert>
-              </div>
-            </section>
-
-            {/* Section: AI Intelligence */}
-            <section id="ai-assistant" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="AI Code Copilot" 
-                subtitle="High-performance code completion powered by Pollinations AI."
-                icon={<FiCpu />}
-                color="yellow"
-              />
-
-              <div className="space-y-16">
-                <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed text-lg">
-                  <p>
-                    Our editor features a state-of-the-art <strong>AI Code Copilot</strong> that predicts your next lines of code in real-time. 
-                    Built on the <code>pollinations.ai</code> API, it understands context, follows your coding style, and suggests entire functions instantly.
-                  </p>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-12">
-                   <div className="space-y-8">
-                      <h4 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
-                         <FiZap className="text-yellow-500" /> How It Works
-                      </h4>
-                      <div className="space-y-6">
-                         <div className="flex gap-5">
-                            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 flex-shrink-0 shadow-lg">
-                               <FiType />
-                            </div>
-                            <div>
-                               <h5 className="text-white font-bold mb-1 uppercase tracking-tight">Ghost Text Preview</h5>
-                               <p className="text-xs text-[#666] leading-relaxed font-medium">As you type, suggestions appear in <strong>Ghost Text</strong> (grayed out). This is exactly how GitHub Copilot functions.</p>
-                            </div>
-                         </div>
-                         <div className="flex gap-5">
-                            <div className="w-12 h-12 rounded-2xl bg-yellow-500/10 border border-yellow-500/20 flex items-center justify-center text-yellow-500 flex-shrink-0 shadow-lg">
-                               <FiCheck />
-                            </div>
-                            <div>
-                               <h5 className="text-white font-bold mb-1 uppercase tracking-tight">One-Key Acceptance</h5>
-                               <p className="text-xs text-[#666] leading-relaxed font-medium">Simply press the <strong>Tab</strong> key to accept the suggestion. It will be instantly committed to your code.</p>
-                            </div>
-                         </div>
-                      </div>
-                   </div>
-
-                   <Card className="bg-[#0a0a0a] border-[#222] p-8 space-y-8 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><FiCommand size={100} /></div>
-                      <h4 className="text-white font-black uppercase tracking-widest text-xs border-b border-[#1a1a1a] pb-4">AI Pro Tips</h4>
-                      <ul className="space-y-4">
-                         <li className="flex items-start gap-3">
-                            <FiChevronRight className="text-yellow-500 mt-1 flex-shrink-0" />
-                            <p className="text-xs text-[#777] font-medium leading-relaxed"><strong>Force Trigger:</strong> If the AI is idle, press <code>Ctrl + Space</code> or use the AI button in the status bar.</p>
-                         </li>
-                         <li className="flex items-start gap-3">
-                            <FiChevronRight className="text-yellow-500 mt-1 flex-shrink-0" />
-                            <p className="text-xs text-[#777] font-medium leading-relaxed"><strong>Context Awareness:</strong> The AI looks at 2000 characters before your cursor to ensure the suggestion fits perfectly.</p>
-                         </li>
-                         <li className="flex items-start gap-3">
-                            <FiChevronRight className="text-yellow-500 mt-1 flex-shrink-0" />
-                            <p className="text-xs text-[#777] font-medium leading-relaxed"><strong>Language Support:</strong> Works across HTML, CSS, JavaScript, and 20+ other programming languages.</p>
-                         </li>
-                      </ul>
-                   </Card>
-                </div>
-              </div>
-            </section>
-
-            {/* Section: Shortcuts */}
-            <section id="shortcuts" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Power Shortcuts" 
-                subtitle="Master the editor with these mission-critical hotkeys."
-                icon={<FiTerminal />}
-                color="green"
-              />
-              
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  { key: 'Ctrl + 1', action: 'Code Layout' },
-                  { key: 'Ctrl + 2', action: 'Visual Layout' },
-                  { key: 'Ctrl + 3', action: 'Split Layout' },
-                  { key: 'Ctrl + S', action: 'Save All' },
-                  { key: 'Ctrl + E', action: 'Export ZIP' },
-                  { key: 'Ctrl + R', action: 'Refresh Preview' },
-                  { key: 'Ctrl + N', action: 'New File' },
-                  { key: 'Tab', action: 'Accept AI Suggestion' },
-                  { key: 'Esc', action: 'Deselect Element' },
-                ].map((s, i) => (
-                  <div key={i} className="flex justify-between items-center p-6 bg-[#111] rounded-2xl border border-[#222] hover:border-green-500/40 hover:bg-[#161616] transition-all group">
-                    <span className="text-[#888] text-[10px] font-black uppercase tracking-[0.2em] group-hover:text-white transition-colors">{s.action}</span>
-                    <kbd className="bg-[#1a1a1a] px-3 py-1.5 rounded-lg text-[11px] text-green-500 font-black border border-[#222] shadow-2xl group-hover:scale-110 transition-transform">{s.key}</kbd>
                   </div>
                 ))}
               </div>
             </section>
 
-            {/* Section: Pro Tips */}
-            <section id="pro-tips" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Pro Tips & Tricks" 
-                subtitle="Advanced workflows to push your development speed to the limit."
-                icon={<FiZap />}
-                color="orange"
-              />
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Interface Overview
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="interface-overview" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiLayout />} title="Interface Overview" subtitle="Every area of the screen and what it does." color="blue" />
 
-              <div className="grid md:grid-cols-2 gap-8">
-                 <Card className="bg-[#111] border-[#222] p-8 space-y-4 hover:border-orange-500/30 transition-all">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-2"><FiCode /></div>
-                    <h4 className="text-white font-black uppercase tracking-tight">Emmet Mastery</h4>
-                    <p className="text-sm text-[#666] leading-relaxed font-medium">
-                       Don't write tags manually. Type <code>div.container&gt;ul&gt;li*5</code> and press <strong>Tab</strong> in the code editor to generate a full list structure instantly.
-                    </p>
-                 </Card>
-                 <Card className="bg-[#111] border-[#222] p-8 space-y-4 hover:border-orange-500/30 transition-all">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500 mb-2"><FiMousePointer /></div>
-                    <h4 className="text-white font-black uppercase tracking-tight">Multi-Select Magic</h4>
-                    <p className="text-sm text-[#666] leading-relaxed font-medium">
-                       Hold <strong>Alt</strong> and click in multiple places in the code editor to type in several lines at once. Perfect for changing multiple class names.
-                    </p>
-                 </Card>
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The editor is made up of five main panels plus a menu bar at the top. All panels are <strong className="text-white">dockable</strong> (snapped into the layout) or <strong className="text-white">floating</strong> (free-floating windows you can drag anywhere).
+                </p>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {[
+                    { icon: <FiFolder />, label: 'File Explorer', pos: 'Left side', desc: 'Your project\'s file tree. Create, rename, delete, and organize HTML, CSS, JS, and image files into folders.', color: 'orange' },
+                    { icon: <FiCode />, label: 'Code Editor', pos: 'Center', desc: 'The Monaco editor where you write HTML, CSS, and JavaScript. Auto-updates the preview on every change.', color: 'blue' },
+                    { icon: <FiMonitor />, label: 'Preview Pane', pos: 'Right (split) / Center (visual)', desc: 'A live sandboxed iframe showing your rendered page. Supports multiple tabs.', color: 'cyan' },
+                    { icon: <FiSliders />, label: 'Properties Panel', pos: 'Right (visual mode)', desc: 'Click any element in visual mode to inspect and change its CSS properties visually.', color: 'purple' },
+                    { icon: <FiClock />, label: 'Timeline', pos: 'Bottom (visual mode)', desc: 'A visual animation timeline. Add tracks, set presets, drag to set delay and duration.', color: 'red' },
+                    { icon: <FiMenu />, label: 'Menu Bar', pos: 'Top bar', desc: 'File, Export, Tools, Window, and Help menus. Also shows the active mode and AI status.', color: 'gray' },
+                  ].map((p, i) => (
+                    <div key={i} className={`p-5 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${p.color}-500/20 transition-all`}>
+                      <div className={`text-${p.color}-500 mb-3`}>{p.icon}</div>
+                      <h4 className="text-white font-black text-sm tracking-tight mb-0.5">{p.label}</h4>
+                      <p className={`text-[9px] text-${p.color}-500/60 font-black uppercase tracking-widest mb-2`}>{p.pos}</p>
+                      <p className="text-[11px] text-[#555] leading-relaxed">{p.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <InfoBox title="Status Bar" icon={<FiInfo size={11} />} color="orange">
+                  At the very bottom of the screen is the Status Bar. It shows the active file name on the left, and the <strong className="text-orange-400">AI Status Button</strong> on the right (✦ AI · ⟳ AI… · ✓ AI · ✗ AI). Click it to trigger a new AI suggestion.
+                </InfoBox>
               </div>
             </section>
 
-            {/* Section: Deployment */}
-            <section id="deployment" className="scroll-mt-32 space-y-12 pt-20 border-t border-[#1a1a1a]">
-              <SectionHeader 
-                title="Deployment Guide" 
-                subtitle="How to take your project from the editor to a live server."
-                icon={<FiShare2 />}
-                color="blue"
-              />
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Editor Modes
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="modes" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiGrid />} title="Editor Modes" subtitle="Switch between three specialized workspace layouts." color="orange" />
 
-              <div className="space-y-10">
-                 <div className="prose prose-invert max-w-none text-[#888] font-medium leading-relaxed">
-                    <p>
-                       Once your project is ready, you need to host it. Since our editor generates clean, standard HTML/CSS/JS, you can host it anywhere.
-                    </p>
-                 </div>
+              <div className="grid md:grid-cols-3 gap-5">
+                {[
+                  {
+                    key: 'Ctrl+1', name: 'Code Mode', color: 'blue', icon: <FiCode size={20} />,
+                    panels: ['File Explorer (left)', 'Code Editor (full width)'],
+                    use: 'Pure coding sessions — maximum editor space, no distractions.',
+                    detail: 'In Code Mode the Code Editor fills the entire workspace (minus the File Explorer on the left). Use this when you want maximum focus on writing markup, styles, or JavaScript.',
+                  },
+                  {
+                    key: 'Ctrl+3', name: 'Split Mode', color: 'cyan', icon: <FiLayout size={20} />,
+                    panels: ['File Explorer (left)', 'Code Editor (center)', 'Preview (right)'],
+                    use: 'The default mode. Write code on the left, see the result on the right.',
+                    detail: 'Split Mode shows the code and the live preview side-by-side. Drag the divider between the panels to give more or less space to either side.',
+                  },
+                  {
+                    key: 'Ctrl+2', name: 'Visual Mode', color: 'green', icon: <FiEye size={20} />,
+                    panels: ['File Explorer (left)', 'Canvas/Preview (center)', 'Properties Panel (right)', 'Timeline (bottom)'],
+                    use: 'Design-first workflow — click elements, change styles, animate.',
+                    detail: 'Visual Mode is for design work. The canvas becomes interactive: click any HTML element to select it, drag it to move, and use the corner/edge handles to resize or rotate. The Properties Panel populates with that element\'s CSS.',
+                  },
+                ].map((m) => (
+                  <div key={m.name} className={`p-6 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${m.color}-500/30 transition-all space-y-4`}>
+                    <div className="flex items-center justify-between">
+                      <div className={`text-${m.color}-500`}>{m.icon}</div>
+                      <KbdKey>{m.key}</KbdKey>
+                    </div>
+                    <h3 className={`text-${m.color}-400 font-black text-base tracking-tight`}>{m.name}</h3>
+                    <p className="text-[11px] text-[#555] leading-relaxed">{m.detail}</p>
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-[#333] uppercase tracking-widest">Active Panels</p>
+                      {m.panels.map((p, i) => (
+                        <div key={i} className="flex items-center gap-2 text-[11px] text-[#444]">
+                          <FiChevronRight size={10} className={`text-${m.color}-500/50`} /> {p}
+                        </div>
+                      ))}
+                    </div>
+                    <p className={`text-[10px] text-${m.color}-500/70 italic font-medium`}>{m.use}</p>
+                  </div>
+                ))}
+              </div>
 
-                 <div className="grid md:grid-cols-3 gap-6">
+              <InfoBox title="Mode Memory" icon={<FiDatabase size={11} />} color="purple">
+                Your last active mode is remembered between sessions via <code className="text-purple-400 bg-purple-500/5 px-1 rounded">localStorage</code>. Switching modes also adjusts which panels are visible and docked — but your floating windows and their positions are preserved.
+              </InfoBox>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: File Explorer
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="file-explorer" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiFolder />} title="File Explorer" subtitle="Your project's virtual file system — create, organize, import, and manage every asset." color="orange" />
+
+              <div className="space-y-8">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The File Explorer is the left-hand panel that shows every file in your project. Files are grouped by optional folders and ordered by type. All data is stored in <code className="text-orange-400 bg-orange-500/5 px-1 rounded text-xs">localStorage</code> under the key <code className="text-orange-400 bg-orange-500/5 px-1 rounded text-xs">html-editor-files-v1</code>.
+                </p>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Creating Files & Folders</h3>
+                  {[
+                    { icon: <FiFilePlus />, label: 'New File', shortcut: 'Ctrl+N', desc: 'Opens a dialog to enter a file name. The extension you type determines the editor language — .html uses HTML mode, .css uses CSS mode, .js uses JavaScript mode. Supported: .html, .css, .js, .json, .md, .svg, .txt and image uploads.', color: 'orange' },
+                    { icon: <FiFolderPlus />, label: 'New Folder', desc: 'Creates a folder (via browser prompt). Folders are purely organizational — they group files visually in the panel. There is no actual file system path; folder membership is stored in each file\'s metadata.', color: 'orange' },
+                    { icon: <FiUpload />, label: 'Import Files', desc: 'Click "Import Files…" in the File menu or drag-and-drop files from your OS directly onto the File Explorer. Images (PNG, JPG, GIF, SVG, WebP) are stored as base64 data URLs. HTML/CSS/JS files are stored as text.', color: 'blue' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">File Operations</h3>
+                  <p className="text-[11px] text-[#555] leading-relaxed">Right-click any file or folder to open its context menu with the following options:</p>
+                  {[
+                    { icon: <FiEdit />, label: 'Rename', desc: 'Opens an inline rename dialog. Changing a file name does not automatically update references to it in other files — manually update any &lt;link&gt;, &lt;script&gt;, or @import references.', color: 'cyan' },
+                    { icon: <FiCopy />, label: 'Duplicate', desc: 'Creates an identical copy of the file with "-copy" appended to the name. The copy is placed in the same folder as the original.', color: 'cyan' },
+                    { icon: <FiTrash2 />, label: 'Delete', desc: 'Permanently removes the file from localStorage. If you delete the currently active file, the editor will switch to the next available file. This action cannot be undone — export a ZIP backup first if unsure.', color: 'red' },
+                    { icon: <FiCornerDownRight />, label: 'Move to Folder', desc: 'Reassigns the file\'s folder membership. If no folders exist, create one first via File → New Folder.', color: 'cyan' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Folder Operations</h3>
+                  {[
+                    { icon: <FiEdit />, label: 'Rename Folder', desc: 'Renames the folder and automatically updates the folder field of every file inside it — links stay intact.', color: 'orange' },
+                    { icon: <FiTrash2 />, label: 'Delete Folder', desc: 'Deletes the folder entry but does NOT delete the files inside — they are moved to the root (no folder). This is safe.', color: 'red' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <InfoBox title="Default Project" icon={<FiPackage size={11} />} color="blue">
+                  On first load (or when localStorage is empty) the editor creates a starter project with <strong className="text-blue-400">index.html</strong>, <strong className="text-blue-400">styles.css</strong>, and <strong className="text-blue-400">script.js</strong>. These demonstrate HTML structure, CSS layout, and JavaScript interactivity. Feel free to edit or delete them.
+                </InfoBox>
+
+                <InfoBox title="Image Files" icon={<FiDroplet size={11} />} color="green">
+                  Uploaded images are stored as base64 data URLs inside localStorage. To reference them in HTML, use a relative path matching the file name, e.g. <code className="text-green-400 bg-green-500/5 px-1 rounded">&lt;img src="photo.jpg"&gt;</code>. The preview resolves these automatically via Blob URLs.
+                </InfoBox>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Code Editor
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="code-editor" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiCode />} title="Code Editor (Monaco)" subtitle="The same engine as VS Code — full IntelliSense, AI, multi-cursor, and Emmet." color="blue" />
+
+              <p className="text-[#666] text-sm leading-relaxed font-medium">
+                The Code Editor is powered by <strong className="text-white">Monaco Editor</strong> — Microsoft's open-source editor engine that runs Visual Studio Code. It provides desktop-grade code editing with zero compromise in the browser.
+              </p>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[
+                  { title: 'Syntax Highlighting', desc: 'Full token-based coloring for HTML tags, attributes, CSS selectors/properties/values, JavaScript keywords, functions, strings, and comments.' },
+                  { title: 'IntelliSense Autocomplete', desc: 'Type any HTML tag, CSS property, or JS function and Monaco will suggest completions. Press Enter or Tab to accept.' },
+                  { title: 'Emmet Abbreviations', desc: 'Type a shorthand like div.container>ul>li*3 and press Tab to expand it into full HTML markup instantly.' },
+                  { title: 'Multi-Cursor Editing', desc: 'Hold Alt and click at different positions to place multiple cursors. All cursors edit simultaneously — perfect for bulk changes.' },
+                  { title: 'Code Folding', desc: 'Click the arrow in the gutter (left margin) next to any block-level element, function, or rule to collapse it and reduce visual noise.' },
+                  { title: 'Find & Replace', desc: 'Press Ctrl+F to open the find bar. Press Ctrl+H to open find-and-replace. Supports regex patterns.' },
+                  { title: 'Go to Line', desc: 'Press Ctrl+G to jump directly to any line number. Useful in large files.' },
+                  { title: 'Undo / Redo History', desc: 'Ctrl+Z to undo, Ctrl+Y or Ctrl+Shift+Z to redo. Monaco keeps a deep history of changes within a session.' },
+                  { title: 'Live Sync to Preview', desc: 'Every change triggers an immediate preview refresh — no need to save or press a button. The preview re-renders on every keystroke.' },
+                  { title: 'File-Aware Language Mode', desc: 'The editor automatically sets the language mode based on the file extension. .html → HTML, .css → CSS, .js → JavaScript.' },
+                ].map((f, i) => (
+                  <div key={i} className="p-4 bg-[#0e0e0e] border border-[#1a1a1a] rounded-xl hover:border-blue-500/20 transition-all">
+                    <h4 className="text-white text-xs font-black uppercase tracking-tight mb-1.5">{f.title}</h4>
+                    <p className="text-[11px] text-[#555] leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-white font-black text-sm uppercase tracking-widest">Monaco Keyboard Shortcuts (in editor)</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#1a1a1a]">
+                        <th className="text-left text-[#333] font-black uppercase tracking-widest py-2 pr-6">Action</th>
+                        <th className="text-left text-[#333] font-black uppercase tracking-widest py-2">Shortcut</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#0f0f0f]">
+                      {[
+                        ['Select All', 'Ctrl+A'],
+                        ['Copy Line Down', 'Alt+Shift+↓'],
+                        ['Move Line Up / Down', 'Alt+↑ / Alt+↓'],
+                        ['Delete Line', 'Ctrl+Shift+K'],
+                        ['Comment / Uncomment Line', 'Ctrl+/'],
+                        ['Indent / Outdent', 'Tab / Shift+Tab'],
+                        ['Format Document', 'Shift+Alt+F'],
+                        ['Go to Definition', 'F12'],
+                        ['Open Command Palette', 'F1'],
+                        ['Select Word at Cursor', 'Ctrl+D'],
+                        ['Select All Occurrences', 'Ctrl+Shift+L'],
+                        ['Accept AI Suggestion', 'Tab (when green dot shows)'],
+                      ].map(([action, shortcut], i) => (
+                        <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-2.5 pr-6 text-[#777] font-medium">{action}</td>
+                          <td className="py-2.5"><KbdKey>{shortcut}</KbdKey></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Preview Pane
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="preview-pane" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiMonitor />} title="Live Preview Pane" subtitle="A sandboxed iframe that re-renders your page on every keystroke." color="cyan" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The Preview Pane runs your HTML inside a sandboxed <code className="text-cyan-400 bg-cyan-500/5 px-1 rounded text-xs">&lt;iframe&gt;</code>. It combines all your project files — injecting linked CSS and JS — and displays the result in real time. The preview is fully isolated from the editor's own JavaScript runtime.
+                </p>
+
+                <div className="space-y-3">
+                  {[
+                    { icon: <FiRefreshCw />, label: 'Auto Refresh', shortcut: 'Ctrl+R', desc: 'The preview refreshes automatically on every code change. You can also force a hard refresh with Ctrl+R or Tools → Hard Refresh Preview. Hard refresh re-runs all scripts from scratch.', color: 'cyan' },
+                    { icon: <FiPlus />, label: 'Multiple Preview Tabs', desc: 'Click the "+" button in the preview tab bar to open additional tabs. Each tab can show a different page. Click a tab\'s × to close it (the last tab cannot be closed).', color: 'cyan' },
+                    { icon: <FiGlobe />, label: 'Console Intercept', desc: 'Any console.log(), console.warn(), console.error(), or console.info() calls made by your page\'s JavaScript are captured and displayed in the editor\'s internal console log (accessible via Tools → Clear Console).', color: 'green' },
+                    { icon: <FiShield />, label: 'Sandboxed Execution', desc: 'The iframe runs with allow-scripts and allow-same-origin permissions. Network fetch calls, localStorage access from your page, and JavaScript execution all work normally inside the preview.', color: 'purple' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Visual Designer
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="visual-designer" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiEye />} title="Visual Designer" subtitle="Click, drag, resize, and rotate any HTML element directly on the canvas." color="green" />
+
+              <div className="space-y-8">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The Visual Designer transforms your live preview into an interactive canvas. Switch to Visual Mode (Ctrl+2) to activate it. The canvas is overlaid with a selection system that lets you manipulate elements visually — all changes are written back to your HTML/CSS code in real time.
+                </p>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Selecting Elements</h3>
+                  {[
+                    { icon: <FiMousePointer />, label: 'Click to Select', desc: 'Click any element on the canvas. A blue outline appears around the selected element. Its CSS properties are immediately loaded into the Properties Panel on the right.', color: 'green' },
+                    { icon: <FiLayers />, label: 'Click Through Containers', desc: 'If a container is selected and you click again, the click passes through to the child element inside. This lets you target deeply nested elements.', color: 'green' },
+                    { icon: <FiX />, label: 'Deselect', desc: 'Click on empty space (outside any element) to deselect and clear the Properties Panel.', color: 'green' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Moving Elements</h3>
+                  {[
+                    { icon: <FiMove />, label: 'Drag to Reposition', desc: 'Click and drag any selected element to move it. The element\'s position property is set to absolute and the top/left values are updated in your CSS. If the element\'s parent does not have position: relative, it is added automatically.', color: 'blue' },
+                    { icon: <FiArrowRight />, label: 'Fine-Tune via Properties Panel', desc: 'After dragging, use the Position fields in the Properties Panel to type exact pixel values for top, left, right, and bottom.', color: 'blue' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Resizing & Rotating</h3>
+                  {[
+                    { icon: <FiMaximize2 />, label: 'Corner Handles → Resize', desc: 'Drag any of the 8 handles (4 corners + 4 edges) to resize the element. This sets the width and height CSS properties.', color: 'orange' },
+                    { icon: <FiRotateCcw />, label: 'Rotation Handle → Rotate', desc: 'The handle that appears above the top-center of the selection box rotates the element. This applies a CSS transform: rotate(Xdeg) to the element\'s inline style.', color: 'orange' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Context Menu (Right-Click on Canvas)</h3>
+                  <p className="text-[11px] text-[#555] leading-relaxed">Right-click any element on the visual canvas to get a context menu with:</p>
+                  {[
+                    { icon: <FiCopy />, label: 'Duplicate Element', desc: 'Creates an identical HTML clone of the element and inserts it after the original in the DOM.', color: 'cyan' },
+                    { icon: <FiTrash2 />, label: 'Delete Element', desc: 'Removes the element from the DOM and writes the updated HTML back to the code editor.', color: 'red' },
+                    { icon: <FiCode />, label: 'View in Code Editor', desc: 'Switches to code mode and highlights the HTML line corresponding to the selected element.', color: 'blue' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Properties Panel
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="properties-panel" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiSliders />} title="Properties Panel" subtitle="Every CSS property for the selected element, grouped and visualized." color="purple" />
+
+              <div className="space-y-8">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The Properties Panel is only available in Visual Mode. When you click an element on the canvas, its CSS is read and populated into the panel's controls. Every change you make in the panel is immediately written to the selected element's inline style AND reflected in the code editor.
+                </p>
+
+                {[
+                  {
+                    title: 'Element Info', color: 'purple', icon: <FiInfo />,
+                    fields: [
+                      { name: 'Tag Name', desc: 'Shows the HTML tag (div, h1, img, etc.) — read only.' },
+                      { name: 'ID', desc: 'The element\'s id attribute. Click to edit inline.' },
+                      { name: 'Class Name', desc: 'The element\'s class names. Edit to add/remove classes.' },
+                      { name: 'Inner HTML', desc: 'The raw HTML content inside the element. Edit to change text or nested markup.' },
+                    ],
+                  },
+                  {
+                    title: 'Layout & Display', color: 'blue', icon: <FiBox />,
+                    fields: [
+                      { name: 'Display', desc: 'block / inline / inline-block / flex / grid / none. Switching to flex reveals Flex Controls below.' },
+                      { name: 'Width & Height', desc: 'Numeric input with unit selector (px, %, em, rem, vw, vh, auto).' },
+                      { name: 'Max / Min Width & Height', desc: 'Constraint values for responsive layouts.' },
+                      { name: 'Overflow', desc: 'visible / hidden / scroll / auto — controls content clipping.' },
+                      { name: 'Position', desc: 'static / relative / absolute / fixed / sticky. Absolute/fixed reveal top/right/bottom/left fields.' },
+                      { name: 'Z-Index', desc: 'Stacking order. Higher = in front.' },
+                    ],
+                  },
+                  {
+                    title: 'Flexbox Controls (when display: flex)', color: 'cyan', icon: <FiAlignLeft />,
+                    fields: [
+                      { name: 'Flex Direction', desc: 'row / row-reverse / column / column-reverse.' },
+                      { name: 'Justify Content', desc: 'flex-start / flex-end / center / space-between / space-around / space-evenly.' },
+                      { name: 'Align Items', desc: 'flex-start / flex-end / center / stretch / baseline.' },
+                      { name: 'Gap', desc: 'Space between flex children (in px).' },
+                      { name: 'Flex Wrap', desc: 'nowrap / wrap / wrap-reverse.' },
+                    ],
+                  },
+                  {
+                    title: 'Spacing — Margin & Padding', color: 'orange', icon: <FiMove />,
+                    fields: [
+                      { name: 'Margin (all sides)', desc: 'A single value sets all four sides. Individual controls for top/right/bottom/left are shown below.' },
+                      { name: 'Padding (all sides)', desc: 'Same as margin but for internal spacing.' },
+                      { name: 'Individual Side Inputs', desc: 'Four separate fields for precise control of each side independently.' },
+                    ],
+                  },
+                  {
+                    title: 'Typography', color: 'yellow', icon: <FiType />,
+                    fields: [
+                      { name: 'Font Family', desc: 'Text input — type any system font or Google Font name.' },
+                      { name: 'Font Size', desc: 'Value + unit selector (px, em, rem, %).' },
+                      { name: 'Font Weight', desc: '100–900 or normal/bold.' },
+                      { name: 'Line Height', desc: 'Numeric or unitless (e.g. 1.6).' },
+                      { name: 'Letter Spacing', desc: 'In px or em.' },
+                      { name: 'Text Align', desc: 'left / center / right / justify — shown as icon buttons.' },
+                      { name: 'Text Decoration', desc: 'none / underline / line-through / overline.' },
+                      { name: 'Text Transform', desc: 'none / uppercase / lowercase / capitalize.' },
+                      { name: 'Color', desc: 'Color picker with hex input and opacity slider.' },
+                    ],
+                  },
+                  {
+                    title: 'Backgrounds', color: 'green', icon: <FiDroplet />,
+                    fields: [
+                      { name: 'Background Color', desc: 'Color picker with full alpha/opacity control.' },
+                      { name: 'Background Image', desc: 'URL input — paste any image URL or reference an uploaded file.' },
+                      { name: 'Background Size', desc: 'cover / contain / auto or custom (e.g. 100% 100%).' },
+                      { name: 'Background Position', desc: 'Dropdown or manual (center / top left / etc.).' },
+                      { name: 'Background Repeat', desc: 'no-repeat / repeat / repeat-x / repeat-y.' },
+                      { name: 'Gradient Builder', desc: 'Toggle to gradient mode to set direction, start color, and end color for a linear-gradient().' },
+                    ],
+                  },
+                  {
+                    title: 'Borders & Radius', color: 'red', icon: <FiSquare />,
+                    fields: [
+                      { name: 'Border Width', desc: 'Uniform px value.' },
+                      { name: 'Border Style', desc: 'none / solid / dashed / dotted / double.' },
+                      { name: 'Border Color', desc: 'Color picker.' },
+                      { name: 'Border Radius', desc: 'Uniform corner rounding (px or %). Individual corners can be set via the four corner inputs.' },
+                    ],
+                  },
+                  {
+                    title: 'Effects', color: 'pink', icon: <FiStar />,
+                    fields: [
+                      { name: 'Box Shadow', desc: 'H-offset, V-offset, blur, spread, color, inset toggle.' },
+                      { name: 'Opacity', desc: '0–1 slider.' },
+                      { name: 'Transform', desc: 'Scale (X/Y), Translate (X/Y), Rotate (deg), Skew (X/Y). Composed into a single CSS transform string.' },
+                      { name: 'Transition', desc: 'Property, duration, easing, delay for CSS transitions on hover.' },
+                      { name: 'Cursor', desc: 'pointer / default / move / not-allowed / etc.' },
+                    ],
+                  },
+                ].map((group, gi) => (
+                  <div key={gi} className="space-y-3">
+                    <div className={`flex items-center gap-2 text-${group.color}-500 font-black text-xs uppercase tracking-widest`}>
+                      {group.icon} {group.title}
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-2 pl-0">
+                      {group.fields.map((f, fi) => (
+                        <div key={fi} className={`p-3 rounded-xl bg-[#0c0c0c] border border-[#1a1a1a] hover:border-${group.color}-500/15 transition-all`}>
+                          <span className="text-white text-[11px] font-black block mb-0.5">{f.name}</span>
+                          <span className="text-[10px] text-[#444] leading-relaxed">{f.desc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <InfoBox title="Sync with Code Editor" icon={<FiCode size={11} />} color="blue">
+                  Every change made in the Properties Panel is written to the element's <strong className="text-blue-400">inline style</strong> attribute in your HTML file. Switch to Code Mode (Ctrl+1) to see the generated inline styles. If the element already has a stylesheet rule, the inline style takes precedence.
+                </InfoBox>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Timeline
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="timeline" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiClock />} title="CSS Timeline" subtitle="A visual keyframe animation editor — no @keyframes knowledge required." color="red" />
+
+              <div className="space-y-8">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The Timeline Panel provides a visual interface for creating CSS @keyframes animations. Each row is a "track" that targets one CSS selector. All animation data is stored in localStorage and converted to standard CSS when you click "Apply to Page."
+                </p>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Toolbar Buttons</h3>
+                  {[
+                    { icon: <FiPlus />, label: 'Add Track (+)', desc: 'Adds a new animation track. If an element is selected in Visual Mode, the track is pre-filled with that element\'s CSS selector. Otherwise you type the selector manually (e.g. .hero, #banner, h1).', color: 'red' },
+                    { icon: <FiPlay />, label: 'Play (▶)', desc: 'Triggers a preview of all animations in the Live Preview. Animations play once so you can judge the timing and feel. The preview auto-resets after playback.', color: 'green' },
+                    { icon: <FiRotateCcw />, label: 'Reset Playhead', desc: 'Stops playback and resets the timeline scrubber to 0.00s. Use this to re-watch from the beginning.', color: 'orange' },
+                    { icon: <FiCheck />, label: 'Apply to Page (✓)', desc: 'Converts all timeline tracks into CSS @keyframes rules and a corresponding animation property. This CSS is injected into your active HTML file inside a style tag. After applying, the animations become permanent parts of your code.', color: 'blue' },
+                    { icon: <FiTrash2 />, label: 'Reset Timeline', desc: 'Clears all tracks and removes the injected animation CSS from the page. Restores the default starter tracks.', color: 'red' },
+                    { icon: <FiZoomIn />, label: 'Zoom In / Out', desc: 'Scales the timeline ruler. Zoom in for fine 0.1s-level control; zoom out to see the full animation sequence at a glance.', color: 'cyan' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Interacting with Track Bars</h3>
+                  {[
+                    { icon: <FiMove />, label: 'Drag Middle → Change Delay', desc: 'Click and drag the middle of a track bar left or right to adjust the animation-delay. Moving the bar to the right increases the delay (animation starts later). The delay value (in seconds) is shown on the track.', color: 'orange' },
+                    { icon: <FiMaximize2 />, label: 'Drag Right Edge → Change Duration', desc: 'Drag the right edge of the track bar to stretch or shrink it. The width represents the animation-duration. Wider = longer animation. The duration is shown inside the bar.', color: 'orange' },
+                    { icon: <FiCommand />, label: 'Right-Click → Track Menu', desc: 'Right-click the track bar for: Change Preset, Change Easing, Set Iteration Count (1/2/3/infinite), Duplicate Track, and Delete Track.', color: 'cyan' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Track Inspector (Clicking a Track Row)</h3>
+                  <p className="text-[11px] text-[#555] leading-relaxed">Click anywhere on the track's label row (not the bar) to expand the inspector:</p>
+                  {[
+                    { icon: <FiEdit />, label: 'CSS Selector Input', desc: 'The CSS selector this animation targets (e.g. .hero, #title, div.card:first-child). Changing this re-targets the animation.', color: 'red' },
+                    { icon: <FiStar />, label: 'Animation Preset Dropdown', desc: 'Choose from: FadeIn, FadeOut, SlideUp, SlideDown, SlideLeft, SlideRight, Zoom, ZoomOut, Bounce, Shake, Spin, Flip, Pulse, Wiggle, HeartBeat. Each preset defines a custom @keyframes.', color: 'red' },
+                    { icon: <FiTrendingUp />, label: 'Easing Function', desc: 'linear / ease / ease-in / ease-out / ease-in-out / cubic-bezier(). Controls the acceleration curve of the animation.', color: 'red' },
+                    { icon: <FiRotateCcw />, label: 'Iteration Count', desc: '1 / 2 / 3 / infinite. How many times the animation repeats before stopping.', color: 'red' },
+                    { icon: <FiDroplet />, label: 'Track Color', desc: 'A color swatch for the track bar — purely cosmetic, helps you distinguish multiple tracks visually.', color: 'red' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Animation Presets — Full List</h3>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[
-                       { title: 'Vercel / Netlify', desc: 'The easiest way. Simply upload your exported ZIP or connect a GitHub repo.' },
-                       { title: 'GitHub Pages', desc: 'Free hosting for static sites. Create a repo, push your files, and enable Pages in settings.' },
-                       { title: 'Shared Hosting', desc: 'Use FileZilla or any FTP client to upload your files to the `public_html` folder.' },
-                    ].map((step, i) => (
-                       <div key={i} className="p-6 bg-[#111] rounded-3xl border border-[#222] space-y-3">
-                          <h5 className="text-white font-black uppercase tracking-widest text-[10px] text-blue-500">Method 0{i+1}</h5>
-                          <h4 className="text-white font-bold">{step.title}</h4>
-                          <p className="text-xs text-[#666] leading-relaxed">{step.desc}</p>
-                       </div>
+                      { name: 'FadeIn', desc: 'Fades from 0 opacity to 1', css: 'opacity: 0 → opacity: 1' },
+                      { name: 'FadeOut', desc: 'Fades from 1 opacity to 0', css: 'opacity: 1 → opacity: 0' },
+                      { name: 'SlideUp', desc: 'Slides up from below while fading in', css: 'translateY(40px) → translateY(0)' },
+                      { name: 'SlideDown', desc: 'Slides down from above while fading in', css: 'translateY(-40px) → translateY(0)' },
+                      { name: 'SlideLeft', desc: 'Slides in from the right', css: 'translateX(60px) → translateX(0)' },
+                      { name: 'SlideRight', desc: 'Slides in from the left', css: 'translateX(-60px) → translateX(0)' },
+                      { name: 'Zoom', desc: 'Scales from 0 to full size (pop in)', css: 'scale(0) → scale(1)' },
+                      { name: 'ZoomOut', desc: 'Scales from full size to 0 (pop out)', css: 'scale(1) → scale(0)' },
+                      { name: 'Bounce', desc: 'Bounces in with elastic overshoot', css: 'scale(0) → scale(1.1) → scale(1)' },
+                      { name: 'Shake', desc: 'Horizontal shake (error/attention)', css: 'translateX(-8px) ↔ translateX(8px)' },
+                      { name: 'Spin', desc: 'Full 360° rotation', css: 'rotate(0deg) → rotate(360deg)' },
+                      { name: 'Flip', desc: 'Card-flip effect on Y axis', css: 'rotateY(0deg) → rotateY(360deg)' },
+                      { name: 'Pulse', desc: 'Gently scales up and back (heartbeat)', css: 'scale(1) → scale(1.08) → scale(1)' },
+                      { name: 'Wiggle', desc: 'Slight rotation back-and-forth', css: 'rotate(-4deg) ↔ rotate(4deg)' },
+                      { name: 'HeartBeat', desc: 'Quick double-pulse like a heartbeat', css: 'scale(1) → scale(1.15) → scale(1) → scale(1.15)' },
+                    ].map((p, i) => <PresetCard key={i} {...p} />)}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Menus
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="menu-file" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiMenu />} title="Menus & Commands" subtitle="Every menu option explained in full detail." color="cyan" />
+
+              {/* File Menu */}
+              <div className="space-y-5">
+                <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-cyan-500 pl-3">File Menu</h3>
+                {[
+                  { icon: <FiFilePlus />, label: 'New File', shortcut: 'Ctrl+N', desc: 'Opens the "Create File" dialog. Type the full file name including extension (.html, .css, .js, .json, .md). The file is created empty and becomes the active file.', color: 'cyan' },
+                  { icon: <FiFolderPlus />, label: 'New Folder', desc: 'Opens a browser prompt for the folder name. The folder appears in the File Explorer. Files can be moved into it via right-click → Move to Folder.', color: 'cyan' },
+                  { icon: <FiSave />, label: 'Save All', shortcut: 'Ctrl+S', desc: 'Explicitly saves all files to localStorage and shows a toast notification "All files saved ✓". Note: files are also auto-saved on every keystroke, so this is mostly a confirmation action.', color: 'cyan' },
+                  { icon: <FiUpload />, label: 'Import Files…', desc: 'Opens the OS file picker. Select one or more files. HTML/CSS/JS/MD/TXT/JSON files are imported as text. Image files (PNG, JPG, GIF, SVG, WEBP) are read as base64 data URLs and stored as image-type assets.', color: 'blue' },
+                  { icon: <FiDownload />, label: 'Export as ZIP', shortcut: 'Ctrl+E', desc: 'Uses JSZip to bundle all project files (HTML, CSS, JS, images, etc.) into a .zip archive and triggers a browser download. The file is named "project.zip". No server is involved — this is entirely client-side.', color: 'orange' },
+                ].map((item, i) => <FeatureRow key={i} {...item} />)}
+              </div>
+            </section>
+
+            <section id="menu-export" className="scroll-mt-28 space-y-5">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-orange-500 pl-3">Export Menu</h3>
+              {[
+                { icon: <FiDownload />, label: 'Export ZIP (All Files)', desc: 'Packages every file in your project — HTML, CSS, JS, images, and any other file type — into a single project.zip download. This is the recommended way to download your entire project.', color: 'orange' },
+                { icon: <FiFileText />, label: 'Export HTML Only', desc: 'Downloads a ZIP containing only the .html files from your project. Useful when you want to share markup without styles or scripts.', color: 'orange' },
+                { icon: <FiDroplet />, label: 'Export CSS Only', desc: 'Downloads a ZIP containing only the .css files.', color: 'orange' },
+                { icon: <FiCode />, label: 'Export JS Only', desc: 'Downloads a ZIP containing only the .js files.', color: 'orange' },
+                { icon: <FiCopy />, label: 'Copy HTML to Clipboard', desc: 'Copies the full content of the active HTML file to your clipboard. A toast confirms "HTML copied". Paste directly into any other editor or CMS.', color: 'cyan' },
+              ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            <section id="menu-tools" className="scroll-mt-28 space-y-5">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-blue-500 pl-3">Tools Menu</h3>
+              {[
+                { icon: <FiCheckCircle />, label: 'Validate HTML', desc: 'Uses the browser\'s DOMParser to parse your HTML. If the parser finds a <parsererror> node it reports issues; otherwise shows "HTML looks valid". This catches unclosed tags, bad attribute syntax, and structural errors.', color: 'green' },
+                { icon: <FiSearch />, label: 'Check Accessibility', desc: 'Scans your HTML for common a11y issues: images without alt attributes, and buttons without text content or aria-label. Reports counts like "A11y: missing alt(3), unlabeled buttons(1)". Does not perform a full WCAG audit.', color: 'blue' },
+                { icon: <FiTrash2 />, label: 'Clear Console', desc: 'Empties the internal console log that captures output from your page\'s JavaScript. Does not affect the browser\'s developer console.', color: 'red' },
+                { icon: <FiRefreshCw />, label: 'Hard Refresh Preview', shortcut: 'Ctrl+R', desc: 'Increments the preview\'s refresh key, forcing a full iframe reload. All scripts re-execute from the top. Use this if the preview gets into a bad state.', color: 'cyan' },
+                { icon: <FiLayers />, label: 'Format HTML', desc: 'Runs the active HTML file through a basic indentation formatter. Collapses excess whitespace, normalizes newlines, and re-indents nested tags with 2-space indentation. Applied in-place to the code editor.', color: 'purple' },
+                { icon: <FiScissors />, label: 'Minify HTML', desc: 'Strips all unnecessary whitespace, newlines, and indentation from the active HTML file. The result is a single-line compact string — ideal for production deployment where file size matters.', color: 'purple' },
+              ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            <section id="menu-window" className="scroll-mt-28 space-y-5">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-purple-500 pl-3">Window Menu</h3>
+              <p className="text-[11px] text-[#555] leading-relaxed">The Window menu is dynamically generated based on the current panel state. It shows the status of each panel (docked, floating, minimized, hidden) and lets you control all of them.</p>
+              {[
+                { icon: <FiGrid />, label: 'Layout Presets (Ctrl+1/2/3)', desc: 'Switches the entire workspace to a predefined panel configuration. Code (Ctrl+1): files + full-width editor. Visual (Ctrl+2): files + canvas + properties + timeline. Split (Ctrl+3): files + editor + preview.', color: 'purple' },
+                { icon: <FiMonitor />, label: 'Panel Toggles (per panel)', desc: 'Each panel has an entry showing its current state (docked / floating / minimized / hidden) with a badge. Clicking it toggles the panel\'s visibility.', color: 'purple' },
+                { icon: <FiLayers />, label: 'Open in Docked Slot', desc: 'Opens a hidden or floating panel back into its designated dock slot for the current mode.', color: 'purple' },
+                { icon: <FiMaximize2 />, label: 'Open as Floating', desc: 'Opens a panel as a free-floating window at its default floating position and size.', color: 'purple' },
+                { icon: <FiRotateCcw />, label: 'Reset Layout to Defaults', desc: 'Clears the saved panel layout from localStorage and restores all panels to their factory default positions and sizes for the current mode.', color: 'orange' },
+              ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            <section id="menu-help" className="scroll-mt-28 space-y-5">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-green-500 pl-3">Help Menu</h3>
+              {[
+                { icon: <FiBookOpen />, label: 'User Guide / Documentation', desc: 'Opens this documentation page (/docs).', color: 'green' },
+                { icon: <FiShield />, label: 'Privacy Policy', desc: 'Opens the Privacy Policy page (/privacy).', color: 'green' },
+                { icon: <FiFileText />, label: 'Terms of Service', desc: 'Opens the Terms of Service page (/terms).', color: 'green' },
+                { icon: <FiTerminal />, label: 'Keyboard Shortcuts', desc: 'Shows a quick toast notification listing the most important shortcuts. See the full shortcuts table in the Reference section below.', color: 'cyan' },
+                { icon: <FiInfo />, label: 'About HTML Editor v2.0', desc: 'Shows a toast with the app version and brief description.', color: 'gray' },
+              ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: AI Copilot
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="ai-copilot" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiCpu />} title="AI Copilot System" subtitle="Inline AI code suggestions that understand your file context." color="yellow" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  The AI Copilot is an inline completion system that analyzes the content of your currently open file and offers contextually relevant code suggestions. It works directly inside the Monaco editor as ghost text (grey inline suggestions).
+                </p>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest" id="ai-states">AI Status States</h3>
+                  <div className="space-y-2">
+                    {[
+                      { dot: '#ffffff55', state: '✦ AI  (Idle)', badge: 'IDLE', desc: 'The AI is ready but no suggestion has been triggered. Click the button to request one, or just keep typing — a suggestion will be generated automatically after a short pause.', color: 'gray' },
+                      { dot: '#fbbf24', state: '⟳ AI…', badge: 'LOADING', desc: 'The AI is currently processing your file context and generating a suggestion. This typically takes 1–3 seconds.', color: 'yellow' },
+                      { dot: '#4ade80', state: '✓ AI  (Ready)', badge: 'READY', desc: 'A suggestion is available. The ghost text is visible in the editor. Press Tab to accept the full suggestion, or keep typing to ignore it.', color: 'green' },
+                      { dot: '#f87171', state: '✗ AI  (Error)', badge: 'ERROR', desc: 'The AI request failed. Click the button to retry. This may happen if the service is temporarily unavailable.', color: 'red' },
+                    ].map((s, i) => (
+                      <div key={i} className={`flex items-start gap-4 p-4 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${s.color}-500/20 transition-all`}>
+                        <div className="mt-0.5 flex-shrink-0">
+                          <div className="w-3 h-3 rounded-full" style={{ background: s.dot, boxShadow: s.dot !== '#ffffff55' ? `0 0 8px ${s.dot}` : 'none' }} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-white text-xs font-black font-mono">{s.state}</span>
+                            <Tag color={s.color === 'gray' ? 'orange' : s.color}>{s.badge}</Tag>
+                          </div>
+                          <p className="text-[11px] text-[#555] leading-relaxed">{s.desc}</p>
+                        </div>
+                      </div>
                     ))}
-                 </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest">Using the AI</h3>
+                  {[
+                    { icon: <FiZap />, label: 'Auto-Trigger', desc: 'The AI automatically generates a suggestion after you stop typing for about 1.5 seconds. You do not need to do anything special.', color: 'yellow' },
+                    { icon: <FiMousePointer />, label: 'Manual Trigger', desc: 'Click the AI Status Button in the bottom status bar to immediately clear the cache and request a fresh suggestion.', color: 'yellow' },
+                    { icon: <FiCheck />, label: 'Accept Suggestion (Tab)', desc: 'When the dot is green (✓ AI), the ghost text is visible in the editor. Press Tab to accept and insert the suggestion at the cursor position.', color: 'green' },
+                    { icon: <FiX />, label: 'Dismiss Suggestion (Esc)', desc: 'Press Escape or continue typing to dismiss the current suggestion. The AI will generate a new one the next time it triggers.', color: 'red' },
+                    { icon: <FiRotateCcw />, label: 'Refresh / Clear Cache', desc: 'Clicking the AI button also clears the suggestion cache so you always get a fresh result based on your current code, not a cached previous suggestion.', color: 'orange' },
+                  ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                </div>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Window / Docking System
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="docking" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiLayers />} title="Dock & Float System" subtitle="Every panel can be freely floated or snapped to its dock slot." color="purple" />
+
+              <div className="space-y-8">
+                <p className="text-[#666] text-sm leading-relaxed font-medium">
+                  HTML Editor uses a hybrid window management system. Panels can operate in two modes: <strong className="text-white">Docked</strong> (snapped into the workspace grid) or <strong className="text-white">Floating</strong> (a free-floating, draggable, resizable window on top of the workspace).
+                </p>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <h3 className="text-white font-black text-xs uppercase tracking-widest mb-4 text-purple-400">Docked Panels</h3>
+                    {[
+                      { icon: <FiLock />, label: 'What is "Docked"?', desc: 'A docked panel occupies a predefined slot in the workspace layout. It resizes relative to other docked panels and stays in place when you scroll.', color: 'purple' },
+                      { icon: <FiArrowRight />, label: 'How to Float a Docked Panel', desc: 'Right-click the panel\'s title bar and select "Float Window". The panel detaches from its slot and becomes a free-floating window.', color: 'purple' },
+                    ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h3 className="text-white font-black text-xs uppercase tracking-widest mb-4 text-orange-400">Floating Windows</h3>
+                    {[
+                      { icon: <FiUnlock />, label: 'What is "Floating"?', desc: 'A floating panel is a movable window that sits on top of the workspace. Drag its title bar to reposition it anywhere. Resize it by dragging any edge or corner.', color: 'orange' },
+                      { icon: <FiTarget />, label: 'How to Dock a Floating Window', desc: 'Drag the floating window\'s title bar near a snap zone. When the zone highlights blue with "Drop to dock here", release the mouse. The panel snaps into that slot.', color: 'orange' },
+                    ].map((item, i) => <FeatureRow key={i} {...item} />)}
+                  </div>
+                </div>
+
+                <InfoBox title="Z-Index & Focus" icon={<FiLayers size={11} />} color="purple">
+                  Clicking any floating window brings it to the front (highest z-index). The focus order is tracked with an internal counter that increments on every window activation — so the most recently clicked window is always on top.
+                </InfoBox>
+              </div>
+            </section>
+
+            <section id="resizing" className="scroll-mt-28 space-y-6">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-purple-500 pl-3">Resizing Panels</h3>
+              <p className="text-[#666] text-sm leading-relaxed">
+                Docked panels are separated by resize dividers. These are invisible 4px-wide hit areas between panels. Hover over them to see a blue highlight and a resize cursor. Drag to adjust the split.
+              </p>
+              {[
+                { icon: <FiMove />, label: 'Left Divider (File Explorer ↔ Editor)', desc: 'Drag the vertical divider between the File Explorer and the Code Editor to make the file panel wider or narrower. Minimum 120px, maximum 400px.', color: 'purple' },
+                { icon: <FiMove />, label: 'Right Divider (Editor ↔ Preview)', desc: 'In Split Mode, drag the vertical divider between the Code Editor and the Preview to redistribute horizontal space between them.', color: 'purple' },
+                { icon: <FiMove />, label: 'Bottom Divider (Canvas ↔ Timeline)', desc: 'In Visual Mode, drag the horizontal divider between the canvas and the Timeline Panel to give the timeline more or less height.', color: 'purple' },
+                { icon: <FiMove />, label: 'Right Divider (Canvas ↔ Properties)', desc: 'In Visual Mode, drag the vertical divider between the canvas and the Properties Panel.', color: 'purple' },
+              ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            <section id="snap-zones" className="scroll-mt-28 space-y-6">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-purple-500 pl-3">Snap Zones</h3>
+              <p className="text-[#666] text-sm leading-relaxed">
+                When you drag a floating window, transparent dock slot outlines (snap zones) appear over the workspace. These are the valid dock slots for the current mode. Hovering over a zone highlights it blue and shows "Drop to dock here." Release the window over a zone to snap it into that slot.
+              </p>
+              <InfoBox title="Available Snap Zones by Mode" icon={<FiTarget size={11} />} color="purple">
+                <strong className="text-purple-400">Code Mode:</strong> File Explorer slot, Code Editor slot.<br />
+                <strong className="text-purple-400">Split Mode:</strong> File Explorer slot, Code Editor slot, Preview slot.<br />
+                <strong className="text-purple-400">Visual Mode:</strong> File Explorer slot, Canvas slot, Properties slot, Timeline slot.
+              </InfoBox>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Storage
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="persistence" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiDatabase />} title="Auto-Save & Storage" subtitle="All project data persists in localStorage — no server required." color="green" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed">
+                  HTML Editor stores all data in <strong className="text-white">localStorage</strong> — your browser's built-in key-value storage. Data is specific to the domain and browser tab. It persists indefinitely until you clear browser storage or explicitly delete files.
+                </p>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#1a1a1a]">
+                        <th className="text-left text-[#333] font-black py-2 pr-6 uppercase tracking-widest text-[9px]">Storage Key</th>
+                        <th className="text-left text-[#333] font-black py-2 uppercase tracking-widest text-[9px]">What It Stores</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#0c0c0c]">
+                      {[
+                        ['html-editor-files-v1', 'All project files (name, type, content, folder assignment)'],
+                        ['html-editor-folders-v1', 'Folder names list'],
+                        ['html-editor-active-file-v1', 'The last active (open) file ID'],
+                        ['html-editor-timeline-state-v1', 'All timeline tracks, playhead position, and animation state'],
+                        ['html-editor-win-layout-v6', 'Window positions, sizes, docked/floating/visible state'],
+                        ['html-editor-dock-sizes-v2', 'Divider positions (panel widths and heights)'],
+                      ].map(([key, desc], i) => (
+                        <tr key={i} className="hover:bg-white/[0.01]">
+                          <td className="py-2.5 pr-6 font-mono text-green-400/70 text-[10px]">{key}</td>
+                          <td className="py-2.5 text-[#555]">{desc}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <InfoBox title="Storage Quota" icon={<FiAlertCircle size={11} />} color="orange">
+                  Browsers typically allow 5–10 MB of localStorage per origin. Large image files stored as base64 can fill this quickly. If storage fills up, file saves are silently skipped (no error). Export your project as a ZIP regularly as a backup.
+                </InfoBox>
+
+                <InfoBox title="Clearing Storage" icon={<FiTrash2 size={11} />} color="red">
+                  To fully reset the editor (delete all files and settings), open your browser's DevTools (F12) → Application → Local Storage → right-click the origin → Clear. Reload the page and the starter project is recreated.
+                </InfoBox>
+              </div>
+            </section>
+
+            <section id="import-export" className="scroll-mt-28 space-y-6">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest border-l-4 border-green-500 pl-3">Import & Export</h3>
+              {[
+                { icon: <FiUpload />, label: 'Importing Files', desc: 'Go to File → Import Files… to open the OS file picker. You can select multiple files at once. Alternatively, drag files from your OS directly onto the File Explorer panel. Text files are imported as-is; images are base64-encoded.', color: 'green' },
+                { icon: <FiDownload />, label: 'Exporting as ZIP', shortcut: 'Ctrl+E', desc: 'Packages all files using JSZip in the browser, no server needed. The ZIP preserves folder structure (subfolders map to their folder names). The download is triggered via FileSaver.js. Image files are stored as their original binary in the ZIP.', color: 'orange' },
+                { icon: <FiCopy />, label: 'Copying to Clipboard', desc: 'Export → Copy HTML to Clipboard puts the full HTML file content on your clipboard. Ready to paste into any external editor, GitHub, or CMS.', color: 'cyan' },
+              ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Keyboard Shortcuts
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="shortcuts" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiTerminal />} title="All Keyboard Shortcuts" subtitle="Every global shortcut in HTML Editor Pro." color="orange" />
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#1a1a1a]">
+                      <th className="text-left text-[#333] font-black uppercase tracking-widest py-3 pr-8 text-[9px]">Action</th>
+                      <th className="text-left text-[#333] font-black uppercase tracking-widest py-3 text-[9px]">Shortcut</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#0c0c0c]">
+                    {[
+                      ['Switch to Code Layout', 'Ctrl+1'],
+                      ['Switch to Visual Layout', 'Ctrl+2'],
+                      ['Switch to Split Layout', 'Ctrl+3'],
+                      ['Save All Files', 'Ctrl+S'],
+                      ['Export as ZIP', 'Ctrl+E'],
+                      ['Hard Refresh Preview', 'Ctrl+R'],
+                      ['New File', 'Ctrl+N'],
+                      ['Find in Editor', 'Ctrl+F'],
+                      ['Find & Replace in Editor', 'Ctrl+H'],
+                      ['Go to Line', 'Ctrl+G'],
+                      ['Undo (in editor)', 'Ctrl+Z'],
+                      ['Redo (in editor)', 'Ctrl+Y'],
+                      ['Comment / Uncomment Line', 'Ctrl+/'],
+                      ['Accept AI Suggestion', 'Tab'],
+                      ['Format Document (Monaco)', 'Shift+Alt+F'],
+                      ['Open Monaco Command Palette', 'F1'],
+                    ].map(([action, shortcut], i) => (
+                      <tr key={i} className="hover:bg-white/[0.02]">
+                        <td className="py-2.5 pr-8 text-[#777] font-medium">{action}</td>
+                        <td className="py-2.5"><KbdKey>{shortcut}</KbdKey></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: Mobile Interface
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="mobile" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiSmartphone />} title="Mobile Interface" subtitle="A purpose-built layout for touchscreens and small displays." color="pink" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed">
+                  When the screen width is less than 768px, HTML Editor automatically switches to the <strong className="text-white">Mobile Interface</strong> — a tabbed single-panel layout optimized for touch and smaller screens.
+                </p>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[
+                    { icon: <FiFolder />, label: 'Files Tab', desc: 'Full File Explorer — create, rename, delete, and switch between files.', color: 'orange' },
+                    { icon: <FiCode />, label: 'Code Tab', desc: 'Full Monaco Editor — write HTML, CSS, and JavaScript with syntax highlighting.', color: 'blue' },
+                    { icon: <FiEye />, label: 'Preview Tab', desc: 'Live Preview (in Split/Code mode) or the Visual Designer canvas (in Visual mode).', color: 'green' },
+                    { icon: <FiSliders />, label: 'Props Tab', desc: 'Properties Panel — CSS controls for the selected element (Visual mode only).', color: 'purple' },
+                  ].map((tab, i) => (
+                    <div key={i} className={`p-4 rounded-xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${tab.color}-500/20 transition-all`}>
+                      <div className={`text-${tab.color}-500 mb-2`}>{tab.icon}</div>
+                      <h4 className="text-white font-black text-xs tracking-tight mb-1">{tab.label}</h4>
+                      <p className="text-[10px] text-[#444] leading-relaxed">{tab.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <InfoBox title="Mobile Export" icon={<FiDownload size={11} />} color="orange">
+                  The "ZIP" button in the top-right of the mobile header works identically to the desktop Export menu — it downloads a project.zip with all files.
+                </InfoBox>
+
+                <InfoBox title="Mode Toggle on Mobile" icon={<FiGrid size={11} />} color="blue">
+                  A compact mode switcher in the mobile header lets you toggle between Split View (Preview tab shows the live preview) and Visual mode (Preview tab shows the interactive canvas). Timeline, Code Mode preset, and other desktop modes are not available on mobile.
+                </InfoBox>
+              </div>
+            </section>
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: FAQ
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="faq" className="scroll-mt-28 space-y-8">
+              <SectionDivider icon={<FiSearch />} title="Frequently Asked Questions" subtitle="Common questions answered clearly." color="orange" />
+
+              <div className="space-y-4">
+                {[
+                  {
+                    q: 'Is HTML Editor completely free?',
+                    a: 'Yes. HTML Editor Pro is 100% free with no subscription, no login, and no account required. It runs entirely in your browser.',
+                  },
+                  {
+                    q: 'Does my data leave my browser?',
+                    a: 'No. All files are stored in your browser\'s localStorage. Nothing is uploaded to any server. The only external requests are the Monaco editor assets (loaded from a CDN once) and the AI suggestion service (if AI Copilot is enabled).',
+                  },
+                  {
+                    q: 'What happens if I close the browser tab?',
+                    a: 'All your files and settings are saved automatically to localStorage. When you reopen the editor, everything is exactly as you left it — the same files, the same active file, the same panel layout, and the same timeline tracks.',
+                  },
+                  {
+                    q: 'Can I use external CSS frameworks like Bootstrap or Tailwind?',
+                    a: 'Yes. Add a link tag to your HTML pointing to any CDN URL (e.g. https://cdn.jsdelivr.net/npm/bootstrap@5/dist/css/bootstrap.min.css). The Live Preview loads it from the internet and renders it correctly.',
+                  },
+                  {
+                    q: 'Can I use JavaScript libraries like jQuery, React, or Vue?',
+                    a: 'Yes. Add a script tag pointing to a CDN in your HTML. Plain JS libraries work without any build tools. For React/Vue with JSX or SFC syntax, you would need a CDN build like the standalone React/ReactDOM UMD build or Vue 3 CDN version.',
+                  },
+                  {
+                    q: 'The preview is not updating — what do I do?',
+                    a: 'Press Ctrl+R for a Hard Refresh. If the preview still does not update, try Tools → Hard Refresh Preview. If neither works, check that you are editing the correct file (the active file shown in the status bar) and that there are no JavaScript errors in the file.',
+                  },
+                  {
+                    q: 'How do I link my CSS file to my HTML?',
+                    a: 'Add a link tag (rel="stylesheet" href="styles.css") inside the head of your HTML. The preview automatically resolves linked files within your project. The file name must match exactly (case-sensitive).',
+                  },
+                  {
+                    q: 'How do I link my JS file to my HTML?',
+                    a: 'Add a script tag (src="script.js") at the bottom of your body element. The preview resolves it from your project files automatically.',
+                  },
+                  {
+                    q: 'Can I open multiple projects at the same time?',
+                    a: 'Not natively — the editor stores one project per browser origin. To work on a second project simultaneously, open the editor in a different browser (e.g. Chrome and Firefox). To switch projects, export the current one as a ZIP, then import the new project\'s files.',
+                  },
+                  {
+                    q: 'Where is the CSS Timeline output stored?',
+                    a: 'When you click "Apply to Page," the generated CSS is injected into a style tag (id="timeline-animations") inside your active HTML file. You can see and edit it directly in the Code Editor.',
+                  },
+                  {
+                    q: 'Can I host my exported project for free?',
+                    a: 'Yes. Export your ZIP, unzip it, and upload the files to Netlify Drop (drop.netlify.com), GitHub Pages, Vercel, Cloudflare Pages, or any static hosting service. No server-side code is required.',
+                  },
+                  {
+                    q: 'Does the Visual Designer modify my code?',
+                    a: 'Yes — every visual change (move, resize, rotate, style via Properties Panel) is written back to your HTML as inline styles on the affected element. This keeps the visual canvas and the code perfectly in sync at all times.',
+                  },
+                  {
+                    q: 'Which browsers are supported?',
+                    a: 'HTML Editor Pro works on all modern evergreen browsers: Chrome 90+, Edge 90+, Firefox 90+, Safari 15+, Opera 76+, and Brave. Mobile Safari (iOS 15+) and Chrome for Android are supported with a touch-optimized UI. Internet Explorer 11 is not supported because the Monaco editor and modern ES modules are required.',
+                  },
+                  {
+                    q: 'How much storage does the editor use?',
+                    a: 'Files, panel layout, animation tracks, and theme preference are stored in localStorage (typical browser limit ~5–10 MB per origin). Large binary assets (e.g. images, fonts) should be referenced from a CDN to avoid hitting the limit. Use Tools → Clear All to reset storage if you ever run out of space.',
+                  },
+                  {
+                    q: 'Does the editor work offline?',
+                    a: 'Yes. After the first load, the service worker caches the editor shell so it can launch without an internet connection. CDN-loaded resources inside your preview (Bootstrap, fonts, etc.) still require connectivity at runtime.',
+                  },
+                  {
+                    q: 'How do I make my exported page rank on Google?',
+                    a: 'Open the /seo tutorial page bundled with the editor. It walks through every essential meta tag, Open Graph, Twitter Card, structured data (JSON-LD), favicons, sitemap.xml, robots.txt, image alt text, semantic HTML, and Core Web Vitals — the same checklist this site uses.',
+                  },
+                  {
+                    q: 'Is there a dark mode?',
+                    a: 'The entire UI is a refined VS Code-style dark theme by default. Live Preview always renders your page exactly as a browser would, regardless of the editor theme.',
+                  },
+                  {
+                    q: 'Can I collaborate with others in real time?',
+                    a: 'Real-time collaboration is not available — the editor is fully client-side and stores files locally. To share work, export a ZIP and send it, or push it to a Git repository.',
+                  },
+                ].map((item, i) => (
+                  <details key={i} className="group p-5 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-orange-500/20 transition-all open:border-orange-500/30 open:bg-[#111]">
+                    <summary className="text-white text-xs font-black uppercase tracking-tight cursor-pointer list-none flex items-center justify-between gap-4">
+                      {item.q}
+                      <FiChevronRight size={13} className="text-[#333] group-open:rotate-90 transition-transform flex-shrink-0" />
+                    </summary>
+                    <p className="text-[11px] text-[#555] leading-relaxed mt-3 pl-0">{item.a}</p>
+                  </details>
+                ))}
               </div>
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-[#1a1a1a] pt-24 pb-32 text-center space-y-10">
-              <div className="flex justify-center items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-[#e34c26] flex items-center justify-center text-white font-black text-sm shadow-2xl shadow-orange-500/20">H</div>
-                 <span className="text-white font-black tracking-[0.4em] text-sm uppercase">HTML Editor Pro v2.0</span>
-              </div>
-              <p className="text-[#444] text-sm font-bold max-w-xl mx-auto leading-relaxed italic">
-                "Built for the dreamers, the coders, and the designers who refuse to compromise."
-              </p>
-              <div className="flex justify-center gap-10 text-[11px] font-black text-[#222] uppercase tracking-[0.3em]">
-                <Link href="/privacy" className="hover:text-orange-500 transition-colors no-underline">Privacy Policy</Link>
-                <Link href="/terms" className="hover:text-orange-500 transition-colors no-underline">Terms of Service</Link>
-                <a href="#" className="hover:text-orange-500 transition-colors">Contact Engineering</a>
+            <footer className="border-t border-[#111] pt-12 pb-8 text-center space-y-3">
+              <div className="w-10 h-10 rounded-xl bg-[#e34c26] flex items-center justify-center text-white font-black mx-auto shadow-lg shadow-orange-600/20">H</div>
+              <p className="text-[#333] text-xs font-medium">HTML Editor Pro v2.0 · Free, browser-based, no login required</p>
+              <p className="text-[#222] text-[10px]">© 2024 Jignesh D Maru · Built with ♥ for the web developer community</p>
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <Link href="/" className="text-[11px] text-[#333] hover:text-orange-500 transition-colors no-underline font-bold">Open Editor</Link>
+                <Link href="/privacy" className="text-[11px] text-[#333] hover:text-orange-500 transition-colors no-underline font-bold">Privacy</Link>
+                <Link href="/terms" className="text-[11px] text-[#333] hover:text-orange-500 transition-colors no-underline font-bold">Terms</Link>
               </div>
             </footer>
-          </div>
+
+          </main>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
