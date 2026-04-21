@@ -10,7 +10,7 @@ import {
   FiSave, FiFilePlus, FiPause, FiStopCircle, FiAlignLeft, FiAlignCenter,
   FiAlignRight, FiUnderline, FiBold, FiItalic, FiMinus, FiCornerDownRight,
   FiPackage, FiDatabase, FiGlobe, FiSmartphone, FiTablet, FiStar, FiArrowRight,
-  FiRotateCcw, FiLock, FiUnlock, FiTarget, FiTrendingUp, FiShield,
+  FiRotateCcw, FiLock, FiUnlock, FiTarget, FiTrendingUp, FiShield, FiList,
 } from 'react-icons/fi';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -64,16 +64,64 @@ const FeatureRow: React.FC<{ icon: React.ReactNode; label: string; desc: string;
 const SectionDivider: React.FC<{ icon: React.ReactNode; title: string; subtitle: string; color?: string }> = ({
   icon, title, subtitle, color = 'orange',
 }) => (
-  <div className={`flex items-center gap-6 mb-12 pb-8 border-b border-[#1a1a1a]`}>
-    <div className={`w-14 h-14 rounded-2xl bg-${color}-500/10 border border-${color}-500/20 flex items-center justify-center text-${color}-500 flex-shrink-0 shadow-lg shadow-${color}-500/10`}>
-      {React.cloneElement(icon as React.ReactElement, { size: 26 })}
+  <div className={`flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 pb-6 sm:pb-8 border-b border-[#1a1a1a]`}>
+    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-${color}-500/10 border border-${color}-500/20 flex items-center justify-center text-${color}-500 flex-shrink-0 shadow-lg shadow-${color}-500/10`}>
+      {React.cloneElement(icon as React.ReactElement, { size: 22 })}
     </div>
-    <div>
-      <h2 className={`text-3xl font-black text-white tracking-tighter`}>{title}</h2>
-      <p className="text-[#555] text-sm font-medium mt-0.5">{subtitle}</p>
+    <div className="min-w-0">
+      <h2 className={`text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tighter break-words`}>{title}</h2>
+      <p className="text-[#555] text-xs sm:text-sm font-medium mt-0.5">{subtitle}</p>
     </div>
   </div>
 );
+
+const InArticleAd: React.FC = () => {
+  React.useEffect(() => {
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      /* AdSense blocked or not loaded */
+    }
+  }, []);
+  return (
+    <div className="my-8 px-2">
+      <p className="text-[9px] font-black text-[#2a2a2a] uppercase tracking-[0.3em] mb-2 text-center">Advertisement</p>
+      <ins
+        className="adsbygoogle"
+        style={{ display: 'block', textAlign: 'center' }}
+        data-ad-layout="in-article"
+        data-ad-format="fluid"
+        data-ad-client="ca-pub-1826192920016393"
+        data-ad-slot="9844179549"
+      />
+    </div>
+  );
+};
+
+const SidebarAd: React.FC = () => {
+  React.useEffect(() => {
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      /* AdSense blocked or not loaded */
+    }
+  }, []);
+  return (
+    <div className="mt-8 pt-6 border-t border-[#141414]">
+      <p className="text-[9px] font-black text-[#2a2a2a] uppercase tracking-[0.3em] mb-2 px-3">Advertisement</p>
+      <ins
+        className="adsbygoogle"
+        style={{ display: 'block' }}
+        data-ad-client="ca-pub-1826192920016393"
+        data-ad-slot="7872622325"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </div>
+  );
+};
 
 const PresetCard: React.FC<{ name: string; desc: string; css: string }> = ({ name, desc, css }) => (
   <div className="p-4 bg-[#0c0c0c] border border-[#1e1e1e] rounded-2xl hover:border-red-500/20 transition-all group">
@@ -166,34 +214,118 @@ const NAV_SECTIONS = [
 
 const Documentation: React.FC = () => {
   const [activeSection, setActiveSection] = useState('overview');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   React.useEffect(() => {
-    document.title = 'Full Documentation | HTML Editor Pro';
-    const meta = document.querySelector('meta[name="description"]');
-    if (meta) meta.setAttribute('content', 'Complete detailed documentation for HTML Editor Pro — every panel, every menu, every shortcut explained step by step.');
+    document.title = 'HTML Editor Pro Documentation — Online HTML, CSS & JavaScript Editor Guide';
+    const setMeta = (name: string, content: string, attr: 'name' | 'property' = 'name') => {
+      let el = document.querySelector(`meta[${attr}="${name}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+    setMeta('description', 'Complete documentation for HTML Editor Pro — the free online HTML, CSS and JavaScript editor with Monaco code editor, drag-and-drop visual designer, CSS animation timeline, live preview and ZIP export. Step-by-step guides, keyboard shortcuts and FAQ.');
+    setMeta('keywords', 'HTML editor documentation, online HTML editor guide, HTML editor tutorial, Monaco editor docs, free HTML CSS JS editor, HTML editor keyboard shortcuts, CSS animation timeline tutorial, drag and drop HTML builder docs, HTML editor FAQ, learn HTML editor, web editor manual');
+    setMeta('og:title', 'HTML Editor Pro — Complete Documentation', 'property');
+    setMeta('og:description', 'Every panel, menu, shortcut and feature of the free online HTML editor explained step by step.', 'property');
+    setMeta('og:url', 'https://html-viewer-gray-beta.vercel.app/docs', 'property');
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', 'https://html-viewer-gray-beta.vercel.app/docs');
+
+    const ldId = '__docs_jsonld__';
+    document.getElementById(ldId)?.remove();
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = ldId;
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'TechArticle',
+          '@id': 'https://html-viewer-gray-beta.vercel.app/docs#article',
+          headline: 'HTML Editor Pro — Complete Documentation',
+          description: 'Step-by-step documentation covering every panel, menu, keyboard shortcut, animation preset and feature of the free online HTML editor.',
+          inLanguage: 'en',
+          url: 'https://html-viewer-gray-beta.vercel.app/docs',
+          datePublished: '2026-04-17',
+          dateModified: '2026-04-21',
+          author: { '@type': 'Person', name: 'Jignesh D Maru' },
+          publisher: { '@type': 'Person', name: 'Jignesh D Maru' },
+          image: 'https://html-viewer-gray-beta.vercel.app/og-image.jpg',
+          proficiencyLevel: 'Beginner',
+          articleSection: ['Getting Started', 'Panels', 'Menus', 'AI', 'Window System', 'Storage', 'Reference', 'FAQ'],
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://html-viewer-gray-beta.vercel.app/' },
+            { '@type': 'ListItem', position: 2, name: 'Documentation', item: 'https://html-viewer-gray-beta.vercel.app/docs' },
+          ],
+        },
+        {
+          '@type': 'HowTo',
+          name: 'How to build a web page with HTML Editor Pro in 5 steps',
+          description: 'Create, edit, design visually, animate and export a complete web page using the free online HTML editor.',
+          totalTime: 'PT3M',
+          inLanguage: 'en',
+          step: [
+            { '@type': 'HowToStep', position: 1, name: 'Open the editor', text: 'The editor loads with a starter project (index.html, styles.css, script.js) ready to edit.' },
+            { '@type': 'HowToStep', position: 2, name: 'Write or paste your code', text: 'Click any file in the File Explorer, then type in the Monaco code editor. The Live Preview updates on every keystroke.' },
+            { '@type': 'HowToStep', position: 3, name: 'Switch to Visual Mode', text: 'Click any element on the canvas to move, resize, rotate and style it through the Properties Panel — every change is written back to your HTML.' },
+            { '@type': 'HowToStep', position: 4, name: 'Animate with the CSS Timeline', text: 'Open the Timeline panel, add tracks, then click Apply to Page to inject standard @keyframes CSS into your HTML.' },
+            { '@type': 'HowToStep', position: 5, name: 'Export your project', text: 'Use Export → Download ZIP to get a complete static site you can host anywhere — Netlify, Vercel, Cloudflare Pages or GitHub Pages.' },
+          ],
+        },
+      ],
+    });
+    document.head.appendChild(script);
+
     if (window.location.hash) {
       setTimeout(() => {
         const el = document.querySelector(window.location.hash);
         if (el) el.scrollIntoView({ behavior: 'smooth' });
       }, 100);
     }
+
+    return () => { document.getElementById(ldId)?.remove(); };
   }, []);
 
+  React.useEffect(() => {
+    document.body.style.overflow = mobileNavOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileNavOpen]);
+
   return (
-    <div className="min-h-screen bg-[#080808] text-[#ccc] font-sans">
+    <div className="min-h-screen bg-[#080808] text-[#ccc] font-sans overflow-x-hidden">
       {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-[200] w-full border-b border-[#141414] bg-[#080808]/95 backdrop-blur-xl">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 no-underline group">
-            <div className="w-9 h-9 rounded-xl bg-[#e34c26] flex items-center justify-center text-white font-black text-sm shadow-lg shadow-orange-600/30 group-hover:scale-105 transition-transform">H</div>
-            <div>
-              <span className="text-sm font-black text-white tracking-tight leading-none block">HTML EDITOR <span className="text-orange-500">PRO</span></span>
-              <span className="text-[9px] font-black text-[#444] tracking-[0.25em] uppercase block mt-0.5">Official Documentation</span>
+        <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 no-underline group min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-[#e34c26] flex items-center justify-center text-white font-black text-sm shadow-lg shadow-orange-600/30 group-hover:scale-105 transition-transform flex-shrink-0">H</div>
+            <div className="min-w-0">
+              <span className="text-xs sm:text-sm font-black text-white tracking-tight leading-none block truncate">HTML EDITOR <span className="text-orange-500">PRO</span></span>
+              <span className="text-[8px] sm:text-[9px] font-black text-[#444] tracking-[0.2em] sm:tracking-[0.25em] uppercase block mt-0.5 truncate">Official Documentation</span>
             </div>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden flex items-center gap-1.5 px-3 h-8 rounded-full text-[10px] font-black text-[#999] border border-[#222] hover:border-[#333] uppercase tracking-widest"
+              aria-label="Open table of contents"
+            >
+              <FiList size={13} /> Menu
+            </button>
             <Link href="/">
-              <button className="px-4 h-8 rounded-full text-[11px] font-black text-[#666] hover:text-white border border-[#222] hover:border-[#333] bg-transparent transition-all uppercase tracking-widest">
+              <button className="px-3 sm:px-4 h-8 rounded-full text-[10px] sm:text-[11px] font-black text-[#666] hover:text-white border border-[#222] hover:border-[#333] bg-transparent transition-all uppercase tracking-widest whitespace-nowrap">
                 Open Editor
               </button>
             </Link>
@@ -201,10 +333,51 @@ const Documentation: React.FC = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-12">
+      {/* ── Mobile TOC Drawer ── */}
+      {mobileNavOpen && (
+        <div className="lg:hidden fixed inset-0 z-[300] flex" role="dialog" aria-modal="true" aria-label="Table of contents">
+          <div className="flex-1 bg-black/70 backdrop-blur-sm" onClick={() => setMobileNavOpen(false)} />
+          <aside className="w-[82%] max-w-sm h-full bg-[#0a0a0a] border-l border-[#1a1a1a] overflow-y-auto p-5 space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-black text-[#666] uppercase tracking-[0.3em]">Contents</p>
+              <button
+                onClick={() => setMobileNavOpen(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-[#666] hover:text-white border border-[#1a1a1a] hover:border-[#333]"
+                aria-label="Close menu"
+              >
+                <FiX size={14} />
+              </button>
+            </div>
+            {NAV_SECTIONS.map((section) => (
+              <div key={section.heading}>
+                <p className="text-[9px] font-black text-[#2a2a2a] uppercase tracking-[0.3em] px-3 mb-2">{section.heading}</p>
+                <nav className="space-y-0.5">
+                  {section.items.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      onClick={() => { setActiveSection(item.id); setMobileNavOpen(false); }}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all no-underline ${
+                        activeSection === item.id
+                          ? `bg-${section.color}-500/10 text-${section.color}-400`
+                          : 'text-[#777] hover:text-white hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className={activeSection === item.id ? `text-${section.color}-400` : `text-[#444]`}>{item.icon}</span>
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            ))}
+          </aside>
+        </div>
+      )}
 
-          {/* ── Sidebar Navigation ── */}
+      <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 lg:gap-12">
+
+          {/* ── Sidebar Navigation (desktop) ── */}
           <aside className="hidden lg:block sticky top-28 h-[calc(100vh-120px)] overflow-y-auto pr-4 space-y-8" style={{ scrollbarWidth: 'thin', scrollbarColor: '#222 transparent' }}>
             {NAV_SECTIONS.map((section) => (
               <div key={section.heading}>
@@ -230,10 +403,11 @@ const Documentation: React.FC = () => {
                 </nav>
               </div>
             ))}
+            <SidebarAd />
           </aside>
 
           {/* ── Main Content ── */}
-          <main className="min-w-0 space-y-24">
+          <main className="min-w-0 space-y-14 sm:space-y-20 lg:space-y-24">
 
             {/* ═══════════════════════════════════════════════════════════════
                 SECTION: Overview
@@ -241,11 +415,11 @@ const Documentation: React.FC = () => {
             <section id="overview" className="scroll-mt-28 space-y-10">
               <div>
                 <Tag color="orange">v2.0 · Free Forever · No Login</Tag>
-                <h1 className="text-5xl font-black text-white tracking-tighter mt-4 leading-[0.95]">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tighter mt-4 leading-[0.95] break-words">
                   HTML Editor Pro<br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-500">Complete Guide</span>
                 </h1>
-                <p className="text-lg text-[#666] leading-relaxed max-w-2xl mt-5 font-medium">
+                <p className="text-base sm:text-lg text-[#666] leading-relaxed max-w-2xl mt-5 font-medium">
                   HTML Editor Pro is a fully browser-based web development environment. It runs entirely in your browser with no server, no login, and no installation required. Every project is stored in your browser's local storage and can be exported as a ZIP at any time.
                 </p>
               </div>
@@ -268,6 +442,8 @@ const Documentation: React.FC = () => {
                 ))}
               </div>
             </section>
+
+            <InArticleAd />
 
             {/* ═══════════════════════════════════════════════════════════════
                 SECTION: Quick Start
@@ -939,6 +1115,8 @@ const Documentation: React.FC = () => {
                 <strong className="text-purple-400">Visual Mode:</strong> File Explorer slot, Canvas slot, Properties slot, Timeline slot.
               </InfoBox>
             </section>
+
+            <InArticleAd />
 
             {/* ═══════════════════════════════════════════════════════════════
                 SECTION: Storage

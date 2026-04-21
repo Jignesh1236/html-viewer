@@ -3,7 +3,9 @@ import { useEditorStore } from '../store/editorStore';
 import {
   FiChevronDown, FiChevronRight, FiType, FiLayout, FiBox,
   FiDroplet, FiSliders, FiZap, FiCode, FiMove, FiMaximize2,
+  FiEye, FiFilter, FiMousePointer, FiList, FiColumns, FiAperture,
 } from 'react-icons/fi';
+import { ANIMATION_PRESETS, ANIMATION_CATEGORIES, KEYFRAMES_MAP, PRESET_BY_NAME } from '../lib/animations';
 
 /* ─── Design tokens ───────────────────────────────────────── */
 const C = {
@@ -19,18 +21,7 @@ const C = {
   dim:       '#555',
 };
 
-const PRESET_KEYFRAMES: Record<string, string> = {
-  fadeIn: '@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }',
-  slideUp: '@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }',
-  slideLeft: '@keyframes slideLeft { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }',
-  slideRight: '@keyframes slideRight { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }',
-  bounce: '@keyframes bounce { 0%,100% { transform: translateY(0); } 40% { transform: translateY(-20px); } 60% { transform: translateY(-10px); } }',
-  pulse: '@keyframes pulse { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.05); } }',
-  spin: '@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }',
-  zoom: '@keyframes zoom { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }',
-  shake: '@keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(6px); } }',
-  flip: '@keyframes flip { from { opacity: 0; transform: perspective(400px) rotateX(-90deg); } to { opacity: 1; transform: perspective(400px) rotateX(0); } }',
-};
+const PRESET_KEYFRAMES: Record<string, string> = KEYFRAMES_MAP;
 
 function injectPropertiesAnimationCssIntoHtml(html: string, css: string) {
   const cleaned = html.replace(/\n?\s*<style\s+id=["']properties-animations["'][\s\S]*?<\/style>/i, '');
@@ -334,6 +325,70 @@ function GradientControls({ value, onChange }: { value: string; onChange: (v: st
     </div>
   );
 }
+
+/* ─── FilterControls (filter / backdrop-filter builder) ── */
+const FILTER_FUNCS: { key: string; label: string; unit: string; min: number; max: number; step: number; def: number }[] = [
+  { key: 'blur',        label: 'Blur',       unit: 'px', min: 0,    max: 30,  step: 0.5, def: 0 },
+  { key: 'brightness',  label: 'Bright',     unit: '%',  min: 0,    max: 200, step: 5,   def: 100 },
+  { key: 'contrast',    label: 'Contrast',   unit: '%',  min: 0,    max: 200, step: 5,   def: 100 },
+  { key: 'saturate',    label: 'Saturate',   unit: '%',  min: 0,    max: 300, step: 5,   def: 100 },
+  { key: 'grayscale',   label: 'Grayscale',  unit: '%',  min: 0,    max: 100, step: 5,   def: 0 },
+  { key: 'sepia',       label: 'Sepia',      unit: '%',  min: 0,    max: 100, step: 5,   def: 0 },
+  { key: 'invert',      label: 'Invert',     unit: '%',  min: 0,    max: 100, step: 5,   def: 0 },
+  { key: 'hue-rotate',  label: 'Hue°',       unit: 'deg', min: 0,   max: 360, step: 1,   def: 0 },
+  { key: 'opacity',     label: 'Opacity',    unit: '%',  min: 0,    max: 100, step: 5,   def: 100 },
+];
+
+function parseFilterValue(value: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!value) return out;
+  const re = /(blur|brightness|contrast|saturate|grayscale|sepia|invert|hue-rotate|opacity)\(([-\d.]+)(px|%|deg)?\)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(value)) !== null) {
+    out[m[1].toLowerCase()] = parseFloat(m[2]);
+  }
+  return out;
+}
+
+function buildFilterValue(parts: Record<string, number>): string {
+  const out: string[] = [];
+  FILTER_FUNCS.forEach(f => {
+    const v = parts[f.key];
+    if (v === undefined || v === f.def) return;
+    out.push(`${f.key}(${v}${f.unit})`);
+  });
+  return out.join(' ');
+}
+
+const FilterControls: React.FC<{ value: string; onChange: (v: string) => void; label: string }> = ({ value, onChange }) => {
+  const parsed = parseFilterValue(value);
+  const updatePart = (key: string, v: number) => {
+    const next = { ...parsed, [key]: v };
+    onChange(buildFilterValue(next));
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, background: 'rgba(0,0,0,0.12)', border: `1px solid ${C.border}`, borderRadius: 5 }}>
+      {FILTER_FUNCS.map(f => {
+        const cur = parsed[f.key] ?? f.def;
+        return (
+          <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: C.muted, width: 50, flexShrink: 0 }}>{f.label}</span>
+            <input type="range" min={f.min} max={f.max} step={f.step} value={cur}
+              onChange={e => updatePart(f.key, parseFloat(e.target.value))}
+              style={{ flex: 1, accentColor: C.accent } as any} />
+            <span style={{ fontSize: 10, color: C.text, width: 38, textAlign: 'right', fontFamily: 'monospace' }}>{cur}{f.unit}</span>
+          </div>
+        );
+      })}
+      <div style={{ display: 'flex', gap: 4, marginTop: 2 }}>
+        <button onClick={() => onChange('')} style={{ flex: 1, padding: '3px', fontSize: 9, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 3, cursor: 'pointer' }}>Reset</button>
+        <button onClick={() => onChange('grayscale(100%)')} style={{ flex: 1, padding: '3px', fontSize: 9, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 3, cursor: 'pointer' }}>B&amp;W</button>
+        <button onClick={() => onChange('blur(8px) brightness(120%)')} style={{ flex: 1, padding: '3px', fontSize: 9, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 3, cursor: 'pointer' }}>Glass</button>
+        <button onClick={() => onChange('sepia(70%) saturate(150%)')} style={{ flex: 1, padding: '3px', fontSize: 9, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 3, cursor: 'pointer' }}>Vintage</button>
+      </div>
+    </div>
+  );
+};
 
 /* ─── Main component ──────────────────────────────────────── */
 const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ hideHeader }) => {
@@ -724,12 +779,36 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
 
         {/* Animation */}
         <Section title="Animation" icon={<FiZap size={12} />} defaultOpen={false}>
-          <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Preset</div>
-          <ChipGroup
-            options={['none','fadeIn','slideUp','slideLeft','slideRight','bounce','pulse','spin','zoom','shake','flip']}
-            value={animationConfig.preset}
-            onChange={v => setAnimationConfig({ preset: v })}
-          />
+          <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Preset ({ANIMATION_PRESETS.length}+ available)</div>
+          {ANIMATION_CATEGORIES.map(cat => (
+            <details key={cat} style={{ marginBottom: 3 }}>
+              <summary style={{ fontSize: 10, color: C.muted, cursor: 'pointer', padding: '3px 0', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, userSelect: 'none' }}>{cat}</summary>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, padding: '3px 0 5px' }}>
+                {ANIMATION_PRESETS.filter(p => p.category === cat).map(p => {
+                  const active = animationConfig.preset === p.name;
+                  return (
+                    <button key={p.name} onClick={() => setAnimationConfig({ preset: p.name })} title={p.description}
+                      style={{ padding: '2px 8px', fontSize: 10, borderRadius: 11, cursor: 'pointer',
+                        background: active ? C.accentBg : C.surface2,
+                        border: `1px solid ${active ? C.accentBrd : C.border}`,
+                        color: active ? C.accent : C.muted }}>
+                      {p.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </details>
+          ))}
+          <Row label="Selected">
+            <select style={selBase} value={animationConfig.preset} onChange={e => setAnimationConfig({ preset: e.target.value })}>
+              <option value="none">none</option>
+              {ANIMATION_CATEGORIES.map(cat => (
+                <optgroup key={cat} label={cat}>
+                  {ANIMATION_PRESETS.filter(p => p.category === cat).map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+                </optgroup>
+              ))}
+            </select>
+          </Row>
           <Row label="Trigger">
             <BtnGroup options={['load','hover','click']} value={animationConfig.trigger} onChange={v => setAnimationConfig({ trigger: v as any })} />
           </Row>
@@ -769,14 +848,12 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           <button
             onClick={() => {
               if (!selectedElement || animationConfig.preset === 'none') return;
-              const PRESETS: Record<string, string> = {
-                fadeIn: 'fadeIn 0.6s ease forwards', slideUp: 'slideUp 0.6s ease forwards',
-                slideLeft: 'slideLeft 0.6s ease forwards', slideRight: 'slideRight 0.6s ease forwards',
-                bounce: 'bounce 1s ease infinite', pulse: 'pulse 1.5s ease infinite',
-                spin: 'spin 1s linear infinite', zoom: 'zoom 0.4s ease forwards',
-                shake: 'shake 0.5s ease', flip: 'flip 0.6s ease forwards',
-              };
-              const animationValue = PRESETS[animationConfig.preset] || animationConfig.preset;
+              const meta = PRESET_BY_NAME[animationConfig.preset];
+              const dur = parseFloat(animationConfig.duration) || meta?.defaultDuration || 0.6;
+              const easing = animationConfig.easing || meta?.defaultEasing || 'ease';
+              const iter = animationConfig.iteration || meta?.defaultIteration || '1';
+              const fill = animationConfig.fillMode || 'both';
+              const animationValue = `${animationConfig.preset} ${dur}s ${easing} ${animationConfig.delay || '0s'} ${iter} ${animationConfig.direction || 'normal'} ${fill}`;
               upsertTimelineTrackForSelection(animationConfig.preset, animationValue);
               persistPresetKeyframe(animationConfig.preset);
             }}
@@ -792,6 +869,273 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           >
             ▶ Apply Animation to Element
           </button>
+        </Section>
+
+        {/* Filters */}
+        <Section title="Filters" icon={<FiFilter size={12} />} defaultOpen={false}>
+          <FilterControls value={getS('filter') || ''} onChange={v => apply('filter', v)} label="filter" />
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>Backdrop Filter</div>
+          <FilterControls value={getS('backdrop-filter') || ''} onChange={v => { apply('backdrop-filter', v); apply('-webkit-backdrop-filter', v); }} label="backdrop" />
+          <Row label="Mix Blend">
+            <select style={selBase} value={getS('mix-blend-mode') || 'normal'} onChange={e => apply('mix-blend-mode', e.target.value)}>
+              {['normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion','hue','saturation','color','luminosity'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="BG Blend">
+            <select style={selBase} value={getS('background-blend-mode') || 'normal'} onChange={e => apply('background-blend-mode', e.target.value)}>
+              {['normal','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','hard-light','soft-light','difference','exclusion'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Iso">
+            <BtnGroup options={['auto','isolate']} value={getS('isolation') || 'auto'} onChange={v => apply('isolation', v)} small />
+          </Row>
+        </Section>
+
+        {/* Transitions */}
+        <Section title="Transitions" icon={<FiZap size={12} />} defaultOpen={false}>
+          <Row label="Property">
+            <select style={selBase} value={getS('transition-property') || 'all'} onChange={e => apply('transition-property', e.target.value)}>
+              {['all','none','opacity','transform','color','background-color','width','height','margin','padding','border','box-shadow','filter'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Duration">
+            <PropInput value={getS('transition-duration') || '0.3s'} onChange={v => apply('transition-duration', v)} placeholder="0.3s" />
+          </Row>
+          <Row label="Easing">
+            <select style={selBase} value={getS('transition-timing-function') || 'ease'} onChange={e => apply('transition-timing-function', e.target.value)}>
+              {['ease','linear','ease-in','ease-out','ease-in-out','cubic-bezier(0.68,-0.55,0.27,1.55)','cubic-bezier(0.215,0.61,0.355,1)','steps(4, end)'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Delay">
+            <PropInput value={getS('transition-delay') || '0s'} onChange={v => apply('transition-delay', v)} placeholder="0s" />
+          </Row>
+          <Row label="Shorthand">
+            <PropInput value={getS('transition') || ''} onChange={v => apply('transition', v)} placeholder="all 0.3s ease" />
+          </Row>
+          <Row label="Will-change">
+            <select style={selBase} value={getS('will-change') || 'auto'} onChange={e => apply('will-change', e.target.value)}>
+              {['auto','transform','opacity','scroll-position','contents','transform, opacity'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+        </Section>
+
+        {/* Visibility & Interaction */}
+        <Section title="Visibility / Interact" icon={<FiEye size={12} />} defaultOpen={false}>
+          <Row label="Visible">
+            <BtnGroup options={['visible','hidden','collapse']} value={getS('visibility') || 'visible'} onChange={v => apply('visibility', v)} small />
+          </Row>
+          <Row label="Display">
+            <BtnGroup options={['inline','block','flex','grid','inline-block','none']} value={getS('display') || 'block'} onChange={v => apply('display', v)} small />
+          </Row>
+          <Row label="Pointer">
+            <BtnGroup options={['auto','none']} value={getS('pointer-events') || 'auto'} onChange={v => apply('pointer-events', v)} />
+          </Row>
+          <Row label="Select">
+            <BtnGroup options={['auto','none','text','all']} value={getS('user-select') || 'auto'} onChange={v => { apply('user-select', v); apply('-webkit-user-select', v); }} small />
+          </Row>
+          <Row label="Cursor">
+            <select style={selBase} value={getS('cursor') || 'auto'} onChange={e => apply('cursor', e.target.value)}>
+              {['auto','default','pointer','text','wait','help','move','grab','grabbing','crosshair','not-allowed','zoom-in','zoom-out','progress','context-menu','cell','vertical-text','alias','copy','no-drop','all-scroll','col-resize','row-resize','n-resize','e-resize','s-resize','w-resize','ne-resize','nw-resize','se-resize','sw-resize','ew-resize','ns-resize','nesw-resize','nwse-resize','none'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Resize">
+            <BtnGroup options={['none','both','horiz','vert']}
+              value={(() => { const v = getS('resize') || 'none'; return v === 'horizontal' ? 'horiz' : v === 'vertical' ? 'vert' : v; })()}
+              onChange={v => apply('resize', v === 'horiz' ? 'horizontal' : v === 'vert' ? 'vertical' : v)} small />
+          </Row>
+          <Row label="Caret">
+            <ColorInput value={getS('caret-color') || 'auto'} onChange={v => apply('caret-color', v)} />
+          </Row>
+          <Row label="Tap-Hi">
+            <ColorInput value={getS('-webkit-tap-highlight-color') || 'transparent'} onChange={v => apply('-webkit-tap-highlight-color', v)} />
+          </Row>
+        </Section>
+
+        {/* Outline / Object / Aspect */}
+        <Section title="Outline & Object" icon={<FiAperture size={12} />} defaultOpen={false}>
+          <Row label="O Width">
+            <PropInput value={getS('outline-width') || '0px'} onChange={v => apply('outline-width', v)} placeholder="0px" />
+          </Row>
+          <Row label="O Style">
+            <BtnGroup options={['none','solid','dashed','dotted','double']} value={getS('outline-style') || 'none'} onChange={v => apply('outline-style', v)} small />
+          </Row>
+          <Row label="O Color">
+            <ColorInput value={getS('outline-color') || '#888'} onChange={v => apply('outline-color', v)} />
+          </Row>
+          <Row label="O Offset">
+            <PropInput value={getS('outline-offset') || '0px'} onChange={v => apply('outline-offset', v)} placeholder="0px" />
+          </Row>
+          <Row label="Obj Fit">
+            <BtnGroup options={['fill','contain','cover','none','scale-down']} value={getS('object-fit') || 'fill'} onChange={v => apply('object-fit', v)} small />
+          </Row>
+          <Row label="Obj Pos">
+            <PropInput value={getS('object-position') || '50% 50%'} onChange={v => apply('object-position', v)} placeholder="50% 50%" />
+          </Row>
+          <Row label="Aspect">
+            <PropInput value={getS('aspect-ratio') || 'auto'} onChange={v => apply('aspect-ratio', v)} placeholder="16/9" />
+          </Row>
+        </Section>
+
+        {/* Clip / Mask */}
+        <Section title="Clip & Mask" icon={<FiBox size={12} />} defaultOpen={false}>
+          <Row label="Clip path">
+            <PropInput value={getS('clip-path') || 'none'} onChange={v => apply('clip-path', v)} placeholder="circle(50%) or polygon(...)" />
+          </Row>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {[
+              ['Circle', 'circle(50%)'],
+              ['Triangle', 'polygon(50% 0, 100% 100%, 0 100%)'],
+              ['Hexagon', 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)'],
+              ['Star', 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)'],
+              ['Arrow', 'polygon(0% 20%, 60% 20%, 60% 0%, 100% 50%, 60% 100%, 60% 80%, 0% 80%)'],
+              ['None', 'none'],
+            ].map(([label, val]) => (
+              <button key={label} onClick={() => apply('clip-path', val)}
+                style={{ padding: '2px 8px', fontSize: 10, borderRadius: 11, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <Row label="Mask">
+            <PropInput value={getS('mask-image') || 'none'} onChange={v => { apply('mask-image', v); apply('-webkit-mask-image', v); }} placeholder="url(...) or linear-gradient(...)" />
+          </Row>
+          <Row label="Mask Sz">
+            <PropInput value={getS('mask-size') || 'auto'} onChange={v => { apply('mask-size', v); apply('-webkit-mask-size', v); }} placeholder="contain" />
+          </Row>
+          <Row label="Mask Rep">
+            <BtnGroup options={['repeat','no-repeat','space','round']} value={getS('mask-repeat') || 'repeat'} onChange={v => { apply('mask-repeat', v); apply('-webkit-mask-repeat', v); }} small />
+          </Row>
+        </Section>
+
+        {/* List */}
+        <Section title="List" icon={<FiList size={12} />} defaultOpen={false}>
+          <Row label="Type">
+            <select style={selBase} value={getS('list-style-type') || 'disc'} onChange={e => apply('list-style-type', e.target.value)}>
+              {['none','disc','circle','square','decimal','decimal-leading-zero','lower-alpha','upper-alpha','lower-roman','upper-roman','lower-greek','square'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Position">
+            <BtnGroup options={['outside','inside']} value={getS('list-style-position') || 'outside'} onChange={v => apply('list-style-position', v)} />
+          </Row>
+          <Row label="Image">
+            <PropInput value={getS('list-style-image') || 'none'} onChange={v => apply('list-style-image', v)} placeholder="url(...)" />
+          </Row>
+        </Section>
+
+        {/* Columns */}
+        <Section title="Columns" icon={<FiColumns size={12} />} defaultOpen={false}>
+          <Row label="Count">
+            <PropInput value={getS('column-count') || 'auto'} onChange={v => apply('column-count', v)} placeholder="3" />
+          </Row>
+          <Row label="Width">
+            <PropInput value={getS('column-width') || 'auto'} onChange={v => apply('column-width', v)} placeholder="200px" />
+          </Row>
+          <Row label="Gap">
+            <PropInput value={getS('column-gap') || 'normal'} onChange={v => apply('column-gap', v)} placeholder="20px" />
+          </Row>
+          <Row label="Rule W">
+            <PropInput value={getS('column-rule-width') || '0'} onChange={v => apply('column-rule-width', v)} placeholder="1px" />
+          </Row>
+          <Row label="Rule S">
+            <BtnGroup options={['none','solid','dashed','dotted']} value={getS('column-rule-style') || 'none'} onChange={v => apply('column-rule-style', v)} small />
+          </Row>
+          <Row label="Rule C">
+            <ColorInput value={getS('column-rule-color') || '#888'} onChange={v => apply('column-rule-color', v)} />
+          </Row>
+          <Row label="Span">
+            <BtnGroup options={['none','all']} value={getS('column-span') || 'none'} onChange={v => apply('column-span', v)} />
+          </Row>
+        </Section>
+
+        {/* Scroll */}
+        <Section title="Scroll" icon={<FiMousePointer size={12} />} defaultOpen={false}>
+          <Row label="Behavior">
+            <BtnGroup options={['auto','smooth']} value={getS('scroll-behavior') || 'auto'} onChange={v => apply('scroll-behavior', v)} />
+          </Row>
+          <Row label="Snap T">
+            <select style={selBase} value={getS('scroll-snap-type') || 'none'} onChange={e => apply('scroll-snap-type', e.target.value)}>
+              {['none','x mandatory','y mandatory','both mandatory','x proximity','y proximity'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Snap A">
+            <BtnGroup options={['none','start','center','end']} value={getS('scroll-snap-align') || 'none'} onChange={v => apply('scroll-snap-align', v)} small />
+          </Row>
+          <Row label="Overscroll">
+            <BtnGroup options={['auto','contain','none']} value={getS('overscroll-behavior') || 'auto'} onChange={v => apply('overscroll-behavior', v)} small />
+          </Row>
+          <Row label="Overflow X">
+            <BtnGroup options={['visible','hidden','auto','scroll']} value={getS('overflow-x') || 'visible'} onChange={v => apply('overflow-x', v)} small />
+          </Row>
+          <Row label="Overflow Y">
+            <BtnGroup options={['visible','hidden','auto','scroll']} value={getS('overflow-y') || 'visible'} onChange={v => apply('overflow-y', v)} small />
+          </Row>
+        </Section>
+
+        {/* Text Effects */}
+        <Section title="Text Effects" icon={<FiType size={12} />} defaultOpen={false}>
+          <Row label="L Spacing">
+            <PropInput value={getS('letter-spacing') || 'normal'} onChange={v => apply('letter-spacing', v)} placeholder="0.05em" />
+          </Row>
+          <Row label="W Spacing">
+            <PropInput value={getS('word-spacing') || 'normal'} onChange={v => apply('word-spacing', v)} placeholder="0.1em" />
+          </Row>
+          <Row label="White Sp">
+            <select style={selBase} value={getS('white-space') || 'normal'} onChange={e => apply('white-space', e.target.value)}>
+              {['normal','nowrap','pre','pre-wrap','pre-line','break-spaces'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Word Brk">
+            <BtnGroup options={['normal','break-all','keep-all','break-word']} value={getS('word-break') || 'normal'} onChange={v => apply('word-break', v)} small />
+          </Row>
+          <Row label="Overflw">
+            <BtnGroup options={['normal','break-word','anywhere']}
+              value={(() => { const v = getS('overflow-wrap') || 'normal'; return v; })()}
+              onChange={v => apply('overflow-wrap', v)} small />
+          </Row>
+          <Row label="Indent">
+            <PropInput value={getS('text-indent') || '0'} onChange={v => apply('text-indent', v)} placeholder="2em" />
+          </Row>
+          <Row label="Decor C">
+            <ColorInput value={getS('text-decoration-color') || 'currentColor'} onChange={v => apply('text-decoration-color', v)} />
+          </Row>
+          <Row label="Decor S">
+            <BtnGroup options={['solid','dashed','dotted','wavy','double']} value={getS('text-decoration-style') || 'solid'} onChange={v => apply('text-decoration-style', v)} small />
+          </Row>
+          <Row label="Decor T">
+            <PropInput value={getS('text-decoration-thickness') || 'auto'} onChange={v => apply('text-decoration-thickness', v)} placeholder="2px" />
+          </Row>
+          <Row label="Underln">
+            <PropInput value={getS('text-underline-offset') || 'auto'} onChange={v => apply('text-underline-offset', v)} placeholder="3px" />
+          </Row>
+          <Row label="WritingM">
+            <select style={selBase} value={getS('writing-mode') || 'horizontal-tb'} onChange={e => apply('writing-mode', e.target.value)}>
+              {['horizontal-tb','vertical-rl','vertical-lr'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Direction">
+            <BtnGroup options={['ltr','rtl']} value={getS('direction') || 'ltr'} onChange={v => apply('direction', v)} />
+          </Row>
+        </Section>
+
+        {/* Transform Advanced */}
+        <Section title="Transform Origin / 3D" defaultOpen={false}>
+          <Row label="Origin">
+            <PropInput value={getS('transform-origin') || 'center'} onChange={v => apply('transform-origin', v)} placeholder="center / 50% 50%" />
+          </Row>
+          <Row label="Style">
+            <BtnGroup options={['flat','preserve-3d']}
+              value={(() => { const v = getS('transform-style') || 'flat'; return v === 'preserve-3d' ? 'preserve-3d' : 'flat'; })()}
+              onChange={v => apply('transform-style', v)} small />
+          </Row>
+          <Row label="Perspect">
+            <PropInput value={getS('perspective') || 'none'} onChange={v => apply('perspective', v)} placeholder="800px" />
+          </Row>
+          <Row label="P Origin">
+            <PropInput value={getS('perspective-origin') || '50% 50%'} onChange={v => apply('perspective-origin', v)} placeholder="50% 50%" />
+          </Row>
+          <Row label="Backface">
+            <BtnGroup options={['visible','hidden']} value={getS('backface-visibility') || 'visible'} onChange={v => apply('backface-visibility', v)} />
+          </Row>
         </Section>
 
         {/* Custom CSS */}

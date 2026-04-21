@@ -76,11 +76,17 @@ export interface TimelineTrack {
   iteration: string;
 }
 
+export interface CustomAnimation {
+  name: string;
+  keyframes: string;
+}
+
 export interface TimelineState {
   tracks: TimelineTrack[];
   playing: boolean;
   currentTime: number;
   animationsApplied: boolean;
+  customAnimations: CustomAnimation[];
 }
 
 interface EditorStore {
@@ -347,6 +353,7 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
   playing: false,
   currentTime: 0,
   animationsApplied: false,
+  customAnimations: [],
 };
 
 /* ─── Files persistence ─── */
@@ -419,6 +426,7 @@ function loadTimelineState(): TimelineState {
       playing: !!parsed.playing,
       currentTime: typeof parsed.currentTime === 'number' ? parsed.currentTime : 0,
       animationsApplied: !!parsed.animationsApplied,
+      customAnimations: Array.isArray(parsed.customAnimations) ? parsed.customAnimations : [],
     };
   } catch {
     return DEFAULT_TIMELINE_STATE;
