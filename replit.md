@@ -84,11 +84,14 @@ A free, browser-based HTML/CSS/JavaScript editor with a Monaco code editor, drag
 
 ### Visual Designer
 - Element selection, move, resize, rotate
-- Properties Panel covering full CSS surface: typography, layout, background, borders, shadows, transforms, animations
+- Properties Panel covering full CSS surface: Content, Typography, Background (gradient builder), Layout, Flex/Grid, Spacing, Border, Shadows, Transform, Animation (50+ presets across 7 categories), Filters (visual blur/brightness/etc builder), Transitions, Visibility/Interaction (cursor, pointer-events, user-select, resize, caret), Outline & Object (object-fit, aspect-ratio), Clip & Mask (clip-path presets), List, Columns, Scroll (snap, overscroll), Text Effects (letter/word spacing, decoration styling, writing-mode), Transform Origin / 3D (perspective, backface), Custom CSS
 - Visual edits write back to the HTML as inline styles, keeping code and canvas in sync
 
 ### Animation Timeline
 - Draggable animation tracks per element
+- 60+ pre-built animations across 7 categories (Fade, Slide, Zoom, Rotate, Bounce, Attention, Special) accessible via the Library panel
+- Custom animation creator: define your own `@keyframes` with a name, save to project, edit/delete, apply to any track
+- Per-track Animation dropdown groups custom animations and all preset categories
 - Play preview inside the iframe
 - "Apply to Page" injects generated keyframes into a `<style id="__timeline-anim-style">` tag in the active HTML
 
@@ -113,6 +116,10 @@ All SEO metadata lives in `index.html`. The setup follows current Google guidanc
 ### Meta tags
 - `<title>` and `<meta name="description">` — primary SERP signals
 - `<meta name="keywords">` — broad long-tail keyword set covering "HTML editor online", "Monaco editor online", "free code editor", JS playground alternatives (codepen / jsfiddle / jsbin / replit / stackblitz), CSS animation editor, and SEO tutorial keywords
+- **Static prerendering** — `scripts/prerender.mjs` runs after `vite build` and emits per-route `index.html` files (`dist/index.html`, `dist/docs/index.html`, `dist/privacy/index.html`, `dist/terms/index.html`, `dist/404.html`) with route-specific `<title>`, description, canonical, OG/Twitter tags, JSON-LD (Breadcrumb + SoftwareApplication / TechArticle / WebPage) and a crawler-visible `<noscript>` + offscreen content block — solves the SPA empty-`<div id="root">` SEO problem without migrating to SSR. Static files take precedence over the SPA rewrite on Vercel/Cloudflare so Googlebot sees full content on first response.
+- `vercel.json` adds `cleanUrls`, `trailingSlash:false`, long-cache headers for `/assets/*`, correct `Content-Type` for `sitemap.xml` / `robots.txt`, and the SPA fallback rewrite (only used when no static file matches).
+- `public/robots.txt` allows all major search engines (Google, Bing, Yandex, DuckDuckGo, Slurp), AdSense (Mediapartners-Google, AdsBot-Google), and social card crawlers (Facebook, Twitter, LinkedIn, WhatsApp, Telegram, Discord, Slack); blocks AI-training crawlers (GPTBot, ChatGPT-User, CCBot, anthropic-ai, Claude-Web, Google-Extended, PerplexityBot, Bytespider).
+- `public/sitemap.xml` lists `/`, `/docs`, `/privacy`, `/terms` with `xhtml:link hreflang`, image entries, and proper lastmod/changefreq/priority.
 - `<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">` — full SERP feature opt-in
 - `<meta name="googlebot">` and `<meta name="bingbot">` explicit overrides
 - `<meta name="google-site-verification">` for Search Console ownership
