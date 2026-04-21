@@ -105,8 +105,21 @@ async function fetchSuggestion(
   const cached = cacheGet(prefix, lang);
   if (cached) return cached;
 
-  const url = `https://text.pollinations.ai/${encodeURIComponent(buildPrompt(lang, fileName, prefix, suffix))}`;
-  const res = await fetch(url, { signal });
+  // Use pollinations.ai for high-quality code completion
+  const prompt = buildPrompt(lang, fileName, prefix, suffix);
+  const url = `https://text.pollinations.ai/`;
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [{ role: 'user', content: prompt }],
+      model: 'openai', // pollinations uses openai as default/high-quality for text
+      jsonMode: false
+    }),
+    signal
+  });
+
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
   const text = cleanSuggestion(await res.text());
