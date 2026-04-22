@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { exportProject } from '../utils/export';
 
-type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
+type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'terminal';
 interface WinState { id: WinId; title: string; visible: boolean; minimized: boolean; docked: boolean; }
 
 interface MenuBarProps {
@@ -21,23 +21,23 @@ interface MenuItem {
   separator?: boolean;
   checked?: boolean;
   danger?: boolean;
-  badge?: string;        // small colored badge text
+  badge?: string;
   badgeColor?: string;
 }
 
 const WIN_LABELS: Record<WinId, string> = {
-  files: 'File Explorer', code: 'Code Editor', preview: 'Preview / Visual Editor',
-  properties: 'Properties', timeline: 'Timeline',
+  files: 'Explorer', code: 'Code Editor', preview: 'Preview / Visual Editor',
+  properties: 'Properties', timeline: 'Timeline', terminal: 'Terminal',
 };
 const WIN_ICONS: Record<WinId, string> = {
-  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱',
+  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱', terminal: '⬛',
 };
 
 const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder } = useEditorStore();
+  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder, deleteAllFiles } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -186,6 +186,22 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { label: 'Import Files…', action: () => { document.getElementById('global-file-upload')?.click(); close(); } },
         { separator: true, label: '' },
         { label: 'Export as ZIP', shortcut: 'Ctrl+E', action: () => { exportProject(files); showNotification('Exported as ZIP'); close(); } },
+        { separator: true, label: '' },
+        {
+          label: '🗑 Delete All Files & Folders',
+          danger: true,
+          action: () => {
+            close();
+            const n = files.length;
+            if (n === 0) { showNotification('Project is already empty'); return; }
+            const ok = window.confirm(
+              `Delete ALL ${n} file${n === 1 ? '' : 's'} and every folder?\n\nThis empties the project. You can not undo this.`
+            );
+            if (!ok) return;
+            deleteAllFiles();
+            showNotification(`Deleted ${n} file${n === 1 ? '' : 's'} — project is now empty`);
+          },
+        },
       ],
     },
     {

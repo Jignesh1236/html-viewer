@@ -79,6 +79,28 @@ function hideDragCapture() {
   if (overlay) overlay.style.display = 'none';
 }
 
+function toolbarBtn(variant: 'neutral' | 'danger' | 'primary' = 'neutral'): React.CSSProperties {
+  const bg = variant === 'danger' ? '#3a1f1f' : variant === 'primary' ? '#3b3015' : '#2a2a2a';
+  const border = variant === 'danger' ? '#a04040' : variant === 'primary' ? '#e5a45a' : '#3e3e3e';
+  const color = variant === 'danger' ? '#ff8a8a' : variant === 'primary' ? '#e5a45a' : '#cfcfcf';
+  return {
+    background: bg,
+    color,
+    border: `1px solid ${border}`,
+    borderRadius: 4,
+    fontSize: 11,
+    fontWeight: 500,
+    padding: '4px 9px',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    lineHeight: 1.2,
+    transition: 'background 120ms, border-color 120ms',
+  };
+}
+
 const VisualEditor: React.FC = () => {
   const {
     files,
@@ -634,50 +656,115 @@ const VisualEditor: React.FC = () => {
   return (
     <div style={{ position: 'relative', flex: 1, overflow: 'hidden', background: '#2d2d2d', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Hint bar */}
+      {/* Toolbar */}
       <div style={{
-        height: 28, flexShrink: 0, background: 'rgba(26,26,26,0.9)', borderBottom: '1px solid #3e3e3e',
-        display: 'flex', alignItems: 'center', padding: '0 12px', gap: 16, zIndex: 5,
+        height: 38, flexShrink: 0,
+        background: 'linear-gradient(180deg,#252526 0%,#1f1f1f 100%)',
+        borderBottom: '1px solid #3e3e3e',
+        display: 'flex', alignItems: 'center', padding: '0 10px', gap: 8, zIndex: 5,
+        boxShadow: '0 1px 0 rgba(255,255,255,0.02) inset',
       }}>
-        <span style={{ fontSize: 11, color: '#777' }}>
-          {selEl
-            ? `<${selEl.tagName.toLowerCase()}${selEl.id ? '#' + selEl.id : ''}> — Drag to move • Handles to resize • ○ to rotate • Right-click for options`
-            : 'Click any element to select it — Right-click for context menu'}
+        {/* Mode toggle (segmented control) */}
+        <div style={{
+          display: 'inline-flex', background: '#1a1a1a', border: '1px solid #3a3a3a',
+          borderRadius: 5, padding: 2, gap: 2,
+        }}>
+          {(['select', 'interact'] as const).map(m => {
+            const active = interaction === m;
+            return (
+              <button
+                key={m}
+                onClick={() => setInteraction(m)}
+                title={m === 'select' ? 'Selection mode — click to select elements' : 'Interact mode — clicks pass through to the page'}
+                style={{
+                  background: active ? (m === 'select' ? '#e5a45a' : '#3b82f6') : 'transparent',
+                  color: active ? '#1a1a1a' : '#aaa',
+                  border: 'none', borderRadius: 3,
+                  fontSize: 11, fontWeight: 600,
+                  padding: '4px 12px',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  transition: 'background 120ms, color 120ms',
+                }}
+              >
+                <span style={{ fontSize: 12, lineHeight: 1 }}>{m === 'select' ? '⤢' : '☞'}</span>
+                {m === 'select' ? 'Select' : 'Interact'}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 22, background: '#3a3a3a' }} />
+
+        {/* Status / hint */}
+        <span style={{ fontSize: 12, color: selEl ? '#ddd' : '#888', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {selEl ? (
+            <>
+              <span style={{
+                display: 'inline-block', background: '#e5a45a22', color: '#e5a45a',
+                fontFamily: 'Menlo,Consolas,monospace', fontSize: 11,
+                padding: '2px 7px', borderRadius: 3, marginRight: 8, fontWeight: 600,
+              }}>
+                &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}&gt;
+              </span>
+              <span style={{ color: '#888' }}>
+                Drag to move · handles to resize · ○ to rotate · right-click for options
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={{ color: '#999' }}>Click any element to select</span>
+              <span style={{ color: '#555', margin: '0 8px' }}>·</span>
+              <span style={{ color: '#666' }}>Right-click for context menu</span>
+            </>
+          )}
         </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button
-            onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
-            style={{
-              background: 'none',
-              border: '1px solid #444',
-              borderRadius: 3,
-              cursor: 'pointer',
-              fontSize: 10,
-              color: interaction === 'select' ? '#e5a45a' : '#7ab8f5',
-              padding: '1px 8px',
-              fontFamily: 'inherit',
-            }}
-            title={interaction === 'select' ? 'Selection mode: clicks select elements' : 'Interact mode: clicks interact with page'}
-          >
-            {interaction === 'select' ? 'Select' : 'Interact'}
-          </button>
-        {selEl && (
-          <button
-            onClick={() => {
-              selectedSelectorRef.current = null;
-              setSelEl(null);
-              setHovEl(null);
-              setSelectedElement(null);
-              setSelectedSelector(null);
-            }}
-            style={{
-              background: 'none', border: '1px solid #444', borderRadius: 3,
-              cursor: 'pointer', fontSize: 10, color: '#888', padding: '1px 8px', fontFamily: 'inherit',
-            }}
-          >
-            Deselect (Esc)
-          </button>
-        )}
+
+        {/* Right-side actions */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {selEl && (
+            <>
+              <button
+                onClick={() => {
+                  selEl.removeAttribute('style');
+                  setTick(t => t + 1);
+                  syncToSource(selEl);
+                }}
+                title="Reset inline styles on the selected element"
+                style={toolbarBtn('neutral')}
+              >
+                ↺ Reset
+              </button>
+              <button
+                onClick={() => {
+                  updateHtmlSourceForElement(selEl, (target) => target.remove());
+                  selEl.remove();
+                  selectedSelectorRef.current = null;
+                  setSelEl(null);
+                  setSelectedElement(null);
+                  setSelectedSelector(null);
+                }}
+                title="Delete the selected element"
+                style={toolbarBtn('danger')}
+              >
+                🗑 Delete
+              </button>
+              <button
+                onClick={() => {
+                  selectedSelectorRef.current = null;
+                  setSelEl(null);
+                  setHovEl(null);
+                  setSelectedElement(null);
+                  setSelectedSelector(null);
+                }}
+                title="Deselect (Esc)"
+                style={toolbarBtn('neutral')}
+              >
+                ✕ Deselect
+              </button>
+            </>
+          )}
         </div>
       </div>
 
