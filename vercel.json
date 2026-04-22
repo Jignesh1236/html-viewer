@@ -42,6 +42,19 @@
     }
   ],
   "rewrites": [
+    { "source": "/manifest.json", "destination": "/manifest.json" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/icon-192.png", "destination": "/icon-192.png" },
+    { "source": "/icon-512.png", "destination": "/icon-512.png" },
+    { "source": "/favicon.svg", "destination": "/favicon.svg" },
+    { "source": "/og-image.jpg", "destination": "/og-image.jpg" },
+    { "source": "/og-image.png", "destination": "/og-image.png" },
+    { "source": "/og-seo-tutorial.png", "destination": "/og-seo-tutorial.png" },
+    { "source": "/opengraph.jpg", "destination": "/opengraph.jpg" },
+    { "source": "/ads.txt", "destination": "/ads.txt" },
+    { "source": "/sitemap.xml", "destination": "/sitemap.xml" },
+    { "source": "/robots.txt", "destination": "/robots.txt" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
