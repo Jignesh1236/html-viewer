@@ -68,6 +68,10 @@ export default defineConfig(async () => {
       port,
       host: "0.0.0.0",
       allowedHosts: true,
+      headers: {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+      },
       fs: {
         strict: true,
         deny: ["**/.*"],

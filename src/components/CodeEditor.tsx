@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
-import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
+import { VscFileCode, VscSymbolColor, VscFile, VscChevronRight, VscClose } from 'react-icons/vsc';
 import { FiImage } from 'react-icons/fi';
 
 /* ─────────────────────────────────────────────────────────────
@@ -233,11 +233,44 @@ function fileIcon(type: string) {
    CodeEditor component
    ───────────────────────────────────────────────────────────── */
 const CodeEditor: React.FC = () => {
-  const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
+  const { files, activeFileId, setActiveFile, updateFileContent, openTabIds, closeTab: closeTabAction } = useEditorStore();
+  const tabFiles = openTabIds
+    .map(id => files.find(f => f.id === id))
+    .filter((f): f is NonNullable<typeof f> => !!f);
   const editorRef = useRef<any>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabStripRef = useRef<HTMLDivElement>(null);
 
   const activeFile = files.find(f => f.id === activeFileId);
+
+  // Auto-scroll active tab into view
+  useEffect(() => {
+    if (!activeFileId) return;
+    const node = tabStripRef.current?.querySelector(`[data-tab-id="${CSS.escape(activeFileId)}"]`) as HTMLElement | null;
+    node?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+  }, [activeFileId]);
+
+  // Build breadcrumb segments from file's folder + name
+  const crumbs = activeFile
+    ? [
+        ...(activeFile.folder ? activeFile.folder.split('/').filter(Boolean) : []),
+        activeFile.name,
+      ]
+    : [];
+
+  const handleTabMouseDown = (e: React.MouseEvent, fileId: string) => {
+    // Middle-click closes the tab (file itself is preserved in the project).
+    if (e.button === 1) {
+      e.preventDefault();
+      closeTabAction(fileId);
+    }
+  };
+
+  const closeTab = (e: React.MouseEvent, fileId: string) => {
+    e.stopPropagation();
+    // Only closes the editor tab; the file stays in the project tree.
+    closeTabAction(fileId);
+  };
 
   /* ── Trigger AI inline suggestion at current cursor ── */
   function triggerAiSuggestion(forceRefresh = false) {
@@ -321,31 +354,116 @@ const CodeEditor: React.FC = () => {
 
   return (
     <div className="editor-pane" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Tab bar */}
-      <div className="editor-tabs" style={{
-        display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
-        overflowY: 'hidden', flexShrink: 0, alignItems: 'center',
-      }}>
-        {files.map(file => (
-          <div
-            key={file.id}
-            className={`editor-tab ${activeFileId === file.id ? 'active' : ''}`}
-            onClick={() => setActiveFile(file.id)}
-            style={{ flexShrink: 0 }}
-          >
-            {fileIcon(file.type)}
-            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {file.name}
-            </span>
-          </div>
-        ))}
+      {/* Tab strip — VSCode-style */}
+      <div
+        ref={tabStripRef}
+        className="editor-tabs"
+        style={{
+          display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
+          overflowY: 'hidden', flexShrink: 0, alignItems: 'stretch',
+          scrollbarWidth: 'thin',
+        }}
+      >
+        {tabFiles.map(file => {
+          const isActive = activeFileId === file.id;
+          const fullPath = file.folder ? `${file.folder}/${file.name}` : file.name;
+          return (
+            <div
+              key={file.id}
+              data-tab-id={file.id}
+              className={`editor-tab ${isActive ? 'active' : ''}`}
+              onClick={() => setActiveFile(file.id)}
+              onMouseDown={e => handleTabMouseDown(e, file.id)}
+              onAuxClick={e => { if (e.button === 1) { e.preventDefault(); e.stopPropagation(); } }}
+              title={`/${fullPath}`}
+              style={{
+                flexShrink: 0,
+                position: 'relative',
+                paddingRight: 4,
+                gap: 6,
+              }}
+            >
+              {fileIcon(file.type)}
+              <span style={{
+                maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontSize: 12,
+              }}>
+                {file.name}
+              </span>
+              <button
+                onClick={e => closeTab(e, file.id)}
+                title="Close tab (the file stays in your project)"
+                style={{
+                  width: 18, height: 18, borderRadius: 3, border: 'none',
+                  background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#aaa', opacity: isActive ? 0.7 : 0.3,
+                  transition: 'opacity 0.12s, background 0.12s',
+                  marginLeft: 2,
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = isActive ? '0.7' : '0.3';
+                  e.currentTarget.style.background = 'transparent';
+                }}
+              >
+                <VscClose size={13} />
+              </button>
+              {isActive && (
+                <span style={{
+                  position: 'absolute', left: 0, right: 0, top: 0, height: 2,
+                  background: 'var(--editor-amber)', pointerEvents: 'none',
+                }} />
+              )}
+            </div>
+          );
+        })}
+        <div style={{ flex: 1, minWidth: 12, background: 'var(--editor-titlebar)' }} />
       </div>
+
+      {/* Breadcrumbs bar (VSCode style) */}
+      {activeFile && (
+        <div style={{
+          display: 'flex', alignItems: 'center', flexShrink: 0,
+          height: 22, padding: '0 12px', gap: 2,
+          background: 'var(--editor-tab-active)', borderBottom: '1px solid var(--editor-border)',
+          fontSize: 11, color: 'var(--editor-text-muted)',
+          fontFamily: 'var(--app-font-sans)',
+          overflow: 'hidden', whiteSpace: 'nowrap',
+        }}>
+          <span style={{ color: '#666', marginRight: 4 }}>/</span>
+          {crumbs.map((c, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <VscChevronRight size={11} style={{ opacity: 0.5, flexShrink: 0 }} />}
+              <span style={{
+                color: i === crumbs.length - 1 ? 'var(--editor-text)' : 'var(--editor-text-muted)',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+              }}>
+                {i === crumbs.length - 1 && fileIcon(activeFile.type)}
+                {c}
+              </span>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
 
       {/* Editor */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
         {!activeFile ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--editor-text-muted)', fontSize: 13 }}>
-            No file selected
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            height: '100%', color: 'var(--editor-text-muted)', fontSize: 13, gap: 6, padding: 24, textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 14, color: 'var(--editor-text)' }}>No file open</div>
+            <div style={{ fontSize: 12, opacity: 0.7, maxWidth: 320 }}>
+              {files.length === 0
+                ? 'Create or import a file from the Files panel to get started.'
+                : 'Click a file in the Files panel on the left to open it as a tab.'}
+            </div>
           </div>
         ) : activeFile.type === 'image' ? (
           <ImageViewer file={activeFile} />

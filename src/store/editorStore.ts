@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getRuntime } from '../lib/runtime';
 
 export interface FileItem {
   id: string;
@@ -98,10 +99,17 @@ interface EditorStore {
   setActiveFile: (id: string) => void;
   moveFileToFolder: (fileId: string, folder: string | undefined) => void;
 
+  /** IDs of files that are currently open as tabs in the code editor. */
+  openTabIds: string[];
+  openTab: (id: string) => void;
+  closeTab: (id: string) => void;
+  closeAllTabs: () => void;
+
   folders: string[];
   addFolder: (name: string) => void;
   removeFolder: (name: string) => void;
   renameFolder: (oldName: string, newName: string) => void;
+  deleteAllFiles: () => void;
 
   mode: Mode;
   setMode: (mode: Mode) => void;
@@ -337,9 +345,21 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 `;
 
-const FILES_STORAGE_KEY    = 'html-editor-files-v1';
-const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
-const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
+/* Linux-style default project root depends on the chosen runtime:
+   - v86 (buildroot)  → /root/project       (logged in as root)
+   - WebContainer     → /home/user/project  (unprivileged user)
+   File IDs include the path so the explorer mirrors a real Linux layout. */
+const RUNTIME_KIND = getRuntime() || 'v86';
+const RUNTIME_TAG  = RUNTIME_KIND === 'v86' ? 'v86' : 'wc';
+
+const FILES_STORAGE_KEY    = `html-editor-files-${RUNTIME_TAG}-v3`;
+const FOLDERS_STORAGE_KEY  = `html-editor-folders-${RUNTIME_TAG}-v3`;
+const ACTIVE_FILE_KEY      = `html-editor-active-file-${RUNTIME_TAG}-v3`;
+
+const DEFAULT_PROJECT_DIR = RUNTIME_KIND === 'v86' ? 'root/project' : 'home/user/project';
+const DEFAULT_FOLDERS = RUNTIME_KIND === 'v86'
+  ? ['root', 'root/project']
+  : ['home', 'home/user', 'home/user/project'];
 const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
 const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
   { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
@@ -358,9 +378,9 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
 
 /* ─── Files persistence ─── */
 const DEFAULT_FILES: FileItem[] = [
-  { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
-  { id: 'styles.css', name: 'styles.css', type: 'css', content: DEFAULT_CSS },
-  { id: 'script.js',  name: 'script.js',  type: 'js',  content: DEFAULT_JS  },
+  { id: `${DEFAULT_PROJECT_DIR}/index.html`, name: 'index.html', type: 'html', content: DEFAULT_HTML, folder: DEFAULT_PROJECT_DIR },
+  { id: `${DEFAULT_PROJECT_DIR}/styles.css`, name: 'styles.css', type: 'css',  content: DEFAULT_CSS,  folder: DEFAULT_PROJECT_DIR },
+  { id: `${DEFAULT_PROJECT_DIR}/script.js`,  name: 'script.js',  type: 'js',   content: DEFAULT_JS,   folder: DEFAULT_PROJECT_DIR },
 ];
 
 function serializeFiles(files: FileItem[]): FileItem[] {
@@ -397,8 +417,8 @@ function saveFolders(folders: string[]) {
 function loadFolders(): string[] {
   try {
     const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch { return []; }
+    return raw ? (JSON.parse(raw) as string[]) : [...DEFAULT_FOLDERS];
+  } catch { return [...DEFAULT_FOLDERS]; }
 }
 
 function saveActiveFile(id: string | null) {
@@ -445,9 +465,25 @@ const _initFiles = loadFiles();
 const _initActiveFileId = loadActiveFile(_initFiles);
 const _initFolders = loadFolders();
 
+const _initOpenTabIds: string[] = (() => {
+  try {
+    const raw = localStorage.getItem('htmlEditorOpenTabs');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.filter(x => typeof x === 'string');
+    }
+  } catch {}
+  // First load: open just the active file (if any)
+  return _initActiveFileId ? [_initActiveFileId] : [];
+})();
+function saveOpenTabs(ids: string[]) {
+  try { localStorage.setItem('htmlEditorOpenTabs', JSON.stringify(ids)); } catch {}
+}
+
 export const useEditorStore = create<EditorStore>((set, get) => ({
   files: _initFiles,
   activeFileId: _initActiveFileId,
+  openTabIds: _initOpenTabIds,
 
   addFile: (file) => set((s) => {
     const next = [...s.files, file];
@@ -456,10 +492,37 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   }),
   removeFile: (id) => set((s) => {
     const next = s.files.filter(f => f.id !== id);
-    const nextActive = s.activeFileId === id ? (next.find(f => f.id !== id)?.id ?? next[0]?.id ?? null) : s.activeFileId;
+    const nextTabs = s.openTabIds.filter(t => t !== id);
+    const nextActive = s.activeFileId === id
+      ? (nextTabs[nextTabs.length - 1] ?? null)
+      : s.activeFileId;
     saveFiles(next);
     saveActiveFile(nextActive);
-    return { files: next, activeFileId: nextActive };
+    saveOpenTabs(nextTabs);
+    return { files: next, activeFileId: nextActive, openTabIds: nextTabs };
+  }),
+  openTab: (id) => set((s) => {
+    if (!s.files.some(f => f.id === id)) return {};
+    const tabs = s.openTabIds.includes(id) ? s.openTabIds : [...s.openTabIds, id];
+    saveOpenTabs(tabs);
+    return { openTabIds: tabs };
+  }),
+  closeTab: (id) => set((s) => {
+    if (!s.openTabIds.includes(id)) return {};
+    const tabs = s.openTabIds.filter(t => t !== id);
+    let nextActive = s.activeFileId;
+    if (s.activeFileId === id) {
+      const idx = s.openTabIds.indexOf(id);
+      nextActive = tabs[idx] ?? tabs[idx - 1] ?? tabs[tabs.length - 1] ?? null;
+    }
+    saveOpenTabs(tabs);
+    saveActiveFile(nextActive);
+    return { openTabIds: tabs, activeFileId: nextActive };
+  }),
+  closeAllTabs: () => set(() => {
+    saveOpenTabs([]);
+    saveActiveFile(null);
+    return { openTabIds: [], activeFileId: null };
   }),
   updateFileContent: (id, content) => set((s) => {
     const file = s.files.find(f => f.id === id);
@@ -479,10 +542,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       ...timelinePatch,
     };
   }),
-  setActiveFile: (id) => {
+  setActiveFile: (id) => set((s) => {
     saveActiveFile(id);
-    set({ activeFileId: id });
-  },
+    // Activating a file implicitly opens it as a tab (this is the only path
+    // through which a file becomes a tab — listing it in FilePanel does not).
+    const tabs = s.openTabIds.includes(id) ? s.openTabIds : [...s.openTabIds, id];
+    if (tabs !== s.openTabIds) saveOpenTabs(tabs);
+    return { activeFileId: id, openTabIds: tabs };
+  }),
   moveFileToFolder: (fileId, folder) => set((s) => {
     const next = s.files.map(f => f.id === fileId ? { ...f, folder } : f);
     saveFiles(next);
@@ -510,7 +577,22 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     return { folders: nextFolders, files: nextFiles };
   }),
 
-  mode: 'split',
+  deleteAllFiles: () => set(() => {
+    saveFiles([]);
+    saveFolders([]);
+    saveOpenTabs([]);
+    saveActiveFile(null);
+    return { files: [], folders: [], activeFileId: null, openTabIds: [] };
+  }),
+
+  mode: (() => {
+    try {
+      const sp = new URLSearchParams(location.search);
+      const m = sp.get('mode');
+      if (m === 'visual' || m === 'code' || m === 'split') return m;
+    } catch {}
+    return 'split';
+  })(),
   setMode: (mode) => set({ mode }),
 
   selectedSelector: null,

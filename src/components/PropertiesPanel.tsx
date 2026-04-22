@@ -32,9 +32,10 @@ function injectPropertiesAnimationCssIntoHtml(html: string, css: string) {
 }
 
 /* ─── Section ─────────────────────────────────────────────── */
-interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }
-const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true }) => {
+interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean; search?: string }
+const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true, search = '' }) => {
   const [open, setOpen] = useState(defaultOpen);
+  if (search && !title.toLowerCase().includes(search.toLowerCase())) return null;
   return (
     <div style={{ borderBottom: `1px solid ${C.border}` }}>
       <button
@@ -411,6 +412,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
   const [rotateDeg, setRotateDeg] = useState(0);
   const [scaleX, setScaleX] = useState(1);
   const [scaleY, setScaleY] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setContentDraft(selectedElement?.innerHTML || '');
@@ -549,11 +551,40 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </div>
       )}
 
+      {/* ── Search bar ── */}
+      <div style={{ padding: '6px 8px', flexShrink: 0, borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+        <div style={{ position: 'relative' }}>
+          <FiMousePointer size={11} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Search properties…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4,
+              padding: '5px 28px 5px 26px', fontSize: 11, color: C.text,
+              fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.15s',
+            }}
+            onFocus={e => (e.target.style.borderColor = C.accentBrd)}
+            onBlur={e => (e.target.style.borderColor = C.border)}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: C.muted, display: 'flex', alignItems: 'center', padding: 0 }}
+            >
+              <FiFilter size={10} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ── Scrollable body ── */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
         {/* Content */}
-        <Section title="Content" icon={<FiCode size={12} />}>
+        <Section title="Content" icon={<FiCode size={12} />} search={searchQuery}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ fontSize: 10, color: C.dim, marginBottom: 1 }}>Inner HTML</div>
             <textarea
@@ -571,7 +602,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Typography */}
-        <Section title="Typography" icon={<FiType size={12} />}>
+        <Section title="Typography" icon={<FiType size={12} />} search={searchQuery}>
           <Row label="Color">
             <ColorInput value={getS('color') || '#333333'} onChange={v => apply('color', v)} />
           </Row>
@@ -603,7 +634,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Background */}
-        <Section title="Background" icon={<FiDroplet size={12} />}>
+        <Section title="Background" icon={<FiDroplet size={12} />} search={searchQuery}>
           <Row label="Color">
             <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} />
           </Row>
@@ -629,7 +660,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Layout */}
-        <Section title="Layout" icon={<FiLayout size={12} />}>
+        <Section title="Layout" icon={<FiLayout size={12} />} search={searchQuery}>
           <Row label="Display">
             <BtnGroup options={['block', 'flex', 'grid', 'inline', 'none']} value={getS('display') || 'block'} onChange={v => apply('display', v)} small />
           </Row>
@@ -659,7 +690,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Flex / Grid */}
-        <Section title="Flex / Grid" icon={<FiMaximize2 size={12} />} defaultOpen={false}>
+        <Section title="Flex / Grid" icon={<FiMaximize2 size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Direction">
             <BtnGroup options={['row', 'column', 'row-rev', 'col-rev']}
               value={(() => { const v = getS('flex-direction') || 'row'; if (v === 'row-reverse') return 'row-rev'; if (v === 'column-reverse') return 'col-rev'; return v; })()}
@@ -692,7 +723,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Spacing */}
-        <Section title="Spacing" icon={<FiMove size={12} />} defaultOpen={false}>
+        <Section title="Spacing" icon={<FiMove size={12} />} defaultOpen={false} search={searchQuery}>
           <div style={{ fontSize: 10, color: C.dim, marginBottom: 2 }}>Margin</div>
           <SpacingGrid
             props={[['margin-top','↑'],['margin-right','→'],['margin-bottom','↓'],['margin-left','←']]}
@@ -706,7 +737,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Border */}
-        <Section title="Border" icon={<FiBox size={12} />} defaultOpen={false}>
+        <Section title="Border" icon={<FiBox size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Width">
             <PropInput value={getS('border-width') || '0px'} onChange={v => apply('border-width', v)} placeholder="0px" />
           </Row>
@@ -722,7 +753,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Shadows */}
-        <Section title="Shadows" defaultOpen={false}>
+        <Section title="Shadows" defaultOpen={false} search={searchQuery}>
           <div style={{ fontSize: 10, color: C.dim, marginBottom: 3 }}>Box Shadow</div>
           <PropInput value={getS('box-shadow') || 'none'} onChange={v => apply('box-shadow', v)} placeholder="0 4px 12px rgba(0,0,0,0.2)" />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 3 }}>
@@ -744,7 +775,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Transform */}
-        <Section title="Transform" defaultOpen={false}>
+        <Section title="Transform" defaultOpen={false} search={searchQuery}>
           <Row label="Rotate">
             <input type="range" min="-180" max="180" step="1" value={rotateDeg}
               style={{ flex: 1, accentColor: C.accent } as any}
@@ -778,7 +809,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Animation */}
-        <Section title="Animation" icon={<FiZap size={12} />} defaultOpen={false}>
+        <Section title="Animation" icon={<FiZap size={12} />} defaultOpen={false} search={searchQuery}>
           <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Preset ({ANIMATION_PRESETS.length}+ available)</div>
           {ANIMATION_CATEGORIES.map(cat => (
             <details key={cat} style={{ marginBottom: 3 }}>
@@ -872,7 +903,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Filters */}
-        <Section title="Filters" icon={<FiFilter size={12} />} defaultOpen={false}>
+        <Section title="Filters" icon={<FiFilter size={12} />} defaultOpen={false} search={searchQuery}>
           <FilterControls value={getS('filter') || ''} onChange={v => apply('filter', v)} label="filter" />
           <div style={{ fontSize: 10, color: C.dim, marginTop: 6 }}>Backdrop Filter</div>
           <FilterControls value={getS('backdrop-filter') || ''} onChange={v => { apply('backdrop-filter', v); apply('-webkit-backdrop-filter', v); }} label="backdrop" />
@@ -892,7 +923,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Transitions */}
-        <Section title="Transitions" icon={<FiZap size={12} />} defaultOpen={false}>
+        <Section title="Transitions" icon={<FiZap size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Property">
             <select style={selBase} value={getS('transition-property') || 'all'} onChange={e => apply('transition-property', e.target.value)}>
               {['all','none','opacity','transform','color','background-color','width','height','margin','padding','border','box-shadow','filter'].map(v => <option key={v}>{v}</option>)}
@@ -920,7 +951,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Visibility & Interaction */}
-        <Section title="Visibility / Interact" icon={<FiEye size={12} />} defaultOpen={false}>
+        <Section title="Visibility / Interact" icon={<FiEye size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Visible">
             <BtnGroup options={['visible','hidden','collapse']} value={getS('visibility') || 'visible'} onChange={v => apply('visibility', v)} small />
           </Row>
@@ -952,7 +983,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Outline / Object / Aspect */}
-        <Section title="Outline & Object" icon={<FiAperture size={12} />} defaultOpen={false}>
+        <Section title="Outline & Object" icon={<FiAperture size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="O Width">
             <PropInput value={getS('outline-width') || '0px'} onChange={v => apply('outline-width', v)} placeholder="0px" />
           </Row>
@@ -977,7 +1008,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Clip / Mask */}
-        <Section title="Clip & Mask" icon={<FiBox size={12} />} defaultOpen={false}>
+        <Section title="Clip & Mask" icon={<FiBox size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Clip path">
             <PropInput value={getS('clip-path') || 'none'} onChange={v => apply('clip-path', v)} placeholder="circle(50%) or polygon(...)" />
           </Row>
@@ -1008,7 +1039,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* List */}
-        <Section title="List" icon={<FiList size={12} />} defaultOpen={false}>
+        <Section title="List" icon={<FiList size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Type">
             <select style={selBase} value={getS('list-style-type') || 'disc'} onChange={e => apply('list-style-type', e.target.value)}>
               {['none','disc','circle','square','decimal','decimal-leading-zero','lower-alpha','upper-alpha','lower-roman','upper-roman','lower-greek','square'].map(v => <option key={v}>{v}</option>)}
@@ -1023,7 +1054,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Columns */}
-        <Section title="Columns" icon={<FiColumns size={12} />} defaultOpen={false}>
+        <Section title="Columns" icon={<FiColumns size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Count">
             <PropInput value={getS('column-count') || 'auto'} onChange={v => apply('column-count', v)} placeholder="3" />
           </Row>
@@ -1048,7 +1079,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Scroll */}
-        <Section title="Scroll" icon={<FiMousePointer size={12} />} defaultOpen={false}>
+        <Section title="Scroll" icon={<FiMousePointer size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="Behavior">
             <BtnGroup options={['auto','smooth']} value={getS('scroll-behavior') || 'auto'} onChange={v => apply('scroll-behavior', v)} />
           </Row>
@@ -1072,7 +1103,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Text Effects */}
-        <Section title="Text Effects" icon={<FiType size={12} />} defaultOpen={false}>
+        <Section title="Text Effects" icon={<FiType size={12} />} defaultOpen={false} search={searchQuery}>
           <Row label="L Spacing">
             <PropInput value={getS('letter-spacing') || 'normal'} onChange={v => apply('letter-spacing', v)} placeholder="0.05em" />
           </Row>
@@ -1118,7 +1149,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Transform Advanced */}
-        <Section title="Transform Origin / 3D" defaultOpen={false}>
+        <Section title="Transform Origin / 3D" defaultOpen={false} search={searchQuery}>
           <Row label="Origin">
             <PropInput value={getS('transform-origin') || 'center'} onChange={v => apply('transform-origin', v)} placeholder="center / 50% 50%" />
           </Row>
@@ -1139,7 +1170,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Custom CSS */}
-        <Section title="Custom CSS" icon={<FiCode size={12} />} defaultOpen={false}>
+        <Section title="Custom CSS" icon={<FiCode size={12} />} defaultOpen={false} search={searchQuery}>
           <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Paste CSS property:value pairs</div>
           <textarea
             style={{ ...inputBase, width: '100%', height: 88, resize: 'none', flex: 'none' } as any}

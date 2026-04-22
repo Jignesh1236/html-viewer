@@ -3,8 +3,15 @@ import { useEditorStore } from '../store/editorStore';
 import {
   FiRefreshCw, FiMonitor, FiTablet, FiSmartphone,
   FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
+  FiGlobe, FiServer,
 } from 'react-icons/fi';
 import { VscDebugConsole, VscFileCode } from 'react-icons/vsc';
+import { wcManager } from '../lib/webcontainer';
+import type { PortInfo } from '../lib/webcontainer';
+import {
+  syncPreview, previewEntryUrl, previewBaseUrl,
+  localhostUrlFor, absolutePreviewUrl, preflightSW,
+} from '../lib/previewServer';
 
 type DevToolsTab = 'console' | 'elements' | 'network' | 'styles';
 
@@ -18,7 +25,7 @@ const PreviewPane: React.FC = () => {
   } = useEditorStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [srcDoc, setSrcDoc] = useState<string>('');
+  const [iframeSrc, setIframeSrc] = useState<string>('about:blank');
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [devtoolsTab, setDevtoolsTab] = useState<DevToolsTab>('console');
   const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
@@ -27,7 +34,8 @@ const PreviewPane: React.FC = () => {
   const [elementsHtml, setElementsHtml] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIdx, setHistoryIdx] = useState(-1);
-  const [currentUrl, setCurrentUrl] = useState('preview://localhost/');
+  const [currentUrl, setCurrentUrl] = useState('http://localhost:3000/');
+  const [serverReady, setServerReady] = useState(false);
   const historyIdxRef = useRef(-1);
   useEffect(() => { historyIdxRef.current = historyIdx; }, [historyIdx]);
 
@@ -35,6 +43,8 @@ const PreviewPane: React.FC = () => {
   const [newTabMenuOpen, setNewTabMenuOpen] = useState(false);
   const newTabBtnRef = useRef<HTMLButtonElement>(null);
   const newTabMenuRef = useRef<HTMLDivElement>(null);
+  const [wcPorts, setWcPorts] = useState<PortInfo[]>(wcManager.ports);
+  const [activePortUrl, setActivePortUrl] = useState<string | null>(null);
 
   const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
 
@@ -64,7 +74,18 @@ const PreviewPane: React.FC = () => {
     }
   }, [files, addPreviewTab]);
 
-  // Build the srcdoc that injects all project files into the HTML
+  // ── Boot the in-browser localhost preview server (Service Worker) once ──
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const ok = await preflightSW();
+      if (!alive) return;
+      setServerReady(ok);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Build the srcdoc that injects all project files into the HTML (LEGACY — kept for fallback only)
   const buildSrcDoc = useCallback(() => {
     const htmlFile = files.find(f => f.type === 'html');
     if (!htmlFile) return '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
@@ -173,6 +194,18 @@ const PreviewPane: React.FC = () => {
     return html;
   }, [files, timelineAnimationStyle]);
 
+  // Listen for WebContainer port events
+  useEffect(() => {
+    const unsub = wcManager.onPorts(ports => {
+      setWcPorts(ports);
+      // Auto-activate first port if nothing is active
+      if (ports.length > 0 && !activePortUrl) {
+        setActivePortUrl(ports[0].url);
+      }
+    });
+    return unsub;
+  }, []);
+
   // Listen for postMessages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -186,12 +219,13 @@ const PreviewPane: React.FC = () => {
           favicon: d.favicon || '',
         });
       } else if (d.type === 'navigate' && typeof d.url === 'string') {
-        setCurrentUrl(d.url);
+        const display = localhostUrlFor(d.url);
+        setCurrentUrl(display);
         setHistory(prev => {
           const idx = historyIdxRef.current;
           const base = idx >= 0 ? prev.slice(0, idx + 1) : prev;
-          if (base[base.length - 1] === d.url) return base;
-          const next = [...base, d.url];
+          if (base[base.length - 1] === display) return base;
+          const next = [...base, display];
           setHistoryIdx(next.length - 1);
           return next;
         });
@@ -203,24 +237,54 @@ const PreviewPane: React.FC = () => {
 
   const scheduleRebuild = useCallback((forceRemount = false) => {
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
-    rebuildTimerRef.current = setTimeout(() => {
+    rebuildTimerRef.current = setTimeout(async () => {
       setLoading(true);
       setFadeIn(false);
-      setCurrentUrl('preview://localhost/');
-      setHistory(['preview://localhost/']);
+
+      const status = await syncPreview(files, { extraInjectedCss: timelineAnimationStyle });
+      if (!status.ready) {
+        // SW not active yet (first paint before sw register completes) — fallback to srcDoc once
+        const blob = new Blob([buildSrcDoc()], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        setIframeSrc(url);
+        setCurrentUrl('http://localhost:3000/');
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+        return;
+      }
+
+      const url = previewEntryUrl(files);
+      const localhostUrl = localhostUrlFor(url);
+      setCurrentUrl(localhostUrl);
+      setHistory([localhostUrl]);
       setHistoryIdx(0);
       if (forceRemount) setIframeKey(k => k + 1);
-      setSrcDoc(buildSrcDoc());
+      // Add a cache-busting param so the iframe always sees the latest snapshot
+      setIframeSrc(`${url}?_t=${Date.now()}`);
     }, 120);
-  }, [buildSrcDoc]);
+  }, [files, timelineAnimationStyle, buildSrcDoc]);
 
-  const openInBrowser = useCallback(() => {
-    const html = buildSrcDoc();
-    const blob = new Blob([html], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
-  }, [buildSrcDoc]);
+  const openInBrowser = useCallback(async () => {
+    await syncPreview(files, { extraInjectedCss: timelineAnimationStyle });
+    const url = absolutePreviewUrl(previewEntryUrl(files));
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [files, timelineAnimationStyle]);
+
+  const openFilePreviewInBrowser = useCallback(async (fileId: string) => {
+    const file = files.find(f => f.id === fileId);
+    if (!file) return;
+    await syncPreview(files, { extraInjectedCss: timelineAnimationStyle });
+    // Resolve relative to the project root (same logic as previewEntryUrl).
+    const root = (() => {
+      const entry =
+        files.find(f => f.type === 'html' && f.name.toLowerCase() === 'index.html') ||
+        files.find(f => f.type === 'html');
+      return entry?.folder || '';
+    })();
+    const full = file.folder ? `${file.folder}/${file.name}` : file.name;
+    const rel = root && full.startsWith(root + '/') ? full.slice(root.length + 1) : full;
+    const url = absolutePreviewUrl(previewEntryUrl(files, rel));
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }, [files, timelineAnimationStyle]);
 
   // Rebuild srcdoc on file changes or explicit refresh
   useEffect(() => {
@@ -435,15 +499,15 @@ const PreviewPane: React.FC = () => {
           }}>
             <button
               className="panel-icon-btn" title="Back"
-              onClick={() => {}}
-              disabled
-              style={{ opacity: 0.3, cursor: 'not-allowed' }}
+              onClick={() => { try { iframeRef.current?.contentWindow?.history.back(); } catch {} }}
+              disabled={historyIdx <= 0}
+              style={{ opacity: historyIdx <= 0 ? 0.3 : 1, cursor: historyIdx <= 0 ? 'not-allowed' : 'pointer' }}
             ><FiArrowLeft size={13} /></button>
             <button
               className="panel-icon-btn" title="Forward"
-              onClick={() => {}}
-              disabled
-              style={{ opacity: 0.3, cursor: 'not-allowed' }}
+              onClick={() => { try { iframeRef.current?.contentWindow?.history.forward(); } catch {} }}
+              disabled={historyIdx >= history.length - 1}
+              style={{ opacity: historyIdx >= history.length - 1 ? 0.3 : 1, cursor: historyIdx >= history.length - 1 ? 'not-allowed' : 'pointer' }}
             ><FiArrowRight size={13} /></button>
             <button
               className="panel-icon-btn" title="Refresh (Ctrl+R)"
@@ -461,9 +525,9 @@ const PreviewPane: React.FC = () => {
               <input
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  fontSize: 12, color: '#bbb', fontFamily: 'var(--app-font-mono)',
+                  fontSize: 12, color: activePortUrl ? '#4ec9b0' : '#bbb', fontFamily: 'var(--app-font-mono)',
                 }}
-                value={currentUrl}
+                value={activePortUrl || currentUrl}
                 readOnly
               />
             </div>
@@ -480,9 +544,36 @@ const PreviewPane: React.FC = () => {
                 </button>
               ))}
             </div>
+            {/* Port Preview selector */}
+            {wcPorts.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, borderLeft: '1px solid #3e3e3e', paddingLeft: 6 }}>
+                <FiServer size={12} style={{ color: '#4ec9b0', flexShrink: 0 }} />
+                {wcPorts.map(p => (
+                  <button
+                    key={p.port}
+                    title={`Switch to Node.js server on port ${p.port}`}
+                    onClick={() => setActivePortUrl(prev => prev === p.url ? null : p.url)}
+                    style={{
+                      padding: '2px 7px', fontSize: 11, borderRadius: 3, cursor: 'pointer', fontFamily: 'inherit',
+                      border: `1px solid ${activePortUrl === p.url ? 'rgba(78,201,176,0.6)' : 'rgba(78,201,176,0.2)'}`,
+                      background: activePortUrl === p.url ? 'rgba(78,201,176,0.15)' : 'transparent',
+                      color: activePortUrl === p.url ? '#4ec9b0' : '#888',
+                    }}
+                  >
+                    :{p.port}
+                  </button>
+                ))}
+                {activePortUrl && (
+                  <button className="panel-icon-btn" title="Open port in browser" onClick={() => window.open(activePortUrl, '_blank')}>
+                    <FiExternalLink size={12} />
+                  </button>
+                )}
+              </div>
+            )}
+
             <button
               className="panel-icon-btn" title="Open in Browser"
-              onClick={openInBrowser}
+              onClick={activePortUrl ? () => window.open(activePortUrl, '_blank') : openInBrowser}
             >
               <FiExternalLink size={13} />
             </button>
@@ -509,33 +600,59 @@ const PreviewPane: React.FC = () => {
 
           {/* Preview Area */}
           <div style={{
-            flex: 1, overflow: 'auto', background: viewport === 'desktop' ? '#fff' : '#2a2a2a',
+            flex: 1, overflow: 'auto', background: activePortUrl ? '#1e1e1e' : (viewport === 'desktop' ? '#fff' : '#2a2a2a'),
             display: 'flex', alignItems: viewport === 'mobile' ? 'center' : 'flex-start',
-            justifyContent: 'center', padding: viewport === 'desktop' ? 0 : 24,
+            justifyContent: 'center', padding: viewport === 'desktop' || activePortUrl ? 0 : 24,
             position: 'relative',
           }}>
-            {loading && (
+            {loading && !activePortUrl && (
               <div style={{
                 position: 'absolute', top: 0, left: 0, right: 0, height: 2,
                 background: 'var(--editor-amber)', zIndex: 10,
                 animation: 'shimmer 1s ease infinite',
               }} />
             )}
-            <iframe
-              key={iframeKey}
-              ref={iframeRef}
-              title="Preview"
-              onLoad={handleIframeLoad}
-              srcDoc={srcDoc}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
-              style={{
-                ...viewportStyle,
-                border: 'none', flexShrink: 0, overflow: 'hidden',
-                transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease',
-                opacity: fadeIn ? 1 : 0,
-                willChange: 'opacity',
-              }}
-            />
+            {activePortUrl ? (
+              /* Node.js / WebContainer port preview */
+              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: '#1e1e1e' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', background: '#252526', borderBottom: '1px solid #3e3e3e', flexShrink: 0 }}>
+                  <FiGlobe size={13} style={{ color: '#4ec9b0' }} />
+                  <span style={{ fontSize: 12, color: '#4ec9b0', fontFamily: 'monospace' }}>{activePortUrl}</span>
+                  <div style={{ flex: 1 }} />
+                  <button onClick={() => window.open(activePortUrl, '_blank')}
+                    style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(78,201,176,0.3)', background: 'rgba(78,201,176,0.08)', color: '#4ec9b0', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Open ↗
+                  </button>
+                  <button onClick={() => setActivePortUrl(null)}
+                    style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4, border: '1px solid #3e3e3e', background: 'transparent', color: '#888', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    ✕ Close Port View
+                  </button>
+                </div>
+                <iframe
+                  key={`port-${activePortUrl}`}
+                  src={activePortUrl}
+                  title="Node.js Preview"
+                  style={{ flex: 1, border: 'none', background: '#fff' }}
+                  allow="cross-origin-isolated"
+                />
+              </div>
+            ) : (
+              <iframe
+                key={iframeKey}
+                ref={iframeRef}
+                title="Preview"
+                onLoad={handleIframeLoad}
+                src={iframeSrc}
+                sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock allow-downloads"
+                style={{
+                  ...viewportStyle,
+                  border: 'none', flexShrink: 0, overflow: 'hidden',
+                  transition: 'width 0.3s ease, height 0.3s ease, border-radius 0.3s ease',
+                  opacity: fadeIn ? 1 : 0,
+                  willChange: 'opacity',
+                }}
+              />
+            )}
           </div>
 
           {/* DevTools Panel */}

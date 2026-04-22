@@ -86,6 +86,9 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     [customAnimations]
   );
 
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
   const pushAnimationCSS = useCallback((css: string) => {
     setTimelineAnimationStyle('');
     requestAnimationFrame(() => {
@@ -94,11 +97,12 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   }, [setTimelineAnimationStyle]);
 
   const persistAnimations = useCallback((css: string) => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = filesRef.current.find(f => f.type === 'html');
     if (!htmlFile) return;
     const updated = injectTimelineCssIntoHtml(htmlFile.content, css);
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updateFileContent]);
 
   useEffect(() => {
     if (playing) {
@@ -122,9 +126,10 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   useEffect(() => {
     if (!animationsApplied || playing) return;
     const css = buildAnimationCSS(tracks, customAnimations);
-    pushAnimationCSS(css);
+    setTimelineAnimationStyle(css);
     persistAnimations(css);
-  }, [tracks, customAnimations, animationsApplied, playing, pushAnimationCSS, persistAnimations]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tracks, customAnimations, animationsApplied, playing]);
 
   const stopAndReset = () => {
     setTimelineState(prev => ({ ...prev, playing: false, currentTime: 0 }));
@@ -137,7 +142,11 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   const applyAnimations = () => {
     const css = buildAnimationCSS(tracks, customAnimations);
-    pushAnimationCSS(css);
+    if (!css.trim()) {
+      showNotification('No animation tracks to apply');
+      return;
+    }
+    setTimelineAnimationStyle(css);
     persistAnimations(css);
     setTimelineState(prev => ({ ...prev, animationsApplied: true }));
     setAppliedMsg(true);
