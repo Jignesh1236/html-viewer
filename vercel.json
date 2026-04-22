@@ -5,32 +5,29 @@
   "framework": "vite",
   "cleanUrls": true,
   "trailingSlash": false,
+
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
-        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
       ]
     },
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
       ]
     },
     {
-      "source": "/sitemap.xml",
+      "source": "/sw.js",
       "headers": [
-        { "key": "Content-Type", "value": "application/xml; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=3600" }
-      ]
-    },
-    {
-      "source": "/robots.txt",
-      "headers": [
-        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
+        { "key": "Content-Type", "value": "application/javascript" },
+        { "key": "Cache-Control", "value": "public, max-age=86400" },
+        { "key": "Cross-Origin-Resource-Policy", "value": "same-origin" }
       ]
     },
     {
@@ -39,29 +36,13 @@
         { "key": "Content-Type", "value": "application/json" },
         { "key": "Cache-Control", "value": "public, max-age=86400" }
       ]
-    },
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Content-Type", "value": "application/javascript" },
-        { "key": "Cache-Control", "value": "public, max-age=86400" }
-      ]
     }
   ],
+
   "rewrites": [
-    { "source": "/manifest.json", "destination": "/manifest.json", "statusCode": 200 },
-    { "source": "/sw.js", "destination": "/sw.js", "statusCode": 200 },
-    { "source": "/assets/(.*)", "destination": "/assets/$1", "statusCode": 200 },
-    { "source": "/icon-192.png", "destination": "/icon-192.png", "statusCode": 200 },
-    { "source": "/icon-512.png", "destination": "/icon-512.png", "statusCode": 200 },
-    { "source": "/favicon.svg", "destination": "/favicon.svg", "statusCode": 200 },
-    { "source": "/og-image.jpg", "destination": "/og-image.jpg", "statusCode": 200 },
-    { "source": "/og-image.png", "destination": "/og-image.png", "statusCode": 200 },
-    { "source": "/og-seo-tutorial.png", "destination": "/og-seo-tutorial.png", "statusCode": 200 },
-    { "source": "/opengraph.jpg", "destination": "/opengraph.jpg", "statusCode": 200 },
-    { "source": "/ads.txt", "destination": "/ads.txt", "statusCode": 200 },
-    { "source": "/sitemap.xml", "destination": "/sitemap.xml", "statusCode": 200 },
-    { "source": "/robots.txt", "destination": "/robots.txt", "statusCode": 200 },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/manifest.json", "destination": "/manifest.json" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
