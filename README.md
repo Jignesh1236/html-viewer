@@ -23,7 +23,7 @@
 
 A 3-pane layout — **File Explorer** on the left, **Monaco code editor** (or **Visual Designer**) in the middle, **live preview** on the right. Switch any time between *Code only*, *Visual only*, or *Split* mode.
 
----
+--- 
 
 ## What the editor can do
 
