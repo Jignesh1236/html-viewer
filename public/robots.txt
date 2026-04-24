@@ -1,93 +1,27 @@
-# ════════════════════════════════════════════════════════════
 # robots.txt — HTML Editor Pro
-# Primary domain: https://html-viewer-gray-beta.vercel.app
-# Mirror domain : https://html-viewer-f2v.pages.dev
-# ════════════════════════════════════════════════════════════
+# Main domain: https://html-viewer-f2v.pages.dev
 
-# ─── Default policy: allow all crawlers everywhere ─────────
 User-agent: *
 Allow: /
-Disallow: /assets/
-Disallow: /*.js$
-Disallow: /*.css$
-Disallow: /*?*
+
+# Optional: block useless internal/dev folders
 Disallow: /node_modules/
 Disallow: /.git/
 Disallow: /src/
 
-# ─── Major search engines: full access ─────────────────────
+# Allow important assets (optional but safe)
 User-agent: Googlebot
 Allow: /
-Allow: /assets/
-Allow: /*.js$
-Allow: /*.css$
 
 User-agent: Googlebot-Image
 Allow: /
-Allow: /og-image.png
-Allow: /og-image.jpg
-Allow: /og-seo-tutorial.png
-Allow: /icon-192.png
-Allow: /icon-512.png
-Allow: /favicon.svg
 
-User-agent: Bingbot
-Allow: /
-Allow: /assets/
-
-User-agent: DuckDuckBot
-Allow: /
-
-User-agent: YandexBot
-Allow: /
-
-User-agent: Slurp
-Allow: /
-
-# ─── AdSense crawler — must be allowed for ad personalization
+# Ads + indexing (important)
 User-agent: Mediapartners-Google
 Allow: /
 
 User-agent: AdsBot-Google
 Allow: /
 
-# ─── Social card generators ────────────────────────────────
-User-agent: facebookexternalhit
-Allow: /
-User-agent: Twitterbot
-Allow: /
-User-agent: LinkedInBot
-Allow: /
-User-agent: WhatsApp
-Allow: /
-User-agent: TelegramBot
-Allow: /
-User-agent: Discordbot
-Allow: /
-User-agent: Slackbot
-Allow: /
-
-# ─── Block aggressive scrapers / AI training (optional) ────
-User-agent: GPTBot
-Disallow: /
-User-agent: ChatGPT-User
-Disallow: /
-User-agent: CCBot
-Disallow: /
-User-agent: anthropic-ai
-Disallow: /
-User-agent: Claude-Web
-Disallow: /
-User-agent: Google-Extended
-Disallow: /
-User-agent: PerplexityBot
-Disallow: /
-User-agent: Bytespider
-Disallow: /
-
-# ─── Sitemaps ──────────────────────────────────────────────
-Sitemap: https://html-viewer-gray-beta.vercel.app/sitemap.xml
+# Sitemap (ONLY ONE DOMAIN)
 Sitemap: https://html-viewer-f2v.pages.dev/sitemap.xml
-
-# ─── Host directive (Yandex) ───────────────────────────────
-Host: https://html-viewer-gray-beta.vercel.app
