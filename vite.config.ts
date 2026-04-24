@@ -20,6 +20,7 @@ export default defineConfig(async () => {
 
   return {
     base: "/",
+    publicDir: "public",
     plugins: [
       react(),
       tailwindcss(),
