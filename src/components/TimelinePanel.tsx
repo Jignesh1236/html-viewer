@@ -22,27 +22,63 @@ function hideDragCapture() {
   if (overlay) overlay.style.display = 'none';
 }
 
-function buildAnimationCSS(tracks: Track[], custom: CustomAnimation[]): string {
+const CLICK_RUNTIME = `
+(function(){
+  if (window.__timelineClickWired) return; window.__timelineClickWired = true;
+  document.addEventListener('click', function(e){
+    var els = document.querySelectorAll('[data-tl-click]');
+    els.forEach(function(el){
+      if (el === e.target || el.contains(e.target)) {
+        el.classList.remove('__tl-clicked');
+        // force reflow so animation can restart
+        void el.offsetWidth;
+        el.classList.add('__tl-clicked');
+      }
+    });
+  }, true);
+})();`.trim();
+
+function buildAnimationCSS(tracks: Track[], custom: CustomAnimation[]): { css: string; needsClickRuntime: boolean; clickSelectors: string[] } {
   const customMap: Record<string, string> = {};
   custom.forEach(c => { customMap[c.name] = c.keyframes; });
   const usedNames = new Set(tracks.map(t => t.animation).filter(a => a && a !== 'none'));
   const keyframeBlocks = Array.from(usedNames)
     .map(p => customMap[p] || KEYFRAMES_MAP[p] || '')
     .filter(Boolean).join('\n');
+  const clickSelectors: string[] = [];
   const rules = tracks
     .filter(t => t.animation !== 'none' && t.element.trim())
     .map(t => {
       const iter = t.iteration === 'infinite' ? 'infinite' : parseInt(t.iteration) || 1;
-      return `${t.element} { animation: ${t.animation} ${t.duration}s ${t.easing} ${t.delay}s ${iter} normal both !important; will-change: transform, opacity; }`;
+      const trigger = t.trigger || 'load';
+      const animLine = `animation: ${t.animation} ${t.duration}s ${t.easing} ${t.delay}s ${iter} normal both !important; will-change: transform, opacity;`;
+      if (trigger === 'hover') {
+        return `${t.element}:hover { ${animLine} }`;
+      }
+      if (trigger === 'click') {
+        clickSelectors.push(t.element.trim());
+        return `${t.element}.__tl-clicked { ${animLine} }`;
+      }
+      return `${t.element} { ${animLine} }`;
     })
     .join('\n');
-  return `${keyframeBlocks}\n${rules}`;
+  return { css: `${keyframeBlocks}\n${rules}`, needsClickRuntime: clickSelectors.length > 0, clickSelectors };
 }
 
-function injectTimelineCssIntoHtml(html: string, css: string) {
-  const cleaned = html.replace(/\n?\s*<style\s+id=["']timeline-animations["'][\s\S]*?<\/style>/i, '');
-  if (!css.trim()) return cleaned;
-  const block = `<style id="timeline-animations">\n${css}\n</style>`;
+function injectTimelineCssIntoHtml(html: string, css: string, needsClickRuntime: boolean, clickSelectors: string[]) {
+  let cleaned = html
+    .replace(/\n?\s*<style\s+id=["']timeline-animations["'][\s\S]*?<\/style>/i, '')
+    .replace(/\n?\s*<script\s+id=["']timeline-click-runtime["'][\s\S]*?<\/script>/i, '');
+  if (!css.trim() && !needsClickRuntime) return cleaned;
+
+  // Tag elements that need click handler with data-tl-click so runtime can find them.
+  // We add a tiny inline script in head that walks selectors, since we can't safely modify body markup here.
+  const tagScript = needsClickRuntime
+    ? `<script id="timeline-click-runtime">\n(function(){\n  var sels = ${JSON.stringify(clickSelectors)};\n  function tag(){ sels.forEach(function(s){ try { document.querySelectorAll(s).forEach(function(el){ el.setAttribute('data-tl-click','1'); }); } catch(e){} }); }\n  if (document.readyState !== 'loading') tag(); else document.addEventListener('DOMContentLoaded', tag);\n  ${CLICK_RUNTIME}\n})();\n</script>`
+    : '';
+
+  const styleBlock = css.trim() ? `<style id="timeline-animations">\n${css}\n</style>` : '';
+  const block = `${styleBlock}\n${tagScript}`;
   if (cleaned.includes('</head>')) return cleaned.replace('</head>', `${block}\n</head>`);
   return `${block}\n${cleaned}`;
 }
@@ -93,17 +129,25 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     });
   }, [setTimelineAnimationStyle]);
 
-  const persistAnimations = useCallback((css: string) => {
+  const persistAnimations = useCallback((built: { css: string; needsClickRuntime: boolean; clickSelectors: string[] }) => {
     const htmlFile = files.find(f => f.type === 'html');
     if (!htmlFile) return;
-    const updated = injectTimelineCssIntoHtml(htmlFile.content, css);
+    const updated = injectTimelineCssIntoHtml(htmlFile.content, built.css, built.needsClickRuntime, built.clickSelectors);
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
   }, [files, updateFileContent]);
 
+  // For preview-only style (no script injection), we force trigger=load when previewing,
+  // so users can see animations in the iframe while editing without clicking each element.
+  const buildPreviewCSS = useCallback((forceLoad: boolean): string => {
+    const previewTracks = forceLoad
+      ? tracks.map(t => ({ ...t, trigger: 'load' as const }))
+      : tracks;
+    return buildAnimationCSS(previewTracks, customAnimations).css;
+  }, [tracks, customAnimations]);
+
   useEffect(() => {
     if (playing) {
-      const css = buildAnimationCSS(tracks, customAnimations);
-      pushAnimationCSS(css);
+      pushAnimationCSS(buildPreviewCSS(true));
 
       tickRef.current = setInterval(() => {
         setTimelineState(prev => {
@@ -117,18 +161,18 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       if (tickRef.current) clearInterval(tickRef.current);
     }
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [playing, tracks, customAnimations, totalDuration, pushAnimationCSS, setTimelineState]);
+  }, [playing, totalDuration, pushAnimationCSS, setTimelineState, buildPreviewCSS]);
 
   useEffect(() => {
     if (!animationsApplied || playing) return;
-    const css = buildAnimationCSS(tracks, customAnimations);
-    pushAnimationCSS(css);
-    persistAnimations(css);
+    const built = buildAnimationCSS(tracks, customAnimations);
+    pushAnimationCSS(built.css);
+    persistAnimations(built);
   }, [tracks, customAnimations, animationsApplied, playing, pushAnimationCSS, persistAnimations]);
 
   const stopAndReset = () => {
     setTimelineState(prev => ({ ...prev, playing: false, currentTime: 0 }));
-    pushAnimationCSS(animationsApplied ? buildAnimationCSS(tracks, customAnimations) : '');
+    pushAnimationCSS(animationsApplied ? buildAnimationCSS(tracks, customAnimations).css : '');
   };
 
   const startPlayback = () => {
@@ -136,19 +180,20 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   };
 
   const applyAnimations = () => {
-    const css = buildAnimationCSS(tracks, customAnimations);
-    pushAnimationCSS(css);
-    persistAnimations(css);
+    const built = buildAnimationCSS(tracks, customAnimations);
+    pushAnimationCSS(built.css);
+    persistAnimations(built);
     setTimelineState(prev => ({ ...prev, animationsApplied: true }));
     setAppliedMsg(true);
-    showNotification('Timeline animations applied to page');
+    const triggerCounts = tracks.reduce((acc, t) => { acc[t.trigger || 'load']++; return acc; }, { load: 0, hover: 0, click: 0 } as Record<string, number>);
+    showNotification(`Applied: ${triggerCounts.load} load · ${triggerCounts.hover} hover · ${triggerCounts.click} click`);
     setTimeout(() => setAppliedMsg(false), 1800);
   };
 
   const clearAnimations = () => {
     setTimelineState(prev => ({ ...prev, playing: false, currentTime: 0, animationsApplied: false }));
     setTimelineAnimationStyle('');
-    persistAnimations('');
+    persistAnimations({ css: '', needsClickRuntime: false, clickSelectors: [] });
     showNotification('Timeline animations cleared');
   };
 
@@ -165,6 +210,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         color: COLORS[t.length % COLORS.length],
         easing: animationConfig.easing || 'ease',
         iteration: animationConfig.iteration || '1',
+        trigger: (animationConfig.trigger || 'load') as 'load' | 'hover' | 'click',
       }];
       return { ...prev, tracks: next };
     });
@@ -322,9 +368,13 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     if (matched) setSelectedTrackId(matched.id);
   }, [tracks, selectedSelector, selectedElement]);
 
-  const filteredPresets = activeCategory === 'All'
+  const [presetSearch, setPresetSearch] = useState('');
+  const filteredPresets = (activeCategory === 'All'
     ? ANIMATION_PRESETS
-    : ANIMATION_PRESETS.filter(p => p.category === activeCategory);
+    : ANIMATION_PRESETS.filter(p => p.category === activeCategory))
+    .filter(p => !presetSearch.trim()
+      || p.name.toLowerCase().includes(presetSearch.toLowerCase())
+      || p.description.toLowerCase().includes(presetSearch.toLowerCase()));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1a1a1a', overflow: 'hidden' }} onWheel={handleWheel}>
@@ -437,6 +487,15 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               >{cat}</button>
             ))}
             <div style={{ flex: 1 }} />
+            <input
+              value={presetSearch}
+              onChange={e => setPresetSearch(e.target.value)}
+              placeholder="Search…"
+              style={{
+                background: '#1a1a1a', border: '1px solid #3e3e3e', borderRadius: 11,
+                padding: '2px 9px', fontSize: 10, color: '#ccc', outline: 'none', width: 110,
+              }}
+            />
             <button onClick={() => setShowPresetLibrary(false)} style={hdrBtn}><FiX size={11} /></button>
           </div>
           <div style={{ overflowY: 'auto', padding: 8, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 6 }}>
@@ -608,9 +667,15 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <div style={{ width: 8, height: 8, borderRadius: 2, background: track.color, flexShrink: 0 }} />
                     <div style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, color: '#ccc', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.element}</div>
-                      <div style={{ fontSize: 9, color: '#666' }}>
-                        {isCustom && <span style={{ color: '#9cdcfe', marginRight: 3 }}>★</span>}
-                        {track.animation} {track.duration}s +{track.delay}s
+                      <div style={{ fontSize: 9, color: '#666', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        {isCustom && <span style={{ color: '#9cdcfe' }}>★</span>}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{track.animation} {track.duration}s</span>
+                        <span style={{
+                          padding: '0 4px', borderRadius: 8, fontSize: 8, fontWeight: 700, letterSpacing: '0.05em',
+                          background: (track.trigger || 'load') === 'load' ? 'rgba(78,201,176,0.15)' : (track.trigger === 'hover' ? 'rgba(156,220,254,0.15)' : 'rgba(229,164,90,0.15)'),
+                          color: (track.trigger || 'load') === 'load' ? '#4ec9b0' : (track.trigger === 'hover' ? '#9cdcfe' : '#e5a45a'),
+                          textTransform: 'uppercase', flexShrink: 0,
+                        }}>{(track.trigger || 'load').slice(0,4)}</span>
                       </div>
                     </div>
                     <button title="Delete track" onClick={e => { e.stopPropagation(); removeTrack(track.id); }}
@@ -699,12 +764,40 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               </select>
             </div>
 
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 6 }}>
               <div style={{ fontSize: 10, color: '#777', marginBottom: 3 }}>Repeat</div>
               <select value={selectedTrack.iteration} onChange={e => updateTrack(selectedTrack.id, { iteration: e.target.value })}
                 style={{ width: '100%', background: '#1a1a1a', border: '1px solid #3e3e3e', borderRadius: 3, padding: '3px 6px', fontSize: 11, color: '#ccc', outline: 'none' }}>
                 {['1', '2', '3', '5', '10', 'infinite'].map(v => <option key={v}>{v}</option>)}
               </select>
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: '#777', marginBottom: 3 }}>Trigger</div>
+              <div style={{ display: 'flex', gap: 2, background: '#1a1a1a', border: '1px solid #3e3e3e', borderRadius: 3, padding: 2 }}>
+                {(['load', 'hover', 'click'] as const).map(opt => {
+                  const cur = selectedTrack.trigger || 'load';
+                  const sel = cur === opt;
+                  return (
+                    <button key={opt}
+                      onClick={() => updateTrack(selectedTrack.id, { trigger: opt })}
+                      title={opt === 'load' ? 'Plays on page load' : opt === 'hover' ? 'Plays on mouse hover (CSS :hover)' : 'Plays on click (injects tiny runtime)'}
+                      style={{
+                        flex: 1, padding: '3px 0', fontSize: 10, fontWeight: 600,
+                        background: sel ? (opt === 'load' ? 'rgba(78,201,176,0.18)' : opt === 'hover' ? 'rgba(156,220,254,0.18)' : 'rgba(229,164,90,0.18)') : 'transparent',
+                        color: sel ? (opt === 'load' ? '#4ec9b0' : opt === 'hover' ? '#9cdcfe' : '#e5a45a') : '#777',
+                        border: 'none', borderRadius: 2, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
+                      }}>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 9, color: '#555', marginTop: 4, lineHeight: 1.4 }}>
+                {(selectedTrack.trigger || 'load') === 'load' && 'Plays once when page loads.'}
+                {selectedTrack.trigger === 'hover' && 'Plays each time the cursor enters the element.'}
+                {selectedTrack.trigger === 'click' && 'Plays on click. A small runtime is injected when applied.'}
+              </div>
             </div>
 
             <button

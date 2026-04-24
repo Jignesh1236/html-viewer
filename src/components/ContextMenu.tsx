@@ -8,6 +8,9 @@ export interface ContextMenuItem {
   danger?: boolean;
   disabled?: boolean;
   separator?: boolean;
+  submenu?: ContextMenuItem[];
+  /** Show a colored swatch (e.g. for color/font picker entries) */
+  swatch?: string;
 }
 
 interface Props {
@@ -15,11 +18,14 @@ interface Props {
   y: number;
   items: ContextMenuItem[];
   onClose: () => void;
+  isSubmenu?: boolean;
 }
 
-const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
+const ContextMenu: React.FC<Props> = ({ x, y, items, onClose, isSubmenu }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [focusIdx, setFocusIdx] = React.useState<number>(-1);
+  const [openSub, setOpenSub] = React.useState<{ idx: number; x: number; y: number; items: ContextMenuItem[] } | null>(null);
+  const subTimer = useRef<number | null>(null);
 
   const actionableIndexes = React.useMemo(
     () => items.map((item, idx) => ({ item, idx })).filter(({ item }) => !item.separator && !item.disabled && !!item.action).map(({ idx }) => idx),
@@ -80,13 +86,31 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
   const cx = Math.min(x, window.innerWidth - W - 8);
   const cy = Math.min(y, window.innerHeight - approxH - 8);
 
+  const scheduleOpenSub = (i: number, item: ContextMenuItem) => {
+    if (!item.submenu || !item.submenu.length) {
+      if (subTimer.current) { window.clearTimeout(subTimer.current); subTimer.current = null; }
+      setOpenSub(null);
+      return;
+    }
+    if (subTimer.current) window.clearTimeout(subTimer.current);
+    subTimer.current = window.setTimeout(() => {
+      const rect = ref.current?.querySelectorAll('[data-mi]')[i] as HTMLElement | undefined;
+      const r = rect?.getBoundingClientRect();
+      const sx = (r?.right ?? cx + W) + 2;
+      const sy = r?.top ?? cy;
+      setOpenSub({ idx: i, x: sx, y: sy, items: item.submenu! });
+    }, 80);
+  };
+
   return (
     <>
-      <div
-        style={{ position: 'fixed', inset: 0, zIndex: 99998 }}
-        onMouseDown={onClose}
-        onContextMenu={e => { e.preventDefault(); onClose(); }}
-      />
+      {!isSubmenu && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 99998 }}
+          onMouseDown={onClose}
+          onContextMenu={e => { e.preventDefault(); onClose(); }}
+        />
+      )}
     <div
       ref={ref}
       onContextMenu={e => e.preventDefault()}
@@ -99,8 +123,10 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
         border: '1px solid #3f3f46',
         borderRadius: 8,
         boxShadow: '0 16px 40px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35)',
-        zIndex: 99999,
+        zIndex: isSubmenu ? 100000 : 99999,
         padding: '6px 0',
+        maxHeight: '70vh',
+        overflowY: 'auto',
         animation: 'fadeInMenu 0.1s ease',
         userSelect: 'none',
       }}
@@ -111,9 +137,12 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
         ) : (
           <button
             key={i}
+            data-mi={i}
             disabled={item.disabled}
             onClick={() => {
-              if (!item.disabled && item.action) {
+              if (item.disabled) return;
+              if (item.submenu) return;
+              if (item.action) {
                 item.action();
                 onClose();
               }
@@ -136,21 +165,33 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose }) => {
               boxSizing: 'border-box',
               borderLeft: focusIdx === i ? '2px solid #e5a45a' : '2px solid transparent',
             }}
-            onMouseMove={() => { if (!item.disabled && item.action) setFocusIdx(i); }}
+            onMouseMove={() => { if (!item.disabled && (item.action || item.submenu)) setFocusIdx(i); }}
             onMouseEnter={e => {
               if (!item.disabled) (e.currentTarget as HTMLButtonElement).style.background = item.danger ? 'rgba(255,100,100,0.12)' : 'rgba(229,164,90,0.1)';
+              scheduleOpenSub(i, item);
             }}
             onMouseLeave={e => {
               (e.currentTarget as HTMLButtonElement).style.background = 'none';
             }}
           >
-            {item.icon && <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>{item.icon}</span>}
-            <span style={{ flex: 1 }}>{item.label}</span>
-            {item.shortcut && <span style={{ fontSize: 10, color: '#666' }}>{item.shortcut}</span>}
+            {item.swatch && (
+              <span style={{
+                width: 14, height: 14, borderRadius: 3, flexShrink: 0,
+                border: '1px solid #444', background: item.swatch,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+              }} />
+            )}
+            {!item.swatch && item.icon && <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>{item.icon}</span>}
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+            {item.submenu ? <span style={{ fontSize: 10, color: '#888' }}>▶</span>
+              : item.shortcut && <span style={{ fontSize: 10, color: '#666' }}>{item.shortcut}</span>}
           </button>
         )
       )}
     </div>
+    {openSub && (
+      <ContextMenu x={openSub.x} y={openSub.y} items={openSub.items} onClose={() => setOpenSub(null)} isSubmenu />
+    )}
     </>
   );
 };

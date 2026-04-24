@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext, useMemo, useRef } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import {
   FiChevronDown, FiChevronRight, FiType, FiLayout, FiBox,
@@ -31,49 +31,83 @@ function injectPropertiesAnimationCssIntoHtml(html: string, css: string) {
   return `${block}\n${cleaned}`;
 }
 
+/* ─── Search context ──────────────────────────────────────── */
+const SearchCtx = React.createContext<{ q: string; sectionMatched: boolean }>({ q: '', sectionMatched: false });
+
+function collectChildLabels(children: React.ReactNode, acc: string[] = []): string[] {
+  React.Children.forEach(children, child => {
+    if (!React.isValidElement(child)) return;
+    const props = child.props as { label?: string; title?: string; children?: React.ReactNode };
+    if (typeof props.label === 'string') acc.push(props.label.toLowerCase());
+    if (typeof props.title === 'string') acc.push(props.title.toLowerCase());
+    if (props.children) collectChildLabels(props.children, acc);
+  });
+  return acc;
+}
+
 /* ─── Section ─────────────────────────────────────────────── */
-interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean }
-const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true }) => {
+interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean; keywords?: string }
+const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true, keywords }) => {
+  const { q } = useContext(SearchCtx);
   const [open, setOpen] = useState(defaultOpen);
+
+  const { sectionMatched, anyMatch } = useMemo(() => {
+    if (!q) return { sectionMatched: false, anyMatch: true };
+    const ql = q.toLowerCase();
+    const titleHit = title.toLowerCase().includes(ql) || (keywords || '').toLowerCase().includes(ql);
+    if (titleHit) return { sectionMatched: true, anyMatch: true };
+    const labels = collectChildLabels(children);
+    return { sectionMatched: false, anyMatch: labels.some(l => l.includes(ql)) };
+  }, [q, title, keywords, children]);
+
+  if (q && !anyMatch) return null;
+  const effectiveOpen = q ? true : open;
+
   return (
     <div style={{ borderBottom: `1px solid ${C.border}` }}>
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => !q && setOpen(o => !o)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 6,
-          padding: '7px 10px', cursor: 'pointer', border: 'none', outline: 'none',
-          background: open ? 'rgba(255,255,255,0.03)' : 'transparent',
+          padding: '7px 10px', cursor: q ? 'default' : 'pointer', border: 'none', outline: 'none',
+          background: effectiveOpen ? 'rgba(255,255,255,0.03)' : 'transparent',
           transition: 'background 0.15s',
         }}
         onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-        onMouseLeave={e => (e.currentTarget.style.background = open ? 'rgba(255,255,255,0.03)' : 'transparent')}
+        onMouseLeave={e => (e.currentTarget.style.background = effectiveOpen ? 'rgba(255,255,255,0.03)' : 'transparent')}
       >
-        {icon && <span style={{ color: open ? C.accent : C.muted, display: 'flex', transition: 'color 0.15s' }}>{icon}</span>}
+        {icon && <span style={{ color: effectiveOpen ? C.accent : C.muted, display: 'flex', transition: 'color 0.15s' }}>{icon}</span>}
         <span style={{
           flex: 1, textAlign: 'left', fontSize: 10, fontWeight: 700,
           letterSpacing: '0.09em', textTransform: 'uppercase',
-          color: open ? C.text : C.muted,
+          color: effectiveOpen ? C.text : C.muted,
         }}>{title}</span>
         <span style={{ color: C.dim, display: 'flex' }}>
-          {open ? <FiChevronDown size={12} /> : <FiChevronRight size={12} />}
+          {effectiveOpen ? <FiChevronDown size={12} /> : <FiChevronRight size={12} />}
         </span>
       </button>
-      {open && (
-        <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 7 }}>
-          {children}
-        </div>
+      {effectiveOpen && (
+        <SearchCtx.Provider value={{ q, sectionMatched }}>
+          <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {children}
+          </div>
+        </SearchCtx.Provider>
       )}
     </div>
   );
 };
 
 /* ─── Row ─────────────────────────────────────────────────── */
-const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    <span style={{ fontSize: 11, color: C.muted, width: 58, flexShrink: 0, userSelect: 'none' }}>{label}</span>
-    <div style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'center', minWidth: 0 }}>{children}</div>
-  </div>
-);
+const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
+  const { q, sectionMatched } = useContext(SearchCtx);
+  if (q && !sectionMatched && !label.toLowerCase().includes(q.toLowerCase())) return null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ fontSize: 11, color: C.muted, width: 58, flexShrink: 0, userSelect: 'none' }}>{label}</span>
+      <div style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'center', minWidth: 0 }}>{children}</div>
+    </div>
+  );
+};
 
 /* ─── Shared input style ──────────────────────────────────── */
 const inputBase: React.CSSProperties = {
@@ -134,12 +168,34 @@ function BtnGroup({ options, value, onChange, small }: { options: string[]; valu
 }
 
 /* ─── ColorInput ──────────────────────────────────────────── */
-function ColorInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function ColorInput({
+  value, onChange, onGradient, gradientValue,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** When provided, shows a "G" button that opens a gradient popover. The picked gradient string is delivered via this callback. */
+  onGradient?: (g: string) => void;
+  /** Current gradient string for editing (e.g. existing background-image). */
+  gradientValue?: string;
+}) {
   const [text, setText] = useState(value);
+  const [openGrad, setOpenGrad] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => setText(value), [value]);
   const hex = /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : '#000000';
+  const gradActive = !!gradientValue && /gradient\s*\(/i.test(gradientValue);
+
+  useEffect(() => {
+    if (!openGrad) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpenGrad(false);
+    };
+    document.addEventListener('mousedown', onDocDown);
+    return () => document.removeEventListener('mousedown', onDocDown);
+  }, [openGrad]);
+
   return (
-    <div style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center' }}>
+    <div ref={wrapRef} style={{ display: 'flex', gap: 5, flex: 1, alignItems: 'center', position: 'relative' }}>
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <div style={{
           width: 26, height: 26, borderRadius: 4, border: `1px solid ${C.border}`,
@@ -161,6 +217,47 @@ function ColorInput({ value, onChange }: { value: string; onChange: (v: string) 
         onFocus={e => (e.target.style.borderColor = C.accentBrd)}
         onBlurCapture={e => (e.target.style.borderColor = C.border)}
       />
+      {onGradient && (
+        <button
+          onClick={() => setOpenGrad(o => !o)}
+          title="Gradient"
+          style={{
+            flexShrink: 0,
+            width: 26, height: 26, borderRadius: 4, cursor: 'pointer',
+            background: gradActive
+              ? (gradientValue && /gradient/i.test(gradientValue) ? gradientValue : 'linear-gradient(135deg,#ff7a18,#af002d)')
+              : 'linear-gradient(135deg,#ff7a18,#af002d)',
+            border: `1px solid ${openGrad || gradActive ? C.accentBrd : C.border}`,
+            color: '#fff', fontSize: 10, fontWeight: 700,
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+          }}
+        >G</button>
+      )}
+      {openGrad && onGradient && (
+        <div
+          style={{
+            position: 'absolute', top: 32, right: 0, zIndex: 50,
+            width: 240, background: '#1f1f1f', border: `1px solid ${C.border}`,
+            borderRadius: 6, boxShadow: '0 12px 28px rgba(0,0,0,0.55)', padding: 8,
+          }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <GradientControls
+            value={gradientValue || ''}
+            onChange={g => { onGradient(g); }}
+          />
+          <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+            <button
+              onClick={() => { onGradient('none'); setOpenGrad(false); }}
+              style={{ flex: 1, padding: '4px', fontSize: 10, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 4, cursor: 'pointer' }}
+            >Clear</button>
+            <button
+              onClick={() => setOpenGrad(false)}
+              style={{ flex: 1, padding: '4px', fontSize: 10, background: C.accentBg, border: `1px solid ${C.accentBrd}`, color: C.accent, borderRadius: 4, cursor: 'pointer' }}
+            >Done</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -404,22 +501,34 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     setTimelineState,
   } = useEditorStore();
 
+  const hoverEditMode = useEditorStore(s => s.hoverEditMode);
+  const setHoverEditMode = useEditorStore(s => s.setHoverEditMode);
   const apply = (property: string, value: string) => applySelectedStyle(property, value);
-  const getS = (key: string) => selectedElement?.styles?.[key] || '';
+  const getS = (key: string) => {
+    if (hoverEditMode) return selectedElement?.hoverStyles?.[key] || '';
+    return selectedElement?.styles?.[key] || '';
+  };
   const [contentDraft, setContentDraft] = useState('');
   const [customCssDraft, setCustomCssDraft] = useState('');
   const [rotateDeg, setRotateDeg] = useState(0);
   const [scaleX, setScaleX] = useState(1);
   const [scaleY, setScaleY] = useState(1);
+  const [searchQ, setSearchQ] = useState('');
 
   useEffect(() => {
     setContentDraft(selectedElement?.innerHTML || '');
-    setCustomCssDraft(selectedElement?.styles?.['inline-style'] || '');
-    const parsed = parseTransform(selectedElement?.styles?.transform || '');
+    const styleSrc = hoverEditMode
+      ? Object.entries(selectedElement?.hoverStyles || {}).map(([k, v]) => `${k}: ${v}`).join('; ')
+      : (selectedElement?.styles?.['inline-style'] || '');
+    setCustomCssDraft(styleSrc);
+    const transformSrc = hoverEditMode
+      ? (selectedElement?.hoverStyles?.transform || '')
+      : (selectedElement?.styles?.transform || '');
+    const parsed = parseTransform(transformSrc);
     setRotateDeg(parsed.rotate);
     setScaleX(parsed.scaleX);
     setScaleY(parsed.scaleY);
-  }, [selectedSelector, selectedElement?.innerHTML, selectedElement?.styles]);
+  }, [selectedSelector, selectedElement?.innerHTML, selectedElement?.styles, selectedElement?.hoverStyles, hoverEditMode]);
 
   const applyTransform = useCallback((next: { rotate?: number; scaleX?: number; scaleY?: number }) => {
     const r = next.rotate ?? rotateDeg;
@@ -442,6 +551,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     const normalizedPreset = preset === 'none' ? '' : preset;
     if (!normalizedPreset) return;
     const selectorCandidate = selectedElement.styles?.selector || selectedSelector;
+    const trigger = (animationConfig.trigger || 'load') as 'load' | 'hover' | 'click';
     setTimelineState(prev => {
       const idx = prev.tracks.findIndex(t => t.element.trim() === selectorCandidate.trim());
       if (idx >= 0) {
@@ -453,6 +563,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           delay: parseFloat(animationConfig.delay) || 0,
           easing: animationConfig.easing || nextTracks[idx].easing,
           iteration: animationConfig.iteration || nextTracks[idx].iteration,
+          trigger,
         };
         return { ...prev, tracks: nextTracks };
       }
@@ -471,12 +582,14 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             color: '#e5a45a',
             easing: animationConfig.easing || 'ease',
             iteration: animationConfig.iteration || '1',
+            trigger,
           },
         ],
       };
     });
-    // Keep direct animation value applied to selected element.
-    apply('animation', animationValue);
+    // Only set inline animation for `load` triggers — hover/click need :hover or JS handler.
+    if (trigger === 'load') apply('animation', animationValue);
+    else apply('animation', '');
   }, [selectedElement, selectedSelector, setTimelineState, animationConfig, apply]);
 
   /* ── Empty state ── */
@@ -549,11 +662,68 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </div>
       )}
 
+      {/* ── Property search + hover toggle ── */}
+      <div style={{
+        flexShrink: 0, padding: '6px 8px', background: C.surface,
+        borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 4, alignItems: 'center',
+      }}>
+        <input
+          value={searchQ}
+          onChange={e => setSearchQ(e.target.value)}
+          placeholder="Search properties… (e.g. color, gap, shadow)"
+          style={{
+            flex: 1, background: C.surface2, border: `1px solid ${C.border}`,
+            borderRadius: 4, padding: '4px 9px', fontSize: 11, color: C.text, outline: 'none',
+          }}
+          onFocus={e => (e.target.style.borderColor = C.accentBrd)}
+          onBlur={e => (e.target.style.borderColor = C.border)}
+        />
+        {searchQ && (
+          <button
+            onClick={() => setSearchQ('')}
+            title="Clear search"
+            style={{
+              background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4,
+              color: C.muted, cursor: 'pointer', padding: '3px 8px', fontSize: 11, flexShrink: 0,
+            }}
+          >×</button>
+        )}
+        <button
+          onClick={() => setHoverEditMode(!hoverEditMode)}
+          title={hoverEditMode
+            ? 'Hover edit ON — every change applies to :hover state. Click to switch back.'
+            : 'Toggle Hover edit mode — changes will apply to :hover state'}
+          style={{
+            background: hoverEditMode ? C.accentBg : C.surface2,
+            border: `1px solid ${hoverEditMode ? C.accent : C.border}`,
+            color: hoverEditMode ? C.accent : C.muted,
+            cursor: 'pointer', padding: '3px 9px', fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.05em', borderRadius: 4, flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
+        >
+          {hoverEditMode ? '● HOVER' : 'HOVER'}
+        </button>
+      </div>
+
+      {/* ── Hover mode banner ── */}
+      {hoverEditMode && (
+        <div style={{
+          flexShrink: 0, padding: '5px 10px', background: C.accentBg,
+          borderBottom: `1px solid ${C.accentBrd}`, fontSize: 10, color: C.accent,
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          <span style={{ fontWeight: 700 }}>:hover</span>
+          <span style={{ color: C.muted }}>changes apply to hover state · element previewed live</span>
+        </div>
+      )}
+
       {/* ── Scrollable body ── */}
+      <SearchCtx.Provider value={{ q: searchQ.trim(), sectionMatched: false }}>
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
 
         {/* Content */}
-        <Section title="Content" icon={<FiCode size={12} />}>
+        <Section title="Content" icon={<FiCode size={12} />} keywords="content text inner html">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ fontSize: 10, color: C.dim, marginBottom: 1 }}>Inner HTML</div>
             <textarea
@@ -571,9 +741,36 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Typography */}
-        <Section title="Typography" icon={<FiType size={12} />}>
+        <Section title="Typography" icon={<FiType size={12} />} keywords="font text typography color gradient">
           <Row label="Color">
-            <ColorInput value={getS('color') || '#333333'} onChange={v => apply('color', v)} />
+            <ColorInput
+              value={getS('color') || '#333333'}
+              onChange={v => {
+                apply('color', v);
+                // Reverting from text-gradient: clear the trick if user picks a plain color
+                if (getS('-webkit-background-clip') === 'text' || getS('background-clip') === 'text') {
+                  apply('-webkit-background-clip', '');
+                  apply('background-clip', '');
+                  apply('-webkit-text-fill-color', '');
+                  apply('background-image', 'none');
+                }
+              }}
+              gradientValue={getS('-webkit-background-clip') === 'text' || getS('background-clip') === 'text' ? getS('background-image') : ''}
+              onGradient={g => {
+                if (!g || g === 'none') {
+                  apply('-webkit-background-clip', '');
+                  apply('background-clip', '');
+                  apply('-webkit-text-fill-color', '');
+                  apply('background-image', 'none');
+                  return;
+                }
+                apply('background-image', g);
+                apply('-webkit-background-clip', 'text');
+                apply('background-clip', 'text');
+                apply('-webkit-text-fill-color', 'transparent');
+                apply('color', 'transparent');
+              }}
+            />
           </Row>
           <Row label="Size">
             <PropInput value={getS('font-size') || '16px'} onChange={v => apply('font-size', v)} placeholder="16px" />
@@ -603,12 +800,15 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Background */}
-        <Section title="Background" icon={<FiDroplet size={12} />}>
+        <Section title="Background" icon={<FiDroplet size={12} />} keywords="background color gradient image opacity">
           <Row label="Color">
-            <ColorInput value={getS('background-color') || '#ffffff'} onChange={v => apply('background-color', v)} />
+            <ColorInput
+              value={getS('background-color') || '#ffffff'}
+              onChange={v => apply('background-color', v)}
+              gradientValue={getS('background-image') || ''}
+              onGradient={g => apply('background-image', g)}
+            />
           </Row>
-          <div style={{ fontSize: 10, color: C.dim, marginTop: 2 }}>Gradient</div>
-          <GradientControls value={getS('background-image') || ''} onChange={v => apply('background-image', v)} />
           <Row label="Image">
             <PropInput value={getS('background-image') || ''} onChange={v => apply('background-image', v)} placeholder="url(...) or gradient(...)" />
           </Row>
@@ -675,6 +875,16 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
               {['stretch', 'flex-start', 'center', 'flex-end', 'baseline'].map(v => <option key={v}>{v}</option>)}
             </select>
           </Row>
+          <Row label="A-Self">
+            <select style={selBase} value={getS('align-self') || 'auto'} onChange={e => apply('align-self', e.target.value)}>
+              {['auto', 'stretch', 'flex-start', 'center', 'flex-end', 'baseline'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="A-Content">
+            <select style={selBase} value={getS('align-content') || 'normal'} onChange={e => apply('align-content', e.target.value)}>
+              {['normal', 'stretch', 'flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
           <Row label="Wrap">
             <BtnGroup options={['nowrap', 'wrap', 'wrap-rev']}
               value={(() => { const v = getS('flex-wrap') || 'nowrap'; return v === 'wrap-reverse' ? 'wrap-rev' : v; })()}
@@ -683,11 +893,44 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           <Row label="Gap">
             <PropInput value={getS('gap') || '0px'} onChange={v => apply('gap', v)} placeholder="0px" />
           </Row>
+          <Row label="Row Gap">
+            <PropInput value={getS('row-gap') || ''} onChange={v => apply('row-gap', v)} placeholder="0px" />
+          </Row>
+          <Row label="Col Gap">
+            <PropInput value={getS('column-gap') || ''} onChange={v => apply('column-gap', v)} placeholder="0px" />
+          </Row>
+          <Row label="Grow">
+            <PropInput value={getS('flex-grow') || '0'} onChange={v => apply('flex-grow', v)} placeholder="0" />
+          </Row>
+          <Row label="Shrink">
+            <PropInput value={getS('flex-shrink') || '1'} onChange={v => apply('flex-shrink', v)} placeholder="1" />
+          </Row>
+          <Row label="Basis">
+            <PropInput value={getS('flex-basis') || 'auto'} onChange={v => apply('flex-basis', v)} placeholder="auto / 200px / 25%" />
+          </Row>
+          <Row label="Order">
+            <PropInput value={getS('order') || '0'} onChange={v => apply('order', v)} placeholder="0" />
+          </Row>
           <Row label="Grid cols">
             <PropInput value={getS('grid-template-columns') || ''} onChange={v => apply('grid-template-columns', v)} placeholder="1fr 1fr 1fr" />
           </Row>
           <Row label="Grid rows">
             <PropInput value={getS('grid-template-rows') || ''} onChange={v => apply('grid-template-rows', v)} placeholder="auto 1fr auto" />
+          </Row>
+          <Row label="G Auto-F">
+            <PropInput value={getS('grid-auto-flow') || 'row'} onChange={v => apply('grid-auto-flow', v)} placeholder="row / column / dense" />
+          </Row>
+          <Row label="G Col">
+            <PropInput value={getS('grid-column') || 'auto'} onChange={v => apply('grid-column', v)} placeholder="1 / 3 or span 2" />
+          </Row>
+          <Row label="G Row">
+            <PropInput value={getS('grid-row') || 'auto'} onChange={v => apply('grid-row', v)} placeholder="1 / 3 or span 2" />
+          </Row>
+          <Row label="Place I">
+            <PropInput value={getS('place-items') || ''} onChange={v => apply('place-items', v)} placeholder="center" />
+          </Row>
+          <Row label="Place C">
+            <PropInput value={getS('place-content') || ''} onChange={v => apply('place-content', v)} placeholder="center" />
           </Row>
         </Section>
 
@@ -1138,6 +1381,40 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           </Row>
         </Section>
 
+        {/* Accent & Scrollbar */}
+        <Section title="Accent / Scrollbar / Misc" icon={<FiSliders size={12} />} defaultOpen={false}>
+          <Row label="Accent">
+            <ColorInput value={getS('accent-color') || 'auto'} onChange={v => apply('accent-color', v)} />
+          </Row>
+          <Row label="Scheme">
+            <BtnGroup options={['normal','light','dark','only light','only dark']} value={getS('color-scheme') || 'normal'} onChange={v => apply('color-scheme', v)} small />
+          </Row>
+          <Row label="Sb Width">
+            <BtnGroup options={['auto','thin','none']} value={getS('scrollbar-width') || 'auto'} onChange={v => apply('scrollbar-width', v)} small />
+          </Row>
+          <Row label="Sb Color">
+            <PropInput value={getS('scrollbar-color') || 'auto'} onChange={v => apply('scrollbar-color', v)} placeholder="thumb track (e.g. #888 #222)" />
+          </Row>
+          <Row label="Inset">
+            <PropInput value={getS('inset') || ''} onChange={v => apply('inset', v)} placeholder="0 / 10px / 0 0 0 0" />
+          </Row>
+          <Row label="Sc-M-T">
+            <PropInput value={getS('scroll-margin-top') || '0'} onChange={v => apply('scroll-margin-top', v)} placeholder="80px" />
+          </Row>
+          <Row label="Sc-P-T">
+            <PropInput value={getS('scroll-padding-top') || '0'} onChange={v => apply('scroll-padding-top', v)} placeholder="80px" />
+          </Row>
+          <Row label="Content V">
+            <BtnGroup options={['visible','auto','hidden']} value={getS('content-visibility') || 'visible'} onChange={v => apply('content-visibility', v)} small />
+          </Row>
+          <Row label="Contain">
+            <PropInput value={getS('contain') || ''} onChange={v => apply('contain', v)} placeholder="layout / paint / size / strict" />
+          </Row>
+          <Row label="Touch">
+            <BtnGroup options={['auto','none','manipulation']} value={getS('touch-action') || 'auto'} onChange={v => apply('touch-action', v)} small />
+          </Row>
+        </Section>
+
         {/* Custom CSS */}
         <Section title="Custom CSS" icon={<FiCode size={12} />} defaultOpen={false}>
           <div style={{ fontSize: 10, color: C.dim, marginBottom: 4 }}>Paste CSS property:value pairs</div>
@@ -1158,6 +1435,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
       </div>
+      </SearchCtx.Provider>
     </div>
   );
 };

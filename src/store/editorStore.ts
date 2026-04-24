@@ -15,13 +15,16 @@ export interface SelectedElement {
   id: string;
   className: string;
   styles: Record<string, string>;
+  hoverStyles?: Record<string, string>;
   innerHTML: string;
   textContent: string;
 }
 
 type VisualBridge = {
   applyStyle: (property: string, value: string) => void;
+  applyHoverStyle: (property: string, value: string) => void;
   applyContent: (html: string) => void;
+  setHoverPreview: (on: boolean) => void;
 } | null;
 
 export interface AnimationConfig {
@@ -65,6 +68,8 @@ export interface PreviewTab {
   imageFileId?: string;
 }
 
+export type AnimTrigger = 'load' | 'hover' | 'click';
+
 export interface TimelineTrack {
   id: string;
   element: string;
@@ -74,6 +79,7 @@ export interface TimelineTrack {
   color: string;
   easing: string;
   iteration: string;
+  trigger?: AnimTrigger;
 }
 
 export interface CustomAnimation {
@@ -114,6 +120,9 @@ interface EditorStore {
 
   applySelectedStyle: (property: string, value: string) => void;
   applySelectedContent: (html: string) => void;
+
+  hoverEditMode: boolean;
+  setHoverEditMode: (v: boolean) => void;
 
   visualBridge: VisualBridge;
   setVisualBridge: (bridge: VisualBridge) => void;
@@ -523,15 +532,22 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setVisualBridge: (bridge) => set({ visualBridge: bridge }),
 
   applySelectedStyle: (property, value) => {
-    const bridge = get().visualBridge;
-    if (!bridge) return;
-    bridge.applyStyle(property, value);
+    const { visualBridge, hoverEditMode } = get();
+    if (!visualBridge) return;
+    if (hoverEditMode) visualBridge.applyHoverStyle(property, value);
+    else visualBridge.applyStyle(property, value);
   },
 
   applySelectedContent: (html) => {
     const bridge = get().visualBridge;
     if (!bridge) return;
     bridge.applyContent(html);
+  },
+
+  hoverEditMode: false,
+  setHoverEditMode: (v) => {
+    set({ hoverEditMode: v });
+    get().visualBridge?.setHoverPreview(v);
   },
 
   animationConfig: {
