@@ -14,8 +14,72 @@ import TimelinePanel from './components/TimelinePanel';
 import ComponentSidebar from './components/ComponentSidebar';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiBox } from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiBox, FiX } from 'react-icons/fi';
 import { exportProject } from './utils/export';
+
+/* ─── Non-intrusive AdSense Banner (can be dismissed) ─── */
+const EditorAdBanner: React.FC = () => {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem('editor-ad-dismissed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    try {
+      localStorage.setItem('editor-ad-dismissed', 'true');
+    } catch {}
+  };
+
+  useEffect(() => {
+    try {
+      // @ts-ignore
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      /* AdSense blocked or not loaded */
+    }
+  }, []);
+
+  if (dismissed) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: 30,
+      right: 16,
+      zIndex: 9999,
+      background: '#1e1e1e',
+      border: '1px solid #3e3e3e',
+      borderRadius: 8,
+      padding: 8,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+      maxWidth: 300,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 9, color: '#555', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Advertisement</span>
+        <button
+          onClick={handleDismiss}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 2, display: 'flex' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = '#999'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = '#666'}
+        >
+          <FiX size={12} />
+        </button>
+      </div>
+      <ins
+        className="adsbygoogle"
+        style={{ display: 'block' }}
+        data-ad-client="ca-pub-1826192920016393"
+        data-ad-slot="7872622325"
+        data-ad-format="auto"
+        data-full-width-responsive="true"
+      />
+    </div>
+  );
+};
 
 /* ─── AI Status Button (shown in bottom status bar) ─── */
 function AiStatusButton() {
@@ -872,6 +936,7 @@ function DesktopApp() {
           {notification}
         </div>
       )}
+      <EditorAdBanner />
       {ctxEl}
     </div>
   );
