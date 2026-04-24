@@ -6,17 +6,18 @@ export async function exportProject(files: FileItem[]) {
   const zip = new JSZip();
 
   for (const file of files) {
+    const filePath = file.folder ? `${file.folder}/${file.name}` : file.name;
     if (file.type === 'image' && file.url) {
       // Fetch the blob for uploaded images
       try {
         const response = await fetch(file.url);
         const blob = await response.blob();
-        zip.file(file.name, blob);
+        zip.file(filePath, blob);
       } catch {
         // Skip if can't fetch
       }
     } else if (file.content) {
-      zip.file(file.name, file.content);
+      zip.file(filePath, file.content);
     }
   }
 

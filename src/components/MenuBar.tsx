@@ -1,9 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { exportProject } from '../utils/export';
-
-type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
-interface WinState { id: WinId; title: string; visible: boolean; minimized: boolean; docked: boolean; }
+import type { WinId, WinState } from '../App';
 
 interface MenuBarProps {
   wins?: WinState[];
@@ -27,10 +25,10 @@ interface MenuItem {
 
 const WIN_LABELS: Record<WinId, string> = {
   files: 'File Explorer', code: 'Code Editor', preview: 'Preview / Visual Editor',
-  properties: 'Properties', timeline: 'Timeline',
+  properties: 'Properties', timeline: 'Timeline', components: 'Components',
 };
 const WIN_ICONS: Record<WinId, string> = {
-  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱',
+  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱', components: '📦',
 };
 
 const MenuBar: React.FC<MenuBarProps> = ({

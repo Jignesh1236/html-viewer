@@ -33,7 +33,7 @@ const FileIcon: React.FC<{ name: string; size?: number }> = ({ name, size = 14 }
   return <span style={{ fontSize: size - 1, color: '#888', flexShrink: 0, lineHeight: 1, fontFamily: 'monospace' }}>•</span>;
 };
 
-type DialogMode = 'create-file' | 'create-folder' | 'rename-file' | 'rename-folder' | 'delete-file' | 'delete-folder';
+type DialogMode = 'create-file' | 'create-folder' | 'rename-file' | 'rename-folder' | 'delete-file' | 'delete-folder' | 'github-import';
 interface DialogState {
   mode: DialogMode;
   file?: FileItem;
@@ -55,18 +55,25 @@ const FileDialog: React.FC<{
 }> = ({ dialog, files, folders, onConfirm, onCancel }) => {
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (dialog.mode === 'rename-file') setValue(dialog.file?.name ?? '');
     else if (dialog.mode === 'rename-folder') setValue(dialog.folderName ?? '');
+    else if (dialog.mode === 'github-import') setValue('');
     else setValue('');
     setError('');
+    setLoading(false);
     setTimeout(() => inputRef.current?.focus(), 60);
   }, [dialog]);
 
   const validate = (v: string) => {
     if (!v.trim()) return 'Name cannot be empty';
+    if (dialog.mode === 'github-import') {
+      const repoPattern = /^https?:\/\/github\.com\/[\w-]+\/[\w-]+(\/tree\/[\w-\/]+)?$/;
+      if (!repoPattern.test(v.trim())) return 'Invalid GitHub repository URL. Format: https://github.com/owner/repo';
+    }
     if (dialog.mode === 'create-file') {
       if (files.find(f => f.name === v.trim() && f.folder === dialog.targetFolder)) return `"${v}" already exists`;
       if (!/^[\w\-. ]+$/.test(v.trim())) return 'Invalid characters';
@@ -95,6 +102,7 @@ const FileDialog: React.FC<{
 
   const isDelete = dialog.mode === 'delete-file' || dialog.mode === 'delete-folder';
   const isFolder = dialog.mode === 'create-folder' || dialog.mode === 'rename-folder' || dialog.mode === 'delete-folder';
+  const isGithubImport = dialog.mode === 'github-import';
 
   const title =
     dialog.mode === 'create-file' ? 'New File' :
@@ -102,14 +110,15 @@ const FileDialog: React.FC<{
     dialog.mode === 'rename-file' ? 'Rename File' :
     dialog.mode === 'rename-folder' ? 'Rename Folder' :
     dialog.mode === 'delete-file' ? `Delete "${dialog.file?.name}"?` :
+    dialog.mode === 'github-import' ? 'Import from GitHub' :
     `Delete folder "${dialog.folderName}"?`;
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}
       onClick={e => { if (e.target === e.currentTarget) onCancel(); }}>
-      <div style={{ background: '#252526', border: `1px solid ${isDelete ? 'rgba(248,68,68,0.4)' : '#3e3e3e'}`, borderRadius: 8, padding: '18px 20px 16px', width: 280, boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
+      <div style={{ background: '#252526', border: `1px solid ${isDelete ? 'rgba(248,68,68,0.4)' : '#3e3e3e'}`, borderRadius: 8, padding: '18px 20px 16px', width: isGithubImport ? 380 : 280, boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          {isDelete ? <FiAlertTriangle size={15} color="#f84" /> : isFolder ? <FiFolderPlus size={15} color={C.accent} /> : <FiPlus size={15} color={C.accent} />}
+          {isDelete ? <FiAlertTriangle size={15} color="#f84" /> : isGithubImport ? <span style={{ fontSize: 15 }}>🐙</span> : isFolder ? <FiFolderPlus size={15} color={C.accent} /> : <FiPlus size={15} color={C.accent} />}
           <span style={{ fontSize: 13, fontWeight: 600, color: '#e0e0e0', flex: 1 }}>{title}</span>
           <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex', padding: 2, borderRadius: 3 }}
             onMouseEnter={e => (e.currentTarget.style.color = '#aaa')} onMouseLeave={e => (e.currentTarget.style.color = '#666')}>
@@ -120,17 +129,18 @@ const FileDialog: React.FC<{
         {!isDelete && (
           <div style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 10, color: '#888', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {dialog.mode === 'create-file' ? 'File name' : dialog.mode === 'create-folder' ? 'Folder name' : 'New name'}
+              {isGithubImport ? 'Repository URL' : dialog.mode === 'create-file' ? 'File name' : dialog.mode === 'create-folder' ? 'Folder name' : 'New name'}
             </div>
             <input ref={inputRef} value={value} onChange={e => { setValue(e.target.value); setError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); if (e.key === 'Escape') onCancel(); }}
-              placeholder={dialog.mode === 'create-file' ? 'e.g. about.html, extra.css' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
+              placeholder={isGithubImport ? 'https://github.com/owner/repo' : dialog.mode === 'create-file' ? 'e.g. about.html, extra.css' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
               style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: `1px solid ${error ? 'rgba(248,68,68,0.6)' : '#444'}`, borderRadius: 5, padding: '7px 10px', fontSize: 12.5, color: '#e0e0e0', outline: 'none', fontFamily: 'monospace', transition: 'border-color 0.15s' }}
               onFocus={e => { if (!error) e.currentTarget.style.borderColor = '#e5a45a66'; }}
               onBlur={e => { if (!error) e.currentTarget.style.borderColor = '#444'; }}
             />
             {error && <div style={{ fontSize: 10.5, color: '#f87171', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><FiAlertTriangle size={10} /> {error}</div>}
             {!error && dialog.mode === 'create-file' && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Extension determines file type (.html, .css, .js)</div>}
+            {!error && isGithubImport && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Only public repositories are supported. Files will be imported into the editor.</div>}
           </div>
         )}
         {isDelete && <div style={{ fontSize: 11.5, color: '#aaa', marginBottom: 14, lineHeight: 1.5 }}>
@@ -167,6 +177,7 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
     updateFileContent, showNotification, pendingFileDialog, setPendingFileDialog,
   } = useEditorStore();
   const uploadRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [draggingOver, setDraggingOver] = useState<string | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
   const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -233,6 +244,21 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
     };
     readAll();
   }, [addFolder, importSingleFile]);
+
+  const handleFolderSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const entry = (file as any).webkitGetAsEntry?.();
+      if (entry?.isDirectory) {
+        readDirectoryEntry(entry as FileSystemDirectoryEntry);
+      } else {
+        importSingleFile(file);
+      }
+    }
+    e.target.value = '';
+  }, [readDirectoryEntry, importSingleFile]);
 
   const handleDropItems = useCallback((items: DataTransferItemList, targetFolder?: string) => {
     let count = 0;
@@ -306,6 +332,46 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       showNotification(`Deleted folder "${dialog.folderName}"`);
     }
 
+    if (dialog.mode === 'github-import') {
+      const repoUrl = value.trim();
+      const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+      if (match) {
+        const owner = match[1];
+        const repo = match[2];
+        // Import from GitHub API
+        fetch(`https://api.github.com/repos/${owner}/${repo}/contents`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              let imported = 0;
+              data.forEach(item => {
+                if (item.type === 'file' && item.name) {
+                  const ext = item.name.split('.').pop()?.toLowerCase();
+                  const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
+                  const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
+                  if (isText) {
+                    fetch(item.download_url)
+                      .then(res => res.text())
+                      .then(content => {
+                        const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
+                        addFile({ id: item.name, name: item.name, type, content });
+                        imported++;
+                        if (imported === data.length) showNotification(`Imported ${imported} files from GitHub`);
+                      });
+                  } else if (isImage) {
+                    addFile({ id: item.name, name: item.name, type: 'image', content: '', url: item.download_url });
+                    imported++;
+                  }
+                }
+              });
+            }
+          })
+          .catch(err => {
+            showNotification('Failed to import from GitHub');
+          });
+      }
+    }
+
     setDialog(null);
   }, [dialog, files, folders, addFile, removeFile, addFolder, removeFolder, renameFolder, setActiveFile, showNotification]);
 
@@ -360,6 +426,8 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       { label: 'New File', icon: '📄', action: () => setDialog({ mode: 'create-file' }) },
       { label: 'New Folder', icon: '📁', action: () => setDialog({ mode: 'create-folder' }) },
       { label: 'Import Files…', icon: '⬆️', action: () => uploadRef.current?.click() },
+      { label: 'Open Folder…', icon: '📂', action: () => folderInputRef.current?.click() },
+      { label: 'Import from GitHub…', icon: '🐙', action: () => setDialog({ mode: 'github-import' }) },
       { separator: true, label: '' },
       { label: 'Close Explorer', icon: '✕', action: onClose },
     ]);
@@ -544,6 +612,8 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       <input id="global-file-upload" ref={uploadRef} type="file" multiple style={{ display: 'none' }}
         onChange={e => handleUpload(e.target.files)}
         accept="image/*,.html,.css,.js,.ts,.tsx,.jsx,.json,.txt,.md,.svg" />
+      <input ref={folderInputRef} type="file" {...({ webkitdirectory: true, directory: true } as any)} multiple style={{ display: 'none' }}
+        onChange={handleFolderSelect} />
 
       {dialog && (
         <FileDialog dialog={dialog} files={files} folders={allFolderNames}

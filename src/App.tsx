@@ -11,9 +11,10 @@ import PreviewPane from './components/PreviewPane';
 import VisualEditor from './components/VisualEditor';
 import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
+import ComponentSidebar from './components/ComponentSidebar';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor } from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiBox } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
 /* ─── AI Status Button (shown in bottom status bar) ─── */
@@ -93,10 +94,9 @@ function useIsMobile() {
 /* ─────────────────────────────────────────
    Types
    ───────────────────────────────────────── */
-export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline';
+export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'components';
 export type Mode = 'code' | 'visual' | 'split';
-
-interface WinState {
+export interface WinState {
   id: WinId;
   title: string;
   rect: WinRect;
@@ -119,11 +119,12 @@ const WIN_ICONS: Record<WinId, React.ReactNode> = {
   preview:    <FiMonitor size={11} />,
   properties: <FiSliders size={11} />,
   timeline:   <FiClock size={11} />,
+  components: <FiBox size={11} />,
 };
 
 const WIN_LABELS: Record<WinId, string> = {
   files: 'File Explorer', code: 'Code Editor', preview: 'Preview',
-  properties: 'Properties', timeline: 'Timeline',
+  properties: 'Properties', timeline: 'Timeline', components: 'Components',
 };
 
 /* ─────────────────────────────────────────
@@ -170,9 +171,9 @@ function getDockRect(id: WinId, wsW: number, wsH: number, mode: Mode, sizes: Doc
 /** All slots that exist in this mode (for snap zones) */
 function getSnapSlots(wsW: number, wsH: number, mode: Mode, sizes: DockSizes, visible?: Set<WinId>): { id: WinId; rect: WinRect }[] {
   const ids: WinId[] =
-    mode === 'visual' ? ['files', 'preview', 'timeline', 'properties'] :
-    mode === 'code'   ? ['files', 'code'] :
-                        ['files', 'code', 'preview'];
+    mode === 'visual' ? ['files', 'preview', 'timeline', 'properties', 'components'] :
+    mode === 'code'   ? ['files', 'code', 'components'] :
+                        ['files', 'code', 'preview', 'components'];
   return ids.flatMap(id => {
     const r = getDockRect(id, wsW, wsH, mode, sizes, visible);
     return r ? [{ id, rect: r }] : [];
@@ -186,6 +187,7 @@ function floatingDefault(id: WinId, wsW: number, wsH: number): WinRect {
     preview:    { x: Math.max(240, wsW - Math.max(380, wsW * 0.38) - 20), y: 20, w: Math.max(380, wsW * 0.38), h: Math.min(500, wsH - 80) },
     properties: { x: Math.max(0, wsW - 280), y: 60, w: 265, h: Math.min(440, wsH - 100) },
     timeline:   { x: 20, y: Math.max(80, wsH - 200), w: Math.max(460, wsW * 0.6), h: 185 },
+    components: { x: 20, y: 100, w: 220, h: Math.min(400, wsH - 120) },
   };
   return defaults[id];
 }
@@ -199,7 +201,7 @@ function defaultLayout(wsW: number, wsH: number, mode: Mode = 'split'): WinState
     visual: ['files', 'preview', 'timeline', 'properties'],
   };
   const dockedSet = new Set(dockedPerMode[mode]);
-  const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline'];
+  const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline', 'components'];
   return allIds.map((id, i) => ({
     id, title: WIN_LABELS[id],
     rect: floatingDefault(id, wsW, wsH),
@@ -236,7 +238,27 @@ function loadLayout(wsW: number, wsH: number): WinState[] {
     const raw = localStorage.getItem(LS_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as WinState[];
-      if (Array.isArray(saved) && saved.length === 5) return normalizeLayout(saved, wsW, wsH);
+      if (Array.isArray(saved)) {
+        // Migration: if saved has 5 windows, add the new 'components' window
+        if (saved.length === 5) {
+          const allIds: WinId[] = ['files', 'code', 'preview', 'properties', 'timeline', 'components'];
+          const savedIds = saved.map(w => w.id);
+          const missingIds = allIds.filter(id => !savedIds.includes(id));
+          if (missingIds.length > 0) {
+            const missingWins = missingIds.map(id => ({
+              id,
+              title: WIN_LABELS[id],
+              rect: floatingDefault(id, wsW, wsH),
+              visible: false,
+              minimized: false,
+              zIndex: 10 + saved.length,
+              docked: false,
+            }));
+            return normalizeLayout([...saved, ...missingWins], wsW, wsH);
+          }
+        }
+        if (saved.length === 6) return normalizeLayout(saved, wsW, wsH);
+      }
     }
   } catch {}
   return normalizeLayout(defaultLayout(wsW, wsH), wsW, wsH);
@@ -643,6 +665,7 @@ function DesktopApp() {
       case 'preview':    return mode === 'visual' ? <VisualEditor /> : <PreviewPane />;
       case 'properties': return <PropertiesPanel onClose={() => updateWin('properties', { visible: false })} hideHeader />;
       case 'timeline':   return <TimelinePanel onClose={() => updateWin('timeline', { visible: false })} />;
+      case 'components': return <ComponentSidebar onDragStart={() => {}} />;
     }
   }
 
@@ -662,7 +685,7 @@ function DesktopApp() {
   const winTitle: Record<WinId, string> = {
     files: 'File Explorer', code: 'Code Editor',
     preview: mode === 'visual' ? 'Visual Editor' : 'Preview',
-    properties: 'Properties', timeline: 'Timeline',
+    properties: 'Properties', timeline: 'Timeline', components: 'Components',
   };
 
   return (
@@ -725,9 +748,10 @@ function DesktopApp() {
         <ToolbarBtn title="Export ZIP (Ctrl+E)" icon={<FiDownload size={13} />} label="Export" onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))} />
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: 11, color: '#555' }}>Windows:</span>
-        {(['files', 'code', 'preview', 'properties', 'timeline'] as WinId[]).map(id => {
+        {(['files', 'code', 'preview', 'properties', 'timeline', 'components'] as WinId[]).map(id => {
           const w = winMap[id];
-          const shortLabels: Record<WinId, string> = { files: 'Explorer', code: 'Code', preview: 'Preview', properties: 'Props', timeline: 'Timeline' };
+          if (!w) return null;
+          const shortLabels: Record<WinId, string> = { files: 'Explorer', code: 'Code', preview: 'Preview', properties: 'Props', timeline: 'Timeline', components: 'Comps' };
           return (
             <button key={id} onClick={() => toggleWin(id)}
               title={w.docked ? `${shortLabels[id]} (docked)` : `${shortLabels[id]} ${w.visible ? '(floating)' : '(hidden)'}`}

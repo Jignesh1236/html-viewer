@@ -66,6 +66,7 @@ export interface PreviewTab {
   active: boolean;
   previewType: 'page' | 'image';
   imageFileId?: string;
+  fileId?: string;
 }
 
 export type AnimTrigger = 'load' | 'hover' | 'click';

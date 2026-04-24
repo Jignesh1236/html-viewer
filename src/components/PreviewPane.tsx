@@ -60,13 +60,16 @@ const PreviewPane: React.FC = () => {
     if (file.type === 'image') {
       addPreviewTab({ title: file.name, previewType: 'image', imageFileId: file.id });
     } else if (file.type === 'html') {
-      addPreviewTab({ title: file.name, previewType: 'page' });
+      addPreviewTab({ title: file.name, previewType: 'page', fileId: file.id });
     }
   }, [files, addPreviewTab]);
 
   // Build the srcdoc that injects all project files into the HTML
   const buildSrcDoc = useCallback(() => {
-    const htmlFile = files.find(f => f.type === 'html');
+    // Use the fileId from active tab if it's an HTML file, otherwise find the first HTML file
+    const tabFileId = activeTab?.fileId;
+    const activeFile = tabFileId ? files.find(f => f.id === tabFileId && f.type === 'html') : null;
+    const htmlFile = activeFile || files.find(f => f.type === 'html');
     if (!htmlFile) return '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
 
     let html = htmlFile.content;

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
+import LayoutBuilder, { LayoutConfig } from './LayoutBuilder';
 
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
 type Handle = typeof HANDLES[number];
@@ -122,29 +123,37 @@ function serializeStyleObject(o: Record<string, string>): string {
 }
 
 function collectHoverStyles(el: HTMLElement): Record<string, string> {
-  return parseStyleString(el.getAttribute('data-tl-hover-style') || '');
+  const doc = el.ownerDocument;
+  const styleEl = doc?.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
+  const cssText = styleEl?.textContent || '';
+  const selector = elementSelector(el);
+  const rules = parseHoverRules(cssText);
+  return rules[selector] || {};
+}
+
+function parseHoverRules(cssText: string): Record<string, Record<string, string>> {
+  const rules: Record<string, Record<string, string>> = {};
+  if (!cssText) return rules;
+
+  const regex = /([^{]+)\{([^}]+)\}/g;
+  let match;
+  while ((match = regex.exec(cssText)) !== null) {
+    const selector = match[1].trim().replace(':hover', '').trim();
+    const styles = parseStyleString(match[2]);
+    if (Object.keys(styles).length > 0) {
+      rules[selector] = styles;
+    }
+  }
+  return rules;
+}
+
+function serializeHoverRules(rules: Record<string, Record<string, string>>): string {
+  return Object.entries(rules)
+    .map(([selector, styles]) => `${selector}:hover { ${serializeStyleObject(styles)} }`)
+    .join('\n');
 }
 
 const HOVER_PREVIEW_CLASS = '__tl-hover-preview';
-
-function rebuildHoverStyleBlock(doc: Document) {
-  const all = doc.querySelectorAll<HTMLElement>('[data-tl-hov-id][data-tl-hover-style]');
-  const rules: string[] = [];
-  all.forEach(el => {
-    const id = el.getAttribute('data-tl-hov-id');
-    const style = el.getAttribute('data-tl-hover-style');
-    if (!id || !style) return;
-    const sel = `[data-tl-hov-id="${id.replace(/"/g, '\\"')}"]`;
-    rules.push(`${sel}:hover, ${sel}.${HOVER_PREVIEW_CLASS} { ${style} }`);
-  });
-  let styleEl = doc.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
-  if (!styleEl) {
-    styleEl = doc.createElement('style');
-    styleEl.id = '__tl-hover-rules';
-    doc.head?.appendChild(styleEl);
-  }
-  styleEl.textContent = rules.join('\n');
-}
 
 /* ── Global drag-capture helpers (shared with App.tsx resizer) ── */
 function showDragCapture(cursor: string) {
@@ -163,6 +172,7 @@ function hideDragCapture() {
 const VisualEditor: React.FC = () => {
   const {
     files,
+    activeFileId,
     updateFileContent,
     setSelectedElement,
     addConsoleEntry,
@@ -178,6 +188,7 @@ const VisualEditor: React.FC = () => {
   const selectedSelectorRef = useRef<string | null>(null);
   const pendingSelectorRef = useRef<string | null>(null);
   const prevFilesRef = useRef(files);
+  const lastRebuildTimeRef = useRef(0);
   const [selEl, setSelEl] = useState<HTMLElement | null>(null);
   const [hovEl, setHovEl] = useState<HTMLElement | null>(null);
   const [iframeOff, setIframeOff] = useState({ left: 0, top: 0 });
@@ -190,6 +201,10 @@ const VisualEditor: React.FC = () => {
   const { show: showCtx, element: ctxEl } = useContextMenu();
   const eventsCleanupRef = useRef<null | (() => void)>(null);
   const [interaction, setInteraction] = useState<'select' | 'interact'>('select');
+  const [showAlignmentGuides, setShowAlignmentGuides] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [gridSize, setGridSize] = useState(8);
+  const [showLayoutBuilder, setShowLayoutBuilder] = useState(false);
 
   useEffect(() => { iframeOffRef.current = iframeOff; }, [iframeOff]);
   useEffect(() => { hovElRef.current = hovEl; }, [hovEl]);
@@ -203,7 +218,9 @@ const VisualEditor: React.FC = () => {
 
   /* ── Build srcdoc ── */
   const buildSrcDoc = useCallback(() => {
-    const htmlFile = files.find(f => f.type === 'html');
+    // Use the active file if it's HTML, otherwise find the first HTML file
+    const activeFile = files.find(f => f.id === activeFileId && f.type === 'html');
+    const htmlFile = activeFile || files.find(f => f.type === 'html');
     if (!htmlFile) return '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>';
     let html = htmlFile.content;
     const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -252,10 +269,19 @@ const VisualEditor: React.FC = () => {
   }, [files, interaction]);
 
   const scheduleRebuild = useCallback(() => {
+    const now = Date.now();
+    const timeSinceLastRebuild = now - lastRebuildTimeRef.current;
+    const MIN_REBUILD_INTERVAL = 100; // Minimum 100ms between rebuilds
+
     if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
+
+    // If recently rebuilt, wait longer before next rebuild
+    const delay = timeSinceLastRebuild < MIN_REBUILD_INTERVAL ? MIN_REBUILD_INTERVAL : 50;
+
     rebuildTimerRef.current = setTimeout(() => {
+      lastRebuildTimeRef.current = Date.now();
       setSrcDoc(buildSrcDoc());
-    }, 80);
+    }, delay);
   }, [buildSrcDoc]);
 
   useEffect(() => {
@@ -347,16 +373,21 @@ const VisualEditor: React.FC = () => {
       const byId = doc.getElementById(el.id) as HTMLElement | null;
       if (byId) return byId;
     }
-    const classList = Array.from(el.classList).filter(Boolean);
+    const classList = Array.from(el.classList).filter(c => c !== HOVER_PREVIEW_CLASS);
     if (classList.length > 0) {
       const byClass = doc.querySelector(`.${classList.map(cssEscape).join('.')}`) as HTMLElement | null;
       if (byClass) return byClass;
     }
+    // Fallback: try to find by tag name and position if no other identifier
+    const allTags = doc.querySelectorAll(el.tagName.toLowerCase());
+    if (allTags.length === 1) return allTags[0] as HTMLElement;
     return null;
   };
 
   const updateHtmlSourceForElement = useCallback((el: HTMLElement, applyChange: (target: HTMLElement) => void) => {
-    const htmlFile = files.find(f => f.type === 'html');
+    // Use the active file if it's HTML, otherwise find the first HTML file
+    const activeFile = files.find(f => f.id === activeFileId && f.type === 'html');
+    const htmlFile = activeFile || files.find(f => f.type === 'html');
     if (!htmlFile) return;
     const selector = elementSelector(el);
     const parser = new DOMParser();
@@ -366,19 +397,33 @@ const VisualEditor: React.FC = () => {
     applyChange(target);
     const updated = serializeDoc(parsedDoc);
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+  }, [files, activeFileId, updateFileContent]);
 
   const syncToSource = useCallback((el: HTMLElement) => {
     const style = el.getAttribute('style') || '';
-    const hovStyle = el.getAttribute('data-tl-hover-style') || '';
-    const hovId = el.getAttribute('data-tl-hov-id') || '';
+    const doc = el.ownerDocument;
+    const styleEl = doc?.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
+    const hoverCss = styleEl?.textContent || '';
+
     updateHtmlSourceForElement(el, (target) => {
       if (style) target.setAttribute('style', style);
       else target.removeAttribute('style');
-      if (hovStyle) target.setAttribute('data-tl-hover-style', hovStyle);
-      else target.removeAttribute('data-tl-hover-style');
-      if (hovId) target.setAttribute('data-tl-hov-id', hovId);
-      else target.removeAttribute('data-tl-hov-id');
+
+      // Sync hover style block to source
+      let hoverStyleEl = target.ownerDocument.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
+      if (!hoverStyleEl && hoverCss) {
+        hoverStyleEl = target.ownerDocument.createElement('style');
+        hoverStyleEl.id = '__tl-hover-rules';
+        target.ownerDocument.head.appendChild(hoverStyleEl);
+      }
+
+      if (hoverStyleEl) {
+        if (hoverCss) {
+          hoverStyleEl.textContent = hoverCss;
+        } else {
+          hoverStyleEl.remove();
+        }
+      }
     });
   }, [updateHtmlSourceForElement]);
 
@@ -434,25 +479,45 @@ const VisualEditor: React.FC = () => {
         const el = getSelectedDomEl();
         if (!el) return;
         const key = property.toLowerCase();
-        const cur = parseStyleString(el.getAttribute('data-tl-hover-style') || '');
+        const doc = el.ownerDocument;
+        if (!doc) return;
+
+        // Get or create the hover style block
+        let styleEl = doc.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
+        if (!styleEl) {
+          styleEl = doc.createElement('style');
+          styleEl.id = '__tl-hover-rules';
+          doc.head.appendChild(styleEl);
+        }
+
+        // Generate selector for the element
+        const selector = elementSelector(el);
+
+        // Parse existing rules
+        const rules = parseHoverRules(styleEl.textContent || '');
+        const cur = rules[selector] || {};
+
+        // Update the property
         if (value === '') delete cur[key];
         else cur[key] = value;
-        const serialized = serializeStyleObject(cur);
+
+        // Rebuild the rules
+        rules[selector] = cur;
         if (Object.keys(cur).length === 0) {
-          el.removeAttribute('data-tl-hover-style');
-          el.removeAttribute('data-tl-hov-id');
-          el.classList.remove(HOVER_PREVIEW_CLASS);
-        } else {
-          // Ensure unique id
-          if (!el.getAttribute('data-tl-hov-id')) {
-            el.setAttribute('data-tl-hov-id', 'hov_' + Math.random().toString(36).slice(2, 9));
-          }
-          el.setAttribute('data-tl-hover-style', serialized);
-          // Apply preview class so user sees the hover state immediately
-          if (useEditorStore.getState().hoverEditMode) el.classList.add(HOVER_PREVIEW_CLASS);
+          delete rules[selector];
         }
-        const doc = el.ownerDocument;
-        if (doc) rebuildHoverStyleBlock(doc);
+
+        // Serialize back to CSS
+        const cssText = serializeHoverRules(rules);
+        styleEl.textContent = cssText;
+
+        // Apply preview class so user sees the hover state immediately
+        if (Object.keys(cur).length > 0 && useEditorStore.getState().hoverEditMode) {
+          el.classList.add(HOVER_PREVIEW_CLASS);
+        } else {
+          el.classList.remove(HOVER_PREVIEW_CLASS);
+        }
+
         setTick(t => t + 1);
         refreshSelectedSnapshot(el);
         syncToSource(el);
@@ -460,7 +525,15 @@ const VisualEditor: React.FC = () => {
       setHoverPreview: (on) => {
         const el = getSelectedDomEl();
         if (!el) return;
-        if (on && el.getAttribute('data-tl-hover-style')) el.classList.add(HOVER_PREVIEW_CLASS);
+        const doc = el.ownerDocument;
+        if (!doc) return;
+        const styleEl = doc.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
+        const cssText = styleEl?.textContent || '';
+        const selector = elementSelector(el);
+        const rules = parseHoverRules(cssText);
+        const hasHoverStyles = rules[selector] && Object.keys(rules[selector]).length > 0;
+
+        if (on && hasHoverStyles) el.classList.add(HOVER_PREVIEW_CLASS);
         else el.classList.remove(HOVER_PREVIEW_CLASS);
         setTick(t => t + 1);
       },
@@ -545,6 +618,68 @@ const VisualEditor: React.FC = () => {
     });
   }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
+  /* ── Helper: insert component from drag-drop ── */
+  const insertComponent = useCallback((component: any) => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+
+    // Create a temporary div to parse the HTML
+    const tempDiv = doc.createElement('div');
+    tempDiv.innerHTML = component.html;
+    const newElement = tempDiv.firstElementChild as HTMLElement;
+    if (!newElement) return;
+
+    // Find insertion point (body or selected element)
+    const selectedEl = getSelectedDomEl();
+    const insertionPoint = selectedEl || doc.body;
+
+    // Insert the element
+    insertionPoint.appendChild(newElement);
+
+    // Inject component CSS if present
+    if (component.css) {
+      let compStyleEl = doc.getElementById('__component-styles') as HTMLStyleElement | null;
+      if (!compStyleEl) {
+        compStyleEl = doc.createElement('style');
+        compStyleEl.id = '__component-styles';
+        doc.head?.appendChild(compStyleEl);
+      }
+      compStyleEl.textContent += '\n' + component.css;
+    }
+
+    // Select the new element
+    selectElement(newElement);
+
+    // Sync to source
+    syncContentToSource(insertionPoint);
+
+    setTick(t => t + 1);
+  }, [getSelectedDomEl, selectElement, syncContentToSource]);
+
+  /* ── Apply layout configuration to selected element ── */
+  const applyLayout = useCallback((config: LayoutConfig) => {
+    const el = getSelectedDomEl();
+    if (!el) return;
+
+    if (config.type === 'grid' && config.grid) {
+      el.style.display = 'grid';
+      el.style.gridTemplateColumns = config.grid.columns;
+      el.style.gridTemplateRows = config.grid.rows;
+      el.style.gap = config.grid.gap;
+    } else if (config.type === 'flex' && config.flex) {
+      el.style.display = 'flex';
+      el.style.flexDirection = config.flex.direction;
+      el.style.flexWrap = config.flex.wrap;
+      el.style.justifyContent = config.flex.justifyContent;
+      el.style.alignItems = config.flex.alignItems;
+      el.style.gap = config.flex.gap;
+    }
+
+    setTick(t => t + 1);
+    refreshSelectedSnapshot(el);
+    syncToSource(el);
+  }, [getSelectedDomEl, refreshSelectedSnapshot, syncToSource]);
+
   /* ── Attach iframe events ── */
   const attachEvents = useCallback(() => {
     const doc = iframeRef.current?.contentDocument;
@@ -552,8 +687,6 @@ const VisualEditor: React.FC = () => {
     const win = iframeRef.current?.contentWindow ?? doc.defaultView;
     /* Re-inject timeline animations after iframe reloads */
     if (animStyleRef.current) injectAnimStyle(doc, animStyleRef.current);
-    /* Build hover style block from any persisted [data-tl-hover-style] elements */
-    rebuildHoverStyleBlock(doc);
 
     const pendingSelector = pendingSelectorRef.current;
     if (pendingSelector) {
@@ -829,42 +962,60 @@ const VisualEditor: React.FC = () => {
     const onMove = (e: MouseEvent) => {
       const d = dragRef.current;
       if (!d || !d.el.isConnected) return;
-      const dx = e.clientX - d.startX;
-      const dy = e.clientY - d.startY;
+      let dx = e.clientX - d.startX;
+      let dy = e.clientY - d.startY;
       const { el, type, initLeft, initTop, initW, initH } = d;
 
-      if (type === 'move') {
-        el.style.position = el.style.position || 'relative';
-        el.style.left = (initLeft + dx) + 'px';
-        el.style.top = (initTop + dy) + 'px';
-      } else if (type === 'se') {
-        el.style.width = Math.max(20, initW + dx) + 'px';
-        el.style.height = Math.max(20, initH + dy) + 'px';
-      } else if (type === 'e') {
-        el.style.width = Math.max(20, initW + dx) + 'px';
-      } else if (type === 's') {
-        el.style.height = Math.max(20, initH + dy) + 'px';
-      } else if (type === 'n') {
-        el.style.height = Math.max(20, initH - dy) + 'px';
-        el.style.top = (initTop + dy) + 'px';
-      } else if (type === 'w') {
-        el.style.width = Math.max(20, initW - dx) + 'px';
-        el.style.left = (initLeft + dx) + 'px';
-      } else if (type === 'sw') {
-        el.style.width = Math.max(20, initW - dx) + 'px';
-        el.style.left = (initLeft + dx) + 'px';
-        el.style.height = Math.max(20, initH + dy) + 'px';
-      } else if (type === 'nw') {
-        el.style.width = Math.max(20, initW - dx) + 'px';
-        el.style.height = Math.max(20, initH - dy) + 'px';
-        el.style.left = (initLeft + dx) + 'px';
-        el.style.top = (initTop + dy) + 'px';
-      } else if (type === 'ne') {
-        el.style.width = Math.max(20, initW + dx) + 'px';
-        el.style.height = Math.max(20, initH - dy) + 'px';
-        el.style.top = (initTop + dy) + 'px';
+      // Apply snap-to-grid if enabled
+      if (snapToGrid) {
+        dx = Math.round(dx / gridSize) * gridSize;
+        dy = Math.round(dy / gridSize) * gridSize;
       }
-      setTick(t => t + 1);
+
+      // Use requestAnimationFrame for smoother updates
+      requestAnimationFrame(() => {
+        if (type === 'move') {
+          el.style.position = el.style.position || 'relative';
+          el.style.left = (initLeft + dx) + 'px';
+          el.style.top = (initTop + dy) + 'px';
+        } else if (type === 'se') {
+          // Shift key locks aspect ratio
+          if (e.shiftKey) {
+            const aspect = initW / initH;
+            const newW = Math.max(20, initW + dx);
+            const newH = newW / aspect;
+            el.style.width = newW + 'px';
+            el.style.height = newH + 'px';
+          } else {
+            el.style.width = Math.max(20, initW + dx) + 'px';
+            el.style.height = Math.max(20, initH + dy) + 'px';
+          }
+        } else if (type === 'e') {
+          el.style.width = Math.max(20, initW + dx) + 'px';
+        } else if (type === 's') {
+          el.style.height = Math.max(20, initH + dy) + 'px';
+        } else if (type === 'n') {
+          el.style.height = Math.max(20, initH - dy) + 'px';
+          el.style.top = (initTop + dy) + 'px';
+        } else if (type === 'w') {
+          el.style.width = Math.max(20, initW - dx) + 'px';
+          el.style.left = (initLeft + dx) + 'px';
+        } else if (type === 'sw') {
+          el.style.width = Math.max(20, initW - dx) + 'px';
+          el.style.left = (initLeft + dx) + 'px';
+          el.style.height = Math.max(20, initH + dy) + 'px';
+        } else if (type === 'nw') {
+          el.style.width = Math.max(20, initW - dx) + 'px';
+          el.style.height = Math.max(20, initH - dy) + 'px';
+          el.style.left = (initLeft + dx) + 'px';
+          el.style.top = (initTop + dy) + 'px';
+        } else if (type === 'ne') {
+          el.style.width = Math.max(20, initW + dx) + 'px';
+          el.style.height = Math.max(20, initH - dy) + 'px';
+          el.style.top = (initTop + dy) + 'px';
+        }
+        setTick(t => t + 1);
+      });
     };
 
     const onUp = () => {
@@ -879,7 +1030,7 @@ const VisualEditor: React.FC = () => {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, [syncToSource]);
+  }, [syncToSource, snapToGrid, gridSize]);
 
   /* ── Rotation drag ── */
   const rotRef = useRef<{ cx: number; cy: number; startAngle: number; initRot: number; el: HTMLElement } | null>(null);
@@ -930,17 +1081,101 @@ const VisualEditor: React.FC = () => {
   return (
     <div style={{ position: 'relative', flex: 1, overflow: 'hidden', background: '#2d2d2d', display: 'flex', flexDirection: 'column' }}>
 
-      {/* Hint bar */}
+      {/* Hint bar with breadcrumb */}
       <div style={{
         height: 28, flexShrink: 0, background: 'rgba(26,26,26,0.9)', borderBottom: '1px solid #3e3e3e',
         display: 'flex', alignItems: 'center', padding: '0 12px', gap: 16, zIndex: 5,
       }}>
-        <span style={{ fontSize: 11, color: '#777' }}>
-          {selEl
-            ? `<${selEl.tagName.toLowerCase()}${selEl.id ? '#' + selEl.id : ''}> — Drag • Resize • Rotate • Double-click text to edit • Right-click for menu`
-            : 'Click any element to select • Double-click text to edit inline • Right-click for menu'}
-        </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, overflow: 'hidden' }}>
+          {selEl ? (
+            <>
+              <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
+                {(() => {
+                  const path: HTMLElement[] = [];
+                  let current: HTMLElement | null = selEl;
+                  while (current && current.tagName.toLowerCase() !== 'body') {
+                    path.unshift(current);
+                    current = current.parentElement;
+                  }
+                  return path.map((el, i) => (
+                    <React.Fragment key={i}>
+                      {i > 0 && <span style={{ color: '#555' }}> › </span>}
+                      <span
+                        style={{
+                          color: i === path.length - 1 ? '#e5a45a' : '#888',
+                          cursor: 'pointer',
+                          fontSize: 10,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectElement(el);
+                        }}
+                      >
+                        {el.tagName.toLowerCase()}{el.id ? '#' + el.id : ''}
+                      </span>
+                    </React.Fragment>
+                  ));
+                })()}
+              </span>
+              <span style={{ fontSize: 10, color: '#666', marginLeft: 8 }}>
+                — Drag • Resize • Rotate • Double-click to edit
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: 11, color: '#777' }}>
+              Click any element to select • Double-click text to edit inline • Right-click for menu
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowAlignmentGuides(!showAlignmentGuides)}
+            style={{
+              background: showAlignmentGuides ? 'rgba(229,164,90,0.15)' : 'none',
+              border: showAlignmentGuides ? 'rgba(229,164,90,0.4)' : '#444',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 10,
+              color: showAlignmentGuides ? '#e5a45a' : '#888',
+              padding: '1px 8px',
+              fontFamily: 'inherit',
+            }}
+            title="Toggle alignment guides"
+          >
+            Guides
+          </button>
+          <button
+            onClick={() => setSnapToGrid(!snapToGrid)}
+            style={{
+              background: snapToGrid ? 'rgba(229,164,90,0.15)' : 'none',
+              border: snapToGrid ? 'rgba(229,164,90,0.4)' : '#444',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 10,
+              color: snapToGrid ? '#e5a45a' : '#888',
+              padding: '1px 8px',
+              fontFamily: 'inherit',
+            }}
+            title="Toggle snap-to-grid"
+          >
+            Grid
+          </button>
+          <button
+            onClick={() => setShowLayoutBuilder(!showLayoutBuilder)}
+            style={{
+              background: showLayoutBuilder ? 'rgba(229,164,90,0.15)' : 'none',
+              border: showLayoutBuilder ? 'rgba(229,164,90,0.4)' : '#444',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 10,
+              color: showLayoutBuilder ? '#e5a45a' : '#888',
+              padding: '1px 8px',
+              fontFamily: 'inherit',
+            }}
+            title="Open layout builder"
+          >
+            Layout
+          </button>
           <button
             onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
             style={{
@@ -988,6 +1223,22 @@ const VisualEditor: React.FC = () => {
           const cleanup = attachEvents();
           eventsCleanupRef.current = typeof cleanup === 'function' ? cleanup : null;
         }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          const componentData = e.dataTransfer.getData('component');
+          if (componentData) {
+            try {
+              const component = JSON.parse(componentData);
+              insertComponent(component);
+            } catch (err) {
+              console.error('Failed to parse component data:', err);
+            }
+          }
+        }}
         srcDoc={srcDoc}
         sandbox="allow-scripts allow-same-origin"
         style={{ flex: 1, border: 'none', background: '#fff' }}
@@ -995,23 +1246,40 @@ const VisualEditor: React.FC = () => {
 
       {/* Hover outline — hidden while dragging */}
       {HR && !isDragging && (
-        <div style={{
-          position: 'fixed', zIndex: 50, pointerEvents: 'none',
-          left: HR.left, top: HR.top, width: HR.width, height: HR.height,
-          outline: '1px dashed rgba(229,164,90,0.35)',
-        }} />
+        <>
+          <div style={{
+            position: 'fixed', zIndex: 50, pointerEvents: 'none',
+            left: HR.left, top: HR.top, width: HR.width, height: HR.height,
+            outline: '2px dashed rgba(229,164,90,0.5)',
+            transition: 'outline 0.15s ease',
+          }} />
+          {/* Hover tag label */}
+          <div style={{
+            position: 'fixed', zIndex: 55, pointerEvents: 'none',
+            left: HR.left, top: Math.max(0, HR.top - 20),
+            background: 'rgba(229,164,90,0.9)', color: '#1a1a1a',
+            fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+            padding: '2px 6px', borderRadius: '3px', whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}>
+            &lt;{hovEl.tagName.toLowerCase()}{hovEl.id ? '#' + hovEl.id : ''}{hovEl.className ? '.' + hovEl.className.split(' ').slice(0, 2).join('.') : ''}&gt;
+          </div>
+        </>
       )}
 
       {/* Selection overlay */}
       {OR && selEl && (
         <>
-          {/* Move overlay */}
+          {/* Move overlay with glow effect */}
           <div
             style={{
               position: 'fixed', zIndex: 51,
               left: OR.left, top: OR.top, width: OR.width, height: OR.height,
               outline: '2px solid #e5a45a',
+              outlineOffset: '0px',
+              boxShadow: '0 0 0 1px rgba(229,164,90,0.3), 0 0 8px rgba(229,164,90,0.2)',
               cursor: isDragging && activeOp === 'move' ? 'move' : 'move',
+              transition: 'box-shadow 0.2s ease, outline 0.2s ease',
             }}
             onMouseDown={e => startDrag('move', e)}
             onContextMenu={e => {
@@ -1019,6 +1287,13 @@ const VisualEditor: React.FC = () => {
               showCtx(e, [
                 { label: selEl.outerHTML.slice(0, 50) + '…', disabled: true },
                 { separator: true, label: '' },
+                { label: 'Duplicate', icon: '📋', action: () => {
+                    const clone = selEl.cloneNode(true) as HTMLElement;
+                    selEl.parentNode?.insertBefore(clone, selEl.nextSibling);
+                    syncToSource(selEl);
+                    selectElement(clone);
+                  }
+                },
                 { label: 'Copy HTML', icon: '📋', action: () => navigator.clipboard.writeText(selEl.outerHTML) },
                 { label: 'Copy inline style', icon: '🎨', action: () => navigator.clipboard.writeText(selEl.getAttribute('style') || '') },
                 { separator: true, label: '' },
@@ -1040,17 +1315,29 @@ const VisualEditor: React.FC = () => {
             }}
           />
 
-          {/* Tag label */}
+          {/* Enhanced tag label with class names */}
           <div style={{
             position: 'fixed', zIndex: 55, pointerEvents: 'none',
-            left: OR.left, top: Math.max(0, OR.top - 20),
-            background: '#e5a45a', color: '#1a1a1a',
-            fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
-            padding: '1px 7px 2px', borderRadius: '3px 3px 0 0', whiteSpace: 'nowrap',
+            left: OR.left, top: Math.max(0, OR.top - 22),
+            background: 'linear-gradient(135deg, #e5a45a 0%, #d4943e 100%)',
+            color: '#1a1a1a',
+            fontSize: 10, fontFamily: 'monospace', fontWeight: 600,
+            padding: '3px 8px', borderRadius: '4px 4px 0 0', whiteSpace: 'nowrap',
+            boxShadow: '0 2px 12px rgba(229,164,90,0.4)',
           }}>
-            &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}&gt;
-            {' '}{Math.round(OR.width)}×{Math.round(OR.height)}
-            {rotation !== 0 && ` ${rotation}°`}
+            &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}{selEl.className ? '.' + selEl.className.split(' ').slice(0, 2).join('.') : ''}&gt;
+            {rotation !== 0 ? (
+              <React.Fragment>
+                <span style={{ opacity: 0.7, marginLeft: 6, fontSize: 9 }}>
+                  {Math.round(OR.width)}×{Math.round(OR.height)}
+                </span>
+                <span style={{ opacity: 0.7, marginLeft: 4, fontSize: 9 }}>{rotation}°</span>
+              </React.Fragment>
+            ) : (
+              <span style={{ opacity: 0.7, marginLeft: 6, fontSize: 9 }}>
+                {Math.round(OR.width)}×{Math.round(OR.height)}
+              </span>
+            )}
           </div>
 
           {/* Resize handles — larger 12×12 for easier grabbing */}
@@ -1111,6 +1398,14 @@ const VisualEditor: React.FC = () => {
       )}
 
       {ctxEl}
+
+      {/* Layout Builder */}
+      {showLayoutBuilder && (
+        <LayoutBuilder
+          onApplyLayout={applyLayout}
+          onClose={() => setShowLayoutBuilder(false)}
+        />
+      )}
     </div>
   );
 };

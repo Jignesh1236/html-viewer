@@ -9,16 +9,16 @@ import { ANIMATION_PRESETS, ANIMATION_CATEGORIES, KEYFRAMES_MAP, PRESET_BY_NAME 
 
 /* ─── Design tokens ───────────────────────────────────────── */
 const C = {
-  bg:        '#1e1e1e',
-  surface:   '#252526',
-  surface2:  '#2d2d2d',
-  border:    '#3a3a3a',
+  bg:        '#1a1a1e',
+  surface:   '#1f1f23',
+  surface2:  '#2d2d31',
+  border:    '#3c3c40',
   accent:    '#e5a45a',
-  accentBg:  'rgba(229,164,90,0.12)',
-  accentBrd: 'rgba(229,164,90,0.35)',
-  text:      '#d4d4d4',
-  muted:     '#888',
-  dim:       '#555',
+  accentBg:  'rgba(229,164,90,0.15)',
+  accentBrd: 'rgba(229,164,90,0.4)',
+  text:      '#e0e0e0',
+  muted:     '#858585',
+  dim:       '#666',
 };
 
 const PRESET_KEYFRAMES: Record<string, string> = KEYFRAMES_MAP;
@@ -47,7 +47,7 @@ function collectChildLabels(children: React.ReactNode, acc: string[] = []): stri
 
 /* ─── Section ─────────────────────────────────────────────── */
 interface SectionProps { title: string; icon?: React.ReactNode; children: React.ReactNode; defaultOpen?: boolean; keywords?: string }
-const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = true, keywords }) => {
+const Section: React.FC<SectionProps> = React.memo(({ title, icon, children, defaultOpen = true, keywords }) => {
   const { q } = useContext(SearchCtx);
   const [open, setOpen] = useState(defaultOpen);
 
@@ -68,59 +68,62 @@ const Section: React.FC<SectionProps> = ({ title, icon, children, defaultOpen = 
       <button
         onClick={() => !q && setOpen(o => !o)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 6,
-          padding: '7px 10px', cursor: q ? 'default' : 'pointer', border: 'none', outline: 'none',
-          background: effectiveOpen ? 'rgba(255,255,255,0.03)' : 'transparent',
+          width: '100%', display: 'flex', alignItems: 'center', gap: 5,
+          padding: '5px 8px', cursor: q ? 'default' : 'pointer', border: 'none', outline: 'none',
+          background: effectiveOpen ? C.accentBg : 'transparent',
           transition: 'background 0.15s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
-        onMouseLeave={e => (e.currentTarget.style.background = effectiveOpen ? 'rgba(255,255,255,0.03)' : 'transparent')}
+        onMouseEnter={e => (e.currentTarget.style.background = effectiveOpen ? C.accentBg : 'rgba(255,255,255,0.05)')}
+        onMouseLeave={e => (e.currentTarget.style.background = effectiveOpen ? C.accentBg : 'transparent')}
       >
         {icon && <span style={{ color: effectiveOpen ? C.accent : C.muted, display: 'flex', transition: 'color 0.15s' }}>{icon}</span>}
         <span style={{
-          flex: 1, textAlign: 'left', fontSize: 10, fontWeight: 700,
-          letterSpacing: '0.09em', textTransform: 'uppercase',
+          flex: 1, textAlign: 'left', fontSize: 9, fontWeight: 600,
+          letterSpacing: '0.06em', textTransform: 'uppercase',
           color: effectiveOpen ? C.text : C.muted,
         }}>{title}</span>
         <span style={{ color: C.dim, display: 'flex' }}>
-          {effectiveOpen ? <FiChevronDown size={12} /> : <FiChevronRight size={12} />}
+          {effectiveOpen ? <FiChevronDown size={10} /> : <FiChevronRight size={10} />}
         </span>
       </button>
       {effectiveOpen && (
         <SearchCtx.Provider value={{ q, sectionMatched }}>
-          <div style={{ padding: '8px 10px 10px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <div style={{ padding: '6px 8px 8px', display: 'flex', flexDirection: 'column', gap: 5 }}>
             {children}
           </div>
         </SearchCtx.Provider>
       )}
     </div>
   );
-};
+});
 
 /* ─── Row ─────────────────────────────────────────────────── */
-const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
-  const { q, sectionMatched } = useContext(SearchCtx);
-  if (q && !sectionMatched && !label.toLowerCase().includes(q.toLowerCase())) return null;
+const Row: React.FC<{ label: string; children: React.ReactNode }> = React.memo(({ label, children }) => {
+  const { q } = useContext(SearchCtx);
+  const ql = q.toLowerCase();
+  const labelHit = label.toLowerCase().includes(ql);
+  if (q && !labelHit) return null;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <span style={{ fontSize: 11, color: C.muted, width: 58, flexShrink: 0, userSelect: 'none' }}>{label}</span>
-      <div style={{ flex: 1, display: 'flex', gap: 4, alignItems: 'center', minWidth: 0 }}>{children}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 1 }}>
+      <span style={{ fontSize: 10, color: C.muted, minWidth: 65, flexShrink: 0 }}>{label}</span>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 3 }}>{children}</div>
     </div>
   );
-};
+});
 
 /* ─── Shared input style ──────────────────────────────────── */
 const inputBase: React.CSSProperties = {
-  flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4,
-  padding: '4px 7px', fontSize: 11, color: C.text, fontFamily: 'var(--app-font-mono)',
+  flex: 1, background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 3,
+  padding: '3px 5px', fontSize: 10, color: C.text, fontFamily: 'var(--app-font-mono)',
   outline: 'none', minWidth: 0, transition: 'border-color 0.15s',
 };
 
 const selBase: React.CSSProperties = {
   ...inputBase, cursor: 'pointer', appearance: 'none' as const,
   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 7px center',
-  paddingRight: 22,
+  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center',
+  paddingRight: 20,
 };
 
 function parseTransform(transform: string) {

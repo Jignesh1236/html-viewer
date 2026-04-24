@@ -10,7 +10,7 @@ import {
   FiSave, FiFilePlus, FiPause, FiStopCircle, FiAlignLeft, FiAlignCenter,
   FiAlignRight, FiUnderline, FiBold, FiItalic, FiMinus, FiCornerDownRight,
   FiPackage, FiDatabase, FiGlobe, FiSmartphone, FiTablet, FiStar, FiArrowRight,
-  FiRotateCcw, FiLock, FiUnlock, FiTarget, FiTrendingUp, FiShield, FiList,
+  FiRotateCcw, FiLock, FiUnlock, FiTarget, FiTrendingUp, FiShield, FiList, FiSend,
 } from 'react-icons/fi';
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -195,6 +195,16 @@ const NAV_SECTIONS = [
       { id: 'import-export', label: 'Import & Export', icon: <FiPackage size={13} /> },
     ],
     color: 'green',
+  },
+  {
+    heading: 'No-Code Builder',
+    items: [
+      { id: 'component-library', label: 'Component Library', icon: <FiBox size={13} /> },
+      { id: 'layout-builder', label: 'Layout Builder', icon: <FiGrid size={13} /> },
+      { id: 'page-manager', label: 'Page Manager', icon: <FiFileText size={13} /> },
+      { id: 'template-library', label: 'Template Library', icon: <FiStar size={13} /> },
+    ],
+    color: 'purple',
   },
   {
     heading: 'Reference',
@@ -1172,6 +1182,215 @@ const Documentation: React.FC = () => {
                 { icon: <FiDownload />, label: 'Exporting as ZIP', shortcut: 'Ctrl+E', desc: 'Packages all files using JSZip in the browser, no server needed. The ZIP preserves folder structure (subfolders map to their folder names). The download is triggered via FileSaver.js. Image files are stored as their original binary in the ZIP.', color: 'orange' },
                 { icon: <FiCopy />, label: 'Copying to Clipboard', desc: 'Export → Copy HTML to Clipboard puts the full HTML file content on your clipboard. Ready to paste into any external editor, GitHub, or CMS.', color: 'cyan' },
               ].map((item, i) => <FeatureRow key={i} {...item} />)}
+            </section>
+
+            <InArticleAd />
+
+            {/* ═══════════════════════════════════════════════════════════════
+                SECTION: No-Code Builder
+                ═══════════════════════════════════════════════════════════ */}
+            <section id="component-library" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiBox />} title="Component Library" subtitle="Drag-and-drop pre-built components into your visual editor." color="purple" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed">
+                  The Component Library provides 20+ pre-built HTML components organized by category. Simply drag a component from the sidebar and drop it onto the visual editor canvas to insert it.
+                </p>
+
+                <div className="p-6 bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl">
+                  <p className="text-[9px] font-black text-[#333] uppercase tracking-[0.3em] mb-4">No-Code Builder Features</p>
+                  <pre className="text-[10px] text-[#666] leading-relaxed overflow-x-auto">
+{`mindmap
+  root((No-Code Builder))
+    Component Library
+      Buttons
+      Forms
+      Cards
+      Navigation
+      Layout
+      Typography
+      Media
+      Social
+    Layout Builder
+      Grid Layout
+      Flexbox Layout
+      CSS Preview
+    Page Manager
+      Create Pages
+      Duplicate Pages
+      Delete Pages
+      Set Default
+    Template Library
+      Landing Page
+      Portfolio
+      Blog
+      Contact Page`}
+                  </pre>
+                </div>
+
+                <div className="p-6 bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl">
+                  <p className="text-[9px] font-black text-[#333] uppercase tracking-[0.3em] mb-4">Component Categories Distribution</p>
+                  <pre className="text-[10px] text-[#666] leading-relaxed overflow-x-auto">
+{`pie title Components by Category
+  "Buttons" : 12
+  "Forms" : 15
+  "Cards" : 10
+  "Navigation" : 8
+  "Layout" : 20
+  "Typography" : 15
+  "Media" : 12
+  "Social" : 8`}
+                  </pre>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[
+                    { icon: <FiBox />, label: 'Buttons', desc: 'Primary, secondary, outline, ghost, and icon buttons with various styles.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Forms', desc: 'Input fields, textareas, checkboxes, radio buttons, selects, and form groups.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Cards', desc: 'Content cards with images, headers, footers, and action buttons.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Navigation', desc: 'Navbars, menus, breadcrumbs, and pagination components.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Layout', desc: 'Containers, sections, grids, and layout utility components.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Typography', desc: 'Headings, paragraphs, lists, quotes, and text utilities.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Media', desc: 'Images, videos, galleries, and media containers.', color: 'purple' },
+                    { icon: <FiBox />, label: 'Social', desc: 'Social media buttons, share icons, and follow components.', color: 'purple' },
+                  ].map((cat, i) => (
+                    <div key={i} className={`p-4 rounded-xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${cat.color}-500/20 transition-all`}>
+                      <div className={`text-${cat.color}-500 mb-2`}>{cat.icon}</div>
+                      <h4 className="text-white font-black text-xs tracking-tight mb-1">{cat.label}</h4>
+                      <p className="text-[10px] text-[#444] leading-relaxed">{cat.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <InfoBox title="Using Components" icon={<FiMousePointer size={11} />} color="purple">
+                  1. Open the Components panel from the Windows menu or toolbar.<br />
+                  2. Browse categories or use the search to find a component.<br />
+                  3. Drag the component from the sidebar.<br />
+                  4. Drop it onto the visual editor canvas.<br />
+                  5. The component is inserted with its HTML and CSS automatically applied.
+                </InfoBox>
+              </div>
+            </section>
+
+            <section id="layout-builder" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiGrid />} title="Layout Builder" subtitle="Visual grid and flexbox layout controls." color="purple" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed">
+                  The Layout Builder provides visual controls for creating CSS Grid and Flexbox layouts. Select any element in the visual editor, then use the Layout Builder to apply modern layout systems without writing CSS.
+                </p>
+
+                <div className="p-6 bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl">
+                  <p className="text-[9px] font-black text-[#333] uppercase tracking-[0.3em] mb-4">Component Drag-Drop Workflow</p>
+                  <pre className="text-[10px] text-[#666] leading-relaxed overflow-x-auto">
+{`flowchart LR
+  A[Open Components Panel] --> B[Browse Categories]
+  B --> C[Select Component]
+  C --> D[Drag Component]
+  D --> E[Drop on Canvas]
+  E --> F[HTML Inserted]
+  F --> G[CSS Applied]
+  G --> H[Element Selected]
+  H --> I[Edit in Properties Panel]`}
+                  </pre>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="p-5 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a]">
+                    <h4 className="text-white font-black text-sm tracking-tight mb-4 flex items-center gap-2">
+                      <span className="text-purple-500">Grid Layout</span>
+                    </h4>
+                    <ul className="space-y-2 text-[11px] text-[#555]">
+                      <li>• Columns: 2, 3, 4, custom, auto-fit</li>
+                      <li>• Rows: auto, 2, 3 rows</li>
+                      <li>• Gap spacing control</li>
+                      <li>• Live CSS preview</li>
+                    </ul>
+                  </div>
+                  <div className="p-5 rounded-2xl bg-[#0e0e0e] border border-[#1a1a1a]">
+                    <h4 className="text-white font-black text-sm tracking-tight mb-4 flex items-center gap-2">
+                      <span className="text-purple-500">Flexbox Layout</span>
+                    </h4>
+                    <ul className="space-y-2 text-[11px] text-[#555]">
+                      <li>• Direction: row, column, reverse</li>
+                      <li>• Wrap: nowrap, wrap, wrap-reverse</li>
+                      <li>• Justify Content & Align Items</li>
+                      <li>• Gap spacing control</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <InfoBox title="Applying Layouts" icon={<FiLayers size={11} />} color="purple">
+                  1. Select an element in the visual editor (e.g., a container div).<br />
+                  2. Click the "Layout" button in the toolbar.<br />
+                  3. Choose Grid or Flexbox mode.<br />
+                  4. Adjust the controls to configure your layout.<br />
+                  5. Click "Apply Layout" to apply the CSS to the selected element.
+                </InfoBox>
+              </div>
+            </section>
+
+            <section id="page-manager" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiFileText />} title="Page Manager" subtitle="Multi-page project management." color="purple" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed">
+                  The Page Manager allows you to create and manage multiple pages within a single project. Each page has its own HTML content and can be set as the default landing page.
+                </p>
+
+                <div className="space-y-4">
+                  {[
+                    { icon: <FiPlusSquare />, label: 'Create New Page', desc: 'Enter a page name and a new page is created with default HTML structure.', color: 'purple' },
+                    { icon: <FiCopy />, label: 'Duplicate Page', desc: 'Copy an existing page to create a new one with the same content.', color: 'purple' },
+                    { icon: <FiTrash2 />, label: 'Delete Page', desc: 'Remove a page from your project (cannot delete the default page).', color: 'purple' },
+                    { icon: <FiStar />, label: 'Set Default', desc: 'Mark a page as the default landing page for your project.', color: 'purple' },
+                  ].map((action, i) => <FeatureRow key={i} {...action} />)}
+                </div>
+              </div>
+            </section>
+
+            <section id="template-library" className="scroll-mt-28 space-y-10">
+              <SectionDivider icon={<FiStar />} title="Template Library" subtitle="Start from pre-built page templates." color="purple" />
+
+              <div className="space-y-6">
+                <p className="text-[#666] text-sm leading-relaxed">
+                  The Template Library provides ready-to-use page templates with complete HTML and embedded CSS. Use them as starting points for your projects.
+                </p>
+
+                <div className="p-6 bg-[#0e0e0e] border border-[#1a1a1a] rounded-2xl">
+                  <p className="text-[9px] font-black text-[#333] uppercase tracking-[0.3em] mb-4">Templates by Category</p>
+                  <pre className="text-[10px] text-[#666] leading-relaxed overflow-x-auto">
+{`xychart-beta
+    title "Templates per category"
+    x-axis ["Landing", "Portfolio", "Blog", "Contact", "E-commerce", "Dashboard"]
+    y-axis "Template count" 0 --> 5
+    bar [3, 2, 2, 1, 2, 1]`}
+                  </pre>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {[
+                    { icon: <FiGlobe />, label: 'Landing Page', desc: 'Modern landing page with hero section, features, and CTA.', color: 'purple' },
+                    { icon: <FiFileText />, label: 'Portfolio', desc: 'Clean portfolio template with project gallery.', color: 'purple' },
+                    { icon: <FiBookOpen />, label: 'Blog', desc: 'Simple blog layout with posts list.', color: 'purple' },
+                    { icon: <FiSend />, label: 'Contact Page', desc: 'Contact form with information section.', color: 'purple' },
+                  ].map((tmpl, i) => (
+                    <div key={i} className={`p-4 rounded-xl bg-[#0e0e0e] border border-[#1a1a1a] hover:border-${tmpl.color}-500/20 transition-all`}>
+                      <div className={`text-${tmpl.color}-500 mb-2`}>{tmpl.icon}</div>
+                      <h4 className="text-white font-black text-xs tracking-tight mb-1">{tmpl.label}</h4>
+                      <p className="text-[10px] text-[#444] leading-relaxed">{tmpl.desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <InfoBox title="Using Templates" icon={<FiDownload size={11} />} color="purple">
+                  1. Open the Template Library from the menu.<br />
+                  2. Browse templates by category or search.<br />
+                  3. Click on a template to preview its details.<br />
+                  4. Click "Use Template" to load it into your project.<br />
+                  5. Customize the template as needed.
+                </InfoBox>
+              </div>
             </section>
 
             {/* ═══════════════════════════════════════════════════════════════

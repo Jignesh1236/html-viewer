@@ -8,6 +8,71 @@ const TermsOfService: React.FC = () => {
   React.useEffect(() => {
     document.title = "Terms of Service | HTML Editor Pro";
     window.scrollTo(0, 0);
+
+    // Set meta tags
+    const setMeta = (name: string, content: string, attr: 'name' | 'property' = 'name') => {
+      let el = document.querySelector(`meta[${attr}="${name}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        el.setAttribute(attr, name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    setMeta('description', 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor with visual designer and live preview.', 'name');
+    setMeta('keywords', 'HTML editor terms of service, online HTML editor agreement, web editor terms, code editor terms, HTML builder terms', 'name');
+    setMeta('og:title', 'Terms of Service | HTML Editor Pro', 'property');
+    setMeta('og:description', 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor.', 'property');
+    setMeta('og:type', 'website', 'property');
+    setMeta('og:url', 'https://html-viewer-gray-beta.vercel.app/terms', 'property');
+    setMeta('og:image', 'https://html-viewer-gray-beta.vercel.app/og-image.jpg', 'property');
+    setMeta('twitter:card', 'summary_large_image', 'name');
+    setMeta('twitter:title', 'Terms of Service | HTML Editor Pro', 'name');
+    setMeta('twitter:description', 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor.', 'name');
+    setMeta('twitter:image', 'https://html-viewer-gray-beta.vercel.app/og-image.jpg', 'name');
+
+    // Set canonical
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', 'https://html-viewer-gray-beta.vercel.app/terms');
+
+    // Set JSON-LD
+    const ldId = '__terms_jsonld__';
+    document.getElementById(ldId)?.remove();
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.id = ldId;
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'WebPage',
+          '@id': 'https://html-viewer-gray-beta.vercel.app/terms',
+          'url': 'https://html-viewer-gray-beta.vercel.app/terms',
+          'name': 'Terms of Service',
+          'description': 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor with visual designer and live preview.',
+          'isPartOf': { '@id': 'https://html-viewer-gray-beta.vercel.app/#website' },
+          'datePublished': '2026-04-21',
+          'dateModified': '2026-04-24',
+          'author': { '@type': 'Person', name: 'Jignesh D Maru' },
+          'breadcrumb': {
+            '@type': 'BreadcrumbList',
+            'itemListElement': [
+              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://html-viewer-gray-beta.vercel.app/' },
+              { '@type': 'ListItem', 'position': 2, 'name': 'Terms of Service', 'item': 'https://html-viewer-gray-beta.vercel.app/terms' }
+            ]
+          }
+        }
+      ]
+    });
+    document.head.appendChild(script);
+
+    return () => { document.getElementById(ldId)?.remove(); };
   }, []);
 
   return (
