@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Router, Route, Switch } from 'wouter';
+import { Router as WouterRouter, Route, Switch } from 'wouter';
 import Documentation from './pages/Documentation';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+import NotFound from './pages/not-found';
 import { useEditorStore } from './store/editorStore';
 import MenuBar from './components/MenuBar';
 import FilePanel from './components/FilePanel';
@@ -534,7 +535,7 @@ function MobileApp() {
 export default function App() {
   const isMobile = useIsMobile();
   return (
-    <Router>
+    <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
       <Switch>
         <Route path="/docs" component={Documentation} />
         <Route path="/privacy" component={PrivacyPolicy} />
@@ -542,8 +543,9 @@ export default function App() {
         <Route path="/">
           {isMobile ? <MobileApp /> : <DesktopApp />}
         </Route>
+        <Route component={NotFound} />
       </Switch>
-    </Router>
+    </WouterRouter>
   );
 }
 
