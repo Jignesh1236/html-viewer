@@ -618,6 +618,128 @@ const VisualEditor: React.FC = () => {
     });
   }, [setSelectedSelector, setSelectedElement, addConsoleEntry]);
 
+  /* ── Keyboard shortcuts ── */
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs or contenteditable
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifier = isMac ? e.metaKey : e.ctrlKey;
+
+      // Delete selected element
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selElRef.current) {
+        e.preventDefault();
+        const el = selElRef.current;
+        const parent = el.parentElement;
+        if (parent && !SKIP_TAGS.has(parent.tagName.toLowerCase())) {
+          el.remove();
+          setSelEl(null);
+          setSelectedElement(null);
+          setSelectedSelector(null);
+          syncContentToSource(parent);
+          addConsoleEntry({
+            type: 'info',
+            message: `Deleted <${el.tagName.toLowerCase()}>`,
+            timestamp: new Date(),
+          });
+        }
+      }
+
+      // Duplicate element (Ctrl+D / Cmd+D)
+      if (modifier && e.key === 'd' && selElRef.current) {
+        e.preventDefault();
+        const el = selElRef.current;
+        const clone = el.cloneNode(true) as HTMLElement;
+        el.parentElement?.insertBefore(clone, el.nextSibling);
+        selectElement(clone);
+        syncContentToSource(el.parentElement!);
+        addConsoleEntry({
+          type: 'info',
+          message: `Duplicated <${el.tagName.toLowerCase()}>`,
+          timestamp: new Date(),
+        });
+      }
+
+      // Copy element (Ctrl+C / Cmd+C)
+      if (modifier && e.key === 'c' && selElRef.current) {
+        e.preventDefault();
+        const el = selElRef.current;
+        navigator.clipboard.writeText(el.outerHTML);
+        addConsoleEntry({
+          type: 'info',
+          message: `Copied <${el.tagName.toLowerCase()}> HTML`,
+          timestamp: new Date(),
+        });
+      }
+
+      // Paste element (Ctrl+V / Cmd+V)
+      if (modifier && e.key === 'v') {
+        // Let the default paste behavior handle it in contenteditable areas
+        // For visual editor, we could implement custom paste logic
+      }
+
+      // Deselect (Escape)
+      if (e.key === 'Escape' && selElRef.current) {
+        e.preventDefault();
+        setSelEl(null);
+        setSelectedElement(null);
+        setSelectedSelector(null);
+        addConsoleEntry({
+          type: 'info',
+          message: 'Deselected element',
+          timestamp: new Date(),
+        });
+      }
+
+      // Move selected element with arrow keys
+      if (selElRef.current && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const el = selElRef.current;
+        const step = e.shiftKey ? 10 : 1;
+        const currentLeft = parseFloat(el.style.left) || 0;
+        const currentTop = parseFloat(el.style.top) || 0;
+
+        switch (e.key) {
+          case 'ArrowUp':
+            el.style.top = (currentTop - step) + 'px';
+            break;
+          case 'ArrowDown':
+            el.style.top = (currentTop + step) + 'px';
+            break;
+          case 'ArrowLeft':
+            el.style.left = (currentLeft - step) + 'px';
+            break;
+          case 'ArrowRight':
+            el.style.left = (currentLeft + step) + 'px';
+            break;
+        }
+        setTick((t: number) => t + 1);
+        syncToSource(el);
+      }
+
+      // Toggle interaction mode (Ctrl+I / Cmd+I)
+      if (modifier && e.key === 'i') {
+        e.preventDefault();
+        setInteraction((prev: 'select' | 'interact') => prev === 'select' ? 'interact' : 'select');
+        addConsoleEntry({
+          type: 'info',
+          message: `Switched to ${interaction === 'select' ? 'interact' : 'select'} mode`,
+          timestamp: new Date(),
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setSelectedElement, setSelectedSelector, syncToSource, syncContentToSource, selectElement, addConsoleEntry, interaction]);
+
   /* ── Helper: insert component from drag-drop ── */
   const insertComponent = useCallback((component: any) => {
     const doc = iframeRef.current?.contentDocument;

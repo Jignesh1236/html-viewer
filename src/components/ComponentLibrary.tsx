@@ -20,6 +20,11 @@ export const COMPONENT_CATEGORIES = [
   { id: 'typography', name: 'Typography', icon: '🔤' },
   { id: 'media', name: 'Media', icon: '🖼️' },
   { id: 'social', name: 'Social', icon: '🔗' },
+  { id: 'hero', name: 'Hero Sections', icon: '🎯' },
+  { id: 'features', name: 'Features', icon: '✨' },
+  { id: 'testimonials', name: 'Testimonials', icon: '💬' },
+  { id: 'pricing', name: 'Pricing', icon: '💰' },
+  { id: 'footers', name: 'Footers', icon: '📄' },
 ];
 
 export const COMPONENTS: ComponentDefinition[] = [
@@ -297,6 +302,106 @@ export const COMPONENTS: ComponentDefinition[] = [
     html: `<div class="share-buttons"><button class="share-btn share-facebook">Share</button><button class="share-btn share-twitter">Tweet</button></div>`,
     css: `.share-buttons { display: flex; gap: 10px; } .share-btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: 500; } .share-facebook { background: #1877f2; } .share-twitter { background: #1da1f2; } .share-btn:hover { opacity: 0.9; }`,
     editableProps: ['gap', 'padding', 'border-radius'],
+  },
+
+  // Hero Sections
+  {
+    id: 'hero-center',
+    category: 'hero',
+    name: 'Centered Hero',
+    icon: '🎯',
+    description: 'Centered hero section with CTA',
+    html: `<section class="hero hero-center"><div class="hero-content"><h1 class="hero-title">Build Something Amazing</h1><p class="hero-subtitle">Create beautiful websites with our powerful editor</p><button class="hero-cta">Get Started</button></div></section>`,
+    css: `.hero { padding: 100px 20px; text-align: center; } .hero-center { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; } .hero-title { font-size: 48px; font-weight: 700; margin: 0 0 20px 0; } .hero-subtitle { font-size: 20px; margin: 0 0 30px 0; opacity: 0.9; } .hero-cta { padding: 15px 40px; background: white; color: #667eea; border: none; border-radius: 30px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s; } .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.2); }`,
+    editableProps: ['padding', 'background', 'color'],
+  },
+  {
+    id: 'hero-split',
+    category: 'hero',
+    name: 'Split Hero',
+    icon: '🎯',
+    description: 'Hero with text on left, image on right',
+    html: `<section class="hero hero-split"><div class="hero-left"><h1 class="hero-title">Transform Your Ideas</h1><p class="hero-subtitle">Build stunning websites in minutes with our intuitive drag-and-drop editor.</p><button class="hero-cta">Start Free Trial</button></div><div class="hero-right"><div class="hero-image"></div></div></section>`,
+    css: `.hero { display: flex; align-items: center; padding: 80px 40px; gap: 60px; } .hero-split { background: #f8f9fa; } .hero-left { flex: 1; } .hero-right { flex: 1; } .hero-title { font-size: 42px; font-weight: 700; margin: 0 0 20px 0; color: #333; } .hero-subtitle { font-size: 18px; margin: 0 0 30px 0; color: #666; line-height: 1.6; } .hero-cta { padding: 14px 32px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; } .hero-cta:hover { background: #5568d3; transform: translateY(-2px); } .hero-image { height: 300px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; }`,
+    editableProps: ['gap', 'padding', 'background'],
+  },
+
+  // Features
+  {
+    id: 'feature-grid-3',
+    category: 'features',
+    name: '3-Column Features',
+    icon: '✨',
+    description: 'Grid of 3 feature cards',
+    html: `<section class="features-section"><div class="feature-grid"><div class="feature-card"><div class="feature-icon">⚡</div><h3 class="feature-title">Lightning Fast</h3><p class="feature-desc">Optimized for speed and performance</p></div><div class="feature-card"><div class="feature-icon">🎨</div><h3 class="feature-title">Beautiful Design</h3><p class="feature-desc">Stunning templates and components</p></div><div class="feature-card"><div class="feature-icon">🔒</div><h3 class="feature-title">Secure</h3><p class="feature-desc">Enterprise-grade security built-in</p></div></div></section>`,
+    css: `.features-section { padding: 80px 40px; } .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto; } .feature-card { padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; transition: transform 0.2s; } .feature-card:hover { transform: translateY(-5px); } .feature-icon { font-size: 40px; margin-bottom: 15px; } .feature-title { font-size: 20px; font-weight: 600; margin: 0 0 10px 0; color: #333; } .feature-desc { font-size: 14px; color: #666; line-height: 1.6; margin: 0; }`,
+    editableProps: ['gap', 'padding', 'grid-template-columns'],
+  },
+  {
+    id: 'feature-list',
+    category: 'features',
+    name: 'Feature List',
+    icon: '✨',
+    description: 'Vertical list of features with icons',
+    html: `<div class="feature-list"><div class="feature-item"><div class="feature-icon">✓</div><div class="feature-content"><h4 class="feature-title">Easy to Use</h4><p class="feature-desc">Intuitive interface for everyone</p></div></div><div class="feature-item"><div class="feature-icon">✓</div><div class="feature-content"><h4 class="feature-title">Powerful Features</h4><p class="feature-desc">Everything you need to build great sites</p></div></div><div class="feature-item"><div class="feature-icon">✓</div><div class="feature-content"><h4 class="feature-title">24/7 Support</h4><p class="feature-desc">Always here when you need help</p></div></div></div>`,
+    css: `.feature-list { display: flex; flex-direction: column; gap: 20px; } .feature-item { display: flex; gap: 15px; align-items: flex-start; } .feature-icon { width: 24px; height: 24px; background: #667eea; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; } .feature-content { flex: 1; } .feature-title { font-size: 16px; font-weight: 600; margin: 0 0 5px 0; color: #333; } .feature-desc { font-size: 14px; color: #666; margin: 0; line-height: 1.5; }`,
+    editableProps: ['gap'],
+  },
+
+  // Testimonials
+  {
+    id: 'testimonial-card',
+    category: 'testimonials',
+    name: 'Testimonial Card',
+    icon: '💬',
+    description: 'Single testimonial with avatar',
+    html: `<div class="testimonial-card"><div class="testimonial-content"><p class="testimonial-text">"This is the best tool I've ever used. It saved me hours of work and the results are amazing!"</p><div class="testimonial-author"><div class="testimonial-avatar"></div><div class="testimonial-info"><div class="testimonial-name">John Doe</div><div class="testimonial-role">CEO, Company</div></div></div></div></div>`,
+    css: `.testimonial-card { padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); } .testimonial-content { text-align: center; } .testimonial-text { font-size: 16px; color: #333; line-height: 1.6; margin: 0 0 20px 0; font-style: italic; } .testimonial-author { display: flex; align-items: center; justify-content: center; gap: 15px; } .testimonial-avatar { width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; } .testimonial-name { font-size: 16px; font-weight: 600; color: #333; } .testimonial-role { font-size: 14px; color: #666; }`,
+    editableProps: ['padding', 'border-radius', 'box-shadow'],
+  },
+  {
+    id: 'testimonial-grid',
+    category: 'testimonials',
+    name: 'Testimonial Grid',
+    icon: '💬',
+    description: 'Grid of 3 testimonials',
+    html: `<div class="testimonial-grid"><div class="testimonial-card"><p class="testimonial-text">"Amazing product!"</p><div class="testimonial-name">Sarah K.</div></div><div class="testimonial-card"><p class="testimonial-text">"Highly recommend!"</p><div class="testimonial-name">Mike R.</div></div><div class="testimonial-card"><p class="testimonial-text">"Game changer!"</p><div class="testimonial-name">Emma L.</div></div></div>`,
+    css: `.testimonial-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; } .testimonial-card { padding: 25px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); } .testimonial-text { font-size: 15px; color: #333; line-height: 1.5; margin: 0 0 15px 0; } .testimonial-name { font-size: 14px; font-weight: 600; color: #667eea; }`,
+    editableProps: ['gap', 'grid-template-columns'],
+  },
+
+  // Pricing
+  {
+    id: 'pricing-cards-3',
+    category: 'pricing',
+    name: '3 Pricing Cards',
+    icon: '💰',
+    description: 'Three tier pricing cards',
+    html: `<div class="pricing-grid"><div class="pricing-card"><div class="pricing-header"><h3 class="pricing-title">Basic</h3><div class="pricing-price">$9<span class="pricing-period">/mo</span></div></div><ul class="pricing-features"><li>✓ 5 Projects</li><li>✓ Basic Support</li><li>✓ 1GB Storage</li></ul><button class="pricing-cta">Choose Plan</button></div><div class="pricing-card pricing-featured"><div class="pricing-badge">Popular</div><div class="pricing-header"><h3 class="pricing-title">Pro</h3><div class="pricing-price">$29<span class="pricing-period">/mo</span></div></div><ul class="pricing-features"><li>✓ Unlimited Projects</li><li>✓ Priority Support</li><li>✓ 10GB Storage</li><li>✓ Advanced Analytics</li></ul><button class="pricing-cta">Choose Plan</button></div><div class="pricing-card"><div class="pricing-header"><h3 class="pricing-title">Enterprise</h3><div class="pricing-price">$99<span class="pricing-period">/mo</span></div></div><ul class="pricing-features"><li>✓ Everything in Pro</li><li>✓ Dedicated Support</li><li>✓ Unlimited Storage</li><li>✓ Custom Integrations</li></ul><button class="pricing-cta">Contact Sales</button></div></div>`,
+    css: `.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 1200px; margin: 0 auto; } .pricing-card { padding: 30px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); position: relative; } .pricing-featured { border: 2px solid #667eea; transform: scale(1.05); } .pricing-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #667eea; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; } .pricing-header { text-align: center; margin-bottom: 20px; } .pricing-title { font-size: 20px; font-weight: 600; color: #333; margin: 0 0 10px 0; } .pricing-price { font-size: 36px; font-weight: 700; color: #667eea; } .pricing-period { font-size: 14px; color: #666; font-weight: 400; } .pricing-features { list-style: none; padding: 0; margin: 0 0 20px 0; } .pricing-features li { padding: 8px 0; color: #666; font-size: 14px; } .pricing-cta { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; } .pricing-cta:hover { background: #5568d3; }`,
+    editableProps: ['gap', 'grid-template-columns'],
+  },
+
+  // Footers
+  {
+    id: 'footer-simple',
+    category: 'footers',
+    name: 'Simple Footer',
+    icon: '📄',
+    description: 'Clean minimal footer',
+    html: `<footer class="footer-simple"><div class="footer-content"><p class="footer-text">© 2024 Your Company. All rights reserved.</p></div></footer>`,
+    css: `.footer-simple { padding: 40px 20px; background: #1a1a1e; color: #fff; text-align: center; } .footer-text { margin: 0; color: #858585; }`,
+    editableProps: ['padding', 'background', 'color'],
+  },
+  {
+    id: 'footer-columns',
+    category: 'footers',
+    name: 'Multi-Column Footer',
+    icon: '📄',
+    description: 'Footer with multiple columns',
+    html: `<footer class="footer-columns"><div class="footer-grid"><div class="footer-col"><h4 class="footer-title">Company</h4><ul class="footer-links"><li><a href="#">About</a></li><li><a href="#">Careers</a></li><li><a href="#">Contact</a></li></ul></div><div class="footer-col"><h4 class="footer-title">Product</h4><ul class="footer-links"><li><a href="#">Features</a></li><li><a href="#">Pricing</a></li><li><a href="#">API</a></li></ul></div><div class="footer-col"><h4 class="footer-title">Legal</h4><ul class="footer-links"><li><a href="#">Privacy</a></li><li><a href="#">Terms</a></li><li><a href="#">Security</a></li></ul></div></div><div class="footer-bottom"><p class="footer-text">© 2024 Your Company. All rights reserved.</p></div></footer>`,
+    css: `.footer-columns { padding: 60px 40px 30px; background: #1a1a1e; color: #fff; } .footer-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; max-width: 1200px; margin: 0 auto 40px; } .footer-title { font-size: 16px; font-weight: 600; margin: 0 0 15px 0; color: #fff; } .footer-links { list-style: none; padding: 0; margin: 0; } .footer-links li { margin-bottom: 8px; } .footer-links a { color: #858585; text-decoration: none; transition: color 0.2s; } .footer-links a:hover { color: #e5a45a; } .footer-bottom { border-top: 1px solid #3c3c40; padding-top: 20px; text-align: center; } .footer-text { margin: 0; color: #666; font-size: 14px; }`,
+    editableProps: ['padding', 'grid-template-columns', 'gap'],
   },
 ];
 
