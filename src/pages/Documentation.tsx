@@ -241,7 +241,7 @@ const Documentation: React.FC = () => {
     setMeta('keywords', 'HTML editor documentation, online HTML editor guide, HTML editor tutorial, Monaco editor docs, free HTML CSS JS editor, HTML editor keyboard shortcuts, CSS animation timeline tutorial, drag and drop HTML builder docs, HTML editor FAQ, learn HTML editor, web editor manual');
     setMeta('og:title', 'HTML Editor Pro — Complete Documentation', 'property');
     setMeta('og:description', 'Every panel, menu, shortcut and feature of the free online HTML editor explained step by step.', 'property');
-    setMeta('og:url', 'https://html-viewer-gray-beta.vercel.app/docs', 'property');
+    setMeta('og:url', 'https://html-viewer-f2v.pages.dev/docs', 'property');
 
     let canonical = document.querySelector('link[rel="canonical"]');
     if (!canonical) {
@@ -249,7 +249,7 @@ const Documentation: React.FC = () => {
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute('href', 'https://html-viewer-gray-beta.vercel.app/docs');
+    canonical.setAttribute('href', 'https://html-viewer-f2v.pages.dev/docs');
 
     const ldId = '__docs_jsonld__';
     document.getElementById(ldId)?.remove();
@@ -261,24 +261,24 @@ const Documentation: React.FC = () => {
       '@graph': [
         {
           '@type': 'TechArticle',
-          '@id': 'https://html-viewer-gray-beta.vercel.app/docs#article',
+          '@id': 'https://html-viewer-f2v.pages.dev/docs#article',
           headline: 'HTML Editor Pro — Complete Documentation',
           description: 'Step-by-step documentation covering every panel, menu, keyboard shortcut, animation preset and feature of the free online HTML editor.',
           inLanguage: 'en',
-          url: 'https://html-viewer-gray-beta.vercel.app/docs',
+          url: 'https://html-viewer-f2v.pages.dev/docs',
           datePublished: '2026-04-17',
           dateModified: '2026-04-21',
           author: { '@type': 'Person', name: 'Jignesh D Maru' },
           publisher: { '@type': 'Person', name: 'Jignesh D Maru' },
-          image: 'https://html-viewer-gray-beta.vercel.app/og-image.jpg',
+          image: 'https://html-viewer-f2v.pages.dev/og-image.jpg',
           proficiencyLevel: 'Beginner',
           articleSection: ['Getting Started', 'Panels', 'Menus', 'AI', 'Window System', 'Storage', 'Reference', 'FAQ'],
         },
         {
           '@type': 'BreadcrumbList',
           itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://html-viewer-gray-beta.vercel.app/' },
-            { '@type': 'ListItem', position: 2, name: 'Documentation', item: 'https://html-viewer-gray-beta.vercel.app/docs' },
+            { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://html-viewer-f2v.pages.dev/' },
+            { '@type': 'ListItem', position: 2, name: 'Documentation', item: 'https://html-viewer-f2v.pages.dev/docs' },
           ],
         },
         {

@@ -25,12 +25,12 @@ const TermsOfService: React.FC = () => {
     setMeta('og:title', 'Terms of Service | HTML Editor Pro', 'property');
     setMeta('og:description', 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor.', 'property');
     setMeta('og:type', 'website', 'property');
-    setMeta('og:url', 'https://html-viewer-gray-beta.vercel.app/terms', 'property');
-    setMeta('og:image', 'https://html-viewer-gray-beta.vercel.app/og-image.jpg', 'property');
+    setMeta('og:url', 'https://html-viewer-f2v.pages.dev/terms', 'property');
+    setMeta('og:image', 'https://html-viewer-f2v.pages.dev/og-image.jpg', 'property');
     setMeta('twitter:card', 'summary_large_image', 'name');
     setMeta('twitter:title', 'Terms of Service | HTML Editor Pro', 'name');
     setMeta('twitter:description', 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor.', 'name');
-    setMeta('twitter:image', 'https://html-viewer-gray-beta.vercel.app/og-image.jpg', 'name');
+    setMeta('twitter:image', 'https://html-viewer-f2v.pages.dev/og-image.jpg', 'name');
 
     // Set canonical
     let canonical = document.querySelector('link[rel="canonical"]');
@@ -39,7 +39,7 @@ const TermsOfService: React.FC = () => {
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute('href', 'https://html-viewer-gray-beta.vercel.app/terms');
+    canonical.setAttribute('href', 'https://html-viewer-f2v.pages.dev/terms');
 
     // Set JSON-LD
     const ldId = '__terms_jsonld__';
@@ -52,19 +52,19 @@ const TermsOfService: React.FC = () => {
       '@graph': [
         {
           '@type': 'WebPage',
-          '@id': 'https://html-viewer-gray-beta.vercel.app/terms',
-          'url': 'https://html-viewer-gray-beta.vercel.app/terms',
+          '@id': 'https://html-viewer-f2v.pages.dev/terms',
+          'url': 'https://html-viewer-f2v.pages.dev/terms',
           'name': 'Terms of Service',
           'description': 'Terms of Service for HTML Editor Pro. Agreement for using the free online HTML, CSS and JavaScript editor with visual designer and live preview.',
-          'isPartOf': { '@id': 'https://html-viewer-gray-beta.vercel.app/#website' },
+          'isPartOf': { '@id': 'https://html-viewer-f2v.pages.dev/#website' },
           'datePublished': '2026-04-21',
           'dateModified': '2026-04-24',
           'author': { '@type': 'Person', name: 'Jignesh D Maru' },
           'breadcrumb': {
             '@type': 'BreadcrumbList',
             'itemListElement': [
-              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://html-viewer-gray-beta.vercel.app/' },
-              { '@type': 'ListItem', 'position': 2, 'name': 'Terms of Service', 'item': 'https://html-viewer-gray-beta.vercel.app/terms' }
+              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://html-viewer-f2v.pages.dev/' },
+              { '@type': 'ListItem', 'position': 2, 'name': 'Terms of Service', 'item': 'https://html-viewer-f2v.pages.dev/terms' }
             ]
           }
         }

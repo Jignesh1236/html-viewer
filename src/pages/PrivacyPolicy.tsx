@@ -25,12 +25,12 @@ const PrivacyPolicy: React.FC = () => {
     setMeta('og:title', 'Privacy Policy | HTML Editor Pro', 'property');
     setMeta('og:description', 'Privacy-first approach: Your files are stored locally in your browser. No cloud sync, no backend database. Your code stays private.', 'property');
     setMeta('og:type', 'website', 'property');
-    setMeta('og:url', 'https://html-viewer-gray-beta.vercel.app/privacy', 'property');
-    setMeta('og:image', 'https://html-viewer-gray-beta.vercel.app/og-image.jpg', 'property');
+    setMeta('og:url', 'https://html-viewer-f2v.pages.dev/privacy', 'property');
+    setMeta('og:image', 'https://html-viewer-f2v.pages.dev/og-image.jpg', 'property');
     setMeta('twitter:card', 'summary_large_image', 'name');
     setMeta('twitter:title', 'Privacy Policy | HTML Editor Pro', 'name');
     setMeta('twitter:description', 'Privacy-first approach: Your files are stored locally in your browser. No cloud sync, no backend database.', 'name');
-    setMeta('twitter:image', 'https://html-viewer-gray-beta.vercel.app/og-image.jpg', 'name');
+    setMeta('twitter:image', 'https://html-viewer-f2v.pages.dev/og-image.jpg', 'name');
 
     // Set canonical
     let canonical = document.querySelector('link[rel="canonical"]');
@@ -39,7 +39,7 @@ const PrivacyPolicy: React.FC = () => {
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute('href', 'https://html-viewer-gray-beta.vercel.app/privacy');
+    canonical.setAttribute('href', 'https://html-viewer-f2v.pages.dev/privacy');
 
     // Set JSON-LD
     const ldId = '__privacy_jsonld__';
@@ -52,19 +52,19 @@ const PrivacyPolicy: React.FC = () => {
       '@graph': [
         {
           '@type': 'WebPage',
-          '@id': 'https://html-viewer-gray-beta.vercel.app/privacy',
-          'url': 'https://html-viewer-gray-beta.vercel.app/privacy',
+          '@id': 'https://html-viewer-f2v.pages.dev/privacy',
+          'url': 'https://html-viewer-f2v.pages.dev/privacy',
           'name': 'Privacy Policy',
           'description': 'Privacy Policy for HTML Editor Pro. Learn how we manage your data - all files are stored locally in your browser with no cloud sync.',
-          'isPartOf': { '@id': 'https://html-viewer-gray-beta.vercel.app/#website' },
+          'isPartOf': { '@id': 'https://html-viewer-f2v.pages.dev/#website' },
           'datePublished': '2026-04-21',
           'dateModified': '2026-04-24',
           'author': { '@type': 'Person', name: 'Jignesh D Maru' },
           'breadcrumb': {
             '@type': 'BreadcrumbList',
             'itemListElement': [
-              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://html-viewer-gray-beta.vercel.app/' },
-              { '@type': 'ListItem', 'position': 2, 'name': 'Privacy Policy', 'item': 'https://html-viewer-gray-beta.vercel.app/privacy' }
+              { '@type': 'ListItem', 'position': 1, 'name': 'Home', 'item': 'https://html-viewer-f2v.pages.dev/' },
+              { '@type': 'ListItem', 'position': 2, 'name': 'Privacy Policy', 'item': 'https://html-viewer-f2v.pages.dev/privacy' }
             ]
           }
         }
