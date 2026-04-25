@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DIST = join(__dirname, '..', 'dist');
-const PRIMARY = 'https://html-viewer-gray-beta.vercel.app';
+const PRIMARY = 'https://html-viewer-f2v.pages.dev';
 
 if (!existsSync(join(DIST, 'index.html'))) {
   console.error('[prerender] dist/index.html not found — run vite build first.');

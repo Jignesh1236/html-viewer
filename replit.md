@@ -5,7 +5,7 @@
 A free, browser-based HTML/CSS/JavaScript editor with a Monaco code editor, drag-and-drop visual designer, CSS animation timeline, live preview, and one-click ZIP export. Single-package React + Vite app — all source lives at the project root with one shared `node_modules`.
 
 **Production domains:**
-- Primary: <https://html-viewer-gray-beta.vercel.app/>
+- Primary: <https://html-viewer-f2v.pages.dev/>
 - Secondary: <https://html-viewer-f2v.pages.dev/>
 
 ## Stack

@@ -6,7 +6,7 @@
 
 ### A free, browser-based HTML / CSS / JavaScript editor with a Monaco code engine, Photoshop-style visual designer, animation timeline with 60+ presets, and live preview.
 
-[![Open the Editor](https://img.shields.io/badge/Open_the-Editor-e34c26?style=for-the-badge&logo=html5&logoColor=white)](https://html-viewer-gray-beta.vercel.app)
+[![Open the Editor](https://img.shields.io/badge/Open_the-Editor-e34c26?style=for-the-badge&logo=html5&logoColor=white)](https://html-viewer-f2v.pages.dev)
 [![Mirror](https://img.shields.io/badge/Mirror-Cloudflare-f38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://html-viewer-f2v.pages.dev)
 
 </div>
@@ -17,7 +17,7 @@
 
 <table>
 <tr>
-<td><a href="https://html-viewer-gray-beta.vercel.app"><img src="attached_assets/screenshots/html-viewer-gray-beta_vercel_app.png" alt="HTML Editor Pro — main view" width="100%"/></a></td>
+<td><a href="https://html-viewer-f2v.pages.dev"><img src="attached_assets/screenshots/html-viewer-gray-beta_vercel_app.png" alt="HTML Editor Pro — main view" width="100%"/></a></td>
 </tr>
 </table>
 
