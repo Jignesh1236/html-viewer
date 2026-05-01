@@ -32,6 +32,7 @@ export default defineConfig(async () => {
         "@": path.resolve(__dirname, "src"),
       },
       dedupe: ["react", "react-dom"],
+      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
     },
     build: {
       outDir: path.resolve(__dirname, "dist"),
@@ -88,6 +89,9 @@ export default defineConfig(async () => {
     optimizeDeps: {
       include: ["react", "react-dom", "zustand", "framer-motion"],
       exclude: ["@monaco-editor/react"],
+    },
+    ssr: {
+      noExternal: ['@monaco-editor/react'],
     },
   };
 });
