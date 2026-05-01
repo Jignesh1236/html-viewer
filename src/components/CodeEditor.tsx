@@ -3,6 +3,7 @@ import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
 import { FiImage } from 'react-icons/fi';
+import { registerSnippets } from '../utils/monacoSnippets';
 
 /* ─────────────────────────────────────────────────────────────
    Language maps
@@ -306,6 +307,7 @@ const CodeEditor: React.FC = () => {
 
   const handleBeforeMount: BeforeMount = (monaco) => {
     registerProvider(monaco);
+    registerSnippets(monaco);
   };
 
   const handleEditorMount: OnMount = (editor, monaco) => {
