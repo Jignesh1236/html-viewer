@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useEditorStore, FileItem } from '../store/editorStore';
+import { useEditorStore, FileItem, getDefaultContentForLanguage, getLanguageFromFileName } from '../store/editorStore';
 import { FiPlus, FiUpload, FiX, FiCheck, FiTrash2, FiAlertTriangle, FiFolder, FiFolderPlus, FiChevronRight, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import { useContextMenu } from './ContextMenu';
 
@@ -290,10 +290,10 @@ const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ o
       const folder = dialog.targetFolder;
       const fileId = folder ? `${folder}/${name}` : name;
       if (files.find(f => f.id === fileId)) { showNotification(`"${name}" already exists`); return; }
+      const language = getLanguageFromFileName(name);
       const ext = name.split('.').pop()?.toLowerCase();
       const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts') ? 'js' : 'other';
-      const starter = type === 'html' ? `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <title>New Page</title>\n</head>\n<body>\n\n</body>\n</html>` :
-        type === 'css' ? `/* ${name} */\n` : type === 'js' ? `// ${name}\n` : '';
+      const starter = getDefaultContentForLanguage(language);
       addFile({ id: fileId, name, type, content: starter, folder });
       setActiveFile(fileId);
       showNotification(`Created ${name}`);
