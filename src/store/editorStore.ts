@@ -347,6 +347,134 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 `;
 
+/* ─────────────────────────────────────────────────────────────
+   Default boilerplate templates for different languages
+   ───────────────────────────────────────────────────────────── */
+export const LANGUAGE_BOILERPLATES: Record<string, string> = {
+  // HTML
+  'html': `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  
+  <script src="script.js"></script>
+</body>
+</html>`,
+
+  // CSS
+  'css': `* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}`,
+
+  // SCSS
+  'scss': `* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}`,
+
+  // JavaScript
+  'javascript': `// JavaScript
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Page ready!');
+});`,
+
+  // TypeScript
+  'typescript': `// TypeScript
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Page ready!');
+});`,
+
+  // Python
+  'python': `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+def main():
+    print("Hello, World!")
+
+if __name__ == "__main__":
+    main()`,
+
+  // JSON
+  'json': `{
+  "key": "value"
+}`,
+
+  // Markdown
+  'markdown': `# Title
+
+## Subtitle
+
+- Item 1
+- Item 2
+
+[Link](https://example.com)`,
+
+  // Shell/Bash
+  'shell': `#!/bin/bash
+
+echo "Hello, World!"`,
+
+  // SQL
+  'sql': `-- SQL Query
+SELECT * FROM table_name;`,
+
+  // XML
+  'xml': `<?xml version="1.0" encoding="UTF-8"?>
+<root>
+  
+</root>`,
+
+  // YAML
+  'yaml': `# YAML Configuration
+key: value
+nested:
+  item: value`,
+
+  // Plain text
+  'plaintext': ``,
+};
+
+export function getDefaultContentForLanguage(language: string): string {
+  return LANGUAGE_BOILERPLATES[language] || '';
+}
+
+export function getLanguageFromFileName(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  const langMap: Record<string, string> = {
+    html: 'html', htm: 'html',
+    css: 'css', scss: 'scss', sass: 'sass', less: 'less',
+    js: 'javascript', jsx: 'javascript', mjs: 'javascript', cjs: 'javascript',
+    ts: 'typescript', tsx: 'typescript',
+    py: 'python',
+    json: 'json',
+    md: 'markdown', markdown: 'markdown',
+    sh: 'shell', bash: 'shell',
+    sql: 'sql',
+    xml: 'xml',
+    yml: 'yaml', yaml: 'yaml',
+    txt: 'plaintext',
+  };
+  return langMap[ext] || 'plaintext';
+}
+
 const FILES_STORAGE_KEY    = 'html-editor-files-v1';
 const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
 const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
