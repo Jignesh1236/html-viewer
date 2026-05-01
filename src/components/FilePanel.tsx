@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useEditorStore, FileItem, getDefaultContentForLanguage, getLanguageFromFileName } from '../store/editorStore';
+import { useEditorStore, FileItem, getDefaultContentForLanguage, getLanguageFromFileName } from '../store/editorStore.js';
 import { FiPlus, FiUpload, FiX, FiCheck, FiTrash2, FiAlertTriangle, FiFolder, FiFolderPlus, FiChevronRight, FiChevronDown, FiEdit2 } from 'react-icons/fi';
-import { useContextMenu } from './ContextMenu';
+import { useContextMenu } from './ContextMenu.js';
 
 const DEVICON_MAP: Record<string, { icon: string; color: string }> = {
   html:  { icon: 'devicon-html5-plain',       color: '#e34c26' },
