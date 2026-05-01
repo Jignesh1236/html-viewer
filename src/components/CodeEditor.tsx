@@ -3,7 +3,7 @@ import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
 import { useEditorStore } from '../store/editorStore';
 import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
 import { FiImage } from 'react-icons/fi';
-import { registerSnippets } from '../utils/monacoSnippets';
+import { registerSnippets } from '../utils/monacoSnippets.js';
 
 /* ─────────────────────────────────────────────────────────────
    Language maps
