@@ -1,452 +1,627 @@
-import React, { useEffect, useRef, useState } from 'react';
-import Editor, { BeforeMount, OnMount } from '@monaco-editor/react';
-import { useEditorStore } from '../store/editorStore';
-import { VscFileCode, VscSymbolColor, VscFile } from 'react-icons/vsc';
-import { FiImage } from 'react-icons/fi';
-import { registerSnippets } from '../utils/monacoSnippets.js';
+  import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useEditorStore, FileItem, getDefaultContentForLanguage, getLanguageFromFileName } from '../store/editorStore';
+import { FiPlus, FiUpload, FiX, FiCheck, FiTrash2, FiAlertTriangle, FiFolder, FiFolderPlus, FiChevronRight, FiChevronDown, FiEdit2 } from 'react-icons/fi';
+import { useContextMenu } from './ContextMenu';
 
-/* ─────────────────────────────────────────────────────────────
-   Language maps
-   ───────────────────────────────────────────────────────────── */
-const LANG_MAP: Record<string, string> = {
-  html: 'html', css: 'css', js: 'javascript', other: 'plaintext',
-};
-const EXTENSION_LANG_MAP: Record<string, string> = {
-  html: 'html', htm: 'html', css: 'css', scss: 'scss', sass: 'sass',
-  less: 'less', js: 'javascript', jsx: 'javascript', mjs: 'javascript',
-  cjs: 'javascript', ts: 'typescript', tsx: 'typescript', json: 'json',
-  md: 'markdown', markdown: 'markdown', py: 'python', rb: 'ruby',
-  php: 'php', java: 'java', c: 'c', h: 'c', cpp: 'cpp', cc: 'cpp',
-  cxx: 'cpp', cs: 'csharp', go: 'go', rs: 'rust', swift: 'swift',
-  kt: 'kotlin', kts: 'kotlin', sql: 'sql', sh: 'shell', bash: 'shell',
-  zsh: 'shell', yml: 'yaml', yaml: 'yaml', xml: 'xml', svg: 'xml',
-  vue: 'html', svelte: 'html', txt: 'plaintext',
-};
-const VOID_HTML_TAGS = new Set([
-  'area','base','br','col','embed','hr','img','input',
-  'link','meta','param','source','track','wbr',
-]);
+  const DEVICON_MAP: Record<string, { icon: string; color: string }> = {
+    html:  { icon: 'devicon-html5-plain',       color: '#e34c26' },
+    css:   { icon: 'devicon-css3-plain',         color: '#264de4' },
+    js:    { icon: 'devicon-javascript-plain',   color: '#f7df1e' },
+    ts:    { icon: 'devicon-typescript-plain',   color: '#3178c6' },
+    tsx:   { icon: 'devicon-react-original',     color: '#61dafb' },
+    jsx:   { icon: 'devicon-react-original',     color: '#61dafb' },
+    json:  { icon: 'devicon-json-plain',         color: '#f8c555' },
+    md:    { icon: 'devicon-markdown-original',  color: '#aaa' },
+    svg:   { icon: 'devicon-svg-plain',          color: '#ffb13b' },
+    png:   { icon: 'devicon-photoshop-plain',    color: '#31a8ff' },
+    jpg:   { icon: 'devicon-photoshop-plain',    color: '#31a8ff' },
+    jpeg:  { icon: 'devicon-photoshop-plain',    color: '#31a8ff' },
+    gif:   { icon: 'devicon-photoshop-plain',    color: '#31a8ff' },
+    webp:  { icon: 'devicon-photoshop-plain',    color: '#31a8ff' },
+    ico:   { icon: 'devicon-photoshop-plain',    color: '#31a8ff' },
+    py:    { icon: 'devicon-python-plain',       color: '#3776ab' },
+    php:   { icon: 'devicon-php-plain',          color: '#8892bf' },
+    sass:  { icon: 'devicon-sass-original',      color: '#cc6699' },
+    scss:  { icon: 'devicon-sass-original',      color: '#cc6699' },
+    vue:   { icon: 'devicon-vuejs-plain',        color: '#42b883' },
+  };
 
-function getLanguageForFile(file: { name: string; type: string }) {
-  const ext = file.name.split('.').pop()?.toLowerCase() || '';
-  return EXTENSION_LANG_MAP[ext] || LANG_MAP[file.type] || 'plaintext';
-}
+  const FileIcon: React.FC<{ name: string; size?: number }> = ({ name, size = 14 }) => {
+    const ext = name.split('.').pop()?.toLowerCase() ?? '';
+    const entry = DEVICON_MAP[ext];
+    if (entry) return <i className={entry.icon} style={{ fontSize: size, color: entry.color, flexShrink: 0, lineHeight: 1 }} />;
+    return <span style={{ fontSize: size - 1, color: '#888', flexShrink: 0, lineHeight: 1, fontFamily: 'monospace' }}>•</span>;
+  };
 
-/* ─────────────────────────────────────────────────────────────
-   Global AI state — shared with App status bar
-   ───────────────────────────────────────────────────────────── */
-export type AiState = 'idle' | 'loading' | 'ready' | 'error';
-
-export const aiControl = {
-  state: 'idle' as AiState,
-  lastSuggestion: '',
-  listeners: new Set<() => void>(),
-  triggerManual: null as (() => void) | null,
-
-  setState(s: AiState, suggestion = '') {
-    this.state = s;
-    if (suggestion) this.lastSuggestion = suggestion;
-    this.listeners.forEach(fn => fn());
-  },
-};
-
-/* ─────────────────────────────────────────────────────────────
-   Suggestion cache
-   ───────────────────────────────────────────────────────────── */
-const suggestionCache = new Map<string, string>();
-const CACHE_MAX = 50;
-
-function cacheKey(prefix: string, lang: string) {
-  return `${lang}::${prefix.slice(-300)}`;
-}
-function cacheGet(prefix: string, lang: string) {
-  return suggestionCache.get(cacheKey(prefix, lang)) ?? null;
-}
-function cacheSet(prefix: string, lang: string, value: string) {
-  if (suggestionCache.size >= CACHE_MAX) {
-    suggestionCache.delete(suggestionCache.keys().next().value!);
-  }
-  suggestionCache.set(cacheKey(prefix, lang), value);
-}
-export function clearAiCache() {
-  suggestionCache.clear();
-}
-
-/* ─────────────────────────────────────────────────────────────
-   AI fetch
-   ───────────────────────────────────────────────────────────── */
-function buildPrompt(lang: string, file: string, prefix: string, suffix: string) {
-  return [
-    'You are an expert inline code completion AI like GitHub Copilot.',
-    'Output ONLY the raw code to insert at the cursor. No explanation, no markdown.',
-    'Complete 1–5 lines naturally, preserving indentation and coding style.',
-    `Language: ${lang}. File: ${file}.`,
-    '=== CODE BEFORE CURSOR ===',
-    prefix.slice(-2000),
-    '=== CODE AFTER CURSOR ===',
-    suffix.slice(0, 600),
-    '=== COMPLETION ===',
-  ].join('\n');
-}
-
-function cleanSuggestion(raw: string): string {
-  return raw
-    .replace(/^```[\w-]*\n?/i, '')
-    .replace(/\n?```$/i, '')
-    .replace(/^`+|`+$/g, '')
-    .trimEnd()
-    .slice(0, 1500);
-}
-
-async function fetchSuggestion(
-  lang: string, fileName: string,
-  prefix: string, suffix: string,
-  signal: AbortSignal,
-): Promise<string> {
-  const cached = cacheGet(prefix, lang);
-  if (cached) return cached;
-
-  // Use pollinations.ai for high-quality code completion
-  const prompt = buildPrompt(lang, fileName, prefix, suffix);
-  const url = `https://text.pollinations.ai/`;
-  
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages: [{ role: 'user', content: prompt }],
-      model: 'openai', // pollinations uses openai as default/high-quality for text
-      jsonMode: false
-    }),
-    signal
-  });
-
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-  const text = cleanSuggestion(await res.text());
-  if (text) cacheSet(prefix, lang, text);
-  return text;
-}
-
-/* ─────────────────────────────────────────────────────────────
-   Inline completions provider (registered once)
-   ───────────────────────────────────────────────────────────── */
-let providerRegistered = false;
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-
-function registerProvider(monaco: any) {
-  if (providerRegistered) return;
-  providerRegistered = true;
-
-  monaco.languages.registerInlineCompletionsProvider('*', {
-    provideInlineCompletions(model: any, position: any, _ctx: any, token: any) {
-      const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-      if (linePrefix.trim().length < 2) {
-        return Promise.resolve({ items: [], dispose: () => undefined });
-      }
-
-      const fullText = model.getValue();
-      const offset   = model.getOffsetAt(position);
-      const lang     = model.getLanguageId();
-      const fileName = model.uri?.path?.split('/').pop() ?? 'untitled';
-      const prefix   = fullText.slice(0, offset);
-      const suffix   = fullText.slice(offset);
-
-      // instant from cache
-      const cached = cacheGet(prefix, lang);
-      if (cached) {
-        aiControl.setState('ready', cached);
-        return Promise.resolve({
-          items: [{ insertText: cached, range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column) }],
-          dispose: () => undefined,
-        });
-      }
-
-      return new Promise<{ items: any[]; dispose: () => void }>(resolve => {
-        if (debounceTimer) clearTimeout(debounceTimer);
-
-        debounceTimer = setTimeout(async () => {
-          if (token.isCancellationRequested) return resolve({ items: [], dispose: () => undefined });
-
-          const ctrl = new AbortController();
-          const sub  = token.onCancellationRequested(() => ctrl.abort());
-          aiControl.setState('loading');
-
-          try {
-            const text = await fetchSuggestion(lang, fileName, prefix, suffix, ctrl.signal);
-            if (!text || token.isCancellationRequested) {
-              aiControl.setState('idle');
-              resolve({ items: [], dispose: () => undefined });
-            } else {
-              aiControl.setState('ready', text);
-              resolve({
-                items: [{ insertText: text, range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column) }],
-                dispose: () => undefined,
-              });
-            }
-          } catch {
-            aiControl.setState('error');
-            resolve({ items: [], dispose: () => undefined });
-          } finally {
-            sub?.dispose();
-          }
-        }, 420);
-      });
-    },
-    freeInlineCompletions: () => undefined,
-  });
-}
-
-/* ─────────────────────────────────────────────────────────────
-   HTML auto-close
-   ───────────────────────────────────────────────────────────── */
-function enableHtmlAutoClose(editor: any, monaco: any) {
-  return editor.onDidType((text: string) => {
-    if (text !== '>' || editor.getModel()?.getLanguageId() !== 'html') return;
-    const model    = editor.getModel();
-    const position = editor.getPosition();
-    if (!model || !position) return;
-    const line     = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-    const tagMatch = line.match(/<([A-Za-z][\w:-]*)(?:\s[^<>]*)?>$/);
-    if (!tagMatch) return;
-    const tag = tagMatch[1].toLowerCase();
-    if (VOID_HTML_TAGS.has(tag) || line.endsWith('/>') || line.includes('</')) return;
-    editor.executeEdits('html-auto-close', [{
-      range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
-      text: `</${tagMatch[1]}>`, forceMoveMarkers: true,
-    }]);
-    editor.setPosition(position);
-  });
-}
-
-/* ─────────────────────────────────────────────────────────────
-   File icon
-   ───────────────────────────────────────────────────────────── */
-function fileIcon(type: string) {
-  if (type === 'html')  return <VscFileCode style={{ color: '#e34c26', flexShrink: 0 }} size={14} />;
-  if (type === 'css')   return <VscSymbolColor style={{ color: '#264de4', flexShrink: 0 }} size={14} />;
-  if (type === 'js')    return <VscFile style={{ color: '#f7df1e', flexShrink: 0 }} size={14} />;
-  if (type === 'image') return <FiImage style={{ color: '#8bc34a', flexShrink: 0 }} size={13} />;
-  return <VscFile style={{ color: '#aaa', flexShrink: 0 }} size={14} />;
-}
-
-/* ─────────────────────────────────────────────────────────────
-   CodeEditor component
-   ───────────────────────────────────────────────────────────── */
-const CodeEditor: React.FC = () => {
-  const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
-  const editorRef = useRef<any>(null);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const activeFile = files.find(f => f.id === activeFileId);
-
-  /* ── Trigger AI inline suggestion at current cursor ── */
-  function triggerAiSuggestion(forceRefresh = false) {
-    const editor = editorRef.current;
-    if (!editor) return;
-    if (forceRefresh) {
-      // Clear cache for current position so fresh suggestion is fetched
-      const model  = editor.getModel();
-      const pos    = editor.getPosition();
-      if (model && pos) {
-        const lang   = model.getLanguageId();
-        const offset = model.getOffsetAt(pos);
-        const prefix = model.getValue().slice(0, offset);
-        const key    = cacheKey(prefix, lang);
-        suggestionCache.delete(key);
-      }
-    }
-    // Dismiss any current suggestion first, then re-trigger
-    editor.trigger('ai-manual', 'editor.action.inlineSuggest.hide', null);
-    setTimeout(() => {
-      editor.trigger('ai-manual', 'editor.action.inlineSuggest.trigger', null);
-    }, 50);
+  type DialogMode = 'create-file' | 'create-folder' | 'rename-file' | 'rename-folder' | 'delete-file' | 'delete-folder' | 'github-import';
+  interface DialogState {
+    mode: DialogMode;
+    file?: FileItem;
+    folderName?: string;
+    targetFolder?: string;
   }
 
-  /* ── Expose trigger to status bar ── */
-  useEffect(() => {
-    aiControl.triggerManual = () => triggerAiSuggestion(true);
-    return () => { aiControl.triggerManual = null; };
-  });
+  const C = {
+    bg: '#1e1e1e', surface: '#252526', surface2: '#2d2d2d',
+    border: '#3e3e3e', accent: '#e5a45a', text: '#ccc', muted: '#888',
+  };
 
-  /* ── Register idle detection ── */
-  function setupIdleDetection(editor: any) {
-    function resetIdleTimer() {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      // After 1.5 s of no typing → trigger AI
-      idleTimerRef.current = setTimeout(() => {
-        const model = editor.getModel();
-        const pos   = editor.getPosition();
-        if (!model || !pos) return;
-        const linePrefix = model.getLineContent(pos.lineNumber).slice(0, pos.column - 1);
-        // Only trigger if there's meaningful code on the current line
-        if (linePrefix.trim().length >= 2) {
-          aiControl.setState('loading');
-          editor.trigger('ai-idle', 'editor.action.inlineSuggest.trigger', null);
-        }
-      }, 1500);
-    }
+  const FileDialog: React.FC<{
+    dialog: DialogState;
+    files: FileItem[];
+    folders: string[];
+    onConfirm: (value: string) => void;
+    onCancel: () => void;
+  }> = ({ dialog, files, folders, onConfirm, onCancel }) => {
+    const [value, setValue] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    // Reset timer on every content change (user typed something)
-    const contentSub = editor.onDidChangeModelContent(() => {
-      aiControl.setState('idle');   // hide stale state while typing
-      resetIdleTimer();
-    });
+    useEffect(() => {
+      if (dialog.mode === 'rename-file') setValue(dialog.file?.name ?? '');
+      else if (dialog.mode === 'rename-folder') setValue(dialog.folderName ?? '');
+      else if (dialog.mode === 'github-import') setValue('');
+      else setValue('');
+      setError('');
+      setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 60);
+    }, [dialog]);
 
-    // Also reset on cursor move (arrow keys, click)
-    const cursorSub = editor.onDidChangeCursorPosition(() => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    });
-
-    return () => {
-      contentSub.dispose();
-      cursorSub.dispose();
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    const validate = (v: string) => {
+      if (!v.trim()) return 'Name cannot be empty';
+      if (dialog.mode === 'github-import') {
+        const repoPattern = /^https?:\/\/github\.com\/[\w-]+\/[\w-]+(\/tree\/[\w-\/]+)?$/;
+        if (!repoPattern.test(v.trim())) return 'Invalid GitHub repository URL. Format: https://github.com/owner/repo';
+      }
+      if (dialog.mode === 'create-file') {
+        if (files.find(f => f.name === v.trim() && f.folder === dialog.targetFolder)) return `"${v}" already exists`;
+        if (!/^[\w\-. ]+$/.test(v.trim())) return 'Invalid characters';
+      }
+      if (dialog.mode === 'create-folder') {
+        if (folders.includes(v.trim())) return `Folder "${v}" already exists`;
+        if (!/^[\w\-. ]+$/.test(v.trim())) return 'Invalid characters';
+      }
+      if (dialog.mode === 'rename-file') {
+        if (v.trim() !== dialog.file?.name && files.find(f => f.name === v.trim())) return `"${v}" already exists`;
+        if (!/^[\w\-. ]+$/.test(v.trim())) return 'Invalid characters';
+      }
+      if (dialog.mode === 'rename-folder') {
+        if (v.trim() !== dialog.folderName && folders.includes(v.trim())) return `"${v}" already exists`;
+        if (!/^[\w\-. ]+$/.test(v.trim())) return 'Invalid characters';
+      }
+      return '';
     };
-  }
 
-  const handleBeforeMount: BeforeMount = (monaco) => {
-    registerProvider(monaco);
-    registerSnippets(monaco);
-  };
+    const handleConfirm = () => {
+      if (dialog.mode === 'delete-file' || dialog.mode === 'delete-folder') { onConfirm(''); return; }
+      const err = validate(value);
+      if (err) { setError(err); return; }
+      onConfirm(value.trim());
+    };
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-    const cleanupIdle  = setupIdleDetection(editor);
-    const cleanupClose = enableHtmlAutoClose(editor, monaco);
-    editor.onDidDispose(() => { cleanupIdle(); cleanupClose.dispose(); });
-  };
+    const isDelete = dialog.mode === 'delete-file' || dialog.mode === 'delete-folder';
+    const isFolder = dialog.mode === 'create-folder' || dialog.mode === 'rename-folder' || dialog.mode === 'delete-folder';
+    const isGithubImport = dialog.mode === 'github-import';
 
-  const handleEditorChange = (value: string | undefined) => {
-    if (activeFileId && value !== undefined) updateFileContent(activeFileId, value);
-  };
+    const title =
+      dialog.mode === 'create-file' ? 'New File' :
+      dialog.mode === 'create-folder' ? 'New Folder' :
+      dialog.mode === 'rename-file' ? 'Rename File' :
+      dialog.mode === 'rename-folder' ? 'Rename Folder' :
+      dialog.mode === 'delete-file' ? `Delete "${dialog.file?.name}"?` :
+      dialog.mode === 'github-import' ? 'Import from GitHub' :
+      `Delete folder "${dialog.folderName}"?`;
 
-  return (
-    <div className="editor-pane" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Tab bar */}
-      <div className="editor-tabs" style={{
-        display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
-        overflowY: 'hidden', flexShrink: 0, alignItems: 'center',
-      }}>
-        {files.map(file => (
-          <div
-            key={file.id}
-            className={`editor-tab ${activeFileId === file.id ? 'active' : ''}`}
-            onClick={() => setActiveFile(file.id)}
-            style={{ flexShrink: 0 }}
-          >
-            {fileIcon(file.type)}
-            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {file.name}
-            </span>
+    return (
+      <div style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(2px)' }}
+        onClick={e => { if (e.target === e.currentTarget) onCancel(); }}>
+        <div style={{ background: '#252526', border: `1px solid ${isDelete ? 'rgba(248,68,68,0.4)' : '#3e3e3e'}`, borderRadius: 8, padding: '18px 20px 16px', width: isGithubImport ? 380 : 280, boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            {isDelete ? <FiAlertTriangle size={15} color="#f84" /> : isGithubImport ? <span style={{ fontSize: 15 }}>🐙</span> : isFolder ? <FiFolderPlus size={15} color={C.accent} /> : <FiPlus size={15} color={C.accent} />}
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#e0e0e0', flex: 1 }}>{title}</span>
+            <button onClick={onCancel} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', display: 'flex', padding: 2, borderRadius: 3 }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#aaa')} onMouseLeave={e => (e.currentTarget.style.color = '#666')}>
+              <FiX size={13} />
+            </button>
           </div>
-        ))}
+
+          {!isDelete && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: '#888', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {isGithubImport ? 'Repository URL' : dialog.mode === 'create-file' ? 'File name' : dialog.mode === 'create-folder' ? 'Folder name' : 'New name'}
+              </div>
+              <input ref={inputRef} value={value} onChange={e => { setValue(e.target.value); setError(''); }}
+                onKeyDown={e => { if (e.key === 'Enter') handleConfirm(); if (e.key === 'Escape') onCancel(); }}
+                placeholder={isGithubImport ? 'https://github.com/owner/repo' : dialog.mode === 'create-file' ? 'e.g. about.html, extra.css' : dialog.mode === 'create-folder' ? 'e.g. images, styles' : ''}
+                style={{ width: '100%', boxSizing: 'border-box', background: '#1a1a1a', border: `1px solid ${error ? 'rgba(248,68,68,0.6)' : '#444'}`, borderRadius: 5, padding: '7px 10px', fontSize: 12.5, color: '#e0e0e0', outline: 'none', fontFamily: 'monospace', transition: 'border-color 0.15s' }}
+                onFocus={e => { if (!error) e.currentTarget.style.borderColor = '#e5a45a66'; }}
+                onBlur={e => { if (!error) e.currentTarget.style.borderColor = '#444'; }}
+              />
+              {error && <div style={{ fontSize: 10.5, color: '#f87171', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}><FiAlertTriangle size={10} /> {error}</div>}
+              {!error && dialog.mode === 'create-file' && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Extension determines file type (.html, .css, .js)</div>}
+              {!error && isGithubImport && <div style={{ fontSize: 10, color: '#555', marginTop: 4 }}>Only public repositories are supported. Files will be imported into the editor.</div>}
+            </div>
+          )}
+          {isDelete && <div style={{ fontSize: 11.5, color: '#aaa', marginBottom: 14, lineHeight: 1.5 }}>
+            {dialog.mode === 'delete-folder' ? 'Files inside will be moved to root. This cannot be undone.' : 'This action cannot be undone.'}
+          </div>}
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={onCancel} style={{ padding: '6px 14px', borderRadius: 5, border: '1px solid #3e3e3e', background: 'none', cursor: 'pointer', color: '#888', fontSize: 12, fontFamily: 'inherit' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; e.currentTarget.style.color = '#ccc'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#888'; }}>
+              Cancel
+            </button>
+            <button onClick={handleConfirm} style={{ padding: '6px 14px', borderRadius: 5, border: 'none', background: isDelete ? 'rgba(239,68,68,0.15)' : 'rgba(229,164,90,0.15)', cursor: 'pointer', color: isDelete ? '#f87171' : C.accent, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', outline: `1px solid ${isDelete ? 'rgba(239,68,68,0.3)' : 'rgba(229,164,90,0.3)'}` }}
+              onMouseEnter={e => { e.currentTarget.style.background = isDelete ? 'rgba(239,68,68,0.25)' : 'rgba(229,164,90,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = isDelete ? 'rgba(239,68,68,0.15)' : 'rgba(229,164,90,0.15)'; }}>
+              {isDelete ? <><FiTrash2 size={11} /> Delete</> : <><FiCheck size={11} /> {dialog.mode === 'create-file' || dialog.mode === 'create-folder' ? 'Create' : 'Rename'}</>}
+            </button>
+          </div>
+        </div>
       </div>
+    );
+  };
 
-      {/* Editor */}
-      <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
-        {!activeFile ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--editor-text-muted)', fontSize: 13 }}>
-            No file selected
-          </div>
-        ) : activeFile.type === 'image' ? (
-          <ImageViewer file={activeFile} />
-        ) : (
-          <div className="monaco-container" style={{ height: '100%' }}>
-            <Editor
-              key={activeFile.id}
-              height="100%"
-              language={getLanguageForFile(activeFile)}
-              value={activeFile.content}
-              onChange={handleEditorChange}
-              beforeMount={handleBeforeMount}
-              onMount={handleEditorMount}
-              theme="vs-dark"
-              options={{
-                fontSize: 14,
-                fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, monospace",
-                fontLigatures: true,
-                minimap: { enabled: true, scale: 0.7 },
-                scrollBeyondLastLine: false,
-                lineNumbers: 'on',
-                wordWrap: 'off',
-                tabSize: 2,
-                insertSpaces: true,
-                autoClosingBrackets: 'always',
-                autoClosingQuotes: 'always',
-                inlineSuggest: { enabled: true, mode: 'prefix' },
-                suggest: { preview: true },
-                formatOnPaste: true,
-                formatOnType: false,
-                suggestOnTriggerCharacters: true,
-                quickSuggestions: { other: true, comments: false, strings: false },
-                snippetSuggestions: 'top',
-                renderWhitespace: 'selection',
-                smoothScrolling: true,
-                cursorBlinking: 'smooth',
-                cursorSmoothCaretAnimation: 'on',
-                bracketPairColorization: { enabled: true },
-                guides: { bracketPairs: true },
-                padding: { top: 8 },
-                scrollbar: {
-                  vertical: 'auto', horizontal: 'auto',
-                  verticalScrollbarSize: 6, horizontalScrollbarSize: 6,
-                },
-              }}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+  const ITEM_STYLE: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px 4px 10px',
+    cursor: 'pointer', fontSize: 12.5, userSelect: 'none', transition: 'background 0.1s',
+    borderLeft: '2px solid transparent',
+  };
 
-/* ─────────────────────────────────────────────────────────────
-   Image Viewer
-   ───────────────────────────────────────────────────────────── */
-interface ImageViewerProps {
-  file: { name: string; url?: string; content: string; mimeType?: string };
-}
-function ImageViewer({ file }: ImageViewerProps) {
-  const src = file.url || (file.content ? `data:${file.mimeType || 'image/png'};base64,${file.content}` : '');
-  const [zoom, setZoom] = React.useState(1);
-  const [bg, setBg]     = React.useState<'dark' | 'light' | 'checker'>('checker');
+  const FilePanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ onClose, hideHeader }) => {
+    const {
+      files, folders, activeFileId, setActiveFile, addFile, removeFile,
+      addFolder, removeFolder, renameFolder, moveFileToFolder,
+      updateFileContent, showNotification, pendingFileDialog, setPendingFileDialog,
+    } = useEditorStore();
+    const uploadRef = useRef<HTMLInputElement>(null);
+    const folderInputRef = useRef<HTMLInputElement>(null);
+    const [draggingOver, setDraggingOver] = useState<string | null>(null);
+    const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(new Set());
+    const [dialog, setDialog] = useState<DialogState | null>(null);
+    const draggingFileIdRef = useRef<string | null>(null);
+    const { show: showCtx, element: ctxEl } = useContextMenu();
 
-  const bgStyle: React.CSSProperties = bg === 'checker'
-    ? { backgroundImage: 'repeating-conic-gradient(#333 0% 25%, #222 0% 50%)', backgroundSize: '20px 20px' }
-    : { background: bg === 'dark' ? '#111' : '#eee' };
+    useEffect(() => {
+      if (!pendingFileDialog) return;
+      if (pendingFileDialog.type === 'create') setDialog({ mode: 'create-file' });
+      else if (pendingFileDialog.type === 'rename' && pendingFileDialog.fileId) {
+        const file = files.find(f => f.id === pendingFileDialog.fileId);
+        if (file) setDialog({ mode: 'rename-file', file });
+      }
+      setPendingFileDialog(null);
+    }, [pendingFileDialog, files, setPendingFileDialog]);
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#252526', borderBottom: '1px solid #3e3e3e', flexShrink: 0, flexWrap: 'wrap' }}>
-        <FiImage size={13} style={{ color: '#8bc34a' }} />
-        <span style={{ fontSize: 12, color: '#ccc', fontWeight: 500 }}>{file.name}</span>
-        <div style={{ flex: 1 }} />
-        <span style={{ fontSize: 11, color: '#666' }}>Background:</span>
-        {(['checker', 'dark', 'light'] as const).map(b => (
-          <button key={b} onClick={() => setBg(b)} style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', background: bg === b ? 'rgba(229,164,90,0.15)' : 'transparent', border: `1px solid ${bg === b ? 'rgba(229,164,90,0.5)' : '#3e3e3e'}`, color: bg === b ? '#e5a45a' : '#888', fontFamily: 'inherit' }}>
-            {b.charAt(0).toUpperCase() + b.slice(1)}
+    const toggleFolder = (name: string) => {
+      setCollapsedFolders(prev => {
+        const next = new Set(prev);
+        if (next.has(name)) next.delete(name); else next.add(name);
+        return next;
+      });
+    };
+
+    const importSingleFile = useCallback((file: File, targetFolder?: string) => {
+      const name = file.name;
+      const ext = name.split('.').pop()?.toLowerCase();
+      const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
+      const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
+      const fileId = targetFolder ? `${targetFolder}/${name}` : name;
+      if (isImage) {
+        addFile({ id: fileId, name, type: 'image', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
+      } else if (isText) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const content = e.target?.result as string;
+          const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
+          addFile({ id: fileId, name, type, content, folder: targetFolder });
+        };
+        reader.readAsText(file);
+      } else {
+        addFile({ id: fileId, name, type: 'other', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
+      }
+    }, [addFile]);
+
+    const readDirectoryEntry = useCallback((entry: FileSystemDirectoryEntry, parentFolder?: string) => {
+      const folderName = parentFolder ? `${parentFolder}/${entry.name}` : entry.name;
+      addFolder(folderName);
+      const reader = entry.createReader();
+      const readAll = (accumulated: FileSystemEntry[] = []) => {
+        reader.readEntries(entries => {
+          if (entries.length === 0) {
+            accumulated.forEach(e => {
+              if (e.isFile) {
+                (e as FileSystemFileEntry).file(f => importSingleFile(f, folderName));
+              } else if (e.isDirectory) {
+                readDirectoryEntry(e as FileSystemDirectoryEntry, folderName);
+              }
+            });
+            return;
+          }
+          readAll([...accumulated, ...entries]);
+        });
+      };
+      readAll();
+    }, [addFolder, importSingleFile]);
+
+    const handleFolderSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const entry = (file as any).webkitGetAsEntry?.();
+        if (entry?.isDirectory) {
+          readDirectoryEntry(entry as FileSystemDirectoryEntry);
+        } else {
+          importSingleFile(file);
+        }
+      }
+      e.target.value = '';
+    }, [readDirectoryEntry, importSingleFile]);
+
+    const handleDropItems = useCallback((items: DataTransferItemList, targetFolder?: string) => {
+      let count = 0;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const entry = item.webkitGetAsEntry?.();
+        if (!entry) continue;
+        count++;
+        if (entry.isDirectory) {
+          readDirectoryEntry(entry as FileSystemDirectoryEntry, targetFolder);
+        } else if (entry.isFile) {
+          (entry as FileSystemFileEntry).file(f => importSingleFile(f, targetFolder));
+        }
+      }
+      if (count > 0) showNotification(`Importing ${count} item(s)…`);
+    }, [readDirectoryEntry, importSingleFile, showNotification]);
+
+    const handleUpload = useCallback((uploadedFiles: FileList | null, targetFolder?: string) => {
+      if (!uploadedFiles) return;
+      Array.from(uploadedFiles).forEach(file => importSingleFile(file, targetFolder));
+      if (uploadedFiles.length > 0) showNotification(`Imported ${uploadedFiles.length} file(s)`);
+    }, [importSingleFile, showNotification]);
+
+    const handleDialogConfirm = useCallback((value: string) => {
+      if (!dialog) return;
+
+      if (dialog.mode === 'create-file') {
+        const name = value;
+        const folder = dialog.targetFolder;
+        const fileId = folder ? `${folder}/${name}` : name;
+        if (files.find(f => f.id === fileId)) { showNotification(`"${name}" already exists`); return; }
+        const language = getLanguageFromFileName(name);
+        const ext = name.split('.').pop()?.toLowerCase();
+        const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts') ? 'js' : 'other';
+        const starter = getDefaultContentForLanguage(language);
+        addFile({ id: fileId, name, type, content: starter, folder });
+        setActiveFile(fileId);
+        showNotification(`Created ${name}`);
+      }
+
+      if (dialog.mode === 'create-folder') {
+        addFolder(value);
+        setCollapsedFolders(prev => { const n = new Set(prev); n.delete(value); return n; });
+        showNotification(`Created folder "${value}"`);
+      }
+
+      if (dialog.mode === 'rename-file' && dialog.file) {
+        const newName = value;
+        if (newName === dialog.file.name) { setDialog(null); return; }
+        const newId = dialog.file.folder ? `${dialog.file.folder}/${newName}` : newName;
+        removeFile(dialog.file.id);
+        addFile({ ...dialog.file, id: newId, name: newName });
+        setActiveFile(newId);
+        showNotification(`Renamed to ${newName}`);
+      }
+
+      if (dialog.mode === 'rename-folder' && dialog.folderName) {
+        const newName = value;
+        if (newName === dialog.folderName) { setDialog(null); return; }
+        renameFolder(dialog.folderName, newName);
+        showNotification(`Renamed folder to "${newName}"`);
+      }
+
+      if (dialog.mode === 'delete-file' && dialog.file) {
+        removeFile(dialog.file.id);
+        showNotification(`Deleted ${dialog.file.name}`);
+      }
+
+      if (dialog.mode === 'delete-folder' && dialog.folderName) {
+        removeFolder(dialog.folderName);
+        showNotification(`Deleted folder "${dialog.folderName}"`);
+      }
+
+      if (dialog.mode === 'github-import') {
+        const repoUrl = value.trim();
+        const match = repoUrl.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+        if (match) {
+          const owner = match[1];
+          const repo = match[2];
+          // Import from GitHub API
+          fetch(`https://api.github.com/repos/${owner}/${repo}/contents`)
+            .then(res => res.json())
+            .then(data => {
+              if (Array.isArray(data)) {
+                let imported = 0;
+                data.forEach(item => {
+                  if (item.type === 'file' && item.name) {
+                    const ext = item.name.split('.').pop()?.toLowerCase();
+                    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
+                    const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
+                    if (isText) {
+                      fetch(item.download_url)
+                        .then(res => res.text())
+                        .then(content => {
+                          const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
+                          addFile({ id: item.name, name: item.name, type, content });
+                          imported++;
+                          if (imported === data.length) showNotification(`Imported ${imported} files from GitHub`);
+                        });
+                    } else if (isImage) {
+                      addFile({ id: item.name, name: item.name, type: 'image', content: '', url: item.download_url });
+                      imported++;
+                    }
+                  }
+                });
+              }
+            })
+            .catch(err => {
+              showNotification('Failed to import from GitHub');
+            });
+        }
+      }
+
+      setDialog(null);
+    }, [dialog, files, folders, addFile, removeFile, addFolder, removeFolder, renameFolder, setActiveFile, showNotification]);
+
+    const handleFileCtx = (e: React.MouseEvent, file: FileItem) => {
+      const moveItems = folders.length > 0 ? [
+        { separator: true, label: '' },
+        ...folders.filter(f => f !== file.folder).map(folderName => ({
+          label: `Move to 📁 ${folderName}`,
+          action: () => moveFileToFolder(file.id, folderName),
+        })),
+        ...(file.folder ? [{ label: 'Move to Root', action: () => moveFileToFolder(file.id, undefined) }] : []),
+      ] : [];
+
+      showCtx(e, [
+        { label: 'Open', icon: '📂', action: () => { if (file.type !== 'image') setActiveFile(file.id); } },
+        { separator: true, label: '' },
+        { label: 'Rename', icon: '✏️', action: () => setDialog({ mode: 'rename-file', file }) },
+        { label: 'Duplicate', icon: '📋', action: () => {
+          const parts = file.name.split('.');
+          const newName = parts.length > 1 ? `${parts.slice(0,-1).join('.')}_copy.${parts[parts.length-1]}` : `${file.name}_copy`;
+          const newId = file.folder ? `${file.folder}/${newName}` : newName;
+          addFile({ ...file, id: newId, name: newName });
+          showNotification(`Duplicated as ${newName}`);
+        }},
+        ...moveItems,
+        { separator: true, label: '' },
+        { label: 'Copy Content', icon: '📄', action: () => { navigator.clipboard.writeText(file.content); showNotification('Copied'); } },
+        { separator: true, label: '' },
+        { label: `Delete "${file.name}"`, icon: '🗑️', danger: true, action: () => setDialog({ mode: 'delete-file', file }) },
+      ]);
+    };
+
+    const handleFolderCtx = (e: React.MouseEvent, folderName: string) => {
+      e.preventDefault(); e.stopPropagation();
+      showCtx(e, [
+        { label: `📁 ${folderName}`, disabled: true },
+        { separator: true, label: '' },
+        { label: 'New File Inside', icon: '📄', action: () => setDialog({ mode: 'create-file', targetFolder: folderName }) },
+        { label: 'Rename Folder', icon: '✏️', action: () => setDialog({ mode: 'rename-folder', folderName }) },
+        { separator: true, label: '' },
+        { label: 'Delete Folder', icon: '🗑️', danger: true, action: () => setDialog({ mode: 'delete-folder', folderName }) },
+      ]);
+    };
+
+    const handlePanelCtx = (e: React.MouseEvent) => {
+      // Keep native context menu inside editable controls (copy/paste, spellcheck, etc.)
+      if ((e.target as Element).closest('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if ((e.target as Element).closest('[data-file-item], [data-folder-item], button, input')) return;
+      showCtx(e, [
+        { label: 'New File', icon: '📄', action: () => setDialog({ mode: 'create-file' }) },
+        { label: 'New Folder', icon: '📁', action: () => setDialog({ mode: 'create-folder' }) },
+        { label: 'Import Files…', icon: '⬆️', action: () => uploadRef.current?.click() },
+        { label: 'Open Folder…', icon: '📂', action: () => folderInputRef.current?.click() },
+        { label: 'Import from GitHub…', icon: '🐙', action: () => setDialog({ mode: 'github-import' }) },
+        { separator: true, label: '' },
+        { label: 'Close Explorer', icon: '✕', action: onClose },
+      ]);
+    };
+
+    const rootFiles = files.filter(f => !f.folder);
+    const allFolderNames = Array.from(new Set([...folders, ...files.filter(f => f.folder).map(f => f.folder!)]));
+
+    const renderFileRow = (file: FileItem, indent = 0) => {
+      const isActive = activeFileId === file.id;
+      return (
+        <div
+          key={file.id}
+          data-file-item="true"
+          draggable
+          onDragStart={e => { draggingFileIdRef.current = file.id; e.dataTransfer.setData('text/plain', file.id); e.dataTransfer.effectAllowed = 'move'; }}
+          onDragEnd={() => { draggingFileIdRef.current = null; }}
+          onClick={() => file.type !== 'image' && setActiveFile(file.id)}
+          onDoubleClick={() => setDialog({ mode: 'rename-file', file })}
+          onContextMenu={e => { e.preventDefault(); e.stopPropagation(); handleFileCtx(e, file); }}
+          style={{
+            ...ITEM_STYLE,
+            paddingLeft: 10 + indent * 12,
+            background: isActive ? 'rgba(229,164,90,0.1)' : 'transparent',
+            borderLeft: `2px solid ${isActive ? C.accent : 'transparent'}`,
+            color: isActive ? C.accent : C.text,
+          }}
+          onMouseEnter={e => {
+            if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)';
+            const btn = (e.currentTarget as HTMLDivElement).querySelector<HTMLButtonElement>('[data-del-btn]');
+            if (btn) btn.style.opacity = '1';
+          }}
+          onMouseLeave={e => {
+            if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+            const btn = (e.currentTarget as HTMLDivElement).querySelector<HTMLButtonElement>('[data-del-btn]');
+            if (btn) btn.style.opacity = '0';
+          }}
+        >
+          <FileIcon name={file.name} />
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5 }}>
+            {file.name}
+          </span>
+          <button data-del-btn title={`Delete ${file.name}`} onClick={e => { e.stopPropagation(); setDialog({ mode: 'delete-file', file }); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, display: 'flex', borderRadius: 2, opacity: 0, flexShrink: 0, transition: 'opacity 0.12s, color 0.12s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#f88'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#555'; }}>
+            <FiX size={11} />
           </button>
-        ))}
-        <div style={{ width: 1, height: 16, background: '#3e3e3e' }} />
-        <span style={{ fontSize: 11, color: '#666' }}>Zoom:</span>
-        <button onClick={() => setZoom(z => Math.max(0.1, +(z - 0.25).toFixed(2)))} style={{ width: 22, height: 22, borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid #3e3e3e', color: '#888', fontSize: 14, lineHeight: 1, fontFamily: 'inherit' }}>−</button>
-        <span style={{ fontSize: 12, color: '#bbb', minWidth: 38, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(z => Math.min(8, +(z + 0.25).toFixed(2)))} style={{ width: 22, height: 22, borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid #3e3e3e', color: '#888', fontSize: 14, lineHeight: 1, fontFamily: 'inherit' }}>+</button>
-        <button onClick={() => setZoom(1)} style={{ padding: '2px 8px', fontSize: 11, borderRadius: 3, cursor: 'pointer', background: 'transparent', border: '1px solid #3e3e3e', color: '#888', fontFamily: 'inherit' }}>Reset</button>
-      </div>
-      <div style={{ flex: 1, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 32, minHeight: 0, ...bgStyle }}>
-        {src ? (
-          <img src={src} alt={file.name} style={{ maxWidth: 'none', transform: `scale(${zoom})`, transformOrigin: 'center center', display: 'block', imageRendering: zoom > 2 ? 'pixelated' : 'auto', boxShadow: '0 4px 24px rgba(0,0,0,0.5)' }} />
-        ) : (
-          <div style={{ color: '#555', fontSize: 13, textAlign: 'center' }}>
-            <FiImage size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div>Cannot display image</div>
+        </div>
+      );
+    };
+
+    const renderFolder = (folderName: string) => {
+      const folderFiles = files.filter(f => f.folder === folderName);
+      const collapsed = collapsedFolders.has(folderName);
+      const isDragOver = draggingOver === folderName;
+      return (
+        <div key={folderName} data-folder-item="true">
+          <div
+            onContextMenu={e => handleFolderCtx(e, folderName)}
+            onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDraggingOver(folderName); }}
+            onDragLeave={e => { if (!(e.currentTarget as HTMLDivElement).contains(e.relatedTarget as Node)) setDraggingOver(null); }}
+            onDrop={e => {
+              e.preventDefault(); e.stopPropagation(); setDraggingOver(null);
+              if (draggingFileIdRef.current) {
+                moveFileToFolder(draggingFileIdRef.current, folderName);
+                draggingFileIdRef.current = null;
+              } else {
+                handleDropItems(e.dataTransfer.items, folderName);
+              }
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px 4px 10px',
+              cursor: 'pointer', userSelect: 'none', fontSize: 12.5,
+              background: isDragOver ? 'rgba(229,164,90,0.1)' : 'transparent',
+              border: isDragOver ? '1px dashed rgba(229,164,90,0.5)' : '1px solid transparent',
+              borderRadius: 3, color: '#bbb', transition: 'background 0.1s',
+            }}
+            onClick={() => toggleFolder(folderName)}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = isDragOver ? 'rgba(229,164,90,0.1)' : 'rgba(255,255,255,0.04)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = isDragOver ? 'rgba(229,164,90,0.1)' : 'transparent'; }}
+          >
+            <span style={{ color: '#666', display: 'flex', flexShrink: 0 }}>
+              {collapsed ? <FiChevronRight size={11} /> : <FiChevronDown size={11} />}
+            </span>
+            <FiFolder size={13} color={isDragOver ? C.accent : '#c09040'} style={{ flexShrink: 0 }} />
+            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{folderName}</span>
+            <span style={{ fontSize: 10, color: '#555' }}>{folderFiles.length}</span>
+            <button onClick={e => { e.stopPropagation(); setDialog({ mode: 'create-file', targetFolder: folderName }); }}
+              title="New file in folder"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, display: 'flex', borderRadius: 2, opacity: 0, flexShrink: 0 }}
+              onMouseEnter={e => { e.currentTarget.style.color = C.accent; e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#555'; e.currentTarget.style.opacity = ''; }}
+              className="folder-add-btn">
+              <FiPlus size={11} />
+            </button>
+          </div>
+          {!collapsed && folderFiles.map(f => renderFileRow(f, 1))}
+          {!collapsed && folderFiles.length === 0 && (
+            <div style={{ paddingLeft: 28, fontSize: 11, color: '#444', padding: '3px 0 3px 28px', fontStyle: 'italic' }}>
+              Empty — drop files here
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', position: 'relative' }}
+        onContextMenu={handlePanelCtx}>
+
+        {!hideHeader && (
+          <div style={{ height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 8px', borderBottom: `1px solid ${C.border}`, background: C.surface }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: C.muted, flex: 1 }}>Explorer</span>
+            <button title="New File" onClick={() => setDialog({ mode: 'create-file' })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', borderRadius: 3 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.background = 'none'; }}>
+              <FiPlus size={14} />
+            </button>
+            <button title="New Folder" onClick={() => setDialog({ mode: 'create-folder' })}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', borderRadius: 3 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.background = 'none'; }}>
+              <FiFolderPlus size={14} />
+            </button>
+            <button title="Import Files" onClick={() => uploadRef.current?.click()}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', borderRadius: 3 }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ccc'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.background = 'none'; }}>
+              <FiUpload size={14} />
+            </button>
+            {onClose && (
+              <button title="Close" onClick={onClose}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', padding: 4, display: 'flex', borderRadius: 3 }}
+                onMouseEnter={e => { e.currentTarget.style.color = '#f88'; e.currentTarget.style.background = 'rgba(255,80,80,0.12)'; }}
+                onMouseLeave={e => { e.currentTarget.style.color = '#666'; e.currentTarget.style.background = 'none'; }}>
+                <FiX size={12} />
+              </button>
+            )}
           </div>
         )}
-      </div>
-    </div>
-  );
-}
 
-export default CodeEditor;
+        <div style={{ padding: '5px 12px 2px', fontSize: 10, color: '#444', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          Project Files
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: '2px 0' }}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+          onDrop={e => {
+            e.preventDefault(); e.stopPropagation();
+            if (draggingFileIdRef.current) {
+              moveFileToFolder(draggingFileIdRef.current, undefined);
+              draggingFileIdRef.current = null;
+            } else {
+              handleDropItems(e.dataTransfer.items);
+            }
+          }}>
+
+          {allFolderNames.map(folderName => renderFolder(folderName))}
+
+          {rootFiles.map(f => renderFileRow(f, 0))}
+        </div>
+
+        <div onClick={() => uploadRef.current?.click()}
+          onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDraggingOver('__dropzone__'); }}
+          onDragLeave={e => { if (e.currentTarget === e.target || !(e.currentTarget as HTMLDivElement).contains(e.relatedTarget as Node)) setDraggingOver(null); }}
+          onDrop={e => { e.preventDefault(); e.stopPropagation(); setDraggingOver(null); handleDropItems(e.dataTransfer.items); }}
+          style={{
+            margin: 8, padding: '10px', borderRadius: 5,
+            border: `1px dashed ${draggingOver === '__dropzone__' ? C.accent : '#3e3e3e'}`,
+            background: draggingOver === '__dropzone__' ? 'rgba(229,164,90,0.06)' : 'transparent',
+            textAlign: 'center', cursor: 'pointer', fontSize: 11, color: '#666', transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { if (draggingOver !== '__dropzone__') (e.currentTarget as HTMLDivElement).style.borderColor = '#555'; }}
+          onMouseLeave={e => { if (draggingOver !== '__dropzone__') (e.currentTarget as HTMLDivElement).style.borderColor = '#3e3e3e'; }}>
+          <FiUpload size={14} style={{ display: 'block', margin: '0 auto 4px', opacity: 0.5 }} />
+          Drop files or click to import
+          <div style={{ fontSize: 10, marginTop: 2, opacity: 0.5 }}>images, css, js, html, and more</div>
+        </div>
+
+        <input id="global-file-upload" ref={uploadRef} type="file" multiple style={{ display: 'none' }}
+          onChange={e => handleUpload(e.target.files)}
+          accept="image/*,.html,.css,.js,.ts,.tsx,.jsx,.json,.txt,.md,.svg" />
+        <input ref={folderInputRef} type="file" {...({ webkitdirectory: true, directory: true } as any)} multiple style={{ display: 'none' }}
+          onChange={handleFolderSelect} />
+
+        {dialog && (
+          <FileDialog dialog={dialog} files={files} folders={allFolderNames}
+            onConfirm={handleDialogConfirm} onCancel={() => setDialog(null)} />
+        )}
+        {ctxEl}
+      </div>
+    );
+  };
+
+  export default FilePanel;
