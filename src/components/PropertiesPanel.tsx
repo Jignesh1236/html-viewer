@@ -780,14 +780,36 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           </Row>
           <Row label="Family">
             <select style={selBase} value={getS('font-family')} onChange={e => apply('font-family', e.target.value)}>
-              {['sans-serif', 'serif', 'monospace', 'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Tahoma'].map(f => <option key={f}>{f}</option>)}
+              <optgroup label="System">
+                {['sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'system-ui'].map(f => <option key={f}>{f}</option>)}
+              </optgroup>
+              <optgroup label="Classic">
+                {['Arial', 'Arial Black', 'Helvetica', 'Helvetica Neue', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Impact', 'Comic Sans MS'].map(f => <option key={f}>{f}</option>)}
+              </optgroup>
+              <optgroup label="Serif">
+                {['Georgia', 'Times New Roman', 'Palatino', 'Book Antiqua', 'Garamond', 'Baskerville', 'Didot'].map(f => <option key={f}>{f}</option>)}
+              </optgroup>
+              <optgroup label="Monospace">
+                {['Courier New', 'Courier', 'Lucida Console', 'Monaco', 'Consolas', 'Menlo', 'Fira Code'].map(f => <option key={f}>{f}</option>)}
+              </optgroup>
             </select>
+          </Row>
+          <Row label="Custom Font">
+            <PropInput value={getS('font-family') || ''} onChange={v => apply('font-family', v)} placeholder="'Roboto', sans-serif" />
+          </Row>
+          <Row label="Style">
+            <BtnGroup options={['normal', 'italic', 'oblique']} value={getS('font-style') || 'normal'} onChange={v => apply('font-style', v)} small />
           </Row>
           <Row label="Weight">
             <BtnGroup options={['100', '300', '400', '600', '700', '900']} value={getS('font-weight') || '400'} onChange={v => apply('font-weight', v)} small />
           </Row>
           <Row label="Align">
             <BtnGroup options={['left', 'center', 'right', 'justify']} value={getS('text-align') || 'left'} onChange={v => apply('text-align', v)} />
+          </Row>
+          <Row label="V-Align">
+            <select style={selBase} value={getS('vertical-align') || 'baseline'} onChange={e => apply('vertical-align', e.target.value)}>
+              {['baseline', 'top', 'middle', 'bottom', 'text-top', 'text-bottom', 'sub', 'super'].map(v => <option key={v}>{v}</option>)}
+            </select>
           </Row>
           <Row label="Line H">
             <PropInput value={getS('line-height') || '1.6'} onChange={v => apply('line-height', v)} placeholder="1.6" />
@@ -799,6 +821,45 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             <BtnGroup options={['none', 'upper', 'lower', 'capitalize']}
               value={(() => { const v = getS('text-transform') || 'none'; if (v === 'uppercase') return 'upper'; if (v === 'lowercase') return 'lower'; return v; })()}
               onChange={v => apply('text-transform', v === 'upper' ? 'uppercase' : v === 'lower' ? 'lowercase' : v)} />
+          </Row>
+          <Row label="Shadow">
+            <PropInput value={getS('text-shadow') || 'none'} onChange={v => apply('text-shadow', v)} placeholder="2px 2px 4px rgba(0,0,0,0.5)" />
+          </Row>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2 }}>
+            {[
+              ['None', 'none'],
+              ['Soft', '1px 1px 3px rgba(0,0,0,0.4)'],
+              ['Hard', '2px 2px 0 rgba(0,0,0,0.8)'],
+              ['Glow', '0 0 12px rgba(229,164,90,0.8)'],
+              ['Neon', '0 0 8px #fff, 0 0 20px #e5a45a'],
+            ].map(([label, val]) => (
+              <button key={label} onClick={() => apply('text-shadow', val)}
+                style={{ padding: '1px 7px', fontSize: 9, borderRadius: 10, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <Row label="Stroke W">
+            <PropInput value={getS('-webkit-text-stroke-width') || '0px'} onChange={v => { apply('-webkit-text-stroke-width', v); apply('text-stroke-width', v); }} placeholder="1px" />
+          </Row>
+          <Row label="Stroke C">
+            <ColorInput value={getS('-webkit-text-stroke-color') || '#000000'} onChange={v => { apply('-webkit-text-stroke-color', v); apply('text-stroke-color', v); }} />
+          </Row>
+          <Row label="Overflow">
+            <BtnGroup options={['clip', 'ellipsis', 'fade']} value={getS('text-overflow') || 'clip'} onChange={v => apply('text-overflow', v)} small />
+          </Row>
+          <Row label="Variant">
+            <select style={selBase} value={getS('font-variant') || 'normal'} onChange={e => apply('font-variant', e.target.value)}>
+              {['normal', 'small-caps', 'all-small-caps', 'petite-caps', 'all-petite-caps', 'unicase', 'titling-caps'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Stretch">
+            <select style={selBase} value={getS('font-stretch') || 'normal'} onChange={e => apply('font-stretch', e.target.value)}>
+              {['ultra-condensed', 'extra-condensed', 'condensed', 'semi-condensed', 'normal', 'semi-expanded', 'expanded', 'extra-expanded', 'ultra-expanded'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Features">
+            <PropInput value={getS('font-feature-settings') || 'normal'} onChange={v => apply('font-feature-settings', v)} placeholder='"liga" 1, "kern" 1' />
           </Row>
         </Section>
 
@@ -817,6 +878,27 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           </Row>
           <Row label="Size">
             <BtnGroup options={['auto', 'cover', 'contain']} value={getS('background-size') || 'auto'} onChange={v => apply('background-size', v)} />
+          </Row>
+          <Row label="Position">
+            <select style={selBase} value={getS('background-position') || 'center'} onChange={e => apply('background-position', e.target.value)}>
+              {['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right', '50% 50%'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Repeat">
+            <BtnGroup options={['no-repeat', 'repeat', 'repeat-x', 'repeat-y']} value={getS('background-repeat') || 'repeat'} onChange={v => apply('background-repeat', v)} small />
+          </Row>
+          <Row label="Attachment">
+            <BtnGroup options={['scroll', 'fixed', 'local']} value={getS('background-attachment') || 'scroll'} onChange={v => apply('background-attachment', v)} small />
+          </Row>
+          <Row label="Clip">
+            <select style={selBase} value={getS('background-clip') || 'border-box'} onChange={e => { apply('background-clip', e.target.value); apply('-webkit-background-clip', e.target.value); }}>
+              {['border-box', 'padding-box', 'content-box', 'text'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Origin">
+            <select style={selBase} value={getS('background-origin') || 'padding-box'} onChange={e => apply('background-origin', e.target.value)}>
+              {['border-box', 'padding-box', 'content-box'].map(v => <option key={v}>{v}</option>)}
+            </select>
           </Row>
           <Row label="Opacity">
             <input
@@ -858,6 +940,25 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 13, flexShrink: 0 }}>+</button>
             <button onClick={() => apply('z-index', String((parseInt(getS('z-index') || '0') || 0) - 1))}
               style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 4, color: C.muted, cursor: 'pointer', padding: '4px 9px', fontSize: 13, flexShrink: 0 }}>−</button>
+          </Row>
+          <Row label="Box Sizing">
+            <BtnGroup options={['content-box', 'border-box']} value={getS('box-sizing') || 'content-box'} onChange={v => apply('box-sizing', v)} small />
+          </Row>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginTop: 2 }}>
+            {([['min-width', 'Min W'], ['min-height', 'Min H'], ['max-width', 'Max W'], ['max-height', 'Max H']] as [string, string][]).map(([prop, label]) => (
+              <div key={prop} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <PropInput value={getS(prop) || ''} onChange={v => apply(prop, v)} placeholder="none" />
+                <div style={{ fontSize: 9, color: C.dim, textAlign: 'center', userSelect: 'none' }}>{label}</div>
+              </div>
+            ))}
+          </div>
+          <Row label="Cursor">
+            <select style={selBase} value={getS('cursor') || 'auto'} onChange={e => apply('cursor', e.target.value)}>
+              {['auto', 'default', 'pointer', 'text', 'move', 'crosshair', 'grab', 'grabbing', 'not-allowed', 'zoom-in', 'zoom-out', 'wait', 'help', 'none'].map(v => <option key={v}>{v}</option>)}
+            </select>
+          </Row>
+          <Row label="Visibility">
+            <BtnGroup options={['visible', 'hidden', 'collapse']} value={getS('visibility') || 'visible'} onChange={v => apply('visibility', v)} small />
           </Row>
         </Section>
 
@@ -952,7 +1053,8 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </Section>
 
         {/* Border */}
-        <Section title="Border" icon={<FiBox size={12} />} defaultOpen={false}>
+        <Section title="Border" icon={<FiBox size={12} />} defaultOpen={false} keywords="border width color style radius image sides top right bottom left">
+          {/* Shorthand row */}
           <Row label="Width">
             <PropInput value={getS('border-width') || '0px'} onChange={v => apply('border-width', v)} placeholder="0px" />
           </Row>
@@ -963,8 +1065,58 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             <BtnGroup options={['none', 'solid', 'dashed', 'dotted', 'double']} value={getS('border-style') || 'none'} onChange={v => apply('border-style', v)} small />
           </Row>
           <Row label="Radius">
-            <PropInput value={getS('border-radius') || '0px'} onChange={v => apply('border-radius', v)} placeholder="0px" />
+            <PropInput value={getS('border-radius') || '0px'} onChange={v => apply('border-radius', v)} placeholder="0px / 50% / 8px 0" />
           </Row>
+          {/* Per-side widths */}
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 4, marginBottom: 2 }}>Per-side Width</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+            {(['border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width'] as string[]).map((prop, i) => (
+              <div key={prop} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <PropInput value={getS(prop) || ''} onChange={v => apply(prop, v)} placeholder="0px" />
+                <div style={{ fontSize: 9, color: C.dim, textAlign: 'center' }}>{['Top', 'Right', 'Bottom', 'Left'][i]}</div>
+              </div>
+            ))}
+          </div>
+          {/* Per-side colors */}
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 4, marginBottom: 2 }}>Per-side Color</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+            {(['border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'] as string[]).map((prop, i) => (
+              <div key={prop} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <ColorInput value={getS(prop) || '#cccccc'} onChange={v => apply(prop, v)} />
+                <div style={{ fontSize: 9, color: C.dim, textAlign: 'center' }}>{['Top', 'Right', 'Bottom', 'Left'][i]}</div>
+              </div>
+            ))}
+          </div>
+          {/* Border image */}
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 4, marginBottom: 2 }}>Border Image</div>
+          <Row label="Source">
+            <PropInput value={getS('border-image-source') || 'none'} onChange={v => apply('border-image-source', v)} placeholder="url(...) or gradient(...)" />
+          </Row>
+          <Row label="Slice">
+            <PropInput value={getS('border-image-slice') || '100%'} onChange={v => apply('border-image-slice', v)} placeholder="30 / 10% / fill" />
+          </Row>
+          <Row label="Width">
+            <PropInput value={getS('border-image-width') || '1'} onChange={v => apply('border-image-width', v)} placeholder="1 / 10px / auto" />
+          </Row>
+          <Row label="Repeat">
+            <BtnGroup options={['stretch', 'repeat', 'round', 'space']} value={getS('border-image-repeat') || 'stretch'} onChange={v => apply('border-image-repeat', v)} small />
+          </Row>
+          {/* Shorthand presets */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+            {[
+              ['None', 'none'],
+              ['Gradient', 'linear-gradient(45deg,#e5a45a,#c586c0) 1'],
+              ['Gold', '2px solid #e5a45a'],
+              ['Dashed', '2px dashed #555'],
+            ].map(([label, val]) => (
+              <button key={label} onClick={() => {
+                if (label === 'None') { apply('border', 'none'); } else if (label === 'Gradient') { apply('border-image', val); apply('border-style', 'solid'); apply('border-width', '2px'); } else { apply('border', val); }
+              }}
+                style={{ padding: '2px 8px', fontSize: 9, borderRadius: 10, background: C.surface2, border: `1px solid ${C.border}`, color: C.muted, cursor: 'pointer' }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </Section>
 
         {/* Shadows */}
@@ -1360,6 +1512,35 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
           </Row>
           <Row label="Direction">
             <BtnGroup options={['ltr','rtl']} value={getS('direction') || 'ltr'} onChange={v => apply('direction', v)} />
+          </Row>
+          <div style={{ fontSize: 10, color: C.dim, marginTop: 6, marginBottom: 2 }}>Line Clamp (text truncation)</div>
+          <Row label="Lines">
+            <PropInput value={getS('-webkit-line-clamp') || 'none'} onChange={v => {
+              if (v && v !== 'none') {
+                apply('-webkit-line-clamp', v);
+                apply('display', '-webkit-box');
+                apply('-webkit-box-orient', 'vertical');
+                apply('overflow', 'hidden');
+              } else {
+                apply('-webkit-line-clamp', 'none');
+              }
+            }} placeholder="3 (number of lines)" />
+          </Row>
+          <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+            {['none','1','2','3','4','5'].map(n => (
+              <button key={n} onClick={() => {
+                if (n === 'none') { apply('-webkit-line-clamp', 'none'); }
+                else { apply('-webkit-line-clamp', n); apply('display', '-webkit-box'); apply('-webkit-box-orient', 'vertical'); apply('overflow', 'hidden'); }
+              }} style={{ padding: '1px 7px', fontSize: 9, borderRadius: 10, background: getS('-webkit-line-clamp') === n ? C.accentBg : C.surface2, border: `1px solid ${getS('-webkit-line-clamp') === n ? C.accentBrd : C.border}`, color: getS('-webkit-line-clamp') === n ? C.accent : C.muted, cursor: 'pointer' }}>
+                {n === 'none' ? 'Off' : `${n}L`}
+              </button>
+            ))}
+          </div>
+          <Row label="Tab Size">
+            <PropInput value={getS('tab-size') || '4'} onChange={v => apply('tab-size', v)} placeholder="4" />
+          </Row>
+          <Row label="Hyphens">
+            <BtnGroup options={['none','manual','auto']} value={getS('hyphens') || 'manual'} onChange={v => { apply('hyphens', v); apply('-webkit-hyphens', v); }} small />
           </Row>
         </Section>
 

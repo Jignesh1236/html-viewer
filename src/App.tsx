@@ -13,9 +13,10 @@ import VisualEditor from './components/VisualEditor';
 import PropertiesPanel from './components/PropertiesPanel';
 import TimelinePanel from './components/TimelinePanel';
 import ComponentSidebar from './components/ComponentSidebar';
+import AnimationConfigPanel from './components/AnimationConfigPanel';
 import FloatingWindow, { WinRect, showCapture, hideCapture } from './components/FloatingWindow';
 import { useContextMenu } from './components/ContextMenu';
-import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiBox, FiX } from 'react-icons/fi';
+import { FiCode, FiEye, FiLayout, FiDownload, FiRefreshCw, FiFolder, FiSliders, FiClock, FiMonitor, FiBox, FiX, FiZap } from 'react-icons/fi';
 import { exportProject } from './utils/export';
 
 /* ─── Non-intrusive AdSense Banner (can be dismissed) ─── */
@@ -185,6 +186,11 @@ const WIN_ICONS: Record<WinId, React.ReactNode> = {
   properties: <FiSliders size={11} />,
   timeline:   <FiClock size={11} />,
   components: <FiBox size={11} />,
+};
+
+const WIN_ICONS_VISUAL: Record<WinId, React.ReactNode> = {
+  ...WIN_ICONS,
+  files: <FiZap size={11} />,
 };
 
 const WIN_LABELS: Record<WinId, string> = {
@@ -726,7 +732,9 @@ function DesktopApp() {
 
   function winContent(id: WinId) {
     switch (id) {
-      case 'files':      return <FilePanel onClose={() => updateWin('files', { visible: false })} hideHeader />;
+      case 'files':
+        if (mode === 'visual') return <AnimationConfigPanel />;
+        return <FilePanel onClose={() => updateWin('files', { visible: false })} hideHeader />;
       case 'code':       return <CodeEditor />;
       case 'preview':    return mode === 'visual' ? <VisualEditor /> : <PreviewPane />;
       case 'properties': return <PropertiesPanel onClose={() => updateWin('properties', { visible: false })} hideHeader />;
@@ -749,10 +757,12 @@ function DesktopApp() {
   });
 
   const winTitle: Record<WinId, string> = {
-    files: 'File Explorer', code: 'Code Editor',
+    files: mode === 'visual' ? 'Animations' : 'File Explorer',
+    code: 'Code Editor',
     preview: mode === 'visual' ? 'Visual Editor' : 'Preview',
     properties: 'Properties', timeline: 'Timeline', components: 'Components',
   };
+  const winIconsForMode = mode === 'visual' ? WIN_ICONS_VISUAL : WIN_ICONS;
 
   return (
     <div
@@ -892,7 +902,7 @@ function DesktopApp() {
               key={w.id}
               id={w.id}
               title={winTitle[w.id]}
-              icon={WIN_ICONS[w.id]}
+              icon={winIconsForMode[w.id]}
               rect={effRect}
               zIndex={w.zIndex}
               visible={w.visible}
