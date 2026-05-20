@@ -23,6 +23,8 @@ export interface SelectedElement {
 type VisualBridge = {
   applyStyle: (property: string, value: string) => void;
   applyHoverStyle: (property: string, value: string) => void;
+  applyPseudoStyle: (pseudo: string, property: string, value: string) => void;
+  collectPseudoStyles: (pseudo: string) => Record<string, string>;
   applyContent: (html: string) => void;
   setHoverPreview: (on: boolean) => void;
 } | null;
@@ -122,6 +124,8 @@ interface EditorStore {
   applySelectedStyle: (property: string, value: string) => void;
   applySelectedContent: (html: string) => void;
 
+  pseudoState: string;
+  setPseudoState: (v: string) => void;
   hoverEditMode: boolean;
   setHoverEditMode: (v: boolean) => void;
 
@@ -661,10 +665,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setVisualBridge: (bridge) => set({ visualBridge: bridge }),
 
   applySelectedStyle: (property, value) => {
-    const { visualBridge, hoverEditMode } = get();
+    const { visualBridge, pseudoState } = get();
     if (!visualBridge) return;
-    if (hoverEditMode) visualBridge.applyHoverStyle(property, value);
-    else visualBridge.applyStyle(property, value);
+    if (!pseudoState) visualBridge.applyStyle(property, value);
+    else if (pseudoState === ':hover') visualBridge.applyHoverStyle(property, value);
+    else visualBridge.applyPseudoStyle(pseudoState, property, value);
   },
 
   applySelectedContent: (html) => {
@@ -673,9 +678,15 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     bridge.applyContent(html);
   },
 
+  pseudoState: '',
+  setPseudoState: (v) => {
+    set({ pseudoState: v, hoverEditMode: v === ':hover' });
+    get().visualBridge?.setHoverPreview(v === ':hover');
+  },
+
   hoverEditMode: false,
   setHoverEditMode: (v) => {
-    set({ hoverEditMode: v });
+    set({ hoverEditMode: v, pseudoState: v ? ':hover' : '' });
     get().visualBridge?.setHoverPreview(v);
   },
 

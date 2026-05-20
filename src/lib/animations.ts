@@ -9,7 +9,7 @@ export interface AnimationPreset {
 }
 
 export const ANIMATION_CATEGORIES = [
-  'Fade', 'Slide', 'Zoom', 'Rotate', 'Bounce', 'Attention', 'Special', 'Hover FX',
+  'Fade', 'Slide', 'Zoom', 'Rotate', 'Bounce', 'Attention', 'Special', 'Hover FX', 'Loading', 'Morph', 'Text FX',
 ] as const;
 
 export const ANIMATION_PRESETS: AnimationPreset[] = [
@@ -212,6 +212,56 @@ export const ANIMATION_PRESETS: AnimationPreset[] = [
     keyframes: '@keyframes rotate90 { from { transform: rotate(0); } to { transform: rotate(90deg); } }' },
   { name: 'colorPulse', category: 'Hover FX', defaultDuration: 0.6, defaultEasing: 'ease-in-out', description: 'Brief brightness flash.',
     keyframes: '@keyframes colorPulse { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.25); } }' },
+
+  // ── Loading / Spinner ────────────────────────────────────
+  { name: 'spinFast', category: 'Loading', defaultDuration: 0.5, defaultEasing: 'linear', defaultIteration: 'infinite', description: 'Fast continuous 360° spin.',
+    keyframes: '@keyframes spinFast { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }' },
+  { name: 'spinCCW', category: 'Loading', defaultDuration: 1, defaultEasing: 'linear', defaultIteration: 'infinite', description: 'Counter-clockwise continuous spin.',
+    keyframes: '@keyframes spinCCW { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }' },
+  { name: 'dotPulse', category: 'Loading', defaultDuration: 1.4, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Dot loading pulsation.',
+    keyframes: '@keyframes dotPulse { 0%, 80%, 100% { transform: scale(0); opacity: 0; } 40% { transform: scale(1); opacity: 1; } }' },
+  { name: 'barGrow', category: 'Loading', defaultDuration: 1.2, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Progress bar grow.',
+    keyframes: '@keyframes barGrow { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }' },
+  { name: 'skeleton', category: 'Loading', defaultDuration: 1.5, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Skeleton-screen shimmer.',
+    keyframes: '@keyframes skeleton { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }' },
+  { name: 'orbit', category: 'Loading', defaultDuration: 1.4, defaultEasing: 'linear', defaultIteration: 'infinite', description: 'Orbital rotation.',
+    keyframes: '@keyframes orbit { 0% { transform: rotate(0deg) translateX(18px) rotate(0deg); } 100% { transform: rotate(360deg) translateX(18px) rotate(-360deg); } }' },
+  { name: 'bounceDots', category: 'Loading', defaultDuration: 1.4, defaultEasing: 'cubic-bezier(0.455,0.03,0.515,0.955)', defaultIteration: 'infinite', description: 'Bouncing loading dots.',
+    keyframes: '@keyframes bounceDots { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-12px); } }' },
+  { name: 'ripple', category: 'Loading', defaultDuration: 1.8, defaultEasing: 'cubic-bezier(0,0.2,0.8,1)', defaultIteration: 'infinite', description: 'Expanding ripple ring.',
+    keyframes: '@keyframes ripple { 0% { opacity: 1; transform: scale(0); } 100% { opacity: 0; transform: scale(1); } }' },
+  { name: 'pacman', category: 'Loading', defaultDuration: 0.6, defaultEasing: 'linear', defaultIteration: 'infinite', description: 'Pac-man mouth chew.',
+    keyframes: '@keyframes pacman { 0%, 100% { clip-path: polygon(50% 50%, 100% 0, 100% 100%, 0 100%, 0 0); } 50% { clip-path: polygon(50% 50%, 100% 20%, 100% 80%, 0 80%, 0 20%); } }' },
+
+  // ── Morph ────────────────────────────────────────────────
+  { name: 'morphCircle', category: 'Morph', defaultDuration: 3, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Blob morphing border-radius.',
+    keyframes: '@keyframes morphCircle { 0%,100% { border-radius: 30% 70% 70% 30%/30% 30% 70% 70%; } 25% { border-radius: 58% 42% 75% 25%/76% 46% 54% 24%; } 50% { border-radius: 50% 50% 33% 67%/55% 27% 73% 45%; } 75% { border-radius: 33% 67% 58% 42%/63% 68% 32% 37%; } }' },
+  { name: 'morphSquish', category: 'Morph', defaultDuration: 2, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Squish stretch cycle.',
+    keyframes: '@keyframes morphSquish { 0%,100% { transform: scaleX(1) scaleY(1); } 30% { transform: scaleX(1.3) scaleY(0.7); } 60% { transform: scaleX(0.75) scaleY(1.25); } 80% { transform: scaleX(1.05) scaleY(0.95); } }' },
+  { name: 'growShrink', category: 'Morph', defaultDuration: 2.5, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Oscillating grow-shrink.',
+    keyframes: '@keyframes growShrink { 0%,100% { transform: scale(1); } 50% { transform: scale(1.18); } }' },
+  { name: 'morphRotate', category: 'Morph', defaultDuration: 4, defaultEasing: 'linear', defaultIteration: 'infinite', description: 'Blob morph + slow rotate.',
+    keyframes: '@keyframes morphRotate { 0% { border-radius: 40% 60% 60% 40%/60% 30% 70% 40%; transform: rotate(0deg); } 50% { border-radius: 60% 40% 30% 70%/60% 40% 60% 40%; transform: rotate(180deg); } 100% { border-radius: 40% 60% 60% 40%/60% 30% 70% 40%; transform: rotate(360deg); } }' },
+  { name: 'liquidFill', category: 'Morph', defaultDuration: 2.5, defaultEasing: 'ease-in-out', description: 'Clip-path liquid fill reveal.',
+    keyframes: '@keyframes liquidFill { from { clip-path: ellipse(50% 0% at 50% 100%); } to { clip-path: ellipse(100% 100% at 50% 50%); } }' },
+
+  // ── Text FX ──────────────────────────────────────────────
+  { name: 'textReveal', category: 'Text FX', defaultDuration: 0.7, defaultEasing: 'cubic-bezier(0.22,1,0.36,1)', description: 'Clip-path vertical text reveal.',
+    keyframes: '@keyframes textReveal { from { clip-path: inset(0 0 100% 0); transform: translateY(20px); opacity: 0; } to { clip-path: inset(0 0 0% 0); transform: translateY(0); opacity: 1; } }' },
+  { name: 'letterSpacingIn', category: 'Text FX', defaultDuration: 0.8, defaultEasing: 'ease-out', description: 'Letter-spacing expand entrance.',
+    keyframes: '@keyframes letterSpacingIn { from { letter-spacing: -0.5em; opacity: 0; } to { letter-spacing: 0; opacity: 1; } }' },
+  { name: 'textGlowPulse', category: 'Text FX', defaultDuration: 2, defaultEasing: 'ease-in-out', defaultIteration: 'infinite', description: 'Glowing text pulse.',
+    keyframes: '@keyframes textGlowPulse { 0%,100% { text-shadow: 0 0 4px currentColor; } 50% { text-shadow: 0 0 20px currentColor, 0 0 40px currentColor; } }' },
+  { name: 'textScrambleFade', category: 'Text FX', defaultDuration: 1.5, defaultEasing: 'steps(6, end)', description: 'Stepped fade-in for scramble effects.',
+    keyframes: '@keyframes textScrambleFade { from { opacity: 0; } to { opacity: 1; } }' },
+  { name: 'textColorSlide', category: 'Text FX', defaultDuration: 3, defaultEasing: 'linear', defaultIteration: 'infinite', description: 'Sliding gradient text color (set background-clip: text).',
+    keyframes: '@keyframes textColorSlide { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }' },
+  { name: 'textDropIn', category: 'Text FX', defaultDuration: 0.6, defaultEasing: 'cubic-bezier(0.34,1.56,0.64,1)', description: 'Bouncy drop-in for text.',
+    keyframes: '@keyframes textDropIn { from { opacity: 0; transform: translateY(-40px) scaleY(1.4); } to { opacity: 1; transform: translateY(0) scaleY(1); } }' },
+  { name: 'textStrikeThrough', category: 'Text FX', defaultDuration: 0.5, defaultEasing: 'ease-out', description: 'Animated strike-through line.',
+    keyframes: '@keyframes textStrikeThrough { from { text-decoration-color: transparent; } to { text-decoration-color: currentColor; } }' },
+  { name: 'textWaveRise', category: 'Text FX', defaultDuration: 0.8, defaultEasing: 'ease-out', description: 'Wave-rise entrance for text.',
+    keyframes: '@keyframes textWaveRise { 0% { opacity: 0; transform: translateY(100%) rotateX(40deg); } 100% { opacity: 1; transform: translateY(0) rotateX(0deg); } }' },
 ];
 
 export const PRESET_BY_NAME: Record<string, AnimationPreset> = ANIMATION_PRESETS.reduce((acc, p) => {

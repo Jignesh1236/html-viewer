@@ -153,6 +153,25 @@ function serializeHoverRules(rules: Record<string, Record<string, string>>): str
     .join('\n');
 }
 
+/* ── Pseudo-state + media query rule helpers ─────────────────── */
+type PseudoRuleMap = Record<string, Record<string, Record<string, string>>>;
+
+function serializePseudoRules(rules: PseudoRuleMap): string {
+  const chunks: string[] = [];
+  for (const [pseudo, selectors] of Object.entries(rules)) {
+    for (const [selector, props] of Object.entries(selectors)) {
+      if (Object.keys(props).length === 0) continue;
+      const body = Object.entries(props).map(([k, v]) => `    ${k}: ${v};`).join('\n');
+      if (pseudo.startsWith('@media')) {
+        chunks.push(`${pseudo} {\n  ${selector} {\n${body}\n  }\n}`);
+      } else {
+        chunks.push(`${selector}${pseudo} {\n${body}\n}`);
+      }
+    }
+  }
+  return chunks.join('\n');
+}
+
 const HOVER_PREVIEW_CLASS = '__tl-hover-preview';
 
 /* ── Global drag-capture helpers (shared with App.tsx resizer) ── */
@@ -185,6 +204,7 @@ const VisualEditor: React.FC = () => {
   const [srcDoc, setSrcDoc] = useState<string>('');
   const rebuildTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animStyleRef = useRef(timelineAnimationStyle);
+  const pseudoRulesRef = useRef<PseudoRuleMap>({});
   const selectedSelectorRef = useRef<string | null>(null);
   const pendingSelectorRef = useRef<string | null>(null);
   const prevFilesRef = useRef(files);
@@ -536,6 +556,36 @@ const VisualEditor: React.FC = () => {
         if (on && hasHoverStyles) el.classList.add(HOVER_PREVIEW_CLASS);
         else el.classList.remove(HOVER_PREVIEW_CLASS);
         setTick(t => t + 1);
+      },
+      applyPseudoStyle: (pseudo, property, value) => {
+        const el = getSelectedDomEl();
+        if (!el) return;
+        const doc = el.ownerDocument;
+        if (!doc) return;
+        const selector = elementSelector(el);
+        const map = pseudoRulesRef.current;
+        if (!map[pseudo]) map[pseudo] = {};
+        if (!map[pseudo][selector]) map[pseudo][selector] = {};
+        const cur = map[pseudo][selector];
+        if (value === '') delete cur[property.toLowerCase()];
+        else cur[property.toLowerCase()] = value;
+        if (Object.keys(cur).length === 0) delete map[pseudo][selector];
+        if (Object.keys(map[pseudo] || {}).length === 0) delete map[pseudo];
+        let styleEl = doc.getElementById('__tl-pseudo-rules') as HTMLStyleElement | null;
+        if (!styleEl) {
+          styleEl = doc.createElement('style');
+          styleEl.id = '__tl-pseudo-rules';
+          doc.head.appendChild(styleEl);
+        }
+        styleEl.textContent = serializePseudoRules(map);
+        setTick(t => t + 1);
+        syncToSource(el);
+      },
+      collectPseudoStyles: (pseudo) => {
+        const el = getSelectedDomEl();
+        if (!el) return {};
+        const selector = elementSelector(el);
+        return { ...(pseudoRulesRef.current[pseudo]?.[selector] || {}) };
       },
       applyContent: (html) => {
         const el = getSelectedDomEl();

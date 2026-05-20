@@ -490,6 +490,166 @@ const FilterControls: React.FC<{ value: string; onChange: (v: string) => void; l
   );
 };
 
+/* ─── Pseudo-state + media query selector ─────────────────── */
+const PSEUDO_OPTIONS = [
+  { group: 'Default', items: [{ label: '● Default', sublabel: 'base styles', value: '' }] },
+  { group: 'Pseudo-classes', items: [
+    { label: ':hover', sublabel: 'mouse over', value: ':hover' },
+    { label: ':focus', sublabel: 'keyboard / click', value: ':focus' },
+    { label: ':active', sublabel: 'being clicked', value: ':active' },
+    { label: ':visited', sublabel: 'visited link', value: ':visited' },
+    { label: ':disabled', sublabel: 'disabled input', value: ':disabled' },
+    { label: ':checked', sublabel: 'checkbox / radio', value: ':checked' },
+    { label: ':focus-visible', sublabel: 'keyboard focus only', value: ':focus-visible' },
+    { label: ':focus-within', sublabel: 'child is focused', value: ':focus-within' },
+    { label: ':placeholder-shown', sublabel: 'shows placeholder', value: ':placeholder-shown' },
+    { label: ':first-child', sublabel: 'first in parent', value: ':first-child' },
+    { label: ':last-child', sublabel: 'last in parent', value: ':last-child' },
+    { label: ':nth-child(odd)', sublabel: 'odd children', value: ':nth-child(odd)' },
+    { label: ':nth-child(even)', sublabel: 'even children', value: ':nth-child(even)' },
+    { label: ':empty', sublabel: 'no children', value: ':empty' },
+    { label: ':target', sublabel: 'URL fragment target', value: ':target' },
+    { label: ':root', sublabel: 'root element', value: ':root' },
+    { label: ':link', sublabel: 'unvisited link', value: ':link' },
+    { label: ':read-only', sublabel: 'non-editable', value: ':read-only' },
+    { label: ':read-write', sublabel: 'editable field', value: ':read-write' },
+    { label: ':required', sublabel: 'required input', value: ':required' },
+    { label: ':optional', sublabel: 'optional input', value: ':optional' },
+    { label: ':valid', sublabel: 'valid input value', value: ':valid' },
+    { label: ':invalid', sublabel: 'invalid input value', value: ':invalid' },
+  ] },
+  { group: 'Pseudo-elements', items: [
+    { label: '::before', sublabel: 'generated before', value: '::before' },
+    { label: '::after', sublabel: 'generated after', value: '::after' },
+    { label: '::placeholder', sublabel: 'placeholder text', value: '::placeholder' },
+    { label: '::selection', sublabel: 'selected text', value: '::selection' },
+    { label: '::first-line', sublabel: 'first line of text', value: '::first-line' },
+    { label: '::first-letter', sublabel: 'first character', value: '::first-letter' },
+    { label: '::marker', sublabel: 'list marker', value: '::marker' },
+  ] },
+  { group: 'Responsive (Media)', items: [
+    { label: '≤1200px', sublabel: 'large', value: '@media (max-width: 1200px)' },
+    { label: '≤992px', sublabel: 'medium', value: '@media (max-width: 992px)' },
+    { label: '≤768px', sublabel: 'tablet', value: '@media (max-width: 768px)' },
+    { label: '≤576px', sublabel: 'mobile', value: '@media (max-width: 576px)' },
+    { label: '≤480px', sublabel: 'small mobile', value: '@media (max-width: 480px)' },
+    { label: '≤375px', sublabel: 'tiny mobile', value: '@media (max-width: 375px)' },
+    { label: '≥1200px', sublabel: 'desktop+', value: '@media (min-width: 1200px)' },
+    { label: '≥768px', sublabel: 'tablet+', value: '@media (min-width: 768px)' },
+    { label: 'Dark mode', sublabel: 'prefers-color-scheme', value: '@media (prefers-color-scheme: dark)' },
+    { label: 'Reduced motion', sublabel: 'accessibility', value: '@media (prefers-reduced-motion: reduce)' },
+    { label: 'Print', sublabel: '@media print', value: '@media print' },
+    { label: 'High contrast', sublabel: 'forced-colors', value: '@media (forced-colors: active)' },
+  ] },
+];
+
+function PseudoStateSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  const sq = search.toLowerCase();
+  const filteredGroups = PSEUDO_OPTIONS.map(g => ({
+    ...g,
+    items: sq
+      ? g.items.filter(i => i.label.toLowerCase().includes(sq) || i.sublabel.toLowerCase().includes(sq))
+      : g.items,
+  })).filter(g => g.items.length > 0);
+
+  const isMedia = value.startsWith('@media');
+  const label = value === '' ? 'Default' : isMedia
+    ? value.replace('@media (max-width: ', '≤').replace('@media (min-width: ', '≥').replace(')', '').replace('@media ', '@')
+    : value;
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', flexShrink: 0, width: 100 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        title="Select CSS pseudo-state or responsive breakpoint"
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 4, padding: '3px 7px',
+          background: value ? (isMedia ? 'rgba(156,220,254,0.12)' : C.accentBg) : C.surface2,
+          border: `1px solid ${value ? (isMedia ? 'rgba(156,220,254,0.4)' : C.accentBrd) : C.border}`,
+          borderRadius: 4, cursor: 'pointer',
+          color: value ? (isMedia ? '#9cdcfe' : C.accent) : C.muted,
+          fontSize: 10, fontWeight: value ? 700 : 500, fontFamily: 'monospace',
+          transition: 'all 0.12s', overflow: 'hidden',
+        }}
+      >
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>
+          {value ? '● ' : ''}{label}
+        </span>
+        <span style={{ fontSize: 8, color: C.dim, flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', right: 0, zIndex: 300,
+          width: 230, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 6,
+          boxShadow: '0 10px 32px rgba(0,0,0,0.55)', marginTop: 3, maxHeight: 280, overflow: 'hidden',
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <input
+            autoFocus
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Filter states & breakpoints…"
+            style={{
+              padding: '6px 10px', background: C.surface2, border: 'none',
+              borderBottom: `1px solid ${C.border}`, color: C.text, fontSize: 10,
+              outline: 'none', fontFamily: 'inherit', flexShrink: 0,
+            }}
+          />
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            {filteredGroups.map(g => (
+              <div key={g.group}>
+                <div style={{
+                  padding: '4px 8px 2px', fontSize: 8.5, color: C.dim, fontWeight: 700,
+                  letterSpacing: '0.07em', textTransform: 'uppercase', background: C.bg,
+                  borderTop: `1px solid ${C.border}`,
+                }}>
+                  {g.group}
+                </div>
+                {g.items.map(item => (
+                  <button
+                    key={item.value}
+                    onClick={() => { onChange(item.value); setOpen(false); setSearch(''); }}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '4px 10px', border: 'none', cursor: 'pointer',
+                      background: value === item.value ? C.accentBg : 'transparent',
+                      color: value === item.value ? C.accent : C.text,
+                      fontFamily: 'inherit', textAlign: 'left',
+                    }}
+                    onMouseEnter={e => { if (value !== item.value) e.currentTarget.style.background = C.surface2; }}
+                    onMouseLeave={e => { if (value !== item.value) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span style={{ fontSize: 10, fontWeight: 600, fontFamily: 'monospace', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label}</span>
+                    <span style={{ fontSize: 9, color: C.dim, flexShrink: 0 }}>{item.sublabel}</span>
+                    {value === item.value && <span style={{ fontSize: 10, color: C.accent, flexShrink: 0 }}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main component ──────────────────────────────────────── */
 const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> = ({ hideHeader }) => {
   const {
@@ -504,11 +664,29 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
     setTimelineState,
   } = useEditorStore();
 
-  const hoverEditMode = useEditorStore(s => s.hoverEditMode);
-  const setHoverEditMode = useEditorStore(s => s.setHoverEditMode);
-  const apply = (property: string, value: string) => applySelectedStyle(property, value);
+  const pseudoState = useEditorStore(s => s.pseudoState);
+  const setPseudoState = useEditorStore(s => s.setPseudoState);
+  const visualBridge = useEditorStore(s => s.visualBridge);
+  const [pseudoStyles, setPseudoStyles] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!pseudoState || !visualBridge) { setPseudoStyles({}); return; }
+    setPseudoStyles(visualBridge.collectPseudoStyles(pseudoState));
+  }, [pseudoState, selectedSelector, visualBridge]);
+
+  const apply = (property: string, value: string) => {
+    applySelectedStyle(property, value);
+    if (pseudoState) {
+      setPseudoStyles(prev => {
+        const next = { ...prev };
+        if (value === '') delete next[property.toLowerCase()];
+        else next[property.toLowerCase()] = value;
+        return next;
+      });
+    }
+  };
   const getS = (key: string) => {
-    if (hoverEditMode) return selectedElement?.hoverStyles?.[key] || '';
+    if (pseudoState) return pseudoStyles[key.toLowerCase()] || '';
     return selectedElement?.styles?.[key] || '';
   };
   const [contentDraft, setContentDraft] = useState('');
@@ -520,18 +698,18 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
 
   useEffect(() => {
     setContentDraft(selectedElement?.innerHTML || '');
-    const styleSrc = hoverEditMode
-      ? Object.entries(selectedElement?.hoverStyles || {}).map(([k, v]) => `${k}: ${v}`).join('; ')
+    const styleSrc = pseudoState
+      ? Object.entries(pseudoStyles).map(([k, v]) => `${k}: ${v}`).join('; ')
       : (selectedElement?.styles?.['inline-style'] || '');
     setCustomCssDraft(styleSrc);
-    const transformSrc = hoverEditMode
-      ? (selectedElement?.hoverStyles?.transform || '')
+    const transformSrc = pseudoState
+      ? (pseudoStyles.transform || '')
       : (selectedElement?.styles?.transform || '');
     const parsed = parseTransform(transformSrc);
     setRotateDeg(parsed.rotate);
     setScaleX(parsed.scaleX);
     setScaleY(parsed.scaleY);
-  }, [selectedSelector, selectedElement?.innerHTML, selectedElement?.styles, selectedElement?.hoverStyles, hoverEditMode]);
+  }, [selectedSelector, selectedElement?.innerHTML, selectedElement?.styles, pseudoState]);
 
   const applyTransform = useCallback((next: { rotate?: number; scaleX?: number; scaleY?: number }) => {
     const r = next.rotate ?? rotateDeg;
@@ -665,7 +843,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         </div>
       )}
 
-      {/* ── Property search + hover toggle ── */}
+      {/* ── Property search + pseudo-state selector ── */}
       <div style={{
         flexShrink: 0, padding: '6px 8px', background: C.surface,
         borderBottom: `1px solid ${C.border}`, display: 'flex', gap: 4, alignItems: 'center',
@@ -673,10 +851,11 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
         <input
           value={searchQ}
           onChange={e => setSearchQ(e.target.value)}
-          placeholder="Search properties… (e.g. color, gap, shadow)"
+          placeholder="Search properties…"
           style={{
             flex: 1, background: C.surface2, border: `1px solid ${C.border}`,
             borderRadius: 4, padding: '4px 9px', fontSize: 11, color: C.text, outline: 'none',
+            minWidth: 0,
           }}
           onFocus={e => (e.target.style.borderColor = C.accentBrd)}
           onBlur={e => (e.target.style.borderColor = C.border)}
@@ -691,33 +870,20 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean }> 
             }}
           >×</button>
         )}
-        <button
-          onClick={() => setHoverEditMode(!hoverEditMode)}
-          title={hoverEditMode
-            ? 'Hover edit ON — every change applies to :hover state. Click to switch back.'
-            : 'Toggle Hover edit mode — changes will apply to :hover state'}
-          style={{
-            background: hoverEditMode ? C.accentBg : C.surface2,
-            border: `1px solid ${hoverEditMode ? C.accent : C.border}`,
-            color: hoverEditMode ? C.accent : C.muted,
-            cursor: 'pointer', padding: '3px 9px', fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.05em', borderRadius: 4, flexShrink: 0,
-            transition: 'all 0.15s',
-          }}
-        >
-          {hoverEditMode ? '● HOVER' : 'HOVER'}
-        </button>
+        <PseudoStateSelector value={pseudoState} onChange={setPseudoState} />
       </div>
 
-      {/* ── Hover mode banner ── */}
-      {hoverEditMode && (
+      {/* ── Pseudo-state mode banner ── */}
+      {pseudoState && (
         <div style={{
-          flexShrink: 0, padding: '5px 10px', background: C.accentBg,
-          borderBottom: `1px solid ${C.accentBrd}`, fontSize: 10, color: C.accent,
-          display: 'flex', alignItems: 'center', gap: 6,
+          flexShrink: 0, padding: '4px 10px',
+          background: pseudoState.startsWith('@media') ? 'rgba(156,220,254,0.08)' : C.accentBg,
+          borderBottom: `1px solid ${pseudoState.startsWith('@media') ? 'rgba(156,220,254,0.25)' : C.accentBrd}`,
+          fontSize: 10, display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          <span style={{ fontWeight: 700 }}>:hover</span>
-          <span style={{ color: C.muted }}>changes apply to hover state · element previewed live</span>
+          <code style={{ fontWeight: 700, fontSize: 10, color: pseudoState.startsWith('@media') ? '#9cdcfe' : C.accent }}>{pseudoState}</code>
+          <span style={{ color: C.muted, fontSize: 9 }}>{pseudoState.startsWith('@media') ? 'responsive breakpoint' : 'pseudo-state editing'}</span>
+          <button onClick={() => setPseudoState('')} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: C.dim, cursor: 'pointer', padding: '0 2px', fontSize: 14, lineHeight: 1 }}>×</button>
         </div>
       )}
 
