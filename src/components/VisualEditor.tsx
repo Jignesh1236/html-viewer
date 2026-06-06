@@ -154,6 +154,10 @@ function isEditableEventTarget(target: EventTarget | null): boolean {
   return el.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
 }
 
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function getRotateDeg(el: HTMLElement, win: Window | null | undefined): number {
   const tx = win?.getComputedStyle(el).transform || 'none';
   if (tx === 'none') return 0;
@@ -180,7 +184,9 @@ const HANDLE_CURSORS: Record<Handle, string> = {
 };
 
 const ACCENT = '#e5a45a';
-const HW = 8; // handle width/height px
+const HW = 10; // handle width/height px
+const MOVE_HANDLE_SIZE = 28;
+const MOVE_HANDLE_GAP = 8;
 const ROT_OFF = 22; // rotation handle offset above element
 
 interface SelectionOverlayProps {
@@ -210,12 +216,16 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
   const rotateDeg = getRotateDeg(selEl, ifrWin);
 
   /* ---------- pointer-down handler ---------- */
-  const startInteraction = (e: React.MouseEvent, type: 'move' | Handle | 'rotate') => {
+  const startInteraction = (e: React.PointerEvent<HTMLElement>, type: 'move' | Handle | 'rotate') => {
     e.preventDefault();
     e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
 
     const sx = e.clientX;
     const sy = e.clientY;
+    const dragTarget = e.currentTarget;
+    const pointerId = e.pointerId;
+    const previousIframePointerEvents = iframe.style.pointerEvents;
 
     /* Snapshot element state */
     const cs = ifrWin?.getComputedStyle(selEl);
@@ -234,13 +244,29 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     const cur = type === 'move' ? 'move' : type === 'rotate' ? 'crosshair' : HANDLE_CURSORS[type as Handle];
     document.body.style.cursor = cur;
     document.body.style.userSelect = 'none';
+    iframe.style.pointerEvents = 'none';
 
-    const onMove = (ev: MouseEvent) => {
+    let prepared = false;
+    let moved = false;
+
+    const prepareElementForLayoutDrag = () => {
+      if (prepared) return;
+      prepared = true;
+      if (type !== 'rotate' && cs?.display === 'inline' && !selEl.style.display) {
+        selEl.style.display = 'inline-block';
+      }
+      if ((type === 'move' || type.includes('w') || type.includes('n')) && (!selEl.style.position || selEl.style.position === 'static')) {
+        selEl.style.position = 'relative';
+      }
+    };
+
+    const onMove = (ev: PointerEvent) => {
       const dx = ev.clientX - sx;
       const dy = ev.clientY - sy;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) moved = true;
 
       if (type === 'move') {
-        if (!selEl.style.position || selEl.style.position === 'static') selEl.style.position = 'relative';
+        prepareElementForLayoutDrag();
         selEl.style.left = (initLeft + dx) + 'px';
         selEl.style.top  = (initTop  + dy) + 'px';
 
@@ -252,6 +278,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
         selEl.style.transform = (base ? base + ' ' : '') + `rotate(${newRot.toFixed(1)}deg)`;
 
       } else {
+        prepareElementForLayoutDrag();
         /* Resize — compute new dims & position */
         let newW = initWidth, newH = initHeight, newL = initLeft, newT = initTop;
 
@@ -265,7 +292,6 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
 
         /* Only update position if a west/north handle was dragged */
         if (type.includes('w') || type.includes('n')) {
-          if (!selEl.style.position || selEl.style.position === 'static') selEl.style.position = 'relative';
           if (type.includes('w')) selEl.style.left = newL + 'px';
           if (type.includes('n')) selEl.style.top  = newT + 'px';
         }
@@ -275,16 +301,20 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     };
 
     const onUp = () => {
-      document.body.style.cursor      = '';
-      document.body.style.userSelect  = '';
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup',   onUp);
-      onCommit();
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      iframe.style.pointerEvents = previousIframePointerEvents;
+      try { dragTarget.releasePointerCapture(pointerId); } catch {}
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      if (moved || prepared) onCommit();
       setDragTick(t => t + 1);
     };
 
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
   };
 
   /* Re-read rects after every drag tick or parent refresh */
@@ -301,27 +331,69 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     sw: { left: vr.left - HW / 2,              top: vr.top + vr.height - HW / 2 },
     w:  { left: vr.left - HW / 2,              top: vr.top + vr.height / 2 - HW / 2 },
   };
+  const moveHandleTop = vr.top > MOVE_HANDLE_SIZE + MOVE_HANDLE_GAP + 4
+    ? vr.top - MOVE_HANDLE_SIZE - MOVE_HANDLE_GAP
+    : vr.top + 6;
+  const moveHandleLeft = clampNumber(
+    vr.left + vr.width / 2 - MOVE_HANDLE_SIZE / 2,
+    4,
+    window.innerWidth - MOVE_HANDLE_SIZE - 4,
+  );
 
   return createPortal(
     <>
       {/* Selection border / drag-to-move zone */}
       <div
-        onMouseDown={e => startInteraction(e, 'move')}
+        onPointerDown={e => startInteraction(e, 'move')}
         style={{
           position: 'fixed', left: vr.left, top: vr.top,
           width: vr.width, height: vr.height,
           outline: `1.5px solid ${ACCENT}`,
           boxSizing: 'border-box',
           cursor: 'move', zIndex: 9000, pointerEvents: 'auto',
-          background: 'transparent',
+          background: 'rgba(229,164,90,0.02)',
+          touchAction: 'none',
         }}
       />
+
+      <div
+        onPointerDown={e => startInteraction(e, 'move')}
+        title="Drag to move selected element"
+        style={{
+          position: 'fixed',
+          left: moveHandleLeft,
+          top: moveHandleTop,
+          width: MOVE_HANDLE_SIZE,
+          height: MOVE_HANDLE_SIZE,
+          zIndex: 9002,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 4px)',
+          gridTemplateRows: 'repeat(2, 4px)',
+          gap: 3,
+          alignContent: 'center',
+          justifyContent: 'center',
+          borderRadius: 5,
+          border: `1px solid ${ACCENT}`,
+          background: 'rgba(17,17,20,0.96)',
+          boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+          cursor: 'grab',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+        }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <span
+            key={i}
+            style={{ width: 4, height: 4, borderRadius: 4, background: ACCENT, opacity: 0.9 }}
+          />
+        ))}
+      </div>
 
       {/* 8 resize handles */}
       {HANDLES.map(h => (
         <div
           key={h}
-          onMouseDown={e => startInteraction(e, h)}
+          onPointerDown={e => startInteraction(e, h)}
           style={{
             position: 'fixed',
             left: hp[h].left, top: hp[h].top,
@@ -331,6 +403,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
             borderRadius: 2,
             cursor: HANDLE_CURSORS[h],
             zIndex: 9001, pointerEvents: 'auto',
+            touchAction: 'none',
           }}
         />
       ))}
@@ -347,7 +420,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
 
       {/* Rotation handle */}
       <div
-        onMouseDown={e => startInteraction(e, 'rotate')}
+        onPointerDown={e => startInteraction(e, 'rotate')}
         title="Rotate"
         style={{
           position: 'fixed',
@@ -359,6 +432,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
           border: `2px solid ${ACCENT}`,
           cursor: 'crosshair',
           zIndex: 9001, pointerEvents: 'auto',
+          touchAction: 'none',
         }}
       />
 
