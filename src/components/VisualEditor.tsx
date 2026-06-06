@@ -6,6 +6,7 @@ import { buildProjectHtml, getTargetHtmlFile, getTargetJsFile, insertBeforeClosi
 
 /* ─────────────── constants ─────────────── */
 const SKIP_TAGS = new Set(['html','head','body','script','style','meta','link','title','base','noscript']);
+const MAX_VISUAL_HISTORY = 120;
 
 const STYLE_PROPS = [
   'color','font-size','font-weight','font-family','font-style',
@@ -146,6 +147,17 @@ function collectHoverStyles(el: HTMLElement): Record<string, string> {
   return parseHoverRules(sEl?.textContent || '')[elementSelector(el)] || {};
 }
 
+function isEditableEventTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  return el.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 function getRotateDeg(el: HTMLElement, win: Window | null | undefined): number {
   const tx = win?.getComputedStyle(el).transform || 'none';
   if (tx === 'none') return 0;
@@ -158,6 +170,12 @@ function getRotateDeg(el: HTMLElement, win: Window | null | undefined): number {
 /* ─────────────── SelectionOverlay ─────────────── */
 const HANDLES = ['nw','n','ne','e','se','s','sw','w'] as const;
 type Handle = typeof HANDLES[number];
+type VisualHistoryEntry = {
+  fileId: string;
+  before: string;
+  after: string;
+  selector: string | null;
+};
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   nw: 'nw-resize', n: 'n-resize',  ne: 'ne-resize',
@@ -166,7 +184,9 @@ const HANDLE_CURSORS: Record<Handle, string> = {
 };
 
 const ACCENT = '#e5a45a';
-const HW = 8; // handle width/height px
+const HW = 10; // handle width/height px
+const MOVE_HANDLE_SIZE = 28;
+const MOVE_HANDLE_GAP = 8;
 const ROT_OFF = 22; // rotation handle offset above element
 
 interface SelectionOverlayProps {
@@ -196,12 +216,16 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
   const rotateDeg = getRotateDeg(selEl, ifrWin);
 
   /* ---------- pointer-down handler ---------- */
-  const startInteraction = (e: React.MouseEvent, type: 'move' | Handle | 'rotate') => {
+  const startInteraction = (e: React.PointerEvent<HTMLElement>, type: 'move' | Handle | 'rotate') => {
     e.preventDefault();
     e.stopPropagation();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
 
     const sx = e.clientX;
     const sy = e.clientY;
+    const dragTarget = e.currentTarget;
+    const pointerId = e.pointerId;
+    const previousIframePointerEvents = iframe.style.pointerEvents;
 
     /* Snapshot element state */
     const cs = ifrWin?.getComputedStyle(selEl);
@@ -220,13 +244,29 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     const cur = type === 'move' ? 'move' : type === 'rotate' ? 'crosshair' : HANDLE_CURSORS[type as Handle];
     document.body.style.cursor = cur;
     document.body.style.userSelect = 'none';
+    iframe.style.pointerEvents = 'none';
 
-    const onMove = (ev: MouseEvent) => {
+    let prepared = false;
+    let moved = false;
+
+    const prepareElementForLayoutDrag = () => {
+      if (prepared) return;
+      prepared = true;
+      if (type !== 'rotate' && cs?.display === 'inline' && !selEl.style.display) {
+        selEl.style.display = 'inline-block';
+      }
+      if ((type === 'move' || type.includes('w') || type.includes('n')) && (!selEl.style.position || selEl.style.position === 'static')) {
+        selEl.style.position = 'relative';
+      }
+    };
+
+    const onMove = (ev: PointerEvent) => {
       const dx = ev.clientX - sx;
       const dy = ev.clientY - sy;
+      if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) moved = true;
 
       if (type === 'move') {
-        if (!selEl.style.position || selEl.style.position === 'static') selEl.style.position = 'relative';
+        prepareElementForLayoutDrag();
         selEl.style.left = (initLeft + dx) + 'px';
         selEl.style.top  = (initTop  + dy) + 'px';
 
@@ -238,6 +278,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
         selEl.style.transform = (base ? base + ' ' : '') + `rotate(${newRot.toFixed(1)}deg)`;
 
       } else {
+        prepareElementForLayoutDrag();
         /* Resize — compute new dims & position */
         let newW = initWidth, newH = initHeight, newL = initLeft, newT = initTop;
 
@@ -251,7 +292,6 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
 
         /* Only update position if a west/north handle was dragged */
         if (type.includes('w') || type.includes('n')) {
-          if (!selEl.style.position || selEl.style.position === 'static') selEl.style.position = 'relative';
           if (type.includes('w')) selEl.style.left = newL + 'px';
           if (type.includes('n')) selEl.style.top  = newT + 'px';
         }
@@ -261,16 +301,20 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     };
 
     const onUp = () => {
-      document.body.style.cursor      = '';
-      document.body.style.userSelect  = '';
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup',   onUp);
-      onCommit();
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      iframe.style.pointerEvents = previousIframePointerEvents;
+      try { dragTarget.releasePointerCapture(pointerId); } catch {}
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      if (moved || prepared) onCommit();
       setDragTick(t => t + 1);
     };
 
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
   };
 
   /* Re-read rects after every drag tick or parent refresh */
@@ -287,27 +331,69 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     sw: { left: vr.left - HW / 2,              top: vr.top + vr.height - HW / 2 },
     w:  { left: vr.left - HW / 2,              top: vr.top + vr.height / 2 - HW / 2 },
   };
+  const moveHandleTop = vr.top > MOVE_HANDLE_SIZE + MOVE_HANDLE_GAP + 4
+    ? vr.top - MOVE_HANDLE_SIZE - MOVE_HANDLE_GAP
+    : vr.top + 6;
+  const moveHandleLeft = clampNumber(
+    vr.left + vr.width / 2 - MOVE_HANDLE_SIZE / 2,
+    4,
+    window.innerWidth - MOVE_HANDLE_SIZE - 4,
+  );
 
   return createPortal(
     <>
       {/* Selection border / drag-to-move zone */}
       <div
-        onMouseDown={e => startInteraction(e, 'move')}
+        onPointerDown={e => startInteraction(e, 'move')}
         style={{
           position: 'fixed', left: vr.left, top: vr.top,
           width: vr.width, height: vr.height,
           outline: `1.5px solid ${ACCENT}`,
           boxSizing: 'border-box',
           cursor: 'move', zIndex: 9000, pointerEvents: 'auto',
-          background: 'transparent',
+          background: 'rgba(229,164,90,0.02)',
+          touchAction: 'none',
         }}
       />
+
+      <div
+        onPointerDown={e => startInteraction(e, 'move')}
+        title="Drag to move selected element"
+        style={{
+          position: 'fixed',
+          left: moveHandleLeft,
+          top: moveHandleTop,
+          width: MOVE_HANDLE_SIZE,
+          height: MOVE_HANDLE_SIZE,
+          zIndex: 9002,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 4px)',
+          gridTemplateRows: 'repeat(2, 4px)',
+          gap: 3,
+          alignContent: 'center',
+          justifyContent: 'center',
+          borderRadius: 5,
+          border: `1px solid ${ACCENT}`,
+          background: 'rgba(17,17,20,0.96)',
+          boxShadow: '0 6px 18px rgba(0,0,0,0.45)',
+          cursor: 'grab',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+        }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <span
+            key={i}
+            style={{ width: 4, height: 4, borderRadius: 4, background: ACCENT, opacity: 0.9 }}
+          />
+        ))}
+      </div>
 
       {/* 8 resize handles */}
       {HANDLES.map(h => (
         <div
           key={h}
-          onMouseDown={e => startInteraction(e, h)}
+          onPointerDown={e => startInteraction(e, h)}
           style={{
             position: 'fixed',
             left: hp[h].left, top: hp[h].top,
@@ -317,6 +403,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
             borderRadius: 2,
             cursor: HANDLE_CURSORS[h],
             zIndex: 9001, pointerEvents: 'auto',
+            touchAction: 'none',
           }}
         />
       ))}
@@ -333,7 +420,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
 
       {/* Rotation handle */}
       <div
-        onMouseDown={e => startInteraction(e, 'rotate')}
+        onPointerDown={e => startInteraction(e, 'rotate')}
         title="Rotate"
         style={{
           position: 'fixed',
@@ -345,6 +432,7 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
           border: `2px solid ${ACCENT}`,
           cursor: 'crosshair',
           zIndex: 9001, pointerEvents: 'auto',
+          touchAction: 'none',
         }}
       />
 
@@ -495,7 +583,7 @@ const TB: React.CSSProperties = {
 /* ═══════════════════════════════════════════════════════════════ */
 const VisualEditor: React.FC = () => {
   const {
-    files, activeFileId, updateFileContent,
+    files, activeFileId,
     setSelectedElement, timelineAnimationStyle,
     setSelectedSelector, setVisualBridge, selectedSelector,
   } = useEditorStore();
@@ -511,6 +599,8 @@ const VisualEditor: React.FC = () => {
   const eventsCleanupRef    = useRef<null | (() => void)>(null);
   const rebuildTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRebuildRef      = useRef(0);
+  const undoStackRef        = useRef<VisualHistoryEntry[]>([]);
+  const redoStackRef        = useRef<VisualHistoryEntry[]>([]);
 
   const [srcDoc, setSrcDoc]       = useState('');
   const [selEl,  setSelEl]        = useState<HTMLElement | null>(null);
@@ -573,8 +663,15 @@ const VisualEditor: React.FC = () => {
     return all.length === 1 ? all[0] as HTMLElement : null;
   };
 
+  const pushVisualHistory = useCallback((entry: VisualHistoryEntry) => {
+    if (entry.before === entry.after) return;
+    undoStackRef.current = [...undoStackRef.current, entry].slice(-MAX_VISUAL_HISTORY);
+    redoStackRef.current = [];
+  }, []);
+
   const updateSource = useCallback((el: HTMLElement, fn: (t: HTMLElement) => void) => {
-    const htmlFile = getTargetHtmlFile(files, activeFileId);
+    const state = useEditorStore.getState();
+    const htmlFile = getTargetHtmlFile(state.files, state.activeFileId);
     if (!htmlFile) return;
     const sel    = elementSelector(el);
     const parsed = new DOMParser().parseFromString(htmlFile.content, 'text/html');
@@ -582,8 +679,55 @@ const VisualEditor: React.FC = () => {
     if (!t) return;
     fn(t);
     const updated = serializeDoc(parsed);
-    if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, activeFileId, updateFileContent]);
+    if (updated !== htmlFile.content) {
+      pushVisualHistory({ fileId: htmlFile.id, before: htmlFile.content, after: updated, selector: selectedSelectorRef.current || sel });
+      state.updateFileContent(htmlFile.id, updated);
+    }
+  }, [pushVisualHistory]);
+
+  const runVisualHistory = useCallback((direction: 'undo' | 'redo') => {
+    const source = direction === 'undo' ? undoStackRef.current : redoStackRef.current;
+    const entry = source[source.length - 1];
+    if (!entry) return false;
+
+    const state = useEditorStore.getState();
+    const file = state.files.find(f => f.id === entry.fileId);
+    if (!file) return false;
+
+    if (direction === 'undo') {
+      undoStackRef.current = undoStackRef.current.slice(0, -1);
+      redoStackRef.current = [...redoStackRef.current, entry].slice(-MAX_VISUAL_HISTORY);
+    } else {
+      redoStackRef.current = redoStackRef.current.slice(0, -1);
+      undoStackRef.current = [...undoStackRef.current, entry].slice(-MAX_VISUAL_HISTORY);
+    }
+
+    const nextContent = direction === 'undo' ? entry.before : entry.after;
+    selectedSelectorRef.current = entry.selector;
+    pendingSelectorRef.current = entry.selector;
+    setSelectedSelector(entry.selector);
+    setSelEl(null);
+    setHovEl(null);
+    setSelectedElement(null);
+    state.updateFileContent(entry.fileId, nextContent);
+    setTick(t => t + 1);
+    return true;
+  }, [setSelectedElement, setSelectedSelector]);
+
+  const handleVisualUndoRedoKey = useCallback((e: KeyboardEvent) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || isEditableEventTarget(e.target)) return false;
+
+    const key = e.key.toLowerCase();
+    const undo = key === 'z' && !e.shiftKey;
+    const redo = key === 'y' || (key === 'z' && e.shiftKey);
+    if (!undo && !redo) return false;
+
+    e.preventDefault();
+    e.stopPropagation();
+    runVisualHistory(undo ? 'undo' : 'redo');
+    return true;
+  }, [runVisualHistory]);
 
   const syncToSource = useCallback((el: HTMLElement) => {
     const style    = el.getAttribute('style') || '';
@@ -855,6 +999,7 @@ const VisualEditor: React.FC = () => {
     doc.addEventListener('click',        onClick,       true);
     doc.addEventListener('dblclick',     onDblClick,    true);
     doc.addEventListener('contextmenu',  onContextMenu, true);
+    doc.addEventListener('keydown',      handleVisualUndoRedoKey, true);
     doc.addEventListener('scroll',       onScroll,      true);
     win.addEventListener('resize',       onScroll);
 
@@ -863,14 +1008,16 @@ const VisualEditor: React.FC = () => {
       doc.removeEventListener('click',       onClick,       true);
       doc.removeEventListener('dblclick',    onDblClick,    true);
       doc.removeEventListener('contextmenu', onContextMenu, true);
+      doc.removeEventListener('keydown',     handleVisualUndoRedoKey, true);
       doc.removeEventListener('scroll',      onScroll,      true);
       win.removeEventListener('resize',      onScroll);
     };
-  }, [interaction, selectElement, syncToSource, refreshSnapshot, updateSource, injectAnimStyle, showCtx]);
+  }, [interaction, selectElement, syncToSource, refreshSnapshot, updateSource, injectAnimStyle, showCtx, handleVisualUndoRedoKey]);
 
   /* ── Escape ── */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (handleVisualUndoRedoKey(e)) return;
       if (e.key === 'Escape' && !isEditingText) {
         selectedSelectorRef.current = null;
         setSelEl(null); setHovEl(null);
@@ -878,9 +1025,9 @@ const VisualEditor: React.FC = () => {
         setShowQuickBar(false);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isEditingText, setSelectedElement, setSelectedSelector]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [isEditingText, setSelectedElement, setSelectedSelector, handleVisualUndoRedoKey]);
 
   /* ── Hover overlay ── */
   const HR = ifrRect && hovRect && hovEl && hovEl !== selEl ? {
