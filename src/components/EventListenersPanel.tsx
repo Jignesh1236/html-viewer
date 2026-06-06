@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import type { EventBinding } from '../store/editorStore';
 import { FiPlus, FiTrash2, FiZap, FiChevronDown, FiChevronRight, FiCheck, FiInfo, FiX } from 'react-icons/fi';
+import { getTargetHtmlFile } from '../utils/projectFiles';
 
 const C = {
   bg: '#161618', surface: '#1e1e20', surface2: '#252528',
@@ -411,14 +412,14 @@ function EventObjectRef() {
 const EventListenersPanel: React.FC = () => {
   const {
     eventBindings, addEventBinding, removeEventBinding, updateEventBinding,
-    files, updateFileContent, showNotification, selectedSelector,
+    files, activeFileId, updateFileContent, showNotification, selectedSelector,
   } = useEditorStore();
 
   const [injected, setInjected] = useState(false);
   const [activeTab, setActiveTab] = useState<'bindings' | 'ref'>('bindings');
 
   const handleInject = useCallback(() => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) { showNotification('No HTML file found'); return; }
     const script = buildRuntimeScript(eventBindings);
     const updated = injectIntoHtml(htmlFile.content, script);
@@ -426,7 +427,7 @@ const EventListenersPanel: React.FC = () => {
     setInjected(true);
     showNotification(eventBindings.filter(b => b.enabled).length + ' event listener(s) injected');
     setTimeout(() => setInjected(false), 2000);
-  }, [eventBindings, files, updateFileContent, showNotification]);
+  }, [activeFileId, eventBindings, files, updateFileContent, showNotification]);
 
   const handleAdd = () => addEventBinding(emptyBinding());
 

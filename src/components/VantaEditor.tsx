@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { FiZap, FiCheck, FiCode, FiRefreshCw, FiCopy, FiChevronDown, FiExternalLink } from 'react-icons/fi';
+import { getTargetHtmlFile, getTargetJsFile, insertBeforeClosingTag } from '../utils/projectFiles';
 
 /* ─── CDNs ─── */
 const THREE_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js';
@@ -273,10 +274,10 @@ const TEXT = '#ccc';
 
 /* ─── Main Component ─── */
 const VantaEditor: React.FC = () => {
-  const { files, updateFileContent, showNotification, selectedSelector } = useEditorStore();
+  const { files, activeFileId, updateFileContent, showNotification, selectedSelector } = useEditorStore();
 
-  const htmlFile = files.find(f => f.type === 'html');
-  const jsFile   = files.find(f => f.type === 'js');
+  const htmlFile = getTargetHtmlFile(files, activeFileId);
+  const jsFile   = getTargetJsFile(files, activeFileId);
   const selectors = useMemo(() => htmlFile ? parseSelectors(htmlFile.content) : ['body'], [htmlFile?.content]);
 
   const [effectId, setEffectId]       = useState('NET');
@@ -323,7 +324,7 @@ const VantaEditor: React.FC = () => {
       const scriptBlock = `${libScript}\n<script src="${VANTA_BASE}/vanta.${effectId.toLowerCase()}.min.js"></script>\n<script>\n${buildInitScript(code)}\n</script>`;
       let html = htmlFile.content;
       html = html.replace(/\n?<!-- vanta-preview-start -->[\s\S]*?<!-- vanta-preview-end -->/g, '');
-      html = html.replace('</body>', `\n<!-- vanta-preview-start -->\n${scriptBlock}\n<!-- vanta-preview-end -->\n</body>`);
+      html = insertBeforeClosingTag(html, 'body', `\n<!-- vanta-preview-start -->\n${scriptBlock}\n<!-- vanta-preview-end -->`);
       updateFileContent(htmlFile.id, html);
     }, 800);
   }, [htmlFile, effectId, selector, props, def, updateFileContent]);
@@ -343,10 +344,10 @@ const VantaEditor: React.FC = () => {
     const libScript = def.lib === 'p5' ? P5_CDN : THREE_CDN;
     const effectCdn = `${VANTA_BASE}/vanta.${effectId.toLowerCase()}.min.js`;
     if (!html.includes(libScript.split('/').pop()!)) {
-      html = html.replace('</head>', `  <script src="${libScript}"></script>\n</head>`);
+      html = insertBeforeClosingTag(html, 'head', `  <script src="${libScript}"></script>`);
     }
     if (!html.includes(`vanta.${effectId.toLowerCase()}`)) {
-      html = html.replace('</head>', `  <script src="${effectCdn}"></script>\n</head>`);
+      html = insertBeforeClosingTag(html, 'head', `  <script src="${effectCdn}"></script>`);
     }
     updateFileContent(htmlFile.id, html);
     const code = generateInitCode(effectId, selector, props, def);
@@ -358,7 +359,7 @@ const VantaEditor: React.FC = () => {
       const wrapped = `\n\n/* ── Vanta.js ${effectId} on "${selector}" ── */\n${buildInitScript(code)}`;
       updateFileContent(jsFile.id, cut !== -1 ? existing.slice(0, cut) + wrapped : existing + wrapped);
     } else {
-      const withScript = html.replace('</body>', `\n<script>\n${buildInitScript(code)}\n</script>\n</body>`);
+      const withScript = insertBeforeClosingTag(html, 'body', `\n<script>\n${buildInitScript(code)}\n</script>`);
       updateFileContent(htmlFile.id, withScript);
     }
     setAppliedMsg(true);

@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { dataUrlToBase64 } from '../utils/projectFiles';
+import { getCookie, setCookie } from '../utils/cookies';
 
 export interface FileItem {
   id: string;
@@ -201,292 +203,14 @@ interface EditorStore {
   setLiveServer: (v: boolean) => void;
 }
 
-const DEFAULT_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Page</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="header">
-    <h1>Welcome to HTML Editor</h1>
-    <nav>
-      <a href="#">Home</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
-  </header>
-
-  <main class="main">
-    <section class="hero">
-      <h2>Build Amazing Websites</h2>
-      <p>Switch to <strong>Visual mode</strong> to design your page like Photoshop — click any element to select, drag to move, use handles to resize and rotate.</p>
-      <button class="btn" onclick="alert('Hello from your page!')">Get Started</button>
-    </section>
-
-    <section class="features">
-      <div class="card">
-        <h3>Code Editor</h3>
-        <p>Full Monaco editor with syntax highlighting, autocomplete, and formatting for HTML, CSS, and JS.</p>
-      </div>
-      <div class="card">
-        <h3>Visual Editor</h3>
-        <p>Click any element to select it, drag to reposition, and use the properties panel to style it.</p>
-      </div>
-      <div class="card">
-        <h3>Live Preview</h3>
-        <p>See your changes instantly. Export as ZIP or copy to clipboard when you're done.</p>
-      </div>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <p>&copy; 2024 My Website. Built with HTML Editor.</p>
-  </footer>
-
-  <script src="script.js"></script>
-</body>
-</html>`;
-
-const DEFAULT_CSS = `* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #333;
-  line-height: 1.6;
-}
-
-/* Header */
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 40px;
-  background: #1a1a2e;
-  color: white;
-}
-.header h1 { font-size: 1.4rem; font-weight: 700; }
-nav a {
-  color: rgba(255,255,255,0.75);
-  text-decoration: none;
-  margin-left: 24px;
-  font-size: 0.9rem;
-  transition: color 0.2s;
-}
-nav a:hover { color: #f0a500; }
-
-/* Hero */
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 80px 40px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  color: white;
-  min-height: 50vh;
-  justify-content: center;
-}
-.hero h2 {
-  font-size: 3rem;
-  font-weight: 800;
-  margin-bottom: 16px;
-  background: linear-gradient(90deg, #f0a500, #e94560);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.hero p {
-  font-size: 1.1rem;
-  color: rgba(255,255,255,0.75);
-  max-width: 560px;
-  margin-bottom: 36px;
-}
-.btn {
-  padding: 14px 36px;
-  background: #f0a500;
-  color: #1a1a2e;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(240,165,0,0.4);
-}
-
-/* Features */
-.features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
-  padding: 60px 40px;
-  background: #f8f9fa;
-}
-.card {
-  background: white;
-  border-radius: 12px;
-  padding: 28px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-}
-.card h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: #1a1a2e;
-}
-.card p { color: #666; font-size: 0.9rem; }
-
-/* Footer */
-.footer {
-  text-align: center;
-  padding: 24px;
-  background: #1a1a2e;
-  color: rgba(255,255,255,0.5);
-  font-size: 0.85rem;
-}
-`;
-
-const DEFAULT_JS = `// JavaScript is live — edits here run instantly in preview
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Page ready!');
-
-  // Animate cards on scroll
-  const cards = document.querySelectorAll('.card');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => {
-          entry.target.style.opacity = '1';
-          entry.target.style.transform = 'translateY(0)';
-        }, i * 100);
-      }
-    });
-  }, { threshold: 0.1 });
-
-  cards.forEach(card => {
-    card.style.opacity = '0';
-    card.style.transform = 'translateY(20px)';
-    card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-    observer.observe(card);
-  });
-});
-`;
+const DEFAULT_HTML = ``;
+const DEFAULT_CSS = ``;
+const DEFAULT_JS = ``;
 
 /* ─────────────────────────────────────────────────────────────
    Default boilerplate templates for different languages
    ───────────────────────────────────────────────────────────── */
-export const LANGUAGE_BOILERPLATES: Record<string, string> = {
-  // HTML
-  'html': `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  
-  <script src="script.js"></script>
-</body>
-</html>`,
-
-  // CSS
-  'css': `* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
-}`,
-
-  // SCSS
-  'scss': `* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
-}`,
-
-  // JavaScript
-  'javascript': `// JavaScript
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Page ready!');
-});`,
-
-  // TypeScript
-  'typescript': `// TypeScript
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('Page ready!');
-});`,
-
-  // Python
-  'python': `#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
-def main():
-    print("Hello, World!")
-
-if __name__ == "__main__":
-    main()`,
-
-  // JSON
-  'json': `{
-  "key": "value"
-}`,
-
-  // Markdown
-  'markdown': `# Title
-
-## Subtitle
-
-- Item 1
-- Item 2
-
-[Link](https://example.com)`,
-
-  // Shell/Bash
-  'shell': `#!/bin/bash
-
-echo "Hello, World!"`,
-
-  // SQL
-  'sql': `-- SQL Query
-SELECT * FROM table_name;`,
-
-  // XML
-  'xml': `<?xml version="1.0" encoding="UTF-8"?>
-<root>
-  
-</root>`,
-
-  // YAML
-  'yaml': `# YAML Configuration
-key: value
-nested:
-  item: value`,
-
-  // Plain text
-  'plaintext': ``,
-};
+export const LANGUAGE_BOILERPLATES: Record<string, string> = {};
 
 export function getDefaultContentForLanguage(language: string): string {
   return LANGUAGE_BOILERPLATES[language] || '';
@@ -515,12 +239,9 @@ const FILES_STORAGE_KEY    = 'html-editor-files-v1';
 const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
 const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
 const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
-const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [
-  { id: '1', element: '.hero', animation: 'fadeIn', duration: 1.2, delay: 0, color: '#e5a45a', easing: 'ease', iteration: '1' },
-  { id: '2', element: 'h2', animation: 'slideUp', duration: 0.8, delay: 0.3, color: '#4ec9b0', easing: 'ease', iteration: '1' },
-  { id: '3', element: '.btn', animation: 'zoom', duration: 0.5, delay: 0.8, color: '#9cdcfe', easing: 'ease', iteration: '1' },
-  { id: '4', element: '.card', animation: 'fadeIn', duration: 0.6, delay: 1.0, color: '#dcdcaa', easing: 'ease', iteration: '1' },
-];
+const EVENT_BINDINGS_STORAGE_KEY = 'html-editor-event-bindings-v1';
+const USER_CONFIG_COOKIE_KEY = 'html-editor-user-config-v1';
+const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [];
 
 const DEFAULT_TIMELINE_STATE: TimelineState = {
   tracks: DEFAULT_TIMELINE_TRACKS,
@@ -530,6 +251,36 @@ const DEFAULT_TIMELINE_STATE: TimelineState = {
   customAnimations: [],
 };
 
+const DEFAULT_ANIMATION_CONFIG: AnimationConfig = {
+  preset: 'none',
+  trigger: 'load',
+  duration: '0.6s',
+  easing: 'ease',
+  delay: '0s',
+  iteration: '1',
+  direction: 'normal',
+  fillMode: 'forwards',
+  customKeyframes: '',
+};
+
+const DEFAULT_PANEL_CONFIG: PanelConfig = {
+  filePanel: true,
+  propertiesPanel: true,
+  timelinePanel: true,
+  devtools: false,
+  filesPanelWidth: 220,
+  propertiesPanelWidth: 268,
+  timelineHeight: 180,
+  devtoolsHeight: 220,
+};
+
+interface UserConfigCookie {
+  mode?: Mode;
+  animationConfig?: Partial<AnimationConfig>;
+  panels?: Partial<PanelConfig>;
+  liveServer?: boolean;
+}
+
 /* ─── Files persistence ─── */
 const DEFAULT_FILES: FileItem[] = [
   { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
@@ -537,8 +288,29 @@ const DEFAULT_FILES: FileItem[] = [
   { id: 'script.js',  name: 'script.js',  type: 'js',  content: DEFAULT_JS  },
 ];
 
+function isKnownStarterProject(files: FileItem[]): boolean {
+  if (files.length !== 3) return false;
+  const html = files.find(f => f.id === 'index.html' && f.type === 'html');
+  const css = files.find(f => f.id === 'styles.css' && f.type === 'css');
+  const js = files.find(f => f.id === 'script.js' && f.type === 'js');
+  if (!html || !css || !js) return false;
+  if (![html, css, js].every(f => !f.folder)) return false;
+
+  const htmlMarkers = [
+    'Build a sharper presence for your brand.',
+    'Welcome to HTML Editor',
+    'Build Amazing Websites',
+  ];
+  const jsMarkers = ['Brand starter ready', 'Page ready!'];
+  return htmlMarkers.some(marker => html.content.includes(marker)) ||
+    jsMarkers.some(marker => js.content.includes(marker));
+}
+
 function serializeFiles(files: FileItem[]): FileItem[] {
   return files.map(f => {
+    if (f.type === 'image' && f.url?.startsWith('data:')) {
+      return { ...f, content: f.content || dataUrlToBase64(f.url), url: undefined };
+    }
     if (f.type === 'image' && f.url?.startsWith('blob:')) {
       return { ...f, url: undefined };
     }
@@ -558,6 +330,11 @@ function loadFiles(): FileItem[] {
     if (!raw) return DEFAULT_FILES;
     const parsed = JSON.parse(raw) as FileItem[];
     if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_FILES;
+    if (isKnownStarterProject(parsed)) {
+      saveFiles(DEFAULT_FILES);
+      saveActiveFile(DEFAULT_FILES[0].id);
+      return DEFAULT_FILES;
+    }
     return parsed;
   } catch {
     return DEFAULT_FILES;
@@ -615,16 +392,62 @@ function saveTimelineState(state: TimelineState) {
   }
 }
 
+function saveEventBindings(bindings: EventBinding[]) {
+  try {
+    localStorage.setItem(EVENT_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
+  } catch {
+    // ignore quota/storage errors
+  }
+}
+
+function loadEventBindings(): EventBinding[] {
+  try {
+    const raw = localStorage.getItem(EVENT_BINDINGS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as EventBinding[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadUserConfigCookie(): UserConfigCookie {
+  try {
+    const raw = getCookie(USER_CONFIG_COOKIE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as UserConfigCookie;
+    if (!parsed || typeof parsed !== 'object') return {};
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function saveUserConfigCookie(config: UserConfigCookie) {
+  try {
+    setCookie(USER_CONFIG_COOKIE_KEY, JSON.stringify(config));
+  } catch {
+    // Ignore invalid cookie or quota errors; the app still works with defaults.
+  }
+}
+
+function patchUserConfigCookie(patch: UserConfigCookie) {
+  saveUserConfigCookie({ ...loadUserConfigCookie(), ...patch });
+}
+
 const _initFiles = loadFiles();
 const _initActiveFileId = loadActiveFile(_initFiles);
 const _initFolders = loadFolders();
+const _initUserConfig = loadUserConfigCookie();
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
   files: _initFiles,
   activeFileId: _initActiveFileId,
 
   addFile: (file) => set((s) => {
-    const next = [...s.files, file];
+    const next = s.files.some(f => f.id === file.id)
+      ? s.files.map(f => f.id === file.id ? file : f)
+      : [...s.files, file];
     saveFiles(next);
     return { files: next };
   }),
@@ -684,8 +507,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     return { folders: nextFolders, files: nextFiles };
   }),
 
-  mode: 'split',
-  setMode: (mode) => set({ mode }),
+  mode: _initUserConfig.mode ?? 'split',
+  setMode: (mode) => {
+    patchUserConfigCookie({ mode });
+    set({ mode });
+  },
 
   selectedSelector: null,
   setSelectedSelector: (selector) => set({ selectedSelector: selector }),
@@ -722,32 +548,19 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     get().visualBridge?.setHoverPreview(v);
   },
 
-  animationConfig: {
-    preset: 'none',
-    trigger: 'load',
-    duration: '0.6s',
-    easing: 'ease',
-    delay: '0s',
-    iteration: '1',
-    direction: 'normal',
-    fillMode: 'forwards',
-    customKeyframes: '',
-  },
-  setAnimationConfig: (config) => set((s) => ({
-    animationConfig: { ...s.animationConfig, ...config }
-  })),
+  animationConfig: { ...DEFAULT_ANIMATION_CONFIG, ..._initUserConfig.animationConfig },
+  setAnimationConfig: (config) => set((s) => {
+    const animationConfig = { ...s.animationConfig, ...config };
+    patchUserConfigCookie({ animationConfig });
+    return { animationConfig };
+  }),
 
-  panels: {
-    filePanel: true,
-    propertiesPanel: true,
-    timelinePanel: true,
-    devtools: false,
-    filesPanelWidth: 220,
-    propertiesPanelWidth: 268,
-    timelineHeight: 180,
-    devtoolsHeight: 220,
-  },
-  setPanels: (panels) => set((s) => ({ panels: { ...s.panels, ...panels } })),
+  panels: { ...DEFAULT_PANEL_CONFIG, ..._initUserConfig.panels },
+  setPanels: (panels) => set((s) => {
+    const nextPanels = { ...s.panels, ...panels };
+    patchUserConfigCookie({ panels: nextPanels });
+    return { panels: nextPanels };
+  }),
 
   consoleEntries: [],
   addConsoleEntry: (entry) => set((s) => ({
@@ -755,7 +568,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
   clearConsole: () => set({ consoleEntries: [] }),
 
-  previewTabs: [{ id: 'tab-1', title: 'My Page', favicon: '', active: true, previewType: 'page' }],
+  previewTabs: [{ id: 'tab-1', title: 'Brand', favicon: '', active: true, previewType: 'page', fileId: 'index.html' }],
   activePreviewTabId: 'tab-1',
   addPreviewTab: (opts) => {
     const id = `tab-${Date.now()}`;
@@ -766,6 +579,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       active: true,
       previewType: opts?.previewType ?? 'page',
       imageFileId: opts?.imageFileId,
+      fileId: opts?.fileId,
     };
     set((s) => ({
       previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), newTab],
@@ -820,36 +634,48 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setPendingFileDialog: (d) => set({ pendingFileDialog: d }),
 
   clearProject: () => set((s) => {
-    const CLEAR_HTML = `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>My Page</title>\n  <link rel="stylesheet" href="styles.css">\n</head>\n<body>\n\n  <script src="script.js"><\/script>\n</body>\n</html>`;
-    const coreIds = ['index.html', 'styles.css', 'script.js'];
-    const htmlFile = s.files.find(f => f.type === 'html');
-    const cssFile = s.files.find(f => f.type === 'css');
-    const jsFile = s.files.find(f => f.type === 'js');
-    const newFiles: FileItem[] = [
-      { id: htmlFile?.id ?? 'index.html', name: htmlFile?.name ?? 'index.html', type: 'html', content: CLEAR_HTML },
-      { id: cssFile?.id ?? 'styles.css', name: cssFile?.name ?? 'styles.css', type: 'css', content: '' },
-      { id: jsFile?.id ?? 'script.js', name: jsFile?.name ?? 'script.js', type: 'js', content: '' },
-    ];
+    const newFiles: FileItem[] = DEFAULT_FILES.map(f => ({ ...f }));
     saveFiles(newFiles);
+    saveActiveFile(newFiles[0].id);
     const clearedTimeline: TimelineState = { ...DEFAULT_TIMELINE_STATE };
     saveTimelineState(clearedTimeline);
+    saveFolders([]);
+    saveEventBindings([]);
     return {
       files: newFiles,
       activeFileId: newFiles[0].id,
+      folders: [],
       previewRefreshKey: s.previewRefreshKey + 1,
       timelineState: clearedTimeline,
       timelineAnimationStyle: '',
+      eventBindings: [],
     };
   }),
 
-  eventBindings: [],
-  addEventBinding: (b) => set((s) => ({ eventBindings: [...s.eventBindings, b] })),
-  removeEventBinding: (id) => set((s) => ({ eventBindings: s.eventBindings.filter(b => b.id !== id) })),
-  updateEventBinding: (id, updates) => set((s) => ({
-    eventBindings: s.eventBindings.map(b => b.id === id ? { ...b, ...updates } : b),
-  })),
-  setEventBindings: (bindings) => set({ eventBindings: bindings }),
+  eventBindings: loadEventBindings(),
+  addEventBinding: (b) => set((s) => {
+    const next = [...s.eventBindings, b];
+    saveEventBindings(next);
+    return { eventBindings: next };
+  }),
+  removeEventBinding: (id) => set((s) => {
+    const next = s.eventBindings.filter(binding => binding.id !== id);
+    saveEventBindings(next);
+    return { eventBindings: next };
+  }),
+  updateEventBinding: (id, updates) => set((s) => {
+    const next = s.eventBindings.map(binding => binding.id === id ? { ...binding, ...updates } : binding);
+    saveEventBindings(next);
+    return { eventBindings: next };
+  }),
+  setEventBindings: (bindings) => {
+    saveEventBindings(bindings);
+    set({ eventBindings: bindings });
+  },
 
-  liveServer: true,
-  setLiveServer: (v) => set({ liveServer: v }),
+  liveServer: _initUserConfig.liveServer ?? true,
+  setLiveServer: (v) => {
+    patchUserConfigCookie({ liveServer: v });
+    set({ liveServer: v });
+  },
 }));

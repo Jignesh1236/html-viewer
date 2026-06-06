@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { exportProject } from '../utils/export';
 import type { WinId, WinState } from '../App';
+import { getTargetHtmlFile } from '../utils/projectFiles';
 
 interface MenuBarProps {
   wins?: WinState[];
@@ -40,7 +41,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder, clearProject } = useEditorStore();
+  const { files, activeFileId, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder, clearProject } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,7 +54,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
 
   const close = () => setOpenMenu(null);
 
-  const htmlFile = files.find(f => f.type === 'html');
+  const htmlFile = getTargetHtmlFile(files, activeFileId);
 
   const formatHtml = (input: string) => {
     let indent = 0;
@@ -186,7 +187,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
         { label: 'Export CSS only',  action: () => { exportProject(files.filter(f => f.type === 'css'));  close(); } },
         { label: 'Export JS only',   action: () => { exportProject(files.filter(f => f.type === 'js'));   close(); } },
         { separator: true, label: '' },
-        { label: 'Copy HTML to Clipboard', action: () => { navigator.clipboard.writeText(files.find(f => f.type === 'html')?.content || ''); showNotification('HTML copied'); close(); } },
+        { label: 'Copy HTML to Clipboard', action: () => { navigator.clipboard.writeText(htmlFile?.content || ''); showNotification('HTML copied'); close(); } },
       ],
     },
     {

@@ -5,6 +5,7 @@ import {
   FiArrowLeft, FiArrowRight, FiPlus, FiX, FiImage, FiChevronDown, FiExternalLink,
 } from 'react-icons/fi';
 import { VscFileCode, VscDebugAlt } from 'react-icons/vsc';
+import { buildProjectHtml, getTargetHtmlFile, imageSource, insertBeforeClosingTag } from '../utils/projectFiles';
 
 const PreviewPane: React.FC = () => {
   const {
@@ -82,58 +83,13 @@ const PreviewPane: React.FC = () => {
 
   // Build the srcdoc that injects all project files into the HTML
   const buildSrcDoc = useCallback(() => {
-    // Use the fileId from active tab if it's an HTML file, otherwise find the first HTML file
-    const tabFileId = activeTab?.fileId;
-    const activeFile = tabFileId ? files.find(f => f.id === tabFileId && f.type === 'html') : null;
-    const htmlFile = activeFile || files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeTab?.fileId);
     if (!htmlFile) return '<html><body style="font-family:sans-serif;color:#888;padding:40px;background:#f0f0f0"><h2>No HTML file</h2><p>Create an index.html file to see the preview.</p></body></html>';
 
-    let html = htmlFile.content;
-
-    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    files.filter(f => f.type === 'css').forEach(css => {
-      const tag = `<style data-src="${css.id}">\n${css.content}\n</style>`;
-      // Match by file.name or file.id (folder path like "styles/main.css")
-      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const linkRe = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
-        if (linkRe.test(html)) { html = html.replace(linkRe, tag); matched = true; break; }
-      }
-      if (!matched) {
-        if (html.toLowerCase().includes('</head>')) {
-          html = html.replace(/<\/head>/i, `${tag}\n</head>`);
-        } else { html = `${tag}\n${html}`; }
-      }
-    });
-
-    files.filter(f => f.type === 'js').forEach(js => {
-      const tag = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
-      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const scriptRe = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\/script>`, 'gi');
-        if (scriptRe.test(html)) { html = html.replace(scriptRe, tag); matched = true; break; }
-      }
-      if (!matched) { html = html.replace('</body>', `${tag}\n</body>`); }
-    });
-
-    files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
-      for (const ref of refs) {
-        html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
-      }
-    });
-
-    if (timelineAnimationStyle.trim()) {
-      const timelineStyleTag = `<style id="__timeline-preview-anim-style">\n${timelineAnimationStyle}\n</style>`;
-      if (html.toLowerCase().includes('</head>')) {
-        html = html.replace(/<\/head>/i, `${timelineStyleTag}\n</head>`);
-      } else {
-        html = `${timelineStyleTag}\n${html}`;
-      }
-    }
+    const timelineStyleTag = timelineAnimationStyle.trim()
+      ? `<style id="__timeline-preview-anim-style">\n${timelineAnimationStyle.replace(/<\/style/gi, '<\\/style')}\n</style>`
+      : '';
+    let html = buildProjectHtml(files, htmlFile, timelineStyleTag);
 
     const erudaScript = `<script src="https://cdn.jsdelivr.net/npm/eruda@3/eruda.min.js"><\/script><script>
 (function() {
@@ -148,6 +104,7 @@ const PreviewPane: React.FC = () => {
     eruda.hide();
     var _erudaVisible = false;
     window.addEventListener('message', function(e) {
+      if (e.source !== window.parent) return;
       if (e.data && e.data.__htmlEditor && e.data.type === 'eruda-toggle') {
         try {
           _erudaVisible = !_erudaVisible;
@@ -207,18 +164,15 @@ const PreviewPane: React.FC = () => {
 })();
 <\/script>`;
 
-    if (html.includes('<head>')) {
-      html = html.replace('<head>', '<head>' + erudaScript + bridgeScript);
-    } else {
-      html = erudaScript + bridgeScript + html;
-    }
+    html = insertBeforeClosingTag(html, 'head', erudaScript + bridgeScript);
 
     return html;
-  }, [files, timelineAnimationStyle]);
+  }, [activeTab?.fileId, files, timelineAnimationStyle]);
 
   // Listen for postMessages from iframe
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.source !== iframeRef.current?.contentWindow) return;
       if (!e.data?.__htmlEditor) return;
       const d = e.data;
       if (d.type === 'console') {
@@ -596,7 +550,7 @@ const PreviewPane: React.FC = () => {
               title="Preview"
               onLoad={handleIframeLoad}
               srcDoc={srcDoc}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
+              sandbox="allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock"
               style={{
                 ...viewportStyle,
                 border: 'none', flexShrink: 0, overflow: 'hidden',
@@ -618,7 +572,7 @@ interface InlineImageViewerProps {
   file: { name: string; url?: string; content: string; mimeType?: string };
 }
 function InlineImageViewer({ file }: InlineImageViewerProps) {
-  const src = file.url || (file.content ? `data:${file.mimeType || 'image/png'};base64,${file.content}` : '');
+  const src = imageSource(file);
   const [zoom, setZoom] = React.useState(1);
   const [bg, setBg] = React.useState<'dark' | 'light' | 'checker'>('checker');
 

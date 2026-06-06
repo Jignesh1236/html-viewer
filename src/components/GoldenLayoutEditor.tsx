@@ -20,6 +20,7 @@ import GSAPEditor from './GSAPEditor';
 import GSAPTimeline from './GSAPTimeline';
 import VantaEditor from './VantaEditor';
 import { setGlSectionOpener } from '../lib/propSectionBridge';
+import { deleteCookie, getCookie, setCookie } from '../utils/cookies';
 
 export type PanelType = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'events' | 'console' | 'anim-presets' | 'anim-config' | 'anim-tracks' | 'gsap-editor' | 'gsap-timeline' | 'vanta-editor' | 'prop-section';
 export type Mode = 'code' | 'split' | 'visual';
@@ -126,6 +127,27 @@ const PANEL_TITLES: Record<PanelType, string> = {
   'prop-section': '⊞ Property Group',
 };
 
+const COOKIE_LAYOUT_MAX_LENGTH = 3600;
+const PANEL_TYPES: readonly PanelType[] = [
+  'files', 'code', 'preview', 'properties', 'timeline', 'events', 'console',
+  'anim-presets', 'anim-config', 'anim-tracks', 'gsap-editor', 'gsap-timeline',
+  'vanta-editor', 'prop-section',
+];
+
+function isPanelType(value: unknown): value is PanelType {
+  return typeof value === 'string' && PANEL_TYPES.includes(value as PanelType);
+}
+
+function getPanelTypeFromItem(item: any): PanelType | undefined {
+  const candidates = [
+    item?.componentType,
+    item?._myType,
+    item?.container?._myType,
+    item?.container?.componentType,
+  ];
+  return candidates.find(isPanelType);
+}
+
 /* ─── Panel Renderer ─── */
 function renderPanelContent(type: PanelType, mode: Mode): React.ReactElement {
   switch (type) {
@@ -155,6 +177,8 @@ function renderPanelContent(type: PanelType, mode: Mode): React.ReactElement {
       return <GSAPTimeline />;
     case 'vanta-editor':
       return <VantaEditor />;
+    case 'prop-section':
+      return <PropertiesPanel hideHeader />;
   }
 }
 
@@ -180,7 +204,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
       const found: PanelType[] = [];
       try {
         gl.getAllContentItems?.().forEach((item: any) => {
-          const ct = item._myType as PanelType | undefined;
+          const ct = getPanelTypeFromItem(item);
           if (ct && !found.includes(ct)) found.push(ct);
         });
       } catch {}
@@ -196,44 +220,34 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
     /* ── localStorage helpers (GoldenLayout v2 API) — component scope ── */
     const LS_KEY = useCallback((m: Mode) => `gl-layout-v3-${m}`, []);
 
-    /* GL v2 saveLayout() stores size as { size: 17, sizeUnit: "%" }.
-       loadLayout() needs it as string "17%". This converter fixes that. */
-    const convertResolvedToLayoutConfig = useCallback((node: any): any => {
-      if (!node || typeof node !== 'object') return node;
-      const out: any = {};
-      for (const key of Object.keys(node)) {
-        if (key === 'sizeUnit' || key === 'minSizeUnit') continue; // merged below
-        out[key] = node[key];
-      }
-      /* Merge size + sizeUnit → combined string */
-      if (node.size !== undefined && node.sizeUnit !== undefined) {
-        out.size = String(node.size) + node.sizeUnit;
-      }
-      if (node.minSize !== undefined && node.minSizeUnit !== undefined) {
-        out.minSize = String(node.minSize) + node.minSizeUnit;
-      }
-      /* Recurse into content array and root */
-      if (Array.isArray(out.content)) {
-        out.content = out.content.map(convertResolvedToLayoutConfig);
-      }
-      if (out.root) out.root = convertResolvedToLayoutConfig(out.root);
-      return out;
-    }, []);
-
     const saveLayoutState = useCallback((gl: GoldenLayout, m: Mode) => {
       try {
         const resolved = gl.saveLayout();
-        /* Convert to LayoutConfig-compatible format before saving */
-        const config = convertResolvedToLayoutConfig(resolved);
-        localStorage.setItem(LS_KEY(m), JSON.stringify(config));
+        const config = LayoutConfig.fromResolved(resolved);
+        if (!config.root) return;
+        const serialized = JSON.stringify(config);
+        const key = LS_KEY(m);
+        localStorage.setItem(key, serialized);
+        if (encodeURIComponent(serialized).length <= COOKIE_LAYOUT_MAX_LENGTH) {
+          setCookie(key, serialized);
+        } else {
+          deleteCookie(key);
+        }
       } catch {}
-    }, [LS_KEY, convertResolvedToLayoutConfig]);
+    }, [LS_KEY]);
 
     const loadLayoutState = useCallback((m: Mode): LayoutConfig | null => {
       try {
-        const raw = localStorage.getItem(LS_KEY(m));
+        const key = LS_KEY(m);
+        const raw = localStorage.getItem(key) || getCookie(key);
         if (!raw) return null;
-        return JSON.parse(raw) as LayoutConfig;
+        const parsed = JSON.parse(raw) as LayoutConfig;
+        if (!parsed.root) {
+          localStorage.removeItem(key);
+          deleteCookie(key);
+          return null;
+        }
+        return parsed;
       } catch { return null; }
     }, [LS_KEY]);
 
@@ -248,9 +262,9 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
     /* ── Re-render all roots when mode changes (so panels get the right content) ── */
     useEffect(() => {
       rootsRef.current.forEach((root, container) => {
-        const type = container.title?.replace(/^[^\w]+\s*/, '').toLowerCase();
         // find the type from the component type stored in the container
-        const compType = (container as any)._initialState?.componentType as PanelType | undefined
+        const compType = (container as any)._myType as PanelType | undefined
+          ?? (container as any)._initialState?.componentType as PanelType | undefined
           ?? detectType(container);
         if (compType) root.render(renderPanelContent(compType, mode));
       });
@@ -258,14 +272,23 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
     }, [mode]);
 
     function detectType(container: ComponentContainer): PanelType | undefined {
-      const types: PanelType[] = ['files', 'code', 'preview', 'properties', 'timeline', 'components', 'console'];
       const titleLc = (container.title || '').toLowerCase();
-      return types.find(t => titleLc.includes(t));
+      return PANEL_TYPES.find(t => titleLc.includes(t));
+    }
+
+    function unmountContainerRoot(container?: ComponentContainer) {
+      if (!container) return;
+      const root = rootsRef.current.get(container);
+      if (!root) return;
+      try { root.unmount(); } catch {}
+      rootsRef.current.delete(container);
     }
 
     /* ── Initialize GoldenLayout ── */
     useEffect(() => {
       if (!containerRef.current) return;
+      const layoutMode = mode;
+      modeRef.current = layoutMode;
 
       /* Destroy existing instance */
       if (glRef.current) {
@@ -301,7 +324,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
       setGlSectionOpener((title: string) => {
         try {
           let added = false;
-          gl.getAllContentItems().forEach(item => {
+          (gl as any).getAllContentItems().forEach((item: any) => {
             if (!added && item.type === 'stack') {
               try {
                 (item as any).addItem({
@@ -331,24 +354,39 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
       });
 
       /* Try loading saved layout from localStorage, fall back to preset */
-      const savedLayout = loadLayoutState(modeRef.current);
+      const savedLayout = loadLayoutState(layoutMode);
       try {
-        gl.loadLayout(savedLayout ?? getLayout(modeRef.current));
+        gl.loadLayout(savedLayout ?? getLayout(layoutMode));
       } catch (e) {
         console.warn('GL loadLayout failed, using default:', e);
-        try { gl.loadLayout(getLayout(modeRef.current)); } catch {
+        try { gl.loadLayout(getLayout(layoutMode)); } catch {
           gl.loadLayout(getSplitLayout());
         }
       }
 
       /* Auto-save on every state change (debounced to avoid excessive writes) */
+      let isDestroying = false;
       let saveTimer: ReturnType<typeof setTimeout> | null = null;
+      const flushLayoutState = (force = false) => {
+        if (isDestroying && !force) return;
+        if (saveTimer) {
+          clearTimeout(saveTimer);
+          saveTimer = null;
+        }
+        saveLayoutState(gl, layoutMode);
+      };
       const onStateChanged = () => {
+        if (isDestroying) return;
         if (saveTimer) clearTimeout(saveTimer);
-        saveTimer = setTimeout(() => saveLayoutState(gl, modeRef.current), 300);
+        saveTimer = setTimeout(() => {
+          if (isDestroying) return;
+          saveTimer = null;
+          saveLayoutState(gl, layoutMode);
+        }, 300);
       };
       try {
         (gl as any).on('stateChanged', onStateChanged);
+        (gl as any).on?.('resize', onStateChanged);
       } catch {}
 
       /* Notify after layout loads */
@@ -356,8 +394,15 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
 
       /* Listen for panel add/remove to keep menu in sync */
       try {
-        (gl as any).on?.('itemDestroyed', () => { setTimeout(notifyPanelsChange, 50); });
-        (gl as any).on?.('itemCreated', () => { setTimeout(notifyPanelsChange, 50); });
+        (gl as any).on?.('itemDestroyed', (item: any) => {
+          unmountContainerRoot(item?.container);
+          flushLayoutState();
+          if (!isDestroying) setTimeout(notifyPanelsChange, 50);
+        });
+        (gl as any).on?.('itemCreated', () => {
+          onStateChanged();
+          if (!isDestroying) setTimeout(notifyPanelsChange, 50);
+        });
       } catch {}
 
       /* ── ResizeObserver: keeps GL in sync with container size (fixes fullscreen glitch) ── */
@@ -367,9 +412,12 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
       ro.observe(containerRef.current);
 
       return () => {
-        if (saveTimer) clearTimeout(saveTimer);
+        flushLayoutState(true);
+        isDestroying = true;
+        setGlSectionOpener(null);
         ro.disconnect();
         try { gl.destroy(); } catch {}
+        if (glRef.current === gl) glRef.current = null;
         rootsRef.current.forEach(r => { try { r.unmount(); } catch {} });
         rootsRef.current.clear();
       };
@@ -380,15 +428,17 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
     useImperativeHandle(ref, () => ({
       resetLayout() {
         /* Clear saved state so default preset loads on reinit */
-        try { localStorage.removeItem(LS_KEY(modeRef.current)); } catch {}
+        try {
+          const key = LS_KEY(modeRef.current);
+          localStorage.removeItem(key);
+          deleteCookie(key);
+        } catch {}
         setResetKey(k => k + 1);
       },
       addPanel(type: PanelType) {
         const gl = glRef.current;
         if (!gl) return;
         try {
-          const root = gl.groundItem;
-          if (!root) return;
           (gl as any).addComponentAsColumn(type, {}, PANEL_TITLES[type]);
         } catch (e) {
           console.warn('addPanel failed:', e);
@@ -400,8 +450,8 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
         /* Check if already in layout — focus it */
         let found = false;
         try {
-          gl.getAllContentItems().forEach(item => {
-            const ct = (item as any).componentType ?? (item as any)._myType;
+          (gl as any).getAllContentItems().forEach((item: any) => {
+            const ct = getPanelTypeFromItem(item);
             if (ct === type) {
               found = true;
               try { (item as any).parent?.setActiveContentItem?.(item); } catch {}
@@ -412,7 +462,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
         /* Not found — add it to the first available stack, else to root */
         try {
           let added = false;
-          gl.getAllContentItems().forEach(item => {
+          (gl as any).getAllContentItems().forEach((item: any) => {
             if (!added && item.type === 'stack') {
               try {
                 (item as any).addItem({ type: 'component', componentType: type, title: PANEL_TITLES[type] });

@@ -7,6 +7,8 @@ import { registerSnippets } from '@/utils/monacoSnippets';
 import { emmetHTML, emmetCSS, emmetJSX } from 'emmet-monaco-es';
 import { registerHtmlProviders } from '@/utils/htmlLangProvider';
 import { registerCssProviders } from '@/utils/cssLangProvider';
+import { imageSource } from '../utils/projectFiles';
+import { getCookie, setCookie } from '../utils/cookies';
 
 let emmetRegistered = false;
 
@@ -41,14 +43,28 @@ function getLanguageForFile(file: { name: string; type: string }) {
    Global AI state — shared with App status bar
    ───────────────────────────────────────────────────────────── */
 export type AiState = 'idle' | 'loading' | 'ready' | 'error';
+const AI_ENABLED_KEY = 'html-editor-ai-enabled-v1';
+
+function loadAiEnabled(): boolean {
+  try { return getCookie(AI_ENABLED_KEY) === 'true'; } catch { return false; }
+}
 
 export const aiControl = {
+  enabled: loadAiEnabled(),
   state: 'idle' as AiState,
   lastSuggestion: '',
   listeners: new Set<() => void>(),
   triggerManual: null as (() => void) | null,
 
+  setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+    if (!enabled) this.state = 'idle';
+    try { setCookie(AI_ENABLED_KEY, enabled ? 'true' : 'false'); } catch {}
+    this.listeners.forEach(fn => fn());
+  },
+
   setState(s: AiState, suggestion = '') {
+    if (!this.enabled && s !== 'idle') return;
     this.state = s;
     if (suggestion) this.lastSuggestion = suggestion;
     this.listeners.forEach(fn => fn());
@@ -145,6 +161,9 @@ function registerProvider(monaco: any) {
 
   monaco.languages.registerInlineCompletionsProvider('*', {
     provideInlineCompletions(model: any, position: any, _ctx: any, token: any) {
+      if (!aiControl.enabled) {
+        return Promise.resolve({ items: [], dispose: () => undefined });
+      }
       const linePrefix = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
       if (linePrefix.trim().length < 2) {
         return Promise.resolve({ items: [], dispose: () => undefined });
@@ -249,6 +268,7 @@ const CodeEditor: React.FC = () => {
   function triggerAiSuggestion(forceRefresh = false) {
     const editor = editorRef.current;
     if (!editor) return;
+    if (!aiControl.enabled) return;
     if (forceRefresh) {
       // Clear cache for current position so fresh suggestion is fetched
       const model  = editor.getModel();
@@ -278,6 +298,7 @@ const CodeEditor: React.FC = () => {
   function setupIdleDetection(editor: any) {
     function resetIdleTimer() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (!aiControl.enabled) return;
       // After 1.5 s of no typing → trigger AI
       idleTimerRef.current = setTimeout(() => {
         const model = editor.getModel();
@@ -294,7 +315,7 @@ const CodeEditor: React.FC = () => {
 
     // Reset timer on every content change (user typed something)
     const contentSub = editor.onDidChangeModelContent(() => {
-      aiControl.setState('idle');   // hide stale state while typing
+      if (aiControl.enabled) aiControl.setState('idle');   // hide stale state while typing
       resetIdleTimer();
     });
 
@@ -431,7 +452,7 @@ interface ImageViewerProps {
   file: { name: string; url?: string; content: string; mimeType?: string };
 }
 function ImageViewer({ file }: ImageViewerProps) {
-  const src = file.url || (file.content ? `data:${file.mimeType || 'image/png'};base64,${file.content}` : '');
+  const src = imageSource(file);
   const [zoom, setZoom] = React.useState(1);
   const [bg, setBg]     = React.useState<'dark' | 'light' | 'checker'>('checker');
 

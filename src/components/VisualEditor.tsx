@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
+import { buildProjectHtml, getTargetHtmlFile, getTargetJsFile, insertBeforeClosingTag } from '../utils/projectFiles';
 
 /* ─────────────── constants ─────────────── */
 const SKIP_TAGS = new Set(['html','head','body','script','style','meta','link','title','base','noscript']);
@@ -90,6 +91,53 @@ function parseHoverRules(cssText: string): Record<string, Record<string, string>
 function serializeHoverRules(rules: Record<string, Record<string, string>>): string {
   return Object.entries(rules)
     .map(([sel, props]) => `${sel}:hover { ${Object.entries(props).map(([k,v]) => `${k}: ${v}`).join('; ')} }`)
+    .join('\n');
+}
+
+function declarationMap(style: CSSStyleDeclaration): Record<string, string> {
+  const props: Record<string, string> = {};
+  for (let i = 0; i < style.length; i += 1) {
+    const prop = style.item(i);
+    const value = style.getPropertyValue(prop);
+    if (prop && value) props[prop.toLowerCase()] = value.trim();
+  }
+  return props;
+}
+
+function pseudoKey(selector: string, pseudo: string): string {
+  return pseudo.startsWith('@media') ? `${pseudo}|||${selector}` : `${selector}${pseudo}`;
+}
+
+function readPseudoRuleMap(styleEl: HTMLStyleElement | null): Record<string, Record<string, string>> {
+  const out: Record<string, Record<string, string>> = {};
+  const rules = styleEl?.sheet?.cssRules;
+  if (!rules) return out;
+
+  Array.from(rules).forEach(rule => {
+    if (rule.type === CSSRule.STYLE_RULE) {
+      const styleRule = rule as CSSStyleRule;
+      out[styleRule.selectorText.trim()] = declarationMap(styleRule.style);
+    } else if (rule.type === CSSRule.MEDIA_RULE) {
+      const mediaRule = rule as CSSMediaRule;
+      Array.from(mediaRule.cssRules).forEach(inner => {
+        if (inner.type !== CSSRule.STYLE_RULE) return;
+        const styleRule = inner as CSSStyleRule;
+        out[`@media ${mediaRule.conditionText}|||${styleRule.selectorText.trim()}`] = declarationMap(styleRule.style);
+      });
+    }
+  });
+
+  return out;
+}
+
+function serializePseudoRuleMap(rules: Record<string, Record<string, string>>): string {
+  return Object.entries(rules)
+    .filter(([, props]) => Object.keys(props).length > 0)
+    .map(([key, props]) => {
+      const decl = Object.entries(props).map(([k, v]) => `${k}: ${v};`).join(' ');
+      const [media, selector] = key.split('|||');
+      return selector ? `${media} { ${selector} { ${decl} } }` : `${key} { ${decl} }`;
+    })
     .join('\n');
 }
 
@@ -526,7 +574,7 @@ const VisualEditor: React.FC = () => {
   };
 
   const updateSource = useCallback((el: HTMLElement, fn: (t: HTMLElement) => void) => {
-    const htmlFile = files.find(f => f.id === activeFileId && f.type === 'html') || files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) return;
     const sel    = elementSelector(el);
     const parsed = new DOMParser().parseFromString(htmlFile.content, 'text/html');
@@ -540,11 +588,15 @@ const VisualEditor: React.FC = () => {
   const syncToSource = useCallback((el: HTMLElement) => {
     const style    = el.getAttribute('style') || '';
     const hoverCss = (el.ownerDocument?.getElementById('__tl-hover-rules') as HTMLStyleElement | null)?.textContent || '';
+    const pseudoCss = (el.ownerDocument?.getElementById('__tl-pseudo-rules') as HTMLStyleElement | null)?.textContent || '';
     updateSource(el, t => {
       if (style) t.setAttribute('style', style); else t.removeAttribute('style');
       let hs = t.ownerDocument.getElementById('__tl-hover-rules') as HTMLStyleElement | null;
       if (!hs && hoverCss) { hs = t.ownerDocument.createElement('style'); hs.id = '__tl-hover-rules'; t.ownerDocument.head.appendChild(hs); }
       if (hs) { if (hoverCss) hs.textContent = hoverCss; else hs.remove(); }
+      let ps = t.ownerDocument.getElementById('__tl-pseudo-rules') as HTMLStyleElement | null;
+      if (!ps && pseudoCss) { ps = t.ownerDocument.createElement('style'); ps.id = '__tl-pseudo-rules'; t.ownerDocument.head.appendChild(ps); }
+      if (ps) { if (pseudoCss) ps.textContent = pseudoCss; else ps.remove(); }
     });
   }, [updateSource]);
 
@@ -604,10 +656,23 @@ const VisualEditor: React.FC = () => {
         const doc = el.ownerDocument;
         let sEl = doc.getElementById('__tl-pseudo-rules') as HTMLStyleElement | null;
         if (!sEl) { sEl = doc.createElement('style'); sEl.id = '__tl-pseudo-rules'; doc.head.appendChild(sEl); }
-        sEl.textContent += `\n${elementSelector(el)}${pseudo} { ${prop}: ${val}; }`;
+        const rules = readPseudoRuleMap(sEl);
+        const key = pseudoKey(elementSelector(el), pseudo);
+        const cur = rules[key] || {};
+        const k = prop.toLowerCase();
+        if (val === '') delete cur[k]; else cur[k] = val;
+        rules[key] = cur;
+        if (!Object.keys(cur).length) delete rules[key];
+        sEl.textContent = serializePseudoRuleMap(rules);
+        setTick(t => t + 1);
+        refreshSnapshot(el);
         syncToSource(el);
       },
-      collectPseudoStyles: () => ({}),
+      collectPseudoStyles: (pseudo) => {
+        const el = getSelDomEl(); if (!el) return {};
+        const sEl = el.ownerDocument.getElementById('__tl-pseudo-rules') as HTMLStyleElement | null;
+        return readPseudoRuleMap(sEl)[pseudoKey(elementSelector(el), pseudo)] || {};
+      },
       applyContent: (html) => {
         const el = getSelDomEl(); if (!el) return;
         el.innerHTML = html;
@@ -636,42 +701,11 @@ const VisualEditor: React.FC = () => {
 
   /* ── build srcDoc ── */
   const buildSrcDoc = useCallback(() => {
-    const activeFile = files.find(f => f.id === activeFileId && f.type === 'html');
-    const htmlFile   = activeFile || files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) return '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>';
-    let html = htmlFile.content;
-    const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    files.filter(f => f.type === 'css').forEach(css => {
-      const tag  = `<style data-src="${css.id}">${css.content}</style>`;
-      const refs = [css.name, ...(css.id !== css.name ? [css.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const re = new RegExp(`<link[^>]*href=["']${escRe(ref)}["'][^>]*/?>`, 'gi');
-        if (re.test(html)) { html = html.replace(re, tag); matched = true; break; }
-      }
-      if (!matched) html = html.toLowerCase().includes('</head>') ? html.replace(/<\/head>/i, `${tag}\n</head>`) : `${tag}\n${html}`;
-    });
-
-    files.filter(f => f.type === 'js').forEach(js => {
-      const tag  = `<script data-src="${js.id}">\n${js.content}\n<\/script>`;
-      const refs = [js.name, ...(js.id !== js.name ? [js.id] : [])];
-      let matched = false;
-      for (const ref of refs) {
-        const re = new RegExp(`<script[^>]*src=["']${escRe(ref)}["'][^>]*><\\/script>`, 'gi');
-        if (re.test(html)) { html = html.replace(re, tag); matched = true; break; }
-      }
-      if (!matched) html = html.toLowerCase().includes('</body>') ? html.replace(/<\/body>/i, `${tag}\n</body>`) : `${html}\n${tag}`;
-    });
-
-    files.filter(f => f.type === 'image' && f.url).forEach(img => {
-      const refs = [img.name, ...(img.id !== img.name ? [img.id] : [])];
-      for (const ref of refs) html = html.replace(new RegExp(`(src|href)=["']${escRe(ref)}["']`, 'gi'), `$1="${img.url}"`);
-    });
-
+    let html = buildProjectHtml(files, htmlFile);
     const editorCss = `<style>*{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}</style>`;
-    html = html.toLowerCase().includes('</head>') ? html.replace(/<\/head>/i, `${editorCss}</head>`) : `${editorCss}\n${html}`;
-    return html;
+    return insertBeforeClosingTag(html, 'head', editorCss);
   }, [files, activeFileId, interaction]);
 
   const scheduleRebuild = useCallback(() => {
@@ -691,8 +725,8 @@ const VisualEditor: React.FC = () => {
     prevFilesRef.current = files;
     const doc      = iframeRef.current?.contentDocument;
     const loaded   = !!doc?.body;
-    const phChanged = prev.find(f => f.type === 'html')?.content !== files.find(f => f.type === 'html')?.content;
-    const pjChanged = prev.find(f => f.type === 'js')?.content   !== files.find(f => f.type === 'js')?.content;
+    const phChanged = getTargetHtmlFile(prev, activeFileId)?.content !== getTargetHtmlFile(files, activeFileId)?.content;
+    const pjChanged = getTargetJsFile(prev, activeFileId)?.content !== getTargetJsFile(files, activeFileId)?.content;
 
     if (!phChanged && !pjChanged && loaded && doc) {
       let allFound = true;
@@ -709,7 +743,7 @@ const VisualEditor: React.FC = () => {
     scheduleRebuild();
     setHovEl(null);
     if (!selectedSelectorRef.current) { setSelEl(null); setSelectedElement(null); setSelectedSelector(null); }
-  }, [files, scheduleRebuild, setSelectedSelector, setSelectedElement]);
+  }, [activeFileId, files, scheduleRebuild, setSelectedSelector, setSelectedElement]);
 
   /* ── attach iframe events ── */
   const attachEvents = useCallback(() => {
@@ -936,7 +970,7 @@ const VisualEditor: React.FC = () => {
           }}
           onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
           srcDoc={srcDoc}
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-same-origin"
           style={{ width:'100%', height:'100%', border:'none', background:'#fff', display:'block' }}
         />
 

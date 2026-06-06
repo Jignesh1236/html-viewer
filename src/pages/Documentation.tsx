@@ -66,7 +66,7 @@ const SectionDivider: React.FC<{ icon: React.ReactNode; title: string; subtitle:
 }) => (
   <div className={`flex items-center gap-4 sm:gap-6 mb-8 sm:mb-12 pb-6 sm:pb-8 border-b border-[#1a1a1a]`}>
     <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-${color}-500/10 border border-${color}-500/20 flex items-center justify-center text-${color}-500 flex-shrink-0 shadow-lg shadow-${color}-500/10`}>
-      {React.cloneElement(icon as React.ReactElement, { size: 22 })}
+      {React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: 22 })}
     </div>
     <div className="min-w-0">
       <h2 className={`text-xl sm:text-2xl lg:text-3xl font-black text-white tracking-tighter break-words`}>{title}</h2>
@@ -288,7 +288,7 @@ const Documentation: React.FC = () => {
           totalTime: 'PT3M',
           inLanguage: 'en',
           step: [
-            { '@type': 'HowToStep', position: 1, name: 'Open the editor', text: 'The editor loads with a starter project (index.html, styles.css, script.js) ready to edit.' },
+            { '@type': 'HowToStep', position: 1, name: 'Open the editor', text: 'The editor loads clean files (index.html, styles.css, script.js) ready to edit.' },
             { '@type': 'HowToStep', position: 2, name: 'Write or paste your code', text: 'Click any file in the File Explorer, then type in the Monaco code editor. The Live Preview updates on every keystroke.' },
             { '@type': 'HowToStep', position: 3, name: 'Switch to Visual Mode', text: 'Click any element on the canvas to move, resize, rotate and style it through the Properties Panel — every change is written back to your HTML.' },
             { '@type': 'HowToStep', position: 4, name: 'Animate with the CSS Timeline', text: 'Open the Timeline panel, add tracks, then click Apply to Page to inject standard @keyframes CSS into your HTML.' },
@@ -465,7 +465,7 @@ const Documentation: React.FC = () => {
                 {[
                   {
                     n: 1, color: 'orange', title: 'Open the Editor',
-                    desc: 'The editor loads with a starter project already created — index.html, styles.css, and script.js are ready to go. You can immediately start editing or create fresh files.',
+                    desc: 'The editor loads with clean project files — index.html, styles.css, and script.js are ready to edit without starter code in the way.',
                   },
                   {
                     n: 2, color: 'blue', title: 'Write or Paste Your Code',
@@ -622,11 +622,11 @@ const Documentation: React.FC = () => {
                 </div>
 
                 <InfoBox title="Default Project" icon={<FiPackage size={11} />} color="blue">
-                  On first load (or when localStorage is empty) the editor creates a starter project with <strong className="text-blue-400">index.html</strong>, <strong className="text-blue-400">styles.css</strong>, and <strong className="text-blue-400">script.js</strong>. These demonstrate HTML structure, CSS layout, and JavaScript interactivity. Feel free to edit or delete them.
+                  On first load (or when localStorage is empty) the editor creates clean files named <strong className="text-blue-400">index.html</strong>, <strong className="text-blue-400">styles.css</strong>, and <strong className="text-blue-400">script.js</strong>. They start empty so you can begin without deleting starter code.
                 </InfoBox>
 
                 <InfoBox title="Image Files" icon={<FiDroplet size={11} />} color="green">
-                  Uploaded images are stored as base64 data URLs inside localStorage. To reference them in HTML, use a relative path matching the file name, e.g. <code className="text-green-400 bg-green-500/5 px-1 rounded">&lt;img src="photo.jpg"&gt;</code>. The preview resolves these automatically via Blob URLs.
+                  Uploaded images are stored as base64 content inside localStorage. To reference them in HTML, use a relative path matching the file name, e.g. <code className="text-green-400 bg-green-500/5 px-1 rounded">&lt;img src="photo.jpg"&gt;</code>. The preview resolves these automatically.
                 </InfoBox>
               </div>
             </section>
@@ -1170,7 +1170,7 @@ const Documentation: React.FC = () => {
                 </InfoBox>
 
                 <InfoBox title="Clearing Storage" icon={<FiTrash2 size={11} />} color="red">
-                  To fully reset the editor (delete all files and settings), open your browser's DevTools (F12) → Application → Local Storage → right-click the origin → Clear. Reload the page and the starter project is recreated.
+                  To fully reset the editor (delete all files and settings), open your browser's DevTools (F12) → Application → Local Storage → right-click the origin → Clear. Reload the page and the clean project files are recreated.
                 </InfoBox>
               </div>
             </section>
