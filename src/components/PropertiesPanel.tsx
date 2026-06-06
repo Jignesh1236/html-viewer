@@ -8,6 +8,7 @@ import {
   FiEye, FiFilter, FiMousePointer, FiList, FiColumns, FiAperture,
 } from 'react-icons/fi';
 import { ANIMATION_PRESETS, ANIMATION_CATEGORIES, KEYFRAMES_MAP, PRESET_BY_NAME } from '../lib/animations';
+import { getTargetHtmlFile } from '../utils/projectFiles';
 
 /* ─── Design tokens ───────────────────────────────────────── */
 const C = {
@@ -256,7 +257,7 @@ function ColorInput({
           }}
           onMouseDown={e => e.stopPropagation()}
         >
-          <HexColorPicker color={hex} onChange={v => { onChange(v); setText(v); }} style={{ width: 200 }} />
+          <HexColorPicker color={hex} onChange={(v: string) => { onChange(v); setText(v); }} style={{ width: 200 }} />
           <input
             value={text}
             onChange={e => { setText(e.target.value); if (/^#[0-9a-fA-F]{3,8}$/.test(e.target.value)) onChange(e.target.value); }}
@@ -394,8 +395,8 @@ function SpacingGrid({ props, getS, apply }: { props: [string, string][]; getS: 
 function parseGradient(value: string) {
   const raw = value || '';
   const type = raw.startsWith('radial-gradient') ? 'radial' : raw.startsWith('linear-gradient') ? 'linear' : 'none';
-  const colorMatches = raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) || [];
-  const usableColors = colorMatches.filter(v => !['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'].includes(v.toLowerCase()));
+  const colorMatches: string[] = raw.match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsla?\([^)]+\)|[a-zA-Z]+/g) || [];
+  const usableColors = colorMatches.filter((v: string) => !['linear-gradient', 'radial-gradient', 'deg', 'circle', 'ellipse', 'at', 'center'].includes(v.toLowerCase()));
   const angleMatch = raw.match(/(-?\d+(?:\.\d+)?)deg/i);
   return {
     type,
@@ -577,7 +578,7 @@ function injectShaderToElement(html: string, selector: string, iframeUrl: string
 }
 
 const ShaderGradientSection: React.FC = () => {
-  const { selectedSelector, files, updateFileContent, showNotification, applySelectedStyle } = useEditorStore();
+  const { selectedSelector, files, activeFileId, updateFileContent, showNotification, applySelectedStyle } = useEditorStore();
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [applied, setApplied] = useState<{ idx: number; selector: string } | null>(null);
   const [customUrl, setCustomUrl] = useState('');
@@ -589,7 +590,7 @@ const ShaderGradientSection: React.FC = () => {
   const previewUrl = buildShaderPreviewUrl(SHADER_PRESETS[selectedIdx]);
 
   const doInject = (embedUrl: string, presetName: string, idx: number) => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) { showNotification('No HTML file found'); return; }
     let newContent: string;
     const sel = selectedSelector;
@@ -628,7 +629,7 @@ const ShaderGradientSection: React.FC = () => {
   };
 
   const removeShader = () => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) return;
     const cleaned = htmlFile.content
       .replace(/<!-- sg-bg --><div class="sg-overlay"[\s\S]*?<\/div>/g, '')
@@ -961,6 +962,7 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean; si
     animationConfig,
     setAnimationConfig,
     files,
+    activeFileId,
     updateFileContent,
     setTimelineState,
     showNotification,
@@ -1028,11 +1030,11 @@ const PropertiesPanel: React.FC<{ onClose?: () => void; hideHeader?: boolean; si
   const persistPresetKeyframe = useCallback((preset: string) => {
     const keyframeCss = PRESET_KEYFRAMES[preset];
     if (!keyframeCss) return;
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) return;
     const updated = injectPropertiesAnimationCssIntoHtml(htmlFile.content, keyframeCss);
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+  }, [activeFileId, files, updateFileContent]);
 
   const upsertTimelineTrackForSelection = useCallback((preset: string, animationValue: string) => {
     if (!selectedElement || !selectedSelector) return;

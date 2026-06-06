@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useEditorStore, FileItem, getDefaultContentForLanguage, getLanguageFromFileName } from '../store/editorStore';
 import { FiPlus, FiUpload, FiX, FiCheck, FiTrash2, FiAlertTriangle, FiFolder, FiFolderPlus, FiChevronRight, FiChevronDown, FiEdit2 } from 'react-icons/fi';
 import { useContextMenu } from './ContextMenu';
+import { dataUrlToBase64, fileIdFor, makeUniqueName } from '../utils/projectFiles';
 
   const DEVICON_MAP: Record<string, { icon: string; color: string }> = {
     html:  { icon: 'devicon-html5-plain',       color: '#e34c26' },
@@ -203,13 +204,18 @@ import { useContextMenu } from './ContextMenu';
     };
 
     const importSingleFile = useCallback((file: File, targetFolder?: string) => {
-      const name = file.name;
+      const name = makeUniqueName(file.name, targetFolder, files);
       const ext = name.split('.').pop()?.toLowerCase();
       const isImage = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'].includes(ext || '');
       const isText = ['html', 'css', 'js', 'ts', 'tsx', 'jsx', 'json', 'txt', 'md'].includes(ext || '');
-      const fileId = targetFolder ? `${targetFolder}/${name}` : name;
+      const fileId = fileIdFor(name, targetFolder);
       if (isImage) {
-        addFile({ id: fileId, name, type: 'image', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
+        const reader = new FileReader();
+        reader.onload = e => {
+          const dataUrl = String(e.target?.result || '');
+          addFile({ id: fileId, name, type: 'image', content: dataUrlToBase64(dataUrl), url: dataUrl, mimeType: file.type, folder: targetFolder });
+        };
+        reader.readAsDataURL(file);
       } else if (isText) {
         const reader = new FileReader();
         reader.onload = e => {
@@ -221,7 +227,7 @@ import { useContextMenu } from './ContextMenu';
       } else {
         addFile({ id: fileId, name, type: 'other', content: '', url: URL.createObjectURL(file), mimeType: file.type, folder: targetFolder });
       }
-    }, [addFile]);
+    }, [addFile, files]);
 
     const readDirectoryEntry = useCallback((entry: FileSystemDirectoryEntry, parentFolder?: string) => {
       const folderName = parentFolder ? `${parentFolder}/${entry.name}` : entry.name;
@@ -288,7 +294,7 @@ import { useContextMenu } from './ContextMenu';
       if (dialog.mode === 'create-file') {
         const name = value;
         const folder = dialog.targetFolder;
-        const fileId = folder ? `${folder}/${name}` : name;
+        const fileId = fileIdFor(name, folder);
         if (files.find(f => f.id === fileId)) { showNotification(`"${name}" already exists`); return; }
         const language = getLanguageFromFileName(name);
         const ext = name.split('.').pop()?.toLowerCase();
@@ -308,7 +314,7 @@ import { useContextMenu } from './ContextMenu';
       if (dialog.mode === 'rename-file' && dialog.file) {
         const newName = value;
         if (newName === dialog.file.name) { setDialog(null); return; }
-        const newId = dialog.file.folder ? `${dialog.file.folder}/${newName}` : newName;
+        const newId = fileIdFor(newName, dialog.file.folder);
         removeFile(dialog.file.id);
         addFile({ ...dialog.file, id: newId, name: newName });
         setActiveFile(newId);
@@ -354,12 +360,14 @@ import { useContextMenu } from './ContextMenu';
                         .then(res => res.text())
                         .then(content => {
                           const type = ext === 'html' ? 'html' : ext === 'css' ? 'css' : (ext === 'js' || ext === 'ts' || ext === 'tsx' || ext === 'jsx') ? 'js' : 'other';
-                          addFile({ id: item.name, name: item.name, type, content });
+                          const uniqueName = makeUniqueName(item.name, undefined, useEditorStore.getState().files);
+                          addFile({ id: uniqueName, name: uniqueName, type, content });
                           imported++;
                           if (imported === data.length) showNotification(`Imported ${imported} files from GitHub`);
                         });
                     } else if (isImage) {
-                      addFile({ id: item.name, name: item.name, type: 'image', content: '', url: item.download_url });
+                      const uniqueName = makeUniqueName(item.name, undefined, useEditorStore.getState().files);
+                      addFile({ id: uniqueName, name: uniqueName, type: 'image', content: '', url: item.download_url });
                       imported++;
                     }
                   }
@@ -391,8 +399,9 @@ import { useContextMenu } from './ContextMenu';
         { label: 'Rename', icon: '✏️', action: () => setDialog({ mode: 'rename-file', file }) },
         { label: 'Duplicate', icon: '📋', action: () => {
           const parts = file.name.split('.');
-          const newName = parts.length > 1 ? `${parts.slice(0,-1).join('.')}_copy.${parts[parts.length-1]}` : `${file.name}_copy`;
-          const newId = file.folder ? `${file.folder}/${newName}` : newName;
+          const preferredName = parts.length > 1 ? `${parts.slice(0,-1).join('.')}_copy.${parts[parts.length-1]}` : `${file.name}_copy`;
+          const newName = makeUniqueName(preferredName, file.folder, files);
+          const newId = fileIdFor(newName, file.folder);
           addFile({ ...file, id: newId, name: newName });
           showNotification(`Duplicated as ${newName}`);
         }},

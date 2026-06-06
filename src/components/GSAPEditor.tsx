@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { FiCopy, FiCheck, FiChevronDown, FiChevronRight, FiPlus, FiX, FiExternalLink } from 'react-icons/fi';
+import { getTargetHtmlFile, getTargetJsFile, insertBeforeClosingTag } from '../utils/projectFiles';
 
 /* ─── Plugin definitions ─── */
 interface PluginDef {
@@ -194,13 +195,13 @@ function CodeOutput({ enabled }: { enabled: Set<string> }) {
 
 /* ─── Main Component ─── */
 const GSAPEditor: React.FC = () => {
-  const { files, updateFileContent, showNotification } = useEditorStore();
+  const { files, activeFileId, updateFileContent, showNotification } = useEditorStore();
   const [enabled, setEnabled] = useState<Set<string>>(loadEnabled);
   const [showCode, setShowCode] = useState(false);
   const [appliedMsg, setAppliedMsg] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-  const htmlFile = files.find(f => f.type === 'html');
+  const htmlFile = getTargetHtmlFile(files, activeFileId);
 
   useEffect(() => { saveEnabled(enabled); }, [enabled]);
 
@@ -233,25 +234,21 @@ const GSAPEditor: React.FC = () => {
 
     // Build new script block
     const lines = scriptTags.split('\n').filter(Boolean).map(s => `  ${s}`).join('\n');
-    const insertBefore = '</head>';
-    if (html.includes(insertBefore)) {
-      html = html.replace(insertBefore, `${lines}\n${insertBefore}`);
-    } else {
-      html = lines + '\n' + html;
-    }
+    html = insertBeforeClosingTag(html, 'head', lines);
 
-    // Update registerPlugin call in JS if present
-    const jsFile = files.find(f => f.type === 'js');
-    if (jsFile && registerLine) {
+    // Update registerPlugin call in JS and remove stale registrations when disabled.
+    const jsFile = getTargetJsFile(files, activeFileId);
+    if (jsFile) {
       const cleanedJs = jsFile.content.replace(/gsap\.registerPlugin\([^)]*\);?\n?/g, '');
-      updateFileContent(jsFile.id, registerLine + '\n\n' + cleanedJs);
+      const nextJs = registerLine ? `${registerLine}\n\n${cleanedJs}` : cleanedJs;
+      if (nextJs !== jsFile.content) updateFileContent(jsFile.id, nextJs);
     }
 
     updateFileContent(htmlFile.id, html);
     setAppliedMsg(true);
     showNotification(`✦ Applied ${enabled.size} GSAP plugin(s) to HTML`);
     setTimeout(() => setAppliedMsg(false), 2500);
-  }, [htmlFile, enabled, files, updateFileContent, showNotification]);
+  }, [activeFileId, htmlFile, enabled, files, updateFileContent, showNotification]);
 
   const cats = ['core', 'plugins', 'eases'] as const;
 

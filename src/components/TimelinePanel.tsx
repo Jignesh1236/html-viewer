@@ -3,6 +3,7 @@ import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import { FiPlay, FiSquare, FiPlus, FiZoomIn, FiZoomOut, FiX, FiRefreshCw, FiCheck, FiEdit3, FiTrash2, FiSave, FiCopy } from 'react-icons/fi';
 import { ANIMATION_PRESETS, ANIMATION_CATEGORIES, KEYFRAMES_MAP, PRESET_BY_NAME } from '../lib/animations';
+import { getTargetHtmlFile } from '../utils/projectFiles';
 
 type Track = import('../store/editorStore').TimelineTrack;
 type CustomAnimation = import('../store/editorStore').CustomAnimation;
@@ -339,7 +340,7 @@ function VisualKeyframeEditor({ name, stops, onChange }: {
 const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const {
     animationConfig, setAnimationConfig, selectedElement, setTimelineAnimationStyle,
-    files, updateFileContent, showNotification, timelineState, setTimelineState, selectedSelector,
+    files, activeFileId, updateFileContent, showNotification, timelineState, setTimelineState, selectedSelector,
   } = useEditorStore();
   const { show: showCtx, element: ctxEl } = useContextMenu();
 
@@ -353,6 +354,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [showPresetLibrary, setShowPresetLibrary] = useState(false);
   const [showCustomEditor, setShowCustomEditor] = useState(false);
   const [editingCustom, setEditingCustom] = useState<CustomAnimation | null>(null);
+  const [editingOriginalName, setEditingOriginalName] = useState<string | undefined>();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const totalDuration = Math.max(5, ...tracks.map(t => t.delay + t.duration));
   const labelWidth = 150;
@@ -376,11 +378,11 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   }, [setTimelineAnimationStyle]);
 
   const persistAnimations = useCallback((built: { css: string; needsClickRuntime: boolean; clickSelectors: string[]; scrollSelectors: string[] }) => {
-    const htmlFile = files.find(f => f.type === 'html');
+    const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) return;
     const updated = injectTimelineCssIntoHtml(htmlFile.content, built.css, built.needsClickRuntime, built.clickSelectors, built.scrollSelectors);
     if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, updateFileContent]);
+  }, [activeFileId, files, updateFileContent]);
 
   const buildPreviewCSS = useCallback((forceLoad: boolean): string => {
     const previewTracks = forceLoad ? tracks.map(t => ({ ...t, trigger: 'load' as const })) : tracks;
@@ -489,6 +491,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       return { ...prev, customAnimations: [...filtered, anim] };
     });
     setEditingCustom(null);
+    setEditingOriginalName(undefined);
     setShowCustomEditor(false);
     showNotification(`Saved "${anim.name}"`);
   };
@@ -646,7 +649,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         </button>
 
         <button title="Create custom @keyframes"
-          onClick={() => { setEditingCustom({ name: '', keyframes: '@keyframes myAnim {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}' }); setVisualKFs([defaultKF(0), defaultKF(100)]); setCustomEditorMode('visual'); setShowCustomEditor(true); }}
+          onClick={() => { setEditingCustom({ name: '', keyframes: '@keyframes myAnim {\n  from { opacity: 0; }\n  to { opacity: 1; }\n}' }); setEditingOriginalName(undefined); setVisualKFs([defaultKF(0), defaultKF(100)]); setCustomEditorMode('visual'); setShowCustomEditor(true); }}
           style={{ ...hdrBtn, width: 'auto', padding: '0 7px', fontSize: 10, fontWeight: 600, color: '#9cdcfe', background: 'rgba(156,220,254,0.07)', border: '1px solid rgba(156,220,254,0.25)', borderRadius: 3 }}>
           + Custom
         </button>
@@ -710,7 +713,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   <div key={c.name} style={{ padding: '6px 8px', background: '#222224', border: '1px solid #2e2e30', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                       <button onClick={() => applyPreset(c.name)} style={{ flex: 1, textAlign: 'left', background: 'none', border: 'none', color: '#9cdcfe', fontSize: 10, fontWeight: 600, cursor: 'pointer', padding: 0 }}>{c.name}</button>
-                      <button onClick={() => { setEditingCustom(c); setVisualKFs([defaultKF(0), defaultKF(100)]); setCustomEditorMode('visual'); setShowCustomEditor(true); }} style={{ background: 'none', border: 'none', color: '#777', cursor: 'pointer', padding: 2 }}><FiEdit3 size={10} /></button>
+                      <button onClick={() => { setEditingCustom(c); setEditingOriginalName(c.name); setVisualKFs([defaultKF(0), defaultKF(100)]); setCustomEditorMode('code'); setShowCustomEditor(true); }} style={{ background: 'none', border: 'none', color: '#777', cursor: 'pointer', padding: 2 }}><FiEdit3 size={10} /></button>
                       <button onClick={() => deleteCustomAnimation(c.name)} style={{ background: 'none', border: 'none', color: '#f88', cursor: 'pointer', padding: 2 }}><FiTrash2 size={10} /></button>
                     </div>
                   </div>
@@ -724,7 +727,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       {/* Custom Animation Editor */}
       {showCustomEditor && editingCustom && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
-          onClick={() => { setShowCustomEditor(false); setEditingCustom(null); }}>
+          onClick={() => { setShowCustomEditor(false); setEditingCustom(null); setEditingOriginalName(undefined); }}>
           <div onClick={e => e.stopPropagation()}
             style={{ background: '#1e1e20', border: '1px solid #3e3e40', borderRadius: 8, width: 'min(560px, 100%)', maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.7)' }}>
 
@@ -749,7 +752,7 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   </button>
                 ))}
               </div>
-              <button onClick={() => { setShowCustomEditor(false); setEditingCustom(null); }} style={hdrBtn}><FiX size={12} /></button>
+              <button onClick={() => { setShowCustomEditor(false); setEditingCustom(null); setEditingOriginalName(undefined); }} style={hdrBtn}><FiX size={12} /></button>
             </div>
 
             <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 }}>
@@ -804,13 +807,13 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 {customEditorMode === 'visual' ? 'Visual mode auto-generates @keyframes CSS' : 'Write raw @keyframes CSS'}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => { setShowCustomEditor(false); setEditingCustom(null); }}
+                <button onClick={() => { setShowCustomEditor(false); setEditingCustom(null); setEditingOriginalName(undefined); }}
                   style={{ padding: '5px 12px', background: 'none', border: '1px solid #2e2e30', borderRadius: 4, color: '#777', cursor: 'pointer', fontSize: 11 }}>Cancel</button>
                 <button onClick={() => {
                   const finalAnim = customEditorMode === 'visual' && visualKFs.length > 0
                     ? { ...editingCustom, keyframes: visualKFtoCode(editingCustom.name, visualKFs) }
                     : editingCustom;
-                  saveCustomAnimation(finalAnim, finalAnim.name && customAnimations.find(c => c.name === finalAnim.name) ? finalAnim.name : undefined);
+                  saveCustomAnimation(finalAnim, editingOriginalName);
                 }}
                   style={{ padding: '5px 12px', background: 'rgba(78,201,176,0.12)', border: '1px solid rgba(78,201,176,0.35)', borderRadius: 4, color: '#4ec9b0', cursor: 'pointer', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <FiSave size={11} /> Save

@@ -38,7 +38,10 @@ const EditorAdBanner: React.FC = () => {
     try { localStorage.setItem('editor-ad-dismissed', 'true'); } catch {}
   };
   useEffect(() => {
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch {}
+    try {
+      const w = window as Window & { adsbygoogle?: unknown[] };
+      (w.adsbygoogle = w.adsbygoogle || []).push({});
+    } catch {}
   }, []);
   if (dismissed) return null;
   return (
@@ -103,13 +106,28 @@ function LiveServerButton() {
 /* ─── AI Status Button ─── */
 function AiStatusButton() {
   const [aiState, setAiState] = useState(aiControl.state);
+  const [aiEnabled, setAiEnabled] = useState(aiControl.enabled);
   useEffect(() => {
-    const handler = () => setAiState(aiControl.state);
+    const handler = () => {
+      setAiState(aiControl.state);
+      setAiEnabled(aiControl.enabled);
+    };
     aiControl.listeners.add(handler);
     return () => { aiControl.listeners.delete(handler); };
   }, []);
-  const handleClick = () => { clearAiCache(); aiControl.triggerManual?.(); };
-  const cfg = {
+  const handleClick = () => {
+    if (!aiControl.enabled) {
+      aiControl.setEnabled(true);
+      clearAiCache();
+      setTimeout(() => aiControl.triggerManual?.(), 50);
+      return;
+    }
+    clearAiCache();
+    aiControl.triggerManual?.();
+  };
+  const cfg = !aiEnabled ? {
+    dot: 'rgba(255,255,255,0.35)', dotGlow: false, text: 'AI Off', bg: 'rgba(0,0,0,0.18)', label: 'AI is off. Click to enable AI suggestions for this browser.'
+  } : {
     idle:    { dot: 'rgba(255,255,255,0.5)', dotGlow: false, text: '✦ AI',  bg: 'rgba(0,0,0,0.15)',  label: 'Click to get AI suggestion' },
     loading: { dot: '#fbbf24',               dotGlow: true,  text: '⟳ AI…', bg: 'rgba(0,0,0,0.25)',  label: 'AI is thinking…' },
     ready:   { dot: '#4ade80',               dotGlow: true,  text: '✓ AI',  bg: 'rgba(0,0,0,0.25)',  label: 'Suggestion ready — Tab to accept · Click to refresh' },

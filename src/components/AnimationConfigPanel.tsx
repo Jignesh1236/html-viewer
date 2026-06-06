@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { ANIMATION_PRESETS, ANIMATION_CATEGORIES, KEYFRAMES_MAP, PRESET_BY_NAME } from '../lib/animations';
 import { FiZap, FiPlay, FiSliders, FiList, FiX, FiCheck } from 'react-icons/fi';
+import { getTargetHtmlFile } from '../utils/projectFiles';
 
 export type Tab = 'presets' | 'config' | 'tracks';
 
@@ -149,7 +150,7 @@ const COLORS = ['#e5a45a', '#4ec9b0', '#9cdcfe', '#dcdcaa', '#c586c0', '#f44747'
 const AnimationConfigPanel: React.FC<{ singleTab?: Tab }> = ({ singleTab }) => {
   const {
     selectedElement, selectedSelector, animationConfig, setAnimationConfig,
-    files, updateFileContent, setTimelineState, timelineState, showNotification,
+    files, activeFileId, updateFileContent, setTimelineState, timelineState, showNotification,
     applySelectedStyle, setTimelineAnimationStyle, timelineAnimationStyle,
   } = useEditorStore();
 
@@ -170,13 +171,13 @@ const AnimationConfigPanel: React.FC<{ singleTab?: Tab }> = ({ singleTab }) => {
     });
     const kf = KEYFRAMES_MAP[presetName];
     if (kf) {
-      const htmlFile = files.find(f => f.type === 'html');
+      const htmlFile = getTargetHtmlFile(files, activeFileId);
       if (htmlFile) {
         const updated = injectPropertiesAnimationCssIntoHtml(htmlFile.content, kf);
         if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
       }
     }
-  }, [selectedElement, selectedSelector, animationConfig.trigger, setTimelineState, files, updateFileContent]);
+  }, [activeFileId, selectedElement, selectedSelector, animationConfig.trigger, setTimelineState, files, updateFileContent]);
 
   const [tab, setTab] = useState<Tab>(singleTab || 'presets');
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -300,7 +301,7 @@ const AnimationConfigPanel: React.FC<{ singleTab?: Tab }> = ({ singleTab }) => {
 
     const keyframeCss = KEYFRAMES_MAP[preset];
     if (keyframeCss) {
-      const htmlFile = files.find(f => f.type === 'html');
+      const htmlFile = getTargetHtmlFile(files, activeFileId);
       if (htmlFile) {
         const updated = injectPropertiesAnimationCssIntoHtml(htmlFile.content, keyframeCss);
         if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
@@ -309,7 +310,7 @@ const AnimationConfigPanel: React.FC<{ singleTab?: Tab }> = ({ singleTab }) => {
     setApplied(true);
     showNotification(`Applied "${preset}" to ${selectorCandidate}`);
     setTimeout(() => setApplied(false), 1800);
-  }, [selectedElement, selectedSelector, animationConfig, setTimelineState, applySelectedStyle, files, updateFileContent, showNotification]);
+  }, [activeFileId, selectedElement, selectedSelector, animationConfig, setTimelineState, applySelectedStyle, files, updateFileContent, showNotification]);
 
   const tag = selectedElement?.tagName || '';
   const elId = selectedElement?.id ? `#${selectedElement.id}` : '';

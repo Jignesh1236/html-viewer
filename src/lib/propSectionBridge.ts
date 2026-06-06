@@ -1,6 +1,6 @@
 let _opener: ((title: string) => void) | null = null;
 
-export function setGlSectionOpener(fn: (title: string) => void): void {
+export function setGlSectionOpener(fn: ((title: string) => void) | null): void {
   _opener = fn;
 }
 

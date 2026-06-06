@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useEditorStore } from '../store/editorStore';
 import { FiPlay, FiSquare, FiPlus, FiZoomIn, FiZoomOut, FiX, FiRefreshCw, FiCheck, FiChevronDown, FiChevronRight, FiCode, FiDownload, FiCopy } from 'react-icons/fi';
+import { getTargetHtmlFile, getTargetJsFile, insertBeforeClosingTag } from '../utils/projectFiles';
 
 /* ─── Types ─── */
 export interface GSAPTrack {
@@ -369,7 +370,7 @@ function TrackEditor({ track, onUpdate, selectors, selectedSelector }: { track: 
 
 /* ─── Main Component ─── */
 const GSAPTimeline: React.FC = () => {
-  const { files, updateFileContent, showNotification, refreshPreview, selectedSelector } = useEditorStore();
+  const { files, activeFileId, updateFileContent, showNotification, refreshPreview, selectedSelector } = useEditorStore();
   const [tracks, setTracks] = useState<GSAPTrack[]>(loadTracks);
   const [zoom, setZoom] = useState(1);
   const [playing, setPlaying] = useState(false);
@@ -383,8 +384,8 @@ const GSAPTimeline: React.FC = () => {
   const tracksRef = useRef(tracks);
   tracksRef.current = tracks;
 
-  const htmlFile = files.find(f => f.type === 'html');
-  const jsFile = files.find(f => f.type === 'js');
+  const htmlFile = getTargetHtmlFile(files, activeFileId);
+  const jsFile = getTargetJsFile(files, activeFileId);
   const selectors = htmlFile ? parseSelectors(htmlFile.content) : [];
   const totalDuration = Math.max(5, ...tracks.map(t => t.delay + t.duration + 0.2));
 
@@ -445,7 +446,7 @@ const GSAPTimeline: React.FC = () => {
           needsST && !hasST ? `<script src="${ST_CDN}"></script>` : '',
         ].filter(Boolean).join('\n  ');
         const preview = `\n<!-- gsap-tl-preview-start -->\n  ${cdns}\n  <script>\n${js}\n  </script>\n<!-- gsap-tl-preview-end -->`;
-        html = html.includes('</body>') ? html.replace('</body>', `${preview}\n</body>`) : html + preview;
+        html = insertBeforeClosingTag(html, 'body', preview);
         updateFileContent(htmlFile.id, html);
       }
     } else {
@@ -456,8 +457,14 @@ const GSAPTimeline: React.FC = () => {
         if (cleaned !== htmlFile.content) updateFileContent(htmlFile.id, cleaned);
       }
     }
-    return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [playing]);
+    return () => {
+      if (tickRef.current) clearInterval(tickRef.current);
+      if (playing && htmlFile) {
+        const cleaned = htmlFile.content.replace(/\n?<!-- gsap-tl-preview-start -->[\s\S]*?<!-- gsap-tl-preview-end -->/g, '');
+        if (cleaned !== htmlFile.content) updateFileContent(htmlFile.id, cleaned);
+      }
+    };
+  }, [playing, htmlFile, tracks, updateFileContent]);
 
   const stopAndReset = () => { setPlaying(false); setCurrentTime(0); };
 
@@ -468,17 +475,18 @@ const GSAPTimeline: React.FC = () => {
     let htmlChanged = false;
     if (htmlFile) {
       if (!html.includes('gsap.min.js')) {
-        html = html.replace('</head>', `  <script src="${GSAP_CDN}"></script>\n</head>`);
+        html = insertBeforeClosingTag(html, 'head', `  <script src="${GSAP_CDN}"></script>`);
         htmlChanged = true;
       }
       if (needsST && !html.includes('ScrollTrigger.min.js')) {
-        html = html.replace('</head>', `  <script src="${ST_CDN}"></script>\n</head>`);
+        html = insertBeforeClosingTag(html, 'head', `  <script src="${ST_CDN}"></script>`);
         htmlChanged = true;
       }
       if (htmlChanged) updateFileContent(htmlFile.id, html);
     }
-    const divider = `\n\n/* ── GSAP Timeline (${new Date().toLocaleTimeString()}) ── */\n`;
-    updateFileContent(jsFile.id, jsFile.content + divider + js);
+    const block = `\n\n/* gsap-timeline-start */\n${js}\n/* gsap-timeline-end */\n`;
+    const cleanedJs = jsFile.content.replace(/\n?\/\* gsap-timeline-start \*\/[\s\S]*?\/\* gsap-timeline-end \*\/\n?/g, '').trimEnd();
+    updateFileContent(jsFile.id, `${cleanedJs}${block}`);
     setAppliedMsg(true);
     showNotification(`✦ Applied ${tracks.length} GSAP animation(s) to project`);
     setTimeout(() => setAppliedMsg(false), 2000);
