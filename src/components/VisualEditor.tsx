@@ -6,6 +6,7 @@ import { buildProjectHtml, getTargetHtmlFile, getTargetJsFile, insertBeforeClosi
 
 /* ─────────────── constants ─────────────── */
 const SKIP_TAGS = new Set(['html','head','body','script','style','meta','link','title','base','noscript']);
+const MAX_VISUAL_HISTORY = 120;
 
 const STYLE_PROPS = [
   'color','font-size','font-weight','font-family','font-style',
@@ -146,6 +147,13 @@ function collectHoverStyles(el: HTMLElement): Record<string, string> {
   return parseHoverRules(sEl?.textContent || '')[elementSelector(el)] || {};
 }
 
+function isEditableEventTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName?.toLowerCase();
+  return el.isContentEditable || tag === 'input' || tag === 'textarea' || tag === 'select';
+}
+
 function getRotateDeg(el: HTMLElement, win: Window | null | undefined): number {
   const tx = win?.getComputedStyle(el).transform || 'none';
   if (tx === 'none') return 0;
@@ -158,6 +166,12 @@ function getRotateDeg(el: HTMLElement, win: Window | null | undefined): number {
 /* ─────────────── SelectionOverlay ─────────────── */
 const HANDLES = ['nw','n','ne','e','se','s','sw','w'] as const;
 type Handle = typeof HANDLES[number];
+type VisualHistoryEntry = {
+  fileId: string;
+  before: string;
+  after: string;
+  selector: string | null;
+};
 
 const HANDLE_CURSORS: Record<Handle, string> = {
   nw: 'nw-resize', n: 'n-resize',  ne: 'ne-resize',
@@ -495,7 +509,7 @@ const TB: React.CSSProperties = {
 /* ═══════════════════════════════════════════════════════════════ */
 const VisualEditor: React.FC = () => {
   const {
-    files, activeFileId, updateFileContent,
+    files, activeFileId,
     setSelectedElement, timelineAnimationStyle,
     setSelectedSelector, setVisualBridge, selectedSelector,
   } = useEditorStore();
@@ -511,6 +525,8 @@ const VisualEditor: React.FC = () => {
   const eventsCleanupRef    = useRef<null | (() => void)>(null);
   const rebuildTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRebuildRef      = useRef(0);
+  const undoStackRef        = useRef<VisualHistoryEntry[]>([]);
+  const redoStackRef        = useRef<VisualHistoryEntry[]>([]);
 
   const [srcDoc, setSrcDoc]       = useState('');
   const [selEl,  setSelEl]        = useState<HTMLElement | null>(null);
@@ -573,8 +589,15 @@ const VisualEditor: React.FC = () => {
     return all.length === 1 ? all[0] as HTMLElement : null;
   };
 
+  const pushVisualHistory = useCallback((entry: VisualHistoryEntry) => {
+    if (entry.before === entry.after) return;
+    undoStackRef.current = [...undoStackRef.current, entry].slice(-MAX_VISUAL_HISTORY);
+    redoStackRef.current = [];
+  }, []);
+
   const updateSource = useCallback((el: HTMLElement, fn: (t: HTMLElement) => void) => {
-    const htmlFile = getTargetHtmlFile(files, activeFileId);
+    const state = useEditorStore.getState();
+    const htmlFile = getTargetHtmlFile(state.files, state.activeFileId);
     if (!htmlFile) return;
     const sel    = elementSelector(el);
     const parsed = new DOMParser().parseFromString(htmlFile.content, 'text/html');
@@ -582,8 +605,55 @@ const VisualEditor: React.FC = () => {
     if (!t) return;
     fn(t);
     const updated = serializeDoc(parsed);
-    if (updated !== htmlFile.content) updateFileContent(htmlFile.id, updated);
-  }, [files, activeFileId, updateFileContent]);
+    if (updated !== htmlFile.content) {
+      pushVisualHistory({ fileId: htmlFile.id, before: htmlFile.content, after: updated, selector: selectedSelectorRef.current || sel });
+      state.updateFileContent(htmlFile.id, updated);
+    }
+  }, [pushVisualHistory]);
+
+  const runVisualHistory = useCallback((direction: 'undo' | 'redo') => {
+    const source = direction === 'undo' ? undoStackRef.current : redoStackRef.current;
+    const entry = source[source.length - 1];
+    if (!entry) return false;
+
+    const state = useEditorStore.getState();
+    const file = state.files.find(f => f.id === entry.fileId);
+    if (!file) return false;
+
+    if (direction === 'undo') {
+      undoStackRef.current = undoStackRef.current.slice(0, -1);
+      redoStackRef.current = [...redoStackRef.current, entry].slice(-MAX_VISUAL_HISTORY);
+    } else {
+      redoStackRef.current = redoStackRef.current.slice(0, -1);
+      undoStackRef.current = [...undoStackRef.current, entry].slice(-MAX_VISUAL_HISTORY);
+    }
+
+    const nextContent = direction === 'undo' ? entry.before : entry.after;
+    selectedSelectorRef.current = entry.selector;
+    pendingSelectorRef.current = entry.selector;
+    setSelectedSelector(entry.selector);
+    setSelEl(null);
+    setHovEl(null);
+    setSelectedElement(null);
+    state.updateFileContent(entry.fileId, nextContent);
+    setTick(t => t + 1);
+    return true;
+  }, [setSelectedElement, setSelectedSelector]);
+
+  const handleVisualUndoRedoKey = useCallback((e: KeyboardEvent) => {
+    const mod = e.ctrlKey || e.metaKey;
+    if (!mod || isEditableEventTarget(e.target)) return false;
+
+    const key = e.key.toLowerCase();
+    const undo = key === 'z' && !e.shiftKey;
+    const redo = key === 'y' || (key === 'z' && e.shiftKey);
+    if (!undo && !redo) return false;
+
+    e.preventDefault();
+    e.stopPropagation();
+    runVisualHistory(undo ? 'undo' : 'redo');
+    return true;
+  }, [runVisualHistory]);
 
   const syncToSource = useCallback((el: HTMLElement) => {
     const style    = el.getAttribute('style') || '';
@@ -855,6 +925,7 @@ const VisualEditor: React.FC = () => {
     doc.addEventListener('click',        onClick,       true);
     doc.addEventListener('dblclick',     onDblClick,    true);
     doc.addEventListener('contextmenu',  onContextMenu, true);
+    doc.addEventListener('keydown',      handleVisualUndoRedoKey, true);
     doc.addEventListener('scroll',       onScroll,      true);
     win.addEventListener('resize',       onScroll);
 
@@ -863,14 +934,16 @@ const VisualEditor: React.FC = () => {
       doc.removeEventListener('click',       onClick,       true);
       doc.removeEventListener('dblclick',    onDblClick,    true);
       doc.removeEventListener('contextmenu', onContextMenu, true);
+      doc.removeEventListener('keydown',     handleVisualUndoRedoKey, true);
       doc.removeEventListener('scroll',      onScroll,      true);
       win.removeEventListener('resize',      onScroll);
     };
-  }, [interaction, selectElement, syncToSource, refreshSnapshot, updateSource, injectAnimStyle, showCtx]);
+  }, [interaction, selectElement, syncToSource, refreshSnapshot, updateSource, injectAnimStyle, showCtx, handleVisualUndoRedoKey]);
 
   /* ── Escape ── */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (handleVisualUndoRedoKey(e)) return;
       if (e.key === 'Escape' && !isEditingText) {
         selectedSelectorRef.current = null;
         setSelEl(null); setHovEl(null);
@@ -878,9 +951,9 @@ const VisualEditor: React.FC = () => {
         setShowQuickBar(false);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [isEditingText, setSelectedElement, setSelectedSelector]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [isEditingText, setSelectedElement, setSelectedSelector, handleVisualUndoRedoKey]);
 
   /* ── Hover overlay ── */
   const HR = ifrRect && hovRect && hovEl && hovEl !== selEl ? {
