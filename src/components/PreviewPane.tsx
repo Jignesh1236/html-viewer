@@ -39,6 +39,7 @@ const PreviewPane: React.FC = () => {
   const viewportMenuRef = useRef<HTMLDivElement>(null);
 
   const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
+  const autoRefreshEnabled = liveServer && autoSave;
 
   // Close new-tab menu when clicking outside
   useEffect(() => {
@@ -234,12 +235,12 @@ const PreviewPane: React.FC = () => {
   // Rebuild srcdoc on file changes or explicit refresh
   useEffect(() => {
     if (activeTab?.previewType === 'image') return;
-    if (!liveServer || !autoSave) return;
+    if (!autoRefreshEnabled) return;
     scheduleRebuild(false);
     return () => {
       if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     };
-  }, [activeTab?.previewType, scheduleRebuild, liveServer, autoSave]);
+  }, [activeTab?.previewType, scheduleRebuild, autoRefreshEnabled]);
 
   // Force full remount on explicit refresh
   useEffect(() => {
