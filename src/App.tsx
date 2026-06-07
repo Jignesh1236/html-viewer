@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Router as WouterRouter, Route, Switch } from 'wouter';
 
 /* ── Legacy type re-exports (MenuBar still imports these) ── */
-export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'events' | 'anim-presets' | 'anim-config' | 'anim-tracks' | 'gsap-editor' | 'gsap-timeline' | 'vanta-editor';
+export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'events' | 'console' | 'anim-presets' | 'anim-config' | 'anim-tracks' | 'vanta-editor';
 export interface WinState {
   id: WinId; title: string; visible: boolean; minimized: boolean;
   docked: boolean; zIndex: number; rect: { x: number; y: number; w: number; h: number };
@@ -30,13 +30,20 @@ import {
 
 /* ─── Non-intrusive Corner Ad Banner ─── */
 const EditorAdBanner: React.FC = () => {
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem('editor-ad-dismissed') === 'true'; } catch { return false; }
-  });
+  const AD_COOLDOWN_MS = 20 * 60 * 1000; // 20 minutes
+  const isDismissed = () => {
+    try {
+      const ts = localStorage.getItem('editor-ad-dismissed-at');
+      if (!ts) return false;
+      return Date.now() - parseInt(ts, 10) < AD_COOLDOWN_MS;
+    } catch { return false; }
+  };
+  const [dismissed, setDismissed] = useState(isDismissed);
   const containerRef = useRef<HTMLDivElement>(null);
   const handleDismiss = () => {
     setDismissed(true);
-    try { localStorage.setItem('editor-ad-dismissed', 'true'); } catch {}
+    try { localStorage.setItem('editor-ad-dismissed-at', String(Date.now())); } catch {}
+    setTimeout(() => setDismissed(false), AD_COOLDOWN_MS);
   };
   useEffect(() => {
     if (dismissed) return;
@@ -313,19 +320,17 @@ function DesktopApp() {
   const activeFileName = useEditorStore(s => s.files.find(f => f.id === s.activeFileId)?.name || '');
 
   const PANEL_BTNS: { type: PanelType; icon: React.ReactNode; label: string; title: string }[] = [
-    { type: 'files',        icon: <FiFolder size={12} />,   label: 'Explorer',     title: 'File Explorer' },
-    { type: 'code',         icon: <FiCode size={12} />,     label: 'Code',         title: 'Code Editor' },
-    { type: 'preview',      icon: <FiMonitor size={12} />,  label: 'Preview',      title: 'Preview' },
-    { type: 'console',      icon: <FiTerminal size={12} />, label: 'Console',      title: 'Console (Ctrl+`)' },
-    { type: 'properties',   icon: <FiSliders size={12} />,  label: 'Props',        title: 'Properties' },
-    { type: 'timeline',     icon: <FiClock size={12} />,    label: 'Timeline',     title: 'Timeline' },
-    { type: 'events',       icon: <FiZap size={12} />,      label: 'Events',       title: 'Event Listeners' },
-    { type: 'anim-presets', icon: <FiBox size={12} />,      label: 'Presets',      title: 'Anim Presets' },
-    { type: 'anim-config',  icon: <FiSliders size={12} />,  label: 'Anim Config',  title: 'Anim Config' },
-    { type: 'anim-tracks',  icon: <FiLayout size={12} />,   label: 'Anim Tracks',  title: 'Anim Tracks' },
-    { type: 'gsap-editor',    icon: <FiZap size={12} />,      label: 'GSAP',          title: 'GSAP Editor' },
-    { type: 'gsap-timeline',  icon: <FiClock size={12} />,    label: 'GSAP Timeline', title: 'GSAP Timeline' },
-    { type: 'vanta-editor',   icon: <FiBox size={12} />,      label: 'OGL FX',        title: 'OGL Shader FX' },
+    { type: 'files',        icon: <FiFolder size={12} />,   label: 'Explorer',    title: 'File Explorer' },
+    { type: 'code',         icon: <FiCode size={12} />,     label: 'Code',        title: 'Code Editor' },
+    { type: 'preview',      icon: <FiMonitor size={12} />,  label: 'Preview',     title: 'Preview' },
+    { type: 'console',      icon: <FiTerminal size={12} />, label: 'Console',     title: 'Console' },
+    { type: 'properties',   icon: <FiSliders size={12} />,  label: 'Properties',  title: 'Properties' },
+    { type: 'timeline',     icon: <FiClock size={12} />,    label: 'Timeline',    title: 'Timeline' },
+    { type: 'events',       icon: <FiZap size={12} />,      label: 'Events',      title: 'Event Listeners' },
+    { type: 'anim-presets', icon: <FiBox size={12} />,      label: 'Anim Presets',title: 'Anim Presets' },
+    { type: 'anim-config',  icon: <FiSliders size={12} />,  label: 'Anim Config', title: 'Anim Config' },
+    { type: 'anim-tracks',  icon: <FiLayout size={12} />,   label: 'Anim Tracks', title: 'Anim Tracks' },
+    { type: 'vanta-editor', icon: <FiBox size={12} />,      label: 'Vanta JS',    title: 'Vanta JS' },
   ];
 
   /* ── Skeuomorphic tokens ── */

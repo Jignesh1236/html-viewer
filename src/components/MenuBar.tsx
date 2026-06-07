@@ -26,15 +26,15 @@ interface MenuItem {
 
 const WIN_LABELS: Record<WinId, string> = {
   files: 'File Explorer', code: 'Code Editor', preview: 'Preview / Visual Editor',
-  properties: 'Properties', timeline: 'Timeline', events: 'Event Listeners',
-  'anim-presets': 'Anim Presets', 'anim-config': 'Anim Config', 'anim-tracks': 'Anim Tracks',
-  'gsap-editor': 'GSAP Editor', 'gsap-timeline': 'GSAP Timeline',
-  'vanta-editor': 'OGL Shader FX',
+  console: 'Console', properties: 'Properties', timeline: 'Timeline',
+  events: 'Event Listeners', 'anim-presets': 'Anim Presets',
+  'anim-config': 'Anim Config', 'anim-tracks': 'Anim Tracks',
+  'vanta-editor': 'Vanta JS',
 };
 const WIN_ICONS: Record<WinId, string> = {
-  files: '', code: '', preview: '', properties: '', timeline: '', events: '',
-  'anim-presets': '', 'anim-config': '', 'anim-tracks': '',
-  'gsap-editor': '', 'gsap-timeline': '', 'vanta-editor': '',
+  files: '', code: '', preview: '', console: '', properties: '',
+  timeline: '', events: '', 'anim-presets': '', 'anim-config': '',
+  'anim-tracks': '', 'vanta-editor': '',
 };
 
 const MenuBar: React.FC<MenuBarProps> = ({

@@ -588,10 +588,15 @@ const QuickToolbar: React.FC<QuickToolbarProps> = ({ selEl, ifrRect, elRect, win
   useEffect(() => { setRadius(parseFloat(rawRadius) || 0); }, [rawRadius]);
   useEffect(() => { setOpacity(Math.round((parseFloat(rawOpacity) || 1) * 100)); }, [rawOpacity]);
 
-  const toolTop  = ifrRect.top  + elRect.top - 58;
+  const TOOLBAR_W = 720;
+  const TOOLBAR_H = 70;
+  const toolTop  = ifrRect.top  + elRect.top - 64;
   const toolLeft = ifrRect.left + elRect.left;
-  const finalTop  = toolTop < 8 ? ifrRect.top + elRect.top + elRect.height + 10 : toolTop;
-  const finalLeft = Math.max(8, Math.min(toolLeft, window.innerWidth - 540));
+  const belowTop = ifrRect.top + elRect.top + elRect.height + 10;
+  const finalTop  = toolTop < 8
+    ? Math.min(belowTop, window.innerHeight - TOOLBAR_H - 8)
+    : toolTop;
+  const finalLeft = Math.max(8, Math.min(toolLeft, window.innerWidth - TOOLBAR_W - 8));
 
   const toHex = (color: string) => {
     if (!color) return '#000000';

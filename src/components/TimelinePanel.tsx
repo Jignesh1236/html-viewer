@@ -621,10 +621,10 @@ const TimelinePanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       || p.description.toLowerCase().includes(presetSearch.toLowerCase()));
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#141416', overflow: 'hidden' }} onWheel={handleWheel}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#141416', overflow: 'hidden', position: 'relative' }} onWheel={handleWheel}>
 
       {/* Header */}
-      <div style={{ height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3, padding: '0 6px', background: '#1e1e20', borderBottom: '1px solid #2e2e30', userSelect: 'none' }}>
+      <div style={{ height: 34, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 3, padding: '0 6px', background: '#1e1e20', borderBottom: '1px solid #2e2e30', userSelect: 'none', overflowX: 'auto', overflowY: 'hidden' }}>
         <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#666', marginRight: 2 }}>Timeline</span>
 
         <button title="Add Track" onClick={addTrack} style={hdrBtn}><FiPlus size={12} /></button>
