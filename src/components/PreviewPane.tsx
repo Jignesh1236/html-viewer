@@ -15,6 +15,7 @@ const PreviewPane: React.FC = () => {
     setActivePreviewTab, updatePreviewTab,
     timelineAnimationStyle,
     liveServer, autoSave,
+    unsavedFileIds,
   } = useEditorStore();
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -39,7 +40,8 @@ const PreviewPane: React.FC = () => {
   const viewportMenuRef = useRef<HTMLDivElement>(null);
 
   const activeTab = previewTabs.find(t => t.id === activePreviewTabId);
-  const autoRefreshEnabled = liveServer && autoSave;
+  const livePreviewEnabled = liveServer && autoSave;
+  const previewConsoleEnabled = autoSave || unsavedFileIds.length === 0;
 
   // Close new-tab menu when clicking outside
   useEffect(() => {
@@ -175,6 +177,7 @@ const PreviewPane: React.FC = () => {
     const handler = (e: MessageEvent) => {
       if (e.source !== iframeRef.current?.contentWindow) return;
       if (!e.data?.__htmlEditor) return;
+      if (!previewConsoleEnabled) return;
       const d = e.data;
       if (d.type === 'console') {
         addConsoleEntry({ type: d.level as any, message: d.message, timestamp: new Date() });
@@ -197,7 +200,7 @@ const PreviewPane: React.FC = () => {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [activePreviewTabId, addConsoleEntry, updatePreviewTab]);
+  }, [activePreviewTabId, addConsoleEntry, updatePreviewTab, previewConsoleEnabled]);
 
   const lastSrcDocRef = useRef<string>('');
 
@@ -235,12 +238,12 @@ const PreviewPane: React.FC = () => {
   // Rebuild srcdoc on file changes or explicit refresh
   useEffect(() => {
     if (activeTab?.previewType === 'image') return;
-    if (!autoRefreshEnabled) return;
+    if (!livePreviewEnabled) return;
     scheduleRebuild(false);
     return () => {
       if (rebuildTimerRef.current) clearTimeout(rebuildTimerRef.current);
     };
-  }, [activeTab?.previewType, scheduleRebuild, autoRefreshEnabled]);
+  }, [activeTab?.previewType, scheduleRebuild, livePreviewEnabled]);
 
   // Force full remount on explicit refresh
   useEffect(() => {
