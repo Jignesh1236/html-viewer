@@ -96,26 +96,39 @@ const PreviewPane: React.FC = () => {
 
     const erudaScript = `<script src="https://cdn.jsdelivr.net/npm/eruda@3/eruda.min.js"><\/script><script>
 (function() {
-  try {
-    eruda.init({
-      tool: ['console','elements','network','resources','info'],
-      useShadowDom: true,
-      autoScale: true,
-      defaults: { displaySize: 50, transparency: 0.95, theme: 'Dark' }
-    });
-    try { eruda._entryBtn._$el[0].style.display = 'none'; } catch(ex) {}
-    eruda.hide();
-    var _erudaVisible = false;
-    window.addEventListener('message', function(e) {
-      if (e.source !== window.parent) return;
-      if (e.data && e.data.__htmlEditor && e.data.type === 'eruda-toggle') {
+  function initEruda() {
+    if (!window.eruda) return;
+    try {
+      eruda.init({
+        tool: ['console','elements','network','resources','info'],
+        useShadowDom: false,
+        autoScale: true,
+        defaults: { displaySize: 50, transparency: 0.95, theme: 'Dark' }
+      });
+      setTimeout(function() {
         try {
-          _erudaVisible = !_erudaVisible;
-          _erudaVisible ? eruda.show() : eruda.hide();
-        } catch(ex) {}
-      }
-    });
-  } catch(ex) {}
+          eruda.hide();
+          var btn = eruda && eruda._entryBtn && eruda._entryBtn._$el && eruda._entryBtn._$el[0];
+          if (btn) btn.style.display = 'none';
+        } catch(e) {}
+      }, 100);
+      var _erudaVisible = false;
+      window.addEventListener('message', function(e) {
+        if (!e.data || !e.data.__htmlEditor) return;
+        if (e.data.type === 'eruda-toggle') {
+          try {
+            _erudaVisible = !_erudaVisible;
+            _erudaVisible ? eruda.show() : eruda.hide();
+          } catch(ex) {}
+        }
+      });
+    } catch(ex) {}
+  }
+  if (document.readyState === 'complete') {
+    initEruda();
+  } else {
+    window.addEventListener('load', initEruda);
+  }
 })();
 <\/script>`;
 
@@ -556,7 +569,7 @@ const PreviewPane: React.FC = () => {
               title="Preview"
               onLoad={handleIframeLoad}
               srcDoc={srcDoc}
-              sandbox="allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock allow-downloads"
               style={{
                 ...viewportStyle,
                 border: 'none', flexShrink: 0, overflow: 'hidden',
