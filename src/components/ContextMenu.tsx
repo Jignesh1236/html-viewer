@@ -106,7 +106,7 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose, isSubmenu }) => {
     <>
       {!isSubmenu && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 1050 }}
+          style={{ position: 'fixed', inset: 0, zIndex: 9090 }}
           onMouseDown={onClose}
           onContextMenu={e => { e.preventDefault(); onClose(); }}
         />
@@ -119,11 +119,11 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose, isSubmenu }) => {
         left: cx,
         top: cy,
         width: W,
-        background: '#252526',
-        border: '1px solid #3f3f46',
-        borderRadius: 8,
-        boxShadow: '0 16px 40px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.35)',
-        zIndex: isSubmenu ? 1000 : 1000,
+        background: '#1c1c1f',
+        border: '1px solid #3a3a3f',
+        borderRadius: 10,
+        boxShadow: '0 20px 48px rgba(0,0,0,0.7), 0 2px 12px rgba(0,0,0,0.4)',
+        zIndex: isSubmenu ? 9110 : 9100,
         padding: '6px 0',
         maxHeight: '70vh',
         overflowY: 'auto',
@@ -133,13 +133,14 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose, isSubmenu }) => {
     >
       {items.map((item, i) =>
         item.separator ? (
-          <div key={i} style={{ height: 1, background: '#3e3e3e', margin: '4px 0' }} />
+          <div key={i} style={{ height: 1, background: '#2e2e32', margin: '3px 8px' }} />
         ) : (
           <button
             key={i}
             data-mi={i}
             disabled={item.disabled}
-            onClick={() => {
+            onClick={e => {
+              e.stopPropagation();
               if (item.disabled) return;
               if (item.submenu) return;
               if (item.action) {
@@ -151,40 +152,49 @@ const ContextMenu: React.FC<Props> = ({ x, y, items, onClose, isSubmenu }) => {
               display: 'flex',
               alignItems: 'center',
               width: '100%',
-              padding: '6px 12px',
-              background: 'none',
+              padding: '7px 14px',
+              background: focusIdx === i && !item.disabled
+                ? (item.danger ? 'rgba(248,100,100,0.14)' : 'rgba(229,164,90,0.13)')
+                : 'none',
               border: 'none',
               cursor: item.disabled ? 'default' : 'pointer',
-              fontSize: 12,
-              color: item.disabled ? '#555' : item.danger ? '#f88' : '#ccc',
-              gap: 8,
+              fontSize: 12.5,
+              color: item.disabled ? '#484850' : item.danger ? '#ff7b7b' : '#d4d4d8',
+              gap: 9,
               textAlign: 'left',
-              fontFamily: "'Inter', sans-serif",
-              transition: 'background 0.1s',
+              fontFamily: "'Inter', system-ui, sans-serif",
+              transition: 'background 0.08s',
               outline: 'none',
               boxSizing: 'border-box',
-              borderLeft: focusIdx === i ? '2px solid #e5a45a' : '2px solid transparent',
+              borderLeft: focusIdx === i && !item.disabled ? '2px solid #e5a45a' : '2px solid transparent',
+              borderRadius: '0 6px 6px 0',
+              marginRight: 4,
+              position: 'relative',
+              zIndex: 1,
             }}
             onMouseMove={() => { if (!item.disabled && (item.action || item.submenu)) setFocusIdx(i); }}
-            onMouseEnter={e => {
-              if (!item.disabled) (e.currentTarget as HTMLButtonElement).style.background = item.danger ? 'rgba(255,100,100,0.12)' : 'rgba(229,164,90,0.1)';
+            onMouseEnter={() => {
+              if (!item.disabled && (item.action || item.submenu)) setFocusIdx(i);
               scheduleOpenSub(i, item);
             }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLButtonElement).style.background = 'none';
+            onMouseLeave={() => {
+              setFocusIdx(-1);
             }}
           >
             {item.swatch && (
               <span style={{
                 width: 14, height: 14, borderRadius: 3, flexShrink: 0,
-                border: '1px solid #444', background: item.swatch,
+                border: '1px solid #555', background: item.swatch,
                 backgroundSize: 'cover', backgroundPosition: 'center',
               }} />
             )}
-            {!item.swatch && item.icon && <span style={{ fontSize: 14, width: 18, textAlign: 'center' }}>{item.icon}</span>}
+            {!item.swatch && item.icon && (
+              <span style={{ fontSize: 13, width: 18, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+            )}
             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
-            {item.submenu ? <span style={{ fontSize: 10, color: '#888' }}>▶</span>
-              : item.shortcut && <span style={{ fontSize: 10, color: '#666' }}>{item.shortcut}</span>}
+            {item.submenu
+              ? <span style={{ fontSize: 10, color: '#666', flexShrink: 0 }}>▶</span>
+              : item.shortcut && <span style={{ fontSize: 10, color: '#555', flexShrink: 0 }}>{item.shortcut}</span>}
           </button>
         )
       )}

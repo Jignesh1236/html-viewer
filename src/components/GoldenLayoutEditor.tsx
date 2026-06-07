@@ -149,7 +149,7 @@ function getPanelTypeFromItem(item: any): PanelType | undefined {
 }
 
 /* ─── Panel Renderer ─── */
-function renderPanelContent(type: PanelType, mode: Mode): React.ReactElement {
+function renderPanelContent(type: PanelType, mode: Mode, sectionTitle?: string): React.ReactElement {
   switch (type) {
     case 'files':
       return <FilePanel hideHeader />;
@@ -178,7 +178,7 @@ function renderPanelContent(type: PanelType, mode: Mode): React.ReactElement {
     case 'vanta-editor':
       return <OGLShaderEditor />;
     case 'prop-section':
-      return <PropertiesPanel hideHeader />;
+      return <PropertiesPanel hideHeader singleSection={sectionTitle || ''} />;
   }
 }
 
@@ -266,7 +266,12 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
         const compType = (container as any)._myType as PanelType | undefined
           ?? (container as any)._initialState?.componentType as PanelType | undefined
           ?? detectType(container);
-        if (compType) root.render(renderPanelContent(compType, mode));
+        if (!compType) return;
+        // prop-section panels preserve their sectionTitle across re-renders
+        const sectionTitle = compType === 'prop-section'
+          ? ((container as any)._sectionTitle as string | undefined) ?? ''
+          : undefined;
+        root.render(renderPanelContent(compType, mode, sectionTitle));
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mode]);
@@ -313,6 +318,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
       gl.registerComponentFactoryFunction('prop-section', (container, state) => {
         const sectionTitle = (state as { sectionTitle?: string })?.sectionTitle || '';
         (container as any)._myType = 'prop-section';
+        (container as any)._sectionTitle = sectionTitle;
         const el = container.element as HTMLElement;
         el.style.cssText = 'height:100%;width:100%;overflow:auto;position:relative;background:#1a1a1e;';
         const root = ReactDOMClient.createRoot(el);

@@ -585,123 +585,151 @@ const QuickToolbar: React.FC<QuickToolbarProps> = ({ selEl, ifrRect, elRect, win
     onApply(prop, value);
   };
 
-  useEffect(() => { setRadius(parseFloat(rawRadius)   || 0); },                               [rawRadius]);
+  useEffect(() => { setRadius(parseFloat(rawRadius) || 0); }, [rawRadius]);
   useEffect(() => { setOpacity(Math.round((parseFloat(rawOpacity) || 1) * 100)); }, [rawOpacity]);
 
-  const toolTop  = ifrRect.top  + elRect.top - 50;
+  const toolTop  = ifrRect.top  + elRect.top - 58;
   const toolLeft = ifrRect.left + elRect.left;
-  const finalTop  = toolTop < 6 ? ifrRect.top + elRect.top + elRect.height + 8 : toolTop;
-  const finalLeft = Math.max(4, Math.min(toolLeft, window.innerWidth - 470));
+  const finalTop  = toolTop < 8 ? ifrRect.top + elRect.top + elRect.height + 10 : toolTop;
+  const finalLeft = Math.max(8, Math.min(toolLeft, window.innerWidth - 540));
 
   const toHex = (color: string) => {
     if (!color) return '#000000';
     if (/^#[0-9a-fA-F]{3,8}$/.test(color)) return color.slice(0, 7);
     const m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if (m) {
-      return '#' + [m[1], m[2], m[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
-    }
+    if (m) return '#' + [m[1], m[2], m[3]].map(n => parseInt(n).toString(16).padStart(2, '0')).join('');
     return '#000000';
   };
 
-  const isBold = cs?.fontWeight === '700' || cs?.fontWeight === 'bold';
-  const sep = <div style={{ width: 1, height: 16, background: '#2e2e32', flexShrink: 0 }} />;
-  const lbl = (s: string) => <span style={{ fontSize: 9, color: '#555', flexShrink: 0 }}>{s}</span>;
-  const inputStyle: React.CSSProperties = {
-    width: 42, border: '1px solid #2e2e32', borderRadius: 4,
-    padding: '4px 6px', background: '#111114', color: '#f4f4f8',
-    fontSize: 10, fontFamily: 'monospace', textAlign: 'right',
-  };
+  const isBold   = cs?.fontWeight === '700' || cs?.fontWeight === 'bold';
+  const isItalic = cs?.fontStyle === 'italic';
+
+  const Sep = () => <div style={{ width: 1, height: 20, background: '#2a2a2f', flexShrink: 0, margin: '0 2px' }} />;
+
+  const numInput = (val: number, onChange: (v: number) => void, lbl: string) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <span style={{ fontSize: 8, color: '#555', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{lbl}</span>
+      <input
+        type="number"
+        value={val}
+        onChange={e => onChange(Math.round(Number(e.target.value)))}
+        style={{
+          width: 44, border: '1px solid #2a2a30', borderRadius: 5,
+          padding: '3px 5px', background: '#0e0e12', color: '#e8e8ec',
+          fontSize: 11, fontFamily: 'monospace', textAlign: 'center',
+          outline: 'none', boxSizing: 'border-box',
+        }}
+      />
+    </div>
+  );
+
+  const colorSwatch = (val: string, onChange: (v: string) => void, title: string, lbl: string) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }} title={title}>
+      <span style={{ fontSize: 8, color: '#555', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{lbl}</span>
+      <label style={{ cursor: 'pointer' }}>
+        <div style={{
+          width: 24, height: 24, borderRadius: 5, border: '1.5px solid #333',
+          overflow: 'hidden', position: 'relative',
+          background: val || undefined,
+          backgroundImage: !val ? 'repeating-conic-gradient(#444 0% 25%, #222 0% 50%)' : undefined,
+          backgroundSize: '8px 8px',
+        }}>
+          <input type="color" value={toHex(val)} onChange={e => onChange(e.target.value)}
+            style={{ position: 'absolute', top: -4, left: -4, width: 32, height: 32, opacity: 0, cursor: 'pointer' }} />
+        </div>
+      </label>
+    </div>
+  );
+
+  const iconBtn = (label: string, onClick: () => void, active = false, title = '') => (
+    <button onClick={onClick} title={title} style={{
+      background: active ? 'rgba(229,164,90,0.18)' : 'none',
+      border: `1px solid ${active ? 'rgba(229,164,90,0.4)' : '#2a2a30'}`,
+      borderRadius: 5, color: active ? ACCENT : '#666',
+      cursor: 'pointer', fontSize: 12, fontWeight: 700,
+      width: 26, height: 26, display: 'flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0, padding: 0,
+      transition: 'all 0.12s',
+    }}>{label}</button>
+  );
 
   return createPortal(
     <div
       onMouseDown={e => e.stopPropagation()}
       style={{
-        position: 'fixed', top: finalTop, left: finalLeft, zIndex: 9100,
-        display: 'flex', alignItems: 'center', gap: 6,
-        background: '#111114', border: '1px solid #2e2e32',
-        borderRadius: 8, padding: '5px 10px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
-        userSelect: 'none', whiteSpace: 'nowrap', maxWidth: 490,
+        position: 'fixed', top: finalTop, left: finalLeft, zIndex: 9080,
+        display: 'flex', alignItems: 'center', gap: 8,
+        background: 'linear-gradient(180deg, #1a1a1e 0%, #141418 100%)',
+        border: '1px solid #2e2e34',
+        borderRadius: 10, padding: '6px 12px',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.7), 0 0 0 0.5px rgba(255,255,255,0.04)',
+        userSelect: 'none', whiteSpace: 'nowrap',
       }}
     >
       {/* Tag label */}
-      <span style={{ fontSize: 10, color: ACCENT, fontFamily: 'monospace', fontWeight: 700, flexShrink: 0 }}>
+      <span style={{
+        fontSize: 10, color: ACCENT, fontFamily: 'monospace', fontWeight: 700,
+        flexShrink: 0, background: 'rgba(229,164,90,0.1)',
+        padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(229,164,90,0.2)',
+      }}>
         &lt;{selEl.tagName.toLowerCase()}{selEl.id ? '#' + selEl.id : ''}&gt;
       </span>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, minmax(42px, 1fr))', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-        <label style={{ display:'flex', flexDirection:'column', gap: 2, fontSize: 8, color: '#888' }}>
-          X
-          <input type="number" value={x} onChange={e => setLayoutStyle('left', `${Math.round(Number(e.target.value))}px`)} style={inputStyle} />
-        </label>
-        <label style={{ display:'flex', flexDirection:'column', gap: 2, fontSize: 8, color: '#888' }}>
-          Y
-          <input type="number" value={y} onChange={e => setLayoutStyle('top', `${Math.round(Number(e.target.value))}px`)} style={inputStyle} />
-        </label>
-        <label style={{ display:'flex', flexDirection:'column', gap: 2, fontSize: 8, color: '#888' }}>
-          W
-          <input type="number" value={w} onChange={e => onApply('width', `${Math.max(0, Math.round(Number(e.target.value)))}px`)} style={inputStyle} />
-        </label>
-        <label style={{ display:'flex', flexDirection:'column', gap: 2, fontSize: 8, color: '#888' }}>
-          H
-          <input type="number" value={h} onChange={e => onApply('height', `${Math.max(0, Math.round(Number(e.target.value)))}px`)} style={inputStyle} />
-        </label>
+      <Sep />
+
+      {/* Dimensions */}
+      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }}>
+        {numInput(x, v => setLayoutStyle('left', `${v}px`), 'X')}
+        {numInput(y, v => setLayoutStyle('top', `${v}px`), 'Y')}
+        {numInput(w, v => onApply('width', `${Math.max(0, v)}px`), 'W')}
+        {numInput(h, v => onApply('height', `${Math.max(0, v)}px`), 'H')}
       </div>
 
-      {sep}
+      <Sep />
 
-      {/* Text color */}
-      <label style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', flexShrink:0 }} title="Text color">
-        {lbl('T')}
-        <div style={{ width:18, height:18, borderRadius:3, border:'1px solid #333', overflow:'hidden', position:'relative', background: rawColor || '#fff' }}>
-          <input type="color" value={toHex(rawColor)} onChange={e => onApply('color', e.target.value)}
-            style={{ position:'absolute', top:-4, left:-4, width:26, height:26, opacity:0, cursor:'pointer' }} />
-        </div>
-      </label>
+      {/* Colors */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+        {colorSwatch(rawColor, v => onApply('color', v), 'Text color', 'Text')}
+        {colorSwatch(rawBg,    v => onApply('background-color', v), 'Background color', 'BG')}
+      </div>
 
-      {/* BG color */}
-      <label style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', flexShrink:0 }} title="Background">
-        {lbl('BG')}
-        <div style={{ width:18, height:18, borderRadius:3, border:'1px solid #333', overflow:'hidden', position:'relative', background: rawBg || undefined, backgroundImage: !rawBg ? 'repeating-conic-gradient(#555 0% 25%, #333 0% 50%)' : undefined, backgroundSize:'8px 8px' }}>
-          <input type="color" value={toHex(rawBg)} onChange={e => onApply('background-color', e.target.value)}
-            style={{ position:'absolute', top:-4, left:-4, width:26, height:26, opacity:0, cursor:'pointer' }} />
-        </div>
-      </label>
-
-      {sep}
+      <Sep />
 
       {/* Border radius */}
-      <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
-        {lbl('⌒')}
-        <input type="range" min={0} max={999} step={1} value={radius}
-          onChange={e => { const v = Number(e.target.value); setRadius(v); onApply('border-radius', v+'px'); }}
-          style={{ width:60, accentColor: ACCENT } as React.CSSProperties} />
-        <span style={{ fontSize:9, color:'#888', minWidth:28, textAlign:'right' }}>{radius}px</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: 8, color: '#555', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Radius</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <input type="range" min={0} max={999} step={1} value={radius}
+            onChange={e => { const v = Number(e.target.value); setRadius(v); onApply('border-radius', v + 'px'); }}
+            style={{ width: 60, accentColor: ACCENT } as React.CSSProperties} />
+          <span style={{ fontSize: 10, color: '#888', minWidth: 30, textAlign: 'right', fontFamily: 'monospace' }}>{radius}px</span>
+        </div>
       </div>
 
       {/* Opacity */}
-      <div style={{ display:'flex', alignItems:'center', gap:4, flexShrink:0 }}>
-        {lbl('α')}
-        <input type="range" min={0} max={100} step={1} value={opacity}
-          onChange={e => { const v = Number(e.target.value); setOpacity(v); onApply('opacity', (v/100).toFixed(2)); }}
-          style={{ width:50, accentColor: ACCENT } as React.CSSProperties} />
-        <span style={{ fontSize:9, color:'#888', minWidth:24, textAlign:'right' }}>{opacity}%</span>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: 8, color: '#555', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Opacity</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <input type="range" min={0} max={100} step={1} value={opacity}
+            onChange={e => { const v = Number(e.target.value); setOpacity(v); onApply('opacity', (v / 100).toFixed(2)); }}
+            style={{ width: 50, accentColor: ACCENT } as React.CSSProperties} />
+          <span style={{ fontSize: 10, color: '#888', minWidth: 28, textAlign: 'right', fontFamily: 'monospace' }}>{opacity}%</span>
+        </div>
       </div>
 
-      {sep}
+      <Sep />
 
-      {/* Font size */}
-      <button onClick={() => onApply('font-size', Math.max(8, rawFontSize-2)+'px')} title="Smaller" style={TB}>−</button>
-      <span style={{ fontSize:9, color:'#888', minWidth:26, textAlign:'center' }}>{Math.round(rawFontSize)}px</span>
-      <button onClick={() => onApply('font-size', (rawFontSize+2)+'px')} title="Larger"  style={TB}>+</button>
-
-      {/* Bold */}
-      <button
-        onClick={() => onApply('font-weight', isBold ? '400' : '700')} title="Bold"
-        style={{ ...TB, fontWeight:700, color: isBold ? ACCENT : '#555',
-          background: isBold ? 'rgba(229,164,90,0.12)' : 'none',
-          borderColor: isBold ? 'rgba(229,164,90,0.3)' : '#2e2e32' }}
-      >B</button>
+      {/* Font */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ fontSize: 8, color: '#555', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Font</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {iconBtn('−', () => onApply('font-size', Math.max(8, rawFontSize - 2) + 'px'), false, 'Smaller')}
+          <span style={{ fontSize: 10, color: '#888', minWidth: 30, textAlign: 'center', fontFamily: 'monospace' }}>{Math.round(rawFontSize)}px</span>
+          {iconBtn('+', () => onApply('font-size', (rawFontSize + 2) + 'px'), false, 'Larger')}
+          {iconBtn('B', () => onApply('font-weight', isBold ? '400' : '700'), isBold, 'Bold')}
+          {iconBtn('I', () => onApply('font-style', isItalic ? 'normal' : 'italic'), isItalic, 'Italic')}
+        </div>
+      </div>
     </div>,
     document.body,
   );
@@ -751,7 +779,7 @@ const VisualEditor: React.FC = () => {
   const [isEditingText, setIsEditingText] = useState(false);
   const [showQuickBar, setShowQuickBar]   = useState(false);
 
-  const { show: showCtx } = useContextMenu();
+  const { show: showCtx, element: ctxMenuElement } = useContextMenu();
 
   useEffect(() => { selElRef.current = selEl; }, [selEl]);
   useEffect(() => { hovElRef.current = hovEl; }, [hovEl]);
@@ -1325,7 +1353,7 @@ const VisualEditor: React.FC = () => {
           height: '100%',
           maxHeight: '100%',
           background: '#fff',
-          borderRadius: 12,
+          borderRadius: 0,
           overflow: 'hidden',
           border: '1px solid rgba(255,255,255,0.08)',
           boxShadow: visualPreviewDevice === 'custom' ? 'none' : '0 18px 62px rgba(0,0,0,0.45)',
@@ -1417,6 +1445,9 @@ const VisualEditor: React.FC = () => {
           }}
         />
       )}
+
+      {/* ── Context Menu ── */}
+      {ctxMenuElement}
     </div>
   );
 };
