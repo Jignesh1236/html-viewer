@@ -18,7 +18,7 @@ import ConsolePanel from './ConsolePanel';
 import EventListenersPanel from './EventListenersPanel';
 import GSAPEditor from './GSAPEditor';
 import GSAPTimeline from './GSAPTimeline';
-import VantaEditor from './VantaEditor';
+import OGLShaderEditor from './OGLShaderEditor';
 import { setGlSectionOpener } from '../lib/propSectionBridge';
 import { deleteCookie, getCookie, setCookie } from '../utils/cookies';
 
@@ -40,13 +40,13 @@ function getCodeLayout(): LayoutConfig {
       content: [
         {
           type: 'component', componentType: 'files',
-          title: '⬡ Explorer', width: 17,
+          title: 'Explorer', width: 17,
         },
         {
           type: 'stack', width: 83,
           content: [
-            { type: 'component', componentType: 'code', title: '⌨ Code Editor' },
-            { type: 'component', componentType: 'console', title: '▶ Console' },
+            { type: 'component', componentType: 'code', title: 'Code Editor' },
+            { type: 'component', componentType: 'console', title: 'Console' },
           ],
         },
       ],
@@ -61,15 +61,15 @@ function getSplitLayout(): LayoutConfig {
     root: {
       type: 'row',
       content: [
-        { type: 'component', componentType: 'files', title: '⬡ Explorer', width: 17 },
+        { type: 'component', componentType: 'files', title: 'Explorer', width: 17 },
         {
           type: 'stack', width: 48,
           content: [
-            { type: 'component', componentType: 'code', title: '⌨ Code Editor' },
-            { type: 'component', componentType: 'console', title: '▶ Console' },
+            { type: 'component', componentType: 'code', title: 'Code Editor' },
+            { type: 'component', componentType: 'console', title: 'Console' },
           ],
         },
-        { type: 'component', componentType: 'preview', title: '◉ Preview', width: 35 },
+        { type: 'component', componentType: 'preview', title: 'Preview', width: 35 },
       ],
     },
     settings: { showPopoutIcon: false, showMaximiseIcon: true, showCloseIcon: true },
@@ -85,23 +85,23 @@ function getVisualLayout(): LayoutConfig {
         {
           type: 'stack', width: 18,
           content: [
-            { type: 'component', componentType: 'anim-presets', title: '✦ Anim Presets' },
-            { type: 'component', componentType: 'anim-config', title: '⊛ Anim Config' },
-            { type: 'component', componentType: 'anim-tracks', title: '≋ Anim Tracks' },
+            { type: 'component', componentType: 'anim-presets', title: 'Anim Presets' },
+            { type: 'component', componentType: 'anim-config', title: 'Anim Config' },
+            { type: 'component', componentType: 'anim-tracks', title: 'Anim Tracks' },
           ],
         },
         {
           type: 'column', width: 56,
           content: [
-            { type: 'component', componentType: 'preview', title: '◈ Visual Editor', height: 75 },
-            { type: 'component', componentType: 'timeline', title: '◷ Timeline', height: 25 },
+            { type: 'component', componentType: 'preview', title: 'Visual Editor', height: 75 },
+            { type: 'component', componentType: 'timeline', title: 'Timeline', height: 25 },
           ],
         },
         {
           type: 'stack', width: 26,
           content: [
-            { type: 'component', componentType: 'properties', title: '⊞ Properties' },
-            { type: 'component', componentType: 'events', title: '⚡ Events' },
+            { type: 'component', componentType: 'properties', title: 'Properties' },
+            { type: 'component', componentType: 'events', title: 'Events' },
           ],
         },
       ],
@@ -118,13 +118,13 @@ function getLayout(mode: Mode): LayoutConfig {
 }
 
 const PANEL_TITLES: Record<PanelType, string> = {
-  files: '⬡ Explorer', code: '⌨ Code Editor', preview: '◉ Preview',
-  properties: '⊞ Properties', timeline: '◷ Timeline',
-  events: '⚡ Events', console: '▶ Console',
-  'anim-presets': '✦ Anim Presets', 'anim-config': '⊛ Anim Config', 'anim-tracks': '≋ Anim Tracks',
-  'gsap-editor': '◈ GSAP Editor', 'gsap-timeline': 'G GSAP Timeline',
-  'vanta-editor': '✦ Vanta Effects',
-  'prop-section': '⊞ Property Group',
+  files: 'Explorer', code: 'Code Editor', preview: 'Preview',
+  properties: 'Properties', timeline: 'Timeline',
+  events: 'Events', console: 'Console',
+  'anim-presets': 'Anim Presets', 'anim-config': 'Anim Config', 'anim-tracks': 'Anim Tracks',
+  'gsap-editor': 'GSAP Editor', 'gsap-timeline': 'GSAP Timeline',
+  'vanta-editor': 'OGL Shader FX',
+  'prop-section': 'Property Group',
 };
 
 const COOKIE_LAYOUT_MAX_LENGTH = 3600;
@@ -176,7 +176,7 @@ function renderPanelContent(type: PanelType, mode: Mode): React.ReactElement {
     case 'gsap-timeline':
       return <GSAPTimeline />;
     case 'vanta-editor':
-      return <VantaEditor />;
+      return <OGLShaderEditor />;
     case 'prop-section':
       return <PropertiesPanel hideHeader />;
   }
@@ -218,7 +218,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
     useEffect(() => { modeRef.current = mode; }, [mode]);
 
     /* ── localStorage helpers (GoldenLayout v2 API) — component scope ── */
-    const LS_KEY = useCallback((m: Mode) => `gl-layout-v3-${m}`, []);
+    const LS_KEY = useCallback((m: Mode) => `gl-layout-v4-${m}`, []);
 
     const saveLayoutState = useCallback((gl: GoldenLayout, m: Mode) => {
       try {
@@ -363,6 +363,19 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
           gl.loadLayout(getSplitLayout());
         }
       }
+
+      /* ── Inject CSS: active tab highlight at BOTTOM border ── */
+      const styleId = 'gl-tab-bottom-highlight';
+      let glStyle = document.getElementById(styleId) as HTMLStyleElement | null;
+      if (!glStyle) {
+        glStyle = document.createElement('style');
+        glStyle.id = styleId;
+        document.head.appendChild(glStyle);
+      }
+      glStyle.textContent = `
+        .lm_header .lm_tab { border-top: 2px solid transparent !important; border-bottom: 2px solid transparent !important; }
+        .lm_header .lm_tab.lm_active { border-top: 2px solid transparent !important; border-top-color: transparent !important; border-bottom: 2px solid #e5a45a !important; }
+      `;
 
       /* Auto-save on every state change (debounced to avoid excessive writes) */
       let isDestroying = false;

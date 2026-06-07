@@ -59,49 +59,6 @@ const EditorAdBanner: React.FC = () => {
   );
 };
 
-/* ─── Live Server Toggle Button ─── */
-function LiveServerButton() {
-  const { liveServer, setLiveServer, refreshPreview } = useEditorStore();
-  const [pulse, setPulse] = React.useState(false);
-
-  const toggle = () => {
-    const next = !liveServer;
-    setLiveServer(next);
-    if (next) {
-      refreshPreview();
-      setPulse(true);
-      setTimeout(() => setPulse(false), 600);
-    }
-  };
-
-  return (
-    <button
-      title={liveServer ? 'Live Server is ON — preview auto-updates on every change. Click to turn off.' : 'Live Server is OFF — preview is paused. Click to turn on.'}
-      onClick={toggle}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 5,
-        padding: '0 10px', height: '100%',
-        background: liveServer ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.35)',
-        border: 'none', borderLeft: '1px solid rgba(255,255,255,0.15)',
-        color: '#fff', cursor: 'pointer', fontSize: 11,
-        fontFamily: 'inherit', fontWeight: 600,
-        letterSpacing: '0.04em', transition: 'background 0.15s',
-        flexShrink: 0, whiteSpace: 'nowrap',
-      }}
-      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.3)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = liveServer ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.35)'; }}
-    >
-      <span style={{
-        width: 7, height: 7, borderRadius: '50%',
-        background: liveServer ? '#4ade80' : '#f87171',
-        display: 'inline-block', flexShrink: 0,
-        boxShadow: liveServer ? `0 0 ${pulse ? '8px' : '5px'} #4ade80` : 'none',
-        transition: 'all 0.2s',
-      }} />
-      {liveServer ? '⚡ Live' : '⏸ Live'}
-    </button>
-  );
-}
 
 /* ─── AI Status Button ─── */
 function AiStatusButton() {
@@ -172,50 +129,105 @@ function MobileApp() {
 
   const accent = '#e5a45a', bg = '#1e1e1e', bar = '#252526', border = '#3a3a3a';
 
+  /* skeuomorphic mobile tokens */
+  const SKU_HDR  = 'linear-gradient(180deg,#2e2e34 0%,#252528 50%,#222225 100%)';
+  const SKU_BAR  = 'linear-gradient(180deg,#222226 0%,#1e1e22 100%)';
+  const SKU_BTN  = 'linear-gradient(180deg,#3a3a42 0%,#2e2e35 50%,#2a2a31 100%)';
+  const SKU_ABTN = 'linear-gradient(180deg,#c8913c 0%,#e5a45a 40%,#c8913c 100%)';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100vw', background: bg, color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 46, flexShrink: 0, background: '#323233', borderBottom: `1px solid ${border}`, padding: '0 10px', gap: 8, zIndex: 100 }}>
-        <div style={{ width: 20, height: 20, borderRadius: 4, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#fff', flexShrink: 0 }}>H</div>
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#ccc', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>HTML Editor</span>
-        <div style={{ display: 'flex', gap: 2, background: '#1e1e1e', borderRadius: 6, padding: 2, flexShrink: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100vw', background: '#1e1e22', color: '#d8d8d8', fontFamily: "'Inter', -apple-system, sans-serif", overflow: 'hidden' }}>
+      {/* ── SKEUOMORPHIC MOBILE HEADER ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', height: 48, flexShrink: 0,
+        background: SKU_HDR,
+        borderBottom: '1px solid rgba(0,0,0,0.6)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.07),0 3px 10px rgba(0,0,0,0.5)',
+        padding: '0 12px', gap: 8, zIndex: 100,
+      }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: 5, flexShrink: 0,
+          background: 'linear-gradient(145deg,#cc3300 0%,#e34c26 50%,#aa2200 100%)',
+          border: '1px solid rgba(0,0,0,0.5)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25),0 2px 4px rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 900, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+        }}>H</div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#d8d8d8', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 1px rgba(0,0,0,0.5)' }}>HTML Editor</span>
+        <div style={{ display: 'flex', gap: 3, background: 'rgba(0,0,0,0.3)', borderRadius: 6, padding: 3, flexShrink: 0, border: '1px solid rgba(0,0,0,0.4)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)' }}>
           {([['split', 'View'], ['visual', 'Visual']] as [Mode, string][]).map(([m, label]) => (
             <button key={m} onClick={() => { setMode(m); setTab('preview'); }}
-              style={{ padding: '3px 8px', fontSize: 10, borderRadius: 4, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', border: 'none', background: mode === m ? accent : 'transparent', color: mode === m ? '#111' : '#666', textTransform: 'uppercase' }}>
+              style={{
+                padding: '3px 10px', fontSize: 10, borderRadius: 4, cursor: 'pointer',
+                fontWeight: 700, fontFamily: 'inherit',
+                border: `1px solid ${mode === m ? 'rgba(180,110,20,0.6)' : 'transparent'}`,
+                background: mode === m ? SKU_ABTN : 'transparent',
+                color: mode === m ? '#1a0d00' : '#66666e',
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+                boxShadow: mode === m ? 'inset 0 1px 0 rgba(255,255,255,0.2),0 1px 3px rgba(0,0,0,0.4)' : 'none',
+              }}>
               {label}
             </button>
           ))}
         </div>
         <button onClick={() => exportProject(files).then(() => showNotification('Exported!'))}
-          style={{ padding: '5px 8px', fontSize: 11, borderRadius: 5, cursor: 'pointer', background: 'rgba(229,164,90,0.12)', border: `1px solid rgba(229,164,90,0.35)`, color: accent, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+          style={{
+            padding: '5px 9px', fontSize: 11, borderRadius: 5, cursor: 'pointer',
+            background: SKU_BTN,
+            border: '1px solid rgba(0,0,0,0.5)',
+            color: accent, fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.14),0 2px 4px rgba(0,0,0,0.5)',
+          }}>
           <FiDownload size={12} />
         </button>
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative', minHeight: 0 }}>
-        <div style={{ display: tab === 'files' ? 'flex' : 'none', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}><FilePanel hideHeader /></div>
+        <div style={{ display: tab === 'files' ? 'flex' : 'none', flexDirection: 'column', height: '100%', background: '#1e1e22' }}><FilePanel hideHeader /></div>
         <div style={{ display: tab === 'code' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}><CodeEditor /></div>
         <div style={{ display: tab === 'preview' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}>{mode === 'visual' ? <VisualEditor /> : <PreviewPane />}</div>
         <div style={{ display: tab === 'console' ? 'flex' : 'none', flexDirection: 'column', height: '100%' }}><ConsolePanel /></div>
         <div style={{ display: tab === 'props' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflowY: 'auto' }}><PropertiesPanel hideHeader /></div>
       </div>
 
-      {/* Tab Bar */}
-      <div style={{ display: 'flex', height: 56, flexShrink: 0, background: bar, borderTop: `1px solid ${border}`, paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 100 }}>
+      {/* ── SKEUOMORPHIC MOBILE TAB BAR ── */}
+      <div style={{
+        display: 'flex', height: 58, flexShrink: 0,
+        background: SKU_BAR,
+        borderTop: '1px solid rgba(0,0,0,0.6)',
+        boxShadow: '0 -1px 0 rgba(255,255,255,0.06)',
+        paddingBottom: 'env(safe-area-inset-bottom)', zIndex: 100,
+      }}>
         {TABS.map(t => {
-          const active = t.id === tab;
+          const isActive = t.id === tab;
           return (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', cursor: 'pointer', fontFamily: 'inherit', background: active ? 'rgba(229,164,90,0.08)' : 'transparent', borderTop: `2px solid ${active ? accent : 'transparent'}`, color: active ? accent : '#666', transition: 'all 0.15s' }}>
+            <button key={t.id} onClick={() => setTab(t.id)} style={{
+              flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', gap: 3, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit',
+              background: isActive ? 'rgba(229,164,90,0.07)' : 'transparent',
+              borderTop: `2px solid ${isActive ? accent : 'transparent'}`,
+              color: isActive ? accent : '#555560', transition: 'all 0.15s',
+            }}>
               {t.icon}
-              <span style={{ fontSize: 8, fontWeight: active ? 700 : 500, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t.label}</span>
+              <span style={{ fontSize: 8, fontWeight: isActive ? 700 : 500, letterSpacing: '0.04em', textTransform: 'uppercase', textShadow: '0 1px 1px rgba(0,0,0,0.5)' }}>{t.label}</span>
             </button>
           );
         })}
       </div>
 
       {notification && (
-        <div style={{ position: 'fixed', bottom: 68, left: '50%', transform: 'translateX(-50%)', zIndex: 1000000, background: '#3c3c3c', border: '1px solid #555', borderRadius: 8, padding: '8px 18px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>
+        <div style={{
+          position: 'fixed', bottom: 70, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 1000000,
+          background: 'linear-gradient(180deg,#3a3a42 0%,#2e2e36 100%)',
+          border: '1px solid rgba(0,0,0,0.6)', borderTopColor: 'rgba(255,255,255,0.1)',
+          borderRadius: 8, padding: '9px 20px', fontSize: 13, color: '#d8d8d8',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.1)',
+          whiteSpace: 'nowrap', textShadow: '0 1px 1px rgba(0,0,0,0.4)',
+        }}>
           {notification}
         </div>
       )}
@@ -264,7 +276,17 @@ function DesktopApp() {
       if (mod && e.key === '1') { e.preventDefault(); applyModePreset('code'); }
       if (mod && e.key === '2') { e.preventDefault(); applyModePreset('visual'); }
       if (mod && e.key === '3') { e.preventDefault(); applyModePreset('split'); }
-      if (mod && e.key === 's') { e.preventDefault(); showNotification('All files saved ✓'); }
+      if (mod && e.key === 's') {
+        e.preventDefault();
+        const st = useEditorStore.getState();
+        const activeId = st.activeFileId;
+        if (activeId) {
+          st.markFileSaved(activeId);
+        } else {
+          st.markAllSaved();
+        }
+        showNotification('File saved ✓');
+      }
       if (mod && e.key === 'e') { e.preventDefault(); exportProject(files).then(() => showNotification('Exported project.zip')); }
       if (mod && e.key === 'r') { e.preventDefault(); useEditorStore.getState().refreshPreview(); }
       if (mod && e.key === '`') { e.preventDefault(); handlePanelToggle('console'); }
@@ -290,26 +312,48 @@ function DesktopApp() {
     { type: 'anim-tracks',  icon: <FiLayout size={12} />,   label: 'Anim Tracks',  title: 'Anim Tracks' },
     { type: 'gsap-editor',    icon: <FiZap size={12} />,      label: 'GSAP',          title: 'GSAP Editor' },
     { type: 'gsap-timeline',  icon: <FiClock size={12} />,    label: 'GSAP Timeline', title: 'GSAP Timeline' },
-    { type: 'vanta-editor',   icon: <FiBox size={12} />,      label: 'Vanta',         title: 'Vanta.js Effects' },
+    { type: 'vanta-editor',   icon: <FiBox size={12} />,      label: 'OGL FX',        title: 'OGL Shader FX' },
   ];
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#111', color: '#ccc', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}>
+  /* ── Skeuomorphic tokens ── */
+  const SKU_TITLEBAR = 'linear-gradient(180deg,#2e2e34 0%,#252528 50%,#222225 100%)';
+  const SKU_STATUS   = 'linear-gradient(180deg,#1e1e22 0%,#191919 100%)';
+  const SKU_BTNRAISED = 'linear-gradient(180deg,#3a3a42 0%,#2e2e35 50%,#2a2a31 100%)';
+  const SKU_BTNACTIVE = 'linear-gradient(180deg,#c8913c 0%,#e5a45a 40%,#c8913c 100%)';
+  const SKU_SHADOW_BTN = 'inset 0 1px 0 rgba(255,255,255,0.14),0 2px 4px rgba(0,0,0,0.5)';
+  const SKU_SHADOW_ACTIVE = 'inset 0 1px 0 rgba(229,164,90,0.3),0 0 8px rgba(229,164,90,0.2)';
 
-      {/* ── Menu Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 32, flexShrink: 0, background: '#323233', borderBottom: '1px solid #3e3e3e', position: 'relative', zIndex: 9999 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', flexShrink: 0 }}>
-          <div style={{ width: 18, height: 18, borderRadius: 3, background: '#e34c26', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: '#fff' }}>H</div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#ccc' }}>HTML Editor</span>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100vw', background: '#1e1e22', color: '#d8d8d8', fontFamily: "'Inter', -apple-system, sans-serif", fontSize: 13, overflow: 'hidden' }}>
+
+      {/* ══ SKEUOMORPHIC MENU BAR ══ */}
+      <div style={{
+        display: 'flex', alignItems: 'center', height: 34, flexShrink: 0,
+        background: SKU_TITLEBAR,
+        borderBottom: '1px solid rgba(0,0,0,0.6)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.07),0 3px 10px rgba(0,0,0,0.5)',
+        position: 'relative', zIndex: 9999,
+      }}>
+        {/* Logo + Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 14px', flexShrink: 0, borderRight: '1px solid rgba(0,0,0,0.4)', height: '100%' }}>
+          <div style={{
+            width: 20, height: 20, borderRadius: 5, flexShrink: 0,
+            background: 'linear-gradient(145deg,#cc3300 0%,#e34c26 50%,#aa2200 100%)',
+            border: '1px solid rgba(0,0,0,0.5)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25),0 2px 4px rgba(0,0,0,0.5)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 900, color: '#fff',
+            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+          }}>H</div>
+          <span style={{ fontSize: 12, fontWeight: 700, color: '#d8d8d8', letterSpacing: '-0.01em', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>HTML Editor</span>
         </div>
+
         <MenuBar
           wins={PANEL_BTNS.map(b => ({
             id: b.type as import('./App').WinId,
             title: b.title,
             visible: openPanels.includes(b.type as import('./components/GoldenLayoutEditor').PanelType),
-            minimized: false,
-            docked: true,
-            zIndex: 1,
+            minimized: false, docked: true, zIndex: 1,
             rect: { x: 0, y: 0, w: 300, h: 400 },
           }))}
           onToggleWin={(id) => handlePanelToggle(id as import('./components/GoldenLayoutEditor').PanelType)}
@@ -318,59 +362,123 @@ function DesktopApp() {
           onApplyModePreset={(m: string) => applyModePreset(m as Mode)}
         />
         <div style={{ flex: 1 }} />
-        {/* Quick-access layout buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 6px', borderLeft: '1px solid #3e3e3e' }}>
-          {([['split', FiLayout, 'Ctrl+3'], ['code', FiCode, 'Ctrl+1'], ['visual', FiEye, 'Ctrl+2']] as const).map(([m, Icon, sc]) => (
-            <button key={m} title={`${m} layout (${sc})`} onClick={() => applyModePreset(m)}
-              style={{ display: 'flex', alignItems: 'center', padding: '3px 7px', borderRadius: 3, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', background: mode === m ? 'rgba(229,164,90,0.15)' : 'transparent', border: `1px solid ${mode === m ? 'rgba(229,164,90,0.45)' : 'transparent'}`, color: mode === m ? '#e5a45a' : '#666', gap: 4 }}>
-              <Icon size={11} />{m}
+
+        {/* Layout mode pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '0 8px', borderLeft: '1px solid rgba(0,0,0,0.4)', height: '100%' }}>
+          {([['split', FiLayout, 'Ctrl+3'], ['code', FiCode, 'Ctrl+1'], ['visual', FiEye, 'Ctrl+2']] as const).map(([m, Icon, sc]) => {
+            const isActive = mode === m;
+            return (
+              <button key={m} title={`${m} layout (${sc})`} onClick={() => applyModePreset(m)}
+                style={{
+                  display: 'flex', alignItems: 'center', padding: '3px 8px', borderRadius: 4,
+                  cursor: 'pointer', fontSize: 10, fontFamily: 'inherit', fontWeight: 700,
+                  letterSpacing: '0.04em', textTransform: 'uppercase',
+                  background: isActive ? SKU_BTNACTIVE : SKU_BTNRAISED,
+                  border: `1px solid ${isActive ? 'rgba(180,110,20,0.6)' : 'rgba(0,0,0,0.5)'}`,
+                  color: isActive ? '#1a0d00' : '#888890',
+                  boxShadow: isActive ? SKU_SHADOW_ACTIVE : SKU_SHADOW_BTN,
+                  textShadow: `0 1px 1px rgba(0,0,0,${isActive ? 0.2 : 0.5})`,
+                  gap: 4, transition: 'all 0.12s',
+                }}>
+                <Icon size={10} />{m}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Utility buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 8px', borderLeft: '1px solid rgba(0,0,0,0.4)', height: '100%' }}>
+          {[
+            { title: 'Refresh Preview (Ctrl+R)', icon: <FiRefreshCw size={11}/>, onClick: () => useEditorStore.getState().refreshPreview() },
+            { title: 'Export ZIP (Ctrl+E)', icon: <FiDownload size={11}/>, onClick: () => exportProject(files).then(() => showNotification('Exported project.zip')) },
+          ].map(({ title, icon, onClick }) => (
+            <button key={title} title={title} onClick={onClick}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 24, height: 24, borderRadius: 4, cursor: 'pointer',
+                background: SKU_BTNRAISED,
+                border: '1px solid rgba(0,0,0,0.5)',
+                color: '#888890',
+                boxShadow: SKU_SHADOW_BTN,
+                transition: 'all 0.1s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#d8d8d8'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#888890'; }}>
+              {icon}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 6px', borderLeft: '1px solid #3e3e3e' }}>
-          <button title="Refresh Preview (Ctrl+R)" onClick={() => useEditorStore.getState().refreshPreview()}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 7px', borderRadius: 3, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', background: 'transparent', border: '1px solid transparent', color: '#666' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#666'; }}>
-            <FiRefreshCw size={11} />
-          </button>
-          <button title="Export ZIP (Ctrl+E)" onClick={() => exportProject(files).then(() => showNotification('Exported project.zip'))}
-            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 7px', borderRadius: 3, cursor: 'pointer', fontSize: 11, fontFamily: 'inherit', background: 'transparent', border: '1px solid transparent', color: '#666' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = '#ccc'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = '#666'; }}>
-            <FiDownload size={11} />
-          </button>
-        </div>
-        <span style={{ fontSize: 11, color: '#555', padding: '0 12px', borderLeft: '1px solid #3e3e3e' }}>{activeFileName}</span>
+
+        {/* Active file */}
+        <span style={{
+          fontSize: 10, color: '#555560', padding: '0 14px',
+          borderLeft: '1px solid rgba(0,0,0,0.4)', height: '100%',
+          display: 'flex', alignItems: 'center',
+          textShadow: '0 1px 1px rgba(0,0,0,0.5)',
+          fontFamily: 'monospace',
+        }}>{activeFileName}</span>
       </div>
 
-      {/* ── Golden Layout Workspace ── */}
+      {/* ══ WORKSPACE ══ */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <GoldenLayoutEditor
-          ref={glRef}
-          mode={mode as Mode}
-          onPanelsChange={setOpenPanels}
-        />
+        <GoldenLayoutEditor ref={glRef} mode={mode as Mode} onPanelsChange={setOpenPanels} />
       </div>
 
-      {/* ── Status Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', height: 24, flexShrink: 0, background: '#007acc', padding: '0 0 0 12px', fontSize: 11, color: 'rgba(255,255,255,0.9)', zIndex: 200 }}>
-        <span style={{ fontWeight: 600, paddingRight: 12, borderRight: '1px solid rgba(255,255,255,0.2)' }}>HTML Editor</span>
-        <span style={{ padding: '0 12px' }}>Mode: {mode}</span>
-        <span style={{ padding: '0 12px', opacity: 0.8 }}>{activeFileName}</span>
+      {/* ══ SKEUOMORPHIC STATUS BAR ══ */}
+      <div style={{
+        display: 'flex', alignItems: 'center', height: 24, flexShrink: 0,
+        background: SKU_STATUS,
+        borderTop: '1px solid rgba(0,0,0,0.6)',
+        boxShadow: '0 -1px 0 rgba(255,255,255,0.06),inset 0 1px 0 rgba(0,0,0,0.3)',
+        padding: '0 0 0 0', fontSize: 10, color: '#555560', zIndex: 200,
+      }}>
+        {/* Left — branding chip */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '0 14px', borderRight: '1px solid rgba(0,0,0,0.4)',
+          height: '100%',
+          background: 'linear-gradient(180deg,rgba(229,164,90,0.12) 0%,rgba(229,164,90,0.06) 100%)',
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 10, color: '#e5a45a', textShadow: '0 1px 1px rgba(0,0,0,0.5)', letterSpacing: '0.06em' }}>HTML Editor</span>
+        </div>
+
+        {[
+          { label: 'Mode', value: mode.toUpperCase() },
+          { label: null, value: activeFileName, mono: true },
+        ].map(({ label, value, mono }, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '0 12px', borderRight: '1px solid rgba(0,0,0,0.3)',
+            height: '100%',
+          }}>
+            {label && <span style={{ color: '#444', textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.08em' }}>{label}:</span>}
+            <span style={{ color: '#666670', fontFamily: mono ? 'monospace' : 'inherit', fontSize: 10 }}>{value}</span>
+          </div>
+        ))}
+
         <div style={{ flex: 1 }} />
-        <span style={{ opacity: 0.7, fontSize: 10, paddingRight: 12, fontFamily: 'inherit' }}>
-          Golden Layout — drag tabs to rearrange panels
+
+        <span style={{ padding: '0 12px', borderLeft: '1px solid rgba(0,0,0,0.3)', color: '#444454', fontSize: 9, fontStyle: 'italic' }}>
+          Drag tabs to rearrange
         </span>
-        <span style={{ padding: '0 10px', borderLeft: '1px solid rgba(255,255,255,0.2)', opacity: 0.8 }}>{files.length} files</span>
-        <span style={{ padding: '0 10px', borderLeft: '1px solid rgba(255,255,255,0.2)', opacity: 0.8 }}>UTF-8</span>
-        <LiveServerButton />
+        <span style={{ padding: '0 12px', borderLeft: '1px solid rgba(0,0,0,0.3)', color: '#555560' }}>{files.length} files</span>
+        <span style={{ padding: '0 12px', borderLeft: '1px solid rgba(0,0,0,0.3)', color: '#555560', fontFamily: 'monospace', fontSize: 9 }}>UTF-8</span>
         <AiStatusButton />
       </div>
 
-      {/* ── Toast ── */}
+      {/* ══ SKEUOMORPHIC TOAST ══ */}
       {notification && (
-        <div style={{ position: 'fixed', bottom: 36, right: 16, zIndex: 1000000, background: '#3c3c3c', border: '1px solid #555', borderRadius: 6, padding: '8px 16px', fontSize: 13, color: '#ccc', boxShadow: '0 4px 16px rgba(0,0,0,0.5)', pointerEvents: 'none' }}>
+        <div style={{
+          position: 'fixed', bottom: 36, right: 16, zIndex: 1000000,
+          background: 'linear-gradient(180deg,#3a3a42 0%,#2e2e36 100%)',
+          border: '1px solid rgba(0,0,0,0.6)',
+          borderTopColor: 'rgba(255,255,255,0.1)',
+          borderRadius: 7, padding: '9px 18px', fontSize: 12,
+          color: '#d8d8d8',
+          boxShadow: '0 12px 40px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.1)',
+          pointerEvents: 'none',
+          textShadow: '0 1px 1px rgba(0,0,0,0.4)',
+        }}>
           {notification}
         </div>
       )}

@@ -201,6 +201,13 @@ interface EditorStore {
 
   liveServer: boolean;
   setLiveServer: (v: boolean) => void;
+
+  autoSave: boolean;
+  setAutoSave: (v: boolean) => void;
+
+  unsavedFileIds: string[];
+  markFileSaved: (id: string) => void;
+  markAllSaved: () => void;
 }
 
 const DEFAULT_HTML = ``;
@@ -279,6 +286,7 @@ interface UserConfigCookie {
   animationConfig?: Partial<AnimationConfig>;
   panels?: Partial<PanelConfig>;
   liveServer?: boolean;
+  autoSave?: boolean;
 }
 
 /* ─── Files persistence ─── */
@@ -470,9 +478,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     }
     const next = s.files.map(f => f.id === id ? { ...f, content } : f);
     saveFiles(next);
+    const autoSave = s.autoSave;
+    const unsavedFileIds = autoSave
+      ? s.unsavedFileIds.filter(uid => uid !== id)
+      : s.unsavedFileIds.includes(id) ? s.unsavedFileIds : [...s.unsavedFileIds, id];
     return {
       files: next,
-      previewRefreshKey: s.previewRefreshKey + 1,
+      unsavedFileIds,
+      ...(autoSave ? { previewRefreshKey: s.previewRefreshKey + 1 } : {}),
       ...timelinePatch,
     };
   }),
@@ -678,4 +691,20 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     patchUserConfigCookie({ liveServer: v });
     set({ liveServer: v });
   },
+
+  autoSave: _initUserConfig.autoSave ?? true,
+  setAutoSave: (v) => {
+    patchUserConfigCookie({ autoSave: v });
+    set({ autoSave: v });
+  },
+
+  unsavedFileIds: [],
+  markFileSaved: (id) => set((s) => ({
+    unsavedFileIds: s.unsavedFileIds.filter(uid => uid !== id),
+    previewRefreshKey: s.previewRefreshKey + 1,
+  })),
+  markAllSaved: () => set((s) => ({
+    unsavedFileIds: [],
+    previewRefreshKey: s.previewRefreshKey + 1,
+  })),
 }));

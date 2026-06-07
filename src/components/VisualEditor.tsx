@@ -1041,9 +1041,16 @@ const VisualEditor: React.FC = () => {
   return (
     <div style={{ position:'relative', width:'100%', height:'100%', overflow:'hidden', background:'#141417', display:'flex', flexDirection:'column' }}>
 
-      {/* ── Compact Toolbar ── */}
-      <div style={{ height:30, flexShrink:0, background:'#0e0e11', borderBottom:'1px solid #1e1e22', display:'flex', alignItems:'center', padding:'0 8px', gap:4, zIndex:10 }}>
-        <div style={{ flex:1, overflow:'hidden', display:'flex', alignItems:'center', gap:3, minWidth:0 }}>
+      {/* ── Skeuomorphic Toolbar ── */}
+      <div style={{
+        height: 32, flexShrink: 0,
+        background: 'linear-gradient(180deg,#2e2e34 0%,#252528 50%,#222225 100%)',
+        borderBottom: '1px solid rgba(0,0,0,0.6)',
+        boxShadow: '0 1px 0 rgba(255,255,255,0.07),0 2px 6px rgba(0,0,0,0.3)',
+        display: 'flex', alignItems: 'center', padding: '0 8px', gap: 5, zIndex: 10,
+      }}>
+        {/* Breadcrumb */}
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
           {selEl ? (
             (() => {
               const path: HTMLElement[] = [];
@@ -1051,45 +1058,67 @@ const VisualEditor: React.FC = () => {
               while (c && c.tagName.toLowerCase() !== 'body') { path.unshift(c); c = c.parentElement; }
               return path.map((el, i) => (
                 <React.Fragment key={i}>
-                  {i > 0 && <span style={{ color:'#333', fontSize:9 }}>›</span>}
+                  {i > 0 && <span style={{ color: 'rgba(0,0,0,0.5)', fontSize: 9, textShadow: '0 1px 0 rgba(255,255,255,0.07)' }}>›</span>}
                   <button onClick={() => selectElement(el)} style={{
-                    background:'none', border:'none', cursor:'pointer', padding:'0 2px',
-                    color: i === path.length-1 ? ACCENT : '#555',
-                    fontSize:10, fontFamily:'monospace', lineHeight:1,
+                    background: 'none', border: 'none', cursor: 'pointer', padding: '1px 3px',
+                    color: i === path.length - 1 ? ACCENT : '#666670',
+                    fontSize: 10, fontFamily: 'monospace', lineHeight: 1,
+                    textShadow: i === path.length - 1 ? '0 0 8px rgba(229,164,90,0.3)' : 'none',
                   }}>
-                    {el.tagName.toLowerCase()}{el.id ? '#'+el.id : ''}
+                    {el.tagName.toLowerCase()}{el.id ? '#' + el.id : ''}
                   </button>
                 </React.Fragment>
               ));
             })()
           ) : (
-            <span style={{ fontSize:10, color:'#444' }}>
+            <span style={{ fontSize: 10, color: '#3a3a44', fontStyle: 'italic', textShadow: '0 1px 0 rgba(255,255,255,0.04)' }}>
               Click to select · Double-click to edit · Right-click for menu
             </span>
           )}
         </div>
 
-        <div style={{ display:'flex', gap:3, flexShrink:0 }}>
+        {/* Action buttons */}
+        <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
           {selEl && (
             <button onClick={() => setShowQuickBar(s => !s)} title="Quick style editor"
-              style={{ ...TBAR, background: showQuickBar ? 'rgba(229,164,90,0.1)' : 'none',
-                border:`1px solid ${showQuickBar ? 'rgba(229,164,90,0.25)' : '#1e1e22'}`,
-                color: showQuickBar ? ACCENT : '#555' }}
-            >⚙ Edit</button>
+              style={{
+                ...SKU_TBAR,
+                background: showQuickBar
+                  ? 'linear-gradient(180deg,#c8913c 0%,#e5a45a 40%,#c8913c 100%)'
+                  : 'linear-gradient(180deg,#3a3a42 0%,#2e2e35 50%,#2a2a31 100%)',
+                border: `1px solid ${showQuickBar ? 'rgba(180,110,20,0.6)' : 'rgba(0,0,0,0.5)'}`,
+                color: showQuickBar ? '#1a0d00' : '#888890',
+                boxShadow: showQuickBar
+                  ? 'inset 0 1px 0 rgba(255,255,255,0.18),0 0 6px rgba(229,164,90,0.2)'
+                  : 'inset 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.4)',
+              }}
+            >Edit</button>
           )}
           <button
             onClick={() => setInteraction(m => m === 'select' ? 'interact' : 'select')}
-            style={{ ...TBAR,
-              background: interaction === 'select' ? 'rgba(229,164,90,0.08)' : 'rgba(122,184,245,0.08)',
-              border:`1px solid ${interaction === 'select' ? 'rgba(229,164,90,0.2)' : 'rgba(122,184,245,0.2)'}`,
-              color: interaction === 'select' ? ACCENT : '#7ab8f5' }}
-          >{interaction === 'select' ? '⊹ Select' : '⊕ Interact'}</button>
+            style={{
+              ...SKU_TBAR,
+              background: interaction === 'select'
+                ? 'linear-gradient(180deg,#3a3a42 0%,#2e2e35 50%,#2a2a31 100%)'
+                : 'linear-gradient(180deg,#1e3050 0%,#1a2a44 50%,#182540 100%)',
+              border: `1px solid ${interaction === 'select' ? 'rgba(229,164,90,0.3)' : 'rgba(91,159,214,0.3)'}`,
+              color: interaction === 'select' ? ACCENT : '#7ab8f5',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.4)',
+            }}
+          >{interaction === 'select' ? 'Select' : 'Interact'}</button>
           {selEl && (
             <button onClick={() => {
               selectedSelectorRef.current = null;
               setSelEl(null); setHovEl(null);
               setSelectedElement(null); setSelectedSelector(null); setShowQuickBar(false);
-            }} title="Deselect (Esc)" style={{ ...TBAR, color:'#444' }}>✕</button>
+            }} title="Deselect (Esc)"
+              style={{
+                ...SKU_TBAR,
+                background: 'linear-gradient(180deg,#3a3a42 0%,#2e2e35 50%,#2a2a31 100%)',
+                border: '1px solid rgba(0,0,0,0.5)',
+                color: '#555560',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08),0 1px 3px rgba(0,0,0,0.4)',
+              }}>✕</button>
           )}
         </div>
       </div>
@@ -1175,10 +1204,11 @@ const VisualEditor: React.FC = () => {
   );
 };
 
-const TBAR: React.CSSProperties = {
-  background:'none', border:'1px solid #1e1e22',
-  borderRadius:4, cursor:'pointer', fontSize:9,
-  padding:'2px 7px', fontFamily:'inherit', color:'#555',
+const SKU_TBAR: React.CSSProperties = {
+  borderRadius: 4, cursor: 'pointer', fontSize: 10,
+  padding: '3px 9px', fontFamily: 'inherit', fontWeight: 600,
+  letterSpacing: '0.02em', transition: 'all 0.1s',
+  textShadow: '0 1px 1px rgba(0,0,0,0.5)',
 };
 
 export default VisualEditor;

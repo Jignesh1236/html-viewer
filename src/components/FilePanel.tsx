@@ -176,6 +176,7 @@ import { dataUrlToBase64, fileIdFor, makeUniqueName } from '../utils/projectFile
       files, folders, activeFileId, setActiveFile, addFile, removeFile,
       addFolder, removeFolder, renameFolder, moveFileToFolder,
       updateFileContent, showNotification, pendingFileDialog, setPendingFileDialog,
+      unsavedFileIds, markFileSaved, autoSave,
     } = useEditorStore();
     const uploadRef = useRef<HTMLInputElement>(null);
     const folderInputRef = useRef<HTMLInputElement>(null);
@@ -393,8 +394,14 @@ import { dataUrlToBase64, fileIdFor, makeUniqueName } from '../utils/projectFile
         ...(file.folder ? [{ label: 'Move to Root', action: () => moveFileToFolder(file.id, undefined) }] : []),
       ] : [];
 
+      const isUnsaved = unsavedFileIds.includes(file.id);
       showCtx(e, [
         { label: 'Open', icon: '📂', action: () => { if (file.type !== 'image') setActiveFile(file.id); } },
+        { separator: true, label: '' },
+        { label: isUnsaved ? 'Save' : 'Save (up to date)', icon: '💾', action: () => {
+          markFileSaved(file.id);
+          showNotification(`Saved ${file.name} ✓`);
+        }},
         { separator: true, label: '' },
         { label: 'Rename', icon: '✏️', action: () => setDialog({ mode: 'rename-file', file }) },
         { label: 'Duplicate', icon: '📋', action: () => {
@@ -447,6 +454,7 @@ import { dataUrlToBase64, fileIdFor, makeUniqueName } from '../utils/projectFile
 
     const renderFileRow = (file: FileItem, indent = 0) => {
       const isActive = activeFileId === file.id;
+      const isUnsaved = unsavedFileIds.includes(file.id);
       return (
         <div
           key={file.id}
@@ -479,6 +487,15 @@ import { dataUrlToBase64, fileIdFor, makeUniqueName } from '../utils/projectFile
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12.5 }}>
             {file.name}
           </span>
+          {isUnsaved && (
+            <span title="Unsaved changes" style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: '#e5a45a',
+              flexShrink: 0,
+              display: 'inline-block',
+              boxShadow: '0 0 4px rgba(229,164,90,0.6)',
+            }} />
+          )}
           <button data-del-btn title={`Delete ${file.name}`} onClick={e => { e.stopPropagation(); setDialog({ mode: 'delete-file', file }); }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#555', padding: 2, display: 'flex', borderRadius: 2, opacity: 0, flexShrink: 0, transition: 'opacity 0.12s, color 0.12s' }}
             onMouseEnter={e => { e.currentTarget.style.color = '#f88'; }}

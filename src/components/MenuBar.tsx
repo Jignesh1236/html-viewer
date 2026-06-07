@@ -29,19 +29,19 @@ const WIN_LABELS: Record<WinId, string> = {
   properties: 'Properties', timeline: 'Timeline', events: 'Event Listeners',
   'anim-presets': 'Anim Presets', 'anim-config': 'Anim Config', 'anim-tracks': 'Anim Tracks',
   'gsap-editor': 'GSAP Editor', 'gsap-timeline': 'GSAP Timeline',
-  'vanta-editor': 'Vanta Effects',
+  'vanta-editor': 'OGL Shader FX',
 };
 const WIN_ICONS: Record<WinId, string> = {
-  files: '📁', code: '</>', preview: '🖥', properties: '⚙', timeline: '⏱', events: '⚡',
-  'anim-presets': '✦', 'anim-config': '⊛', 'anim-tracks': '≋',
-  'gsap-editor': '◈', 'gsap-timeline': 'G', 'vanta-editor': '✦',
+  files: '', code: '', preview: '', properties: '', timeline: '', events: '',
+  'anim-presets': '', 'anim-config': '', 'anim-tracks': '',
+  'gsap-editor': '', 'gsap-timeline': '', 'vanta-editor': '',
 };
 
 const MenuBar: React.FC<MenuBarProps> = ({
   wins = [], onToggleWin, onOpenWin, onResetLayout, onApplyModePreset,
 }) => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const { files, activeFileId, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder, clearProject } = useEditorStore();
+  const { files, activeFileId, mode, showNotification, clearConsole, setPendingFileDialog, updateFileContent, addFolder, clearProject, autoSave, setAutoSave } = useEditorStore();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -115,17 +115,17 @@ const MenuBar: React.FC<MenuBarProps> = ({
     // Layout presets section
     items.push({ label: 'LAYOUT PRESETS', disabled: true });
     items.push({
-      label: '⌨  Code Layout', shortcut: 'Ctrl+1', checked: mode === 'code',
+      label: 'Code Layout', shortcut: 'Ctrl+1', checked: mode === 'code',
       badge: mode === 'code' ? 'active' : undefined, badgeColor: '#e5a45a',
       action: () => { onApplyModePreset?.('code'); close(); },
     });
     items.push({
-      label: '◈  Visual Layout', shortcut: 'Ctrl+2', checked: mode === 'visual',
+      label: 'Visual Layout', shortcut: 'Ctrl+2', checked: mode === 'visual',
       badge: mode === 'visual' ? 'active' : undefined, badgeColor: '#e5a45a',
       action: () => { onApplyModePreset?.('visual'); close(); },
     });
     items.push({
-      label: '⊟  Split Layout', shortcut: 'Ctrl+3', checked: mode === 'split',
+      label: 'Split Layout', shortcut: 'Ctrl+3', checked: mode === 'split',
       badge: mode === 'split' ? 'active' : undefined, badgeColor: '#e5a45a',
       action: () => { onApplyModePreset?.('split'); close(); },
     });
@@ -135,7 +135,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     items.push({ label: 'PANELS', disabled: true });
     for (const w of wins) {
       items.push({
-        label: `${WIN_ICONS[w.id]}  ${WIN_LABELS[w.id]}`,
+        label: WIN_LABELS[w.id],
         checked: w.visible,
         badge: w.visible ? 'open' : 'closed',
         badgeColor: w.visible ? '#7ab8f5' : '#555',
@@ -151,7 +151,7 @@ const MenuBar: React.FC<MenuBarProps> = ({
     }
 
     items.push({ separator: true, label: '' });
-    items.push({ label: '↺  Reset Layout to Defaults', shortcut: 'Ctrl+0', action: () => { onResetLayout?.(); close(); } });
+    items.push({ label: 'Reset Layout to Defaults', shortcut: 'Ctrl+0', action: () => { onResetLayout?.(); close(); } });
     return items;
   };
 
@@ -159,17 +159,24 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'File',
       items: [
-        { label: '📄 New File', shortcut: 'Ctrl+N', action: newFile },
-        { label: '📁 New Folder', action: newFolder },
+        { label: 'New File', shortcut: 'Ctrl+N', action: newFile },
+        { label: 'New Folder', action: newFolder },
         { separator: true, label: '' },
-        { label: 'Save All', shortcut: 'Ctrl+S', action: () => { showNotification('All files saved ✓'); close(); } },
+        { label: 'Save All', shortcut: 'Ctrl+S', action: () => { showNotification('All files saved ✓'); if (!autoSave) useEditorStore.getState().refreshPreview(); close(); } },
+        {
+          label: `Auto Save: ${autoSave ? 'ON' : 'OFF'}`,
+          checked: autoSave,
+          badge: autoSave ? 'on' : 'off',
+          badgeColor: autoSave ? '#4ec98e' : '#888',
+          action: () => { setAutoSave(!autoSave); showNotification(`Auto Save ${!autoSave ? 'enabled' : 'disabled'}`); close(); },
+        },
         { separator: true, label: '' },
         { label: 'Import Files…', action: () => { document.getElementById('global-file-upload')?.click(); close(); } },
         { separator: true, label: '' },
         { label: 'Export as ZIP', shortcut: 'Ctrl+E', action: () => { exportProject(files); showNotification('Exported as ZIP'); close(); } },
         { separator: true, label: '' },
         {
-          label: '🗑 Clear Project', danger: true,
+          label: 'Clear Project', danger: true,
           action: () => {
             if (!window.confirm('Delete all project files and start fresh? This keeps empty HTML, CSS, and JS files.')) return;
             clearProject();
@@ -248,9 +255,9 @@ const MenuBar: React.FC<MenuBarProps> = ({
     {
       label: 'Help',
       items: [
-        { label: '📖 User Guide / Documentation', action: () => { window.location.href = '/docs'; close(); } },
-        { label: '🛡️ Privacy Policy', action: () => { window.location.href = '/privacy'; close(); } },
-        { label: '📜 Terms of Service', action: () => { window.location.href = '/terms'; close(); } },
+        { label: 'User Guide / Documentation', action: () => { window.location.href = '/docs'; close(); } },
+        { label: 'Privacy Policy', action: () => { window.location.href = '/privacy'; close(); } },
+        { label: 'Terms of Service', action: () => { window.location.href = '/terms'; close(); } },
         { separator: true, label: '' },
         { label: 'Keyboard Shortcuts', action: () => { showNotification('Ctrl+1/2/3 Layout | Ctrl+S Save | Ctrl+E Export | Ctrl+R Refresh'); close(); } },
         { label: 'Drag floating window to dock slot', disabled: true },
@@ -273,11 +280,21 @@ const MenuBar: React.FC<MenuBarProps> = ({
           <button
             onClick={() => setOpenMenu(openMenu === menu.label ? null : menu.label)}
             style={{
-              height: '100%', padding: '0 10px',
-              background: openMenu === menu.label ? 'rgba(255,255,255,0.1)' : 'transparent',
-              border: 'none', cursor: 'pointer', color: '#ccc', fontSize: 12, fontFamily: 'inherit',
+              height: '100%', padding: '0 11px',
+              background: openMenu === menu.label
+                ? 'rgba(255,255,255,0.09)'
+                : 'transparent',
+              border: 'none', cursor: 'pointer',
+              color: openMenu === menu.label ? '#e8e8e8' : '#b0b0b8',
+              fontSize: 12, fontFamily: 'inherit',
               display: 'flex', alignItems: 'center',
+              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+              fontWeight: 500, letterSpacing: '0.01em',
+              borderBottom: `2px solid ${openMenu === menu.label ? 'rgba(229,164,90,0.5)' : 'transparent'}`,
+              transition: 'color 0.1s, background 0.1s',
             }}
+            onMouseEnter={e => { if (openMenu !== menu.label) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; (e.currentTarget as HTMLElement).style.color = '#d0d0d8'; } }}
+            onMouseLeave={e => { if (openMenu !== menu.label) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#b0b0b8'; } }}
           >
             {menu.label}
           </button>
@@ -285,15 +302,20 @@ const MenuBar: React.FC<MenuBarProps> = ({
           {openMenu === menu.label && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, zIndex: 100000,
-              background: '#2a2a2a', border: '1px solid #505050', borderRadius: 5,
-              boxShadow: '0 12px 40px rgba(0,0,0,0.8)', minWidth: 280, padding: '4px 0',
+              background: 'linear-gradient(180deg,#35353d 0%,#2e2e36 100%)',
+              border: '1px solid rgba(0,0,0,0.7)',
+              borderTop: 'none',
+              borderRadius: '0 0 6px 6px',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.8),inset 0 1px 0 rgba(255,255,255,0.07)',
+              minWidth: 290, padding: '4px 0',
               maxHeight: 'calc(100vh - 100px)', overflowY: 'auto',
+              animation: 'fadeIn 0.12s ease',
             }}>
               {menu.items.map((item, i) =>
                 item.separator ? (
-                  <div key={i} style={{ height: 1, background: '#3a3a3a', margin: '4px 0' }} />
+                  <div key={i} style={{ height: 1, background: 'rgba(0,0,0,0.4)', margin: '4px 0', boxShadow: '0 1px 0 rgba(255,255,255,0.04)' }} />
                 ) : item.disabled ? (
-                  <div key={i} style={{ padding: '4px 12px 2px', fontSize: 10, fontWeight: 700, color: '#555', letterSpacing: '0.08em', userSelect: 'none' }}>
+                  <div key={i} style={{ padding: '5px 14px 2px', fontSize: 9, fontWeight: 800, color: '#444454', letterSpacing: '0.1em', userSelect: 'none', textTransform: 'uppercase' }}>
                     {item.label}
                   </div>
                 ) : (
