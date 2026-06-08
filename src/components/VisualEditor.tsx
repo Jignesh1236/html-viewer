@@ -3,6 +3,17 @@ import { createPortal } from 'react-dom';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import { buildProjectHtml, getTargetHtmlFile, getTargetJsFile, insertBeforeClosingTag } from '../utils/projectFiles';
+import {
+  getDropTarget,
+  ensureDropIndicator,
+  ensureContainerHighlight,
+  positionDropIndicator,
+  positionContainerHighlight,
+  hideDropIndicators,
+  removeDropIndicators,
+  performDomInsert,
+  buildReparentUpdater,
+} from '../utils/domDragEngine';
 
 /* ─────────────── constants ─────────────── */
 const SKIP_TAGS = new Set(['html','head','body','script','style','meta','link','title','base','noscript']);
@@ -199,10 +210,14 @@ interface SelectionOverlayProps {
   selEl: HTMLElement;
   iframe: HTMLIFrameElement;
   onCommit: () => void;
+  /** Called when a DOM reorder drop completes. Receives a replay fn for the source file. */
+  onReorderCommit: (updater: (doc: Document) => void) => void;
   refreshTick: number;
+  /** When true, dragging reparents elements in the DOM instead of moving via CSS. */
+  reorderMode: boolean;
 }
 
-const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCommit, refreshTick }) => {
+const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCommit, onReorderCommit, refreshTick, reorderMode }) => {
   const [dragTick, setDragTick] = useState(0);
   const [activeGuides, setActiveGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
   const guideLinesRef = useRef<{ v: number[]; h: number[] }>({ v: [], h: [] });
@@ -277,6 +292,81 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
     const dragTarget = e.currentTarget;
     const pointerId = e.pointerId;
     const previousIframePointerEvents = iframe.style.pointerEvents;
+
+    /* ── DOM REORDER BRANCH ──────────────────────────────────────────────
+     * When reorderMode is active and the user drags the move handle,
+     * we skip CSS-position changes and instead detect a structural drop
+     * target using elementFromPoint, show visual drop indicators inside
+     * the iframe, and on release perform a real DOM reparent operation.
+     *
+     * The source HTML file is updated via onReorderCommit() which applies
+     * the same operation to a parsed clone of the file — keeping undo/redo
+     * fully compatible since updateSource pushes to the visual history stack.
+     */
+    if (type === 'move' && reorderMode) {
+      const doc    = iframe.contentDocument;
+      const ifrWin = iframe.contentWindow;
+      if (!doc || !ifrWin) return;
+
+      document.body.style.cursor    = 'grabbing';
+      document.body.style.userSelect = 'none';
+      iframe.style.pointerEvents    = 'none';
+
+      // Inject indicators (idempotent — returns existing element if present)
+      const indicator = ensureDropIndicator(doc);
+      const highlight = ensureContainerHighlight(doc);
+
+      // The last valid drop target detected during this drag
+      let currentTarget: ReturnType<typeof getDropTarget> = null;
+
+      const onReorderMove = (ev: PointerEvent) => {
+        // Convert outer-document mouse coords → iframe-viewport coords
+        const ifrX = ev.clientX - ifrRect.left;
+        const ifrY = ev.clientY - ifrRect.top;
+
+        currentTarget = getDropTarget(doc, ifrX, ifrY, selEl, SKIP_TAGS);
+
+        if (currentTarget) {
+          positionContainerHighlight(highlight, currentTarget.container);
+          positionDropIndicator(indicator, currentTarget);
+        } else {
+          hideDropIndicators(doc);
+        }
+
+        setDragTick(t => t + 1);
+      };
+
+      const onReorderUp = () => {
+        document.body.style.cursor    = '';
+        document.body.style.userSelect = '';
+        iframe.style.pointerEvents    = previousIframePointerEvents;
+        try { dragTarget.releasePointerCapture(pointerId); } catch {}
+        document.removeEventListener('pointermove', onReorderMove);
+        document.removeEventListener('pointerup',   onReorderUp);
+        document.removeEventListener('pointercancel', onReorderUp);
+
+        if (currentTarget) {
+          // Build the replay function BEFORE mutating the live DOM so that
+          // child-index paths are still valid in the original tree.
+          const updater = buildReparentUpdater(selEl, currentTarget);
+
+          // Mutate the live iframe DOM — instant visual feedback
+          performDomInsert(selEl, currentTarget);
+
+          // Sync the structural change back to the source HTML file
+          if (updater) onReorderCommit(updater);
+        }
+
+        removeDropIndicators(doc);
+        setDragTick(t => t + 1);
+      };
+
+      document.addEventListener('pointermove',   onReorderMove);
+      document.addEventListener('pointerup',     onReorderUp);
+      document.addEventListener('pointercancel', onReorderUp);
+      return; // Skip the CSS-position drag below
+    }
+    /* ── END DOM REORDER BRANCH ───────────────────────────────────────── */
 
     /* Snapshot element state */
     const cs = ifrWin?.getComputedStyle(selEl);
@@ -783,6 +873,8 @@ const VisualEditor: React.FC = () => {
   const [interaction, setInteraction] = useState<'select'|'interact'>('select');
   const [isEditingText, setIsEditingText] = useState(false);
   const [showQuickBar, setShowQuickBar]   = useState(false);
+  /** When true, dragging the move handle reparents elements in the DOM tree. */
+  const [reorderMode, setReorderMode] = useState(false);
 
   const { show: showCtx, element: ctxMenuElement } = useContextMenu();
 
@@ -899,6 +991,36 @@ const VisualEditor: React.FC = () => {
     runVisualHistory(undo ? 'undo' : 'redo');
     return true;
   }, [runVisualHistory]);
+
+  /**
+   * Called after a DOM-reorder drag completes.
+   * `updater` is a function produced by buildReparentUpdater() that replays
+   * the same structural change on a parsed clone of the source HTML file.
+   * Because we go through updateSource → pushVisualHistory, undo/redo works
+   * automatically — no extra wiring needed.
+   */
+  const onReorderCommit = useCallback((updater: (doc: Document) => void) => {
+    const state = useEditorStore.getState();
+    const htmlFile = getTargetHtmlFile(state.files, state.activeFileId);
+    if (!htmlFile) return;
+
+    const parsed  = new DOMParser().parseFromString(htmlFile.content, 'text/html');
+    updater(parsed);
+    const updated = serializeDoc(parsed);
+
+    if (updated !== htmlFile.content) {
+      pushVisualHistory({
+        fileId:   htmlFile.id,
+        before:   htmlFile.content,
+        after:    updated,
+        selector: selectedSelectorRef.current,
+      });
+      // Re-select the element after the iframe reloads with new source
+      pendingSelectorRef.current = selectedSelectorRef.current;
+      state.updateFileContent(htmlFile.id, updated);
+    }
+    setTick(t => t + 1);
+  }, [pushVisualHistory]);
 
   const syncToSource = useCallback((el: HTMLElement) => {
     const style    = el.getAttribute('style') || '';
@@ -1327,6 +1449,23 @@ const VisualEditor: React.FC = () => {
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.4)',
             }}
           >{interaction === 'select' ? 'Select' : 'Interact'}</button>
+
+          {/* DOM Reorder toggle — when active, dragging reparents elements */}
+          <button
+            onClick={() => setReorderMode(m => !m)}
+            title="Reorder mode: drag elements to move them in the DOM tree (appendChild / insertBefore). Orange line = insertion point. Dashed box = target container."
+            style={{
+              ...SKU_TBAR,
+              background: reorderMode
+                ? 'linear-gradient(180deg,#2c4a1e 0%,#1e3a14 50%,#1a3410 100%)'
+                : 'linear-gradient(180deg,#3a3a42 0%,#2e2e35 50%,#2a2a31 100%)',
+              border: `1px solid ${reorderMode ? 'rgba(82,196,64,0.45)' : 'rgba(0,0,0,0.5)'}`,
+              color: reorderMode ? '#7de062' : '#888890',
+              boxShadow: reorderMode
+                ? 'inset 0 1px 0 rgba(255,255,255,0.18),0 0 6px rgba(82,196,64,0.2)'
+                : 'inset 0 1px 0 rgba(255,255,255,0.1),0 1px 3px rgba(0,0,0,0.4)',
+            }}
+          >↕ Reorder</button>
           {selEl && (
             <button onClick={() => {
               selectedSelectorRef.current = null;
@@ -1343,8 +1482,16 @@ const VisualEditor: React.FC = () => {
           )}
         </div>
       </div>
-      <div style={{ flexShrink: 0, padding: '6px 8px', background: '#151517', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#999', fontSize: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span>Click to select · Double-click to edit · Esc to deselect · Ctrl/Cmd+Z undo</span>
+      <div style={{ flexShrink: 0, padding: '6px 8px', background: reorderMode ? '#0e1a0b' : '#151517', borderBottom: `1px solid ${reorderMode ? 'rgba(82,196,64,0.15)' : 'rgba(255,255,255,0.05)'}`, color: '#999', fontSize: 10, display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.2s' }}>
+        {reorderMode ? (
+          <>
+            <span style={{ color: '#7de062', fontWeight: 600 }}>↕ Reorder Mode</span>
+            <span style={{ color: '#555' }}>|</span>
+            <span>Select an element · Drag to reparent it in the DOM tree · Orange line = insertion point · Dashed box = drop container · Ctrl/Cmd+Z to undo</span>
+          </>
+        ) : (
+          <span>Click to select · Double-click to edit · Esc to deselect · Ctrl/Cmd+Z undo</span>
+        )}
         <span style={{ color: '#777' }}>|</span>
         <span>Viewing as: <strong style={{ color: '#e5a45a' }}>{visualPreviewDevice === 'custom' ? 'Fit view' : visualPreviewDevice}</strong></span>
       </div>
@@ -1421,12 +1568,14 @@ const VisualEditor: React.FC = () => {
         )}
       </div>
 
-      {/* ── Selection overlay (drag / resize / rotate) ── */}
+      {/* ── Selection overlay (drag / resize / rotate / reorder) ── */}
       {selEl?.isConnected && iframeRef.current && !isEditingText && (
         <SelectionOverlay
           selEl={selEl}
           iframe={iframeRef.current}
           refreshTick={tick}
+          reorderMode={reorderMode}
+          onReorderCommit={onReorderCommit}
           onCommit={() => {
             const el = selElRef.current;
             if (!el?.isConnected) return;
