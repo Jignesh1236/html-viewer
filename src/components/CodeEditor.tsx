@@ -260,12 +260,21 @@ function fileIcon(type: string) {
 /* ─────────────────────────────────────────────────────────────
    CodeEditor component
    ───────────────────────────────────────────────────────────── */
-const CodeEditor: React.FC = () => {
-  const { files, activeFileId, setActiveFile, updateFileContent } = useEditorStore();
+interface CodeEditorProps {
+  /** When set, binds this editor to a specific file (no tab bar). */
+  fileId?: string;
+}
+
+const CodeEditor: React.FC<CodeEditorProps> = ({ fileId: boundFileId }) => {
+  const { files, activeFileId, setActiveFile, updateFileContent, unsavedFileIds } = useEditorStore();
   const editorRef = useRef<any>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [cursorPos, setCursorPos] = React.useState({ line: 1, col: 1 });
 
-  const activeFile = files.find(f => f.id === activeFileId);
+  // When bound to a fileId, always use that; otherwise use store's activeFileId
+  const resolvedFileId = boundFileId ?? activeFileId;
+  const activeFile = files.find(f => f.id === resolvedFileId);
+  const isBound = !!boundFileId; // true = per-file panel mode, no tab bar
 
   /* ── Trigger AI inline suggestion at current cursor ── */
   function triggerAiSuggestion(forceRefresh = false) {
@@ -351,6 +360,12 @@ const CodeEditor: React.FC = () => {
     editorRef.current = editor;
     const cleanupIdle  = setupIdleDetection(editor);
     const cleanupClose = enableHtmlAutoClose(editor, monaco);
+
+    // Track cursor position for status bar
+    editor.onDidChangeCursorPosition(e => {
+      setCursorPos({ line: e.position.lineNumber, col: e.position.column });
+    });
+
     editor.onDidDispose(() => { cleanupIdle(); cleanupClose.dispose(); });
 
     editor.addAction({
@@ -358,43 +373,53 @@ const CodeEditor: React.FC = () => {
       label: 'Select All',
       contextMenuGroupId: '9_cutcopypaste',
       contextMenuOrder: 3,
-      run(ed) {
-        ed.trigger('keyboard', 'editor.action.selectAll', null);
-      },
+      run(ed) { ed.trigger('keyboard', 'editor.action.selectAll', null); },
     });
   };
 
   const handleEditorChange = (value: string | undefined) => {
-    if (activeFileId && value !== undefined) updateFileContent(activeFileId, value);
+    if (resolvedFileId && value !== undefined) updateFileContent(resolvedFileId, value);
   };
 
-  return (
-    <div className="editor-pane" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Tab bar */}
-      <div className="editor-tabs" style={{
-        display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
-        overflowY: 'hidden', flexShrink: 0, alignItems: 'center',
-      }}>
-        {files.map(file => (
-          <div
-            key={file.id}
-            className={`editor-tab ${activeFileId === file.id ? 'active' : ''}`}
-            onClick={() => setActiveFile(file.id)}
-            style={{ flexShrink: 0 }}
-          >
-            {fileIcon(file.type)}
-            <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {file.name}
-            </span>
-          </div>
-        ))}
-      </div>
+  const lang = activeFile ? getLanguageForFile(activeFile) : 'plaintext';
+  const isUnsaved = activeFile ? unsavedFileIds.includes(activeFile.id) : false;
 
-      {/* Editor */}
+  return (
+    <div className="editor-pane" style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#1e1e1e' }}>
+
+      {/* ── Tab bar — only shown in non-bound (legacy) mode ── */}
+      {!isBound && (
+        <div className="editor-tabs" style={{
+          display: 'flex', flexWrap: 'nowrap', overflowX: 'auto',
+          overflowY: 'hidden', flexShrink: 0, alignItems: 'center',
+        }}>
+          {files.map(file => (
+            <div
+              key={file.id}
+              className={`editor-tab ${activeFileId === file.id ? 'active' : ''}`}
+              onClick={() => setActiveFile(file.id)}
+              style={{ flexShrink: 0 }}
+            >
+              {fileIcon(file.type)}
+              <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {file.name}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Editor area ── */}
       <div style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
         {!activeFile ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--editor-text-muted)', fontSize: 13 }}>
-            No file selected
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 12, color: '#444' }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" opacity={0.4}>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+            </svg>
+            <span style={{ fontSize: 13, color: '#555' }}>
+              {isBound ? 'File not found' : 'Click a file in Explorer to open it'}
+            </span>
           </div>
         ) : activeFile.type === 'image' ? (
           <ImageViewer file={activeFile} />
@@ -403,17 +428,17 @@ const CodeEditor: React.FC = () => {
             <Editor
               key={activeFile.id}
               height="100%"
-              language={getLanguageForFile(activeFile)}
+              language={lang}
               value={activeFile.content}
               onChange={handleEditorChange}
               beforeMount={handleBeforeMount}
               onMount={handleEditorMount}
               theme="vs-dark"
               options={{
-                fontSize: 14,
+                fontSize: 13,
                 fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, monospace",
                 fontLigatures: true,
-                minimap: { enabled: true, scale: 0.7 },
+                minimap: { enabled: !isBound ? true : false, scale: 0.7 },
                 scrollBeyondLastLine: false,
                 lineNumbers: 'on',
                 wordWrap: 'off',
@@ -433,17 +458,41 @@ const CodeEditor: React.FC = () => {
                 cursorBlinking: 'smooth',
                 cursorSmoothCaretAnimation: 'on',
                 bracketPairColorization: { enabled: true },
-                guides: { bracketPairs: true },
-                padding: { top: 8 },
+                guides: { bracketPairs: true, indentation: true },
+                padding: { top: 10, bottom: 10 },
                 scrollbar: {
                   vertical: 'auto', horizontal: 'auto',
                   verticalScrollbarSize: 6, horizontalScrollbarSize: 6,
                 },
+                renderLineHighlight: 'gutter',
+                occurrencesHighlight: 'singleFile',
+                selectionHighlight: true,
+                overviewRulerBorder: false,
               }}
             />
           </div>
         )}
       </div>
+
+      {/* ── Status bar — only in bound (per-file) mode ── */}
+      {isBound && activeFile && activeFile.type !== 'image' && (
+        <div style={{
+          height: 22, flexShrink: 0, display: 'flex', alignItems: 'center',
+          background: '#007acc', padding: '0 10px', gap: 12,
+          fontSize: 11, color: 'rgba(255,255,255,0.9)', userSelect: 'none',
+        }}>
+          <span style={{ opacity: isUnsaved ? 1 : 0.6 }}>
+            {isUnsaved ? '● ' : ''}
+            {activeFile.name}
+          </span>
+          <span style={{ opacity: 0.6 }}>|</span>
+          <span>{lang.charAt(0).toUpperCase() + lang.slice(1)}</span>
+          <span style={{ opacity: 0.6 }}>|</span>
+          <span>Ln {cursorPos.line}, Col {cursorPos.col}</span>
+          <div style={{ flex: 1 }} />
+          <span style={{ opacity: 0.7 }}>UTF-8</span>
+        </div>
+      )}
     </div>
   );
 };

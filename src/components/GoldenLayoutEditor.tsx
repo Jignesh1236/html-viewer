@@ -19,9 +19,10 @@ import EventListenersPanel from './EventListenersPanel';
 import OGLShaderEditor from './OGLShaderEditor';
 import VantaEditor from './VantaEditor';
 import { setGlSectionOpener } from '../lib/propSectionBridge';
+import { setFileEditorOpener } from '../lib/fileEditorBridge';
 import { deleteCookie, getCookie, setCookie } from '../utils/cookies';
 
-export type PanelType = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'events' | 'console' | 'anim-presets' | 'anim-config' | 'anim-tracks' | 'vanta-editor' | 'ogl-editor' | 'prop-section';
+export type PanelType = 'files' | 'code' | 'file-editor' | 'preview' | 'properties' | 'timeline' | 'events' | 'console' | 'anim-presets' | 'anim-config' | 'anim-tracks' | 'vanta-editor' | 'ogl-editor' | 'prop-section';
 export type Mode = 'code' | 'split' | 'visual';
 
 export interface GoldenLayoutEditorHandle {
@@ -44,7 +45,6 @@ function getCodeLayout(): LayoutConfig {
         {
           type: 'stack', width: 83,
           content: [
-            { type: 'component', componentType: 'code', title: 'Code Editor' },
             { type: 'component', componentType: 'console', title: 'Console' },
           ],
         },
@@ -64,7 +64,6 @@ function getSplitLayout(): LayoutConfig {
         {
           type: 'stack', width: 48,
           content: [
-            { type: 'component', componentType: 'code', title: 'Code Editor' },
             { type: 'component', componentType: 'console', title: 'Console' },
           ],
         },
@@ -117,7 +116,7 @@ function getLayout(mode: Mode): LayoutConfig {
 }
 
 const PANEL_TITLES: Record<PanelType, string> = {
-  files: 'Explorer', code: 'Code Editor', preview: 'Preview',
+  files: 'Explorer', code: 'Code Editor', 'file-editor': 'Editor', preview: 'Preview',
   properties: 'Properties', timeline: 'Timeline',
   events: 'Events', console: 'Console',
   'anim-presets': 'Anim Presets', 'anim-config': 'Anim Config', 'anim-tracks': 'Anim Tracks',
@@ -127,7 +126,7 @@ const PANEL_TITLES: Record<PanelType, string> = {
 
 const COOKIE_LAYOUT_MAX_LENGTH = 3600;
 const PANEL_TYPES: readonly PanelType[] = [
-  'files', 'code', 'preview', 'properties', 'timeline', 'events', 'console',
+  'files', 'code', 'file-editor', 'preview', 'properties', 'timeline', 'events', 'console',
   'anim-presets', 'anim-config', 'anim-tracks', 'vanta-editor', 'ogl-editor', 'prop-section',
 ];
 
@@ -214,7 +213,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
     useEffect(() => { modeRef.current = mode; }, [mode]);
 
     /* ── localStorage helpers (GoldenLayout v2 API) — component scope ── */
-    const LS_KEY = useCallback((m: Mode) => `gl-layout-v4-${m}`, []);
+    const LS_KEY = useCallback((m: Mode) => `gl-layout-v5-${m}`, []);
 
     const saveLayoutState = useCallback((gl: GoldenLayout, m: Mode) => {
       try {
@@ -263,6 +262,12 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
           ?? (container as any)._initialState?.componentType as PanelType | undefined
           ?? detectType(container);
         if (!compType) return;
+        // file-editor panels re-render with their bound fileId
+        if (compType === 'file-editor') {
+          const fileId = (container as any)._fileId as string | undefined ?? '';
+          root.render(<CodeEditor fileId={fileId} />);
+          return;
+        }
         // prop-section panels preserve their sectionTitle across re-renders
         const sectionTitle = compType === 'prop-section'
           ? ((container as any)._sectionTitle as string | undefined) ?? ''
@@ -310,6 +315,18 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
         });
       });
 
+      /* ── file-editor: per-file GL panel opened from Explorer ── */
+      gl.registerComponentFactoryFunction('file-editor', (container, state) => {
+        const fileId = (state as { fileId?: string })?.fileId || '';
+        (container as any)._myType = 'file-editor';
+        (container as any)._fileId = fileId;
+        const el = container.element as HTMLElement;
+        el.style.cssText = 'height:100%;width:100%;overflow:hidden;position:relative;';
+        const root = ReactDOMClient.createRoot(el);
+        root.render(<CodeEditor fileId={fileId} />);
+        rootsRef.current.set(container, root);
+      });
+
       /* ── prop-section: individual property group opened from Properties panel ── */
       gl.registerComponentFactoryFunction('prop-section', (container, state) => {
         const sectionTitle = (state as { sectionTitle?: string })?.sectionTitle || '';
@@ -320,6 +337,64 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
         const root = ReactDOMClient.createRoot(el);
         root.render(<PropertiesPanel hideHeader singleSection={sectionTitle} />);
         rootsRef.current.set(container, root);
+      });
+
+      /* ── Register bridge so Explorer files open as separate GL panels ── */
+      setFileEditorOpener((fileId: string, fileName: string) => {
+        try {
+          // Check if panel for this file already exists → focus it
+          let focused = false;
+          (gl as any).getAllContentItems().forEach((item: any) => {
+            if (!focused && item.type === 'component') {
+              const storedId = (item as any)._fileId ?? item.container?._fileId;
+              const stateId = item.container?.componentState?.fileId;
+              if (storedId === fileId || stateId === fileId) {
+                focused = true;
+                try { (item as any).parent?.setActiveContentItem?.(item); } catch {}
+              }
+            }
+          });
+          if (focused) return;
+
+          // Find the center stack (first stack that isn't the files panel's parent)
+          let added = false;
+          (gl as any).getAllContentItems().forEach((item: any) => {
+            if (!added && item.type === 'stack') {
+              // Skip stacks that only contain the 'files' component
+              const childTypes: string[] = [];
+              try {
+                (item.contentItems || []).forEach((c: any) => {
+                  const ct = (c as any)._myType ?? c.componentType ?? c.container?._myType;
+                  if (ct) childTypes.push(ct);
+                });
+              } catch {}
+              if (childTypes.length === 1 && childTypes[0] === 'files') return;
+
+              try {
+                (item as any).addItem({
+                  type: 'component', componentType: 'file-editor',
+                  componentState: { fileId },
+                  title: fileName,
+                });
+                added = true;
+              } catch {
+                try {
+                  (item as any).addChild({
+                    type: 'component', componentType: 'file-editor',
+                    componentState: { fileId },
+                    title: fileName,
+                  });
+                  added = true;
+                } catch {}
+              }
+            }
+          });
+          if (!added) {
+            gl.addComponent('file-editor', { fileId }, fileName);
+          }
+        } catch (e) {
+          console.warn('openFileInGLPanel failed:', e);
+        }
       });
 
       /* ── Register bridge so PropertiesPanel sections can open in GL ── */
@@ -430,6 +505,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
         flushLayoutState(true);
         isDestroying = true;
         setGlSectionOpener(null);
+        setFileEditorOpener(null);
         ro.disconnect();
         try { gl.destroy(); } catch {}
         if (glRef.current === gl) glRef.current = null;
