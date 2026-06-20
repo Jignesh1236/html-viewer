@@ -72,7 +72,7 @@ export default defineConfig(async () => {
       allowedHosts: true,
       headers: {
         'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
       },
       fs: {
         strict: true,

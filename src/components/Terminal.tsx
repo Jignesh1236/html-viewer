@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
-import { spawnShell, getWebContainer, getWCStatus } from '../utils/webcontainer';
+import { spawnShell, getWCStatus, checkCrossOriginIsolation, scanWCFilesystem } from '../utils/webcontainer';
 import { useEditorStore } from '../store/editorStore';
 
 /* ─── Design tokens ──────────────────────────────────────── */
@@ -55,8 +55,38 @@ export const Terminal: React.FC = () => {
   const [activeId, setActiveId]     = useState<string>('');
   const [sessionIds, setSessionIds] = useState<string[]>([]);
   const [status, setStatus]         = useState<ConnStatus>('idle');
-  const addPort   = useEditorStore(s => s.addPort);
+  const [syncing, setSyncing]       = useState(false);
+  const [syncMsg, setSyncMsg]       = useState<string>('');
+  const addPort    = useEditorStore(s => s.addPort);
   const removePort = useEditorStore(s => s.removePort);
+  const addFile    = useEditorStore(s => s.addFile);
+  const addFolder  = useEditorStore(s => s.addFolder);
+
+  /* ── Sync WC real filesystem → Editor Explorer ── */
+  const syncFromWC = useCallback(async (wcDir?: string) => {
+    setSyncing(true);
+    setSyncMsg('Scanning…');
+    try {
+      // scanWCFilesystem reads the real WC FS and returns files + folders
+      const scan = await scanWCFilesystem(wcDir);
+
+      // Apply folders first (parent before children), then files
+      for (const folder of scan.folders) {
+        addFolder(folder.name, folder.parentId);
+      }
+      for (const file of scan.files) {
+        addFile(file);
+      }
+
+      setSyncMsg(`✓ ${scan.files.length} files synced`);
+      setTimeout(() => setSyncMsg(''), 3000);
+    } catch {
+      setSyncMsg('Sync failed');
+      setTimeout(() => setSyncMsg(''), 3000);
+    } finally {
+      setSyncing(false);
+    }
+  }, [addFile, addFolder]);
 
   /* ── Create a new terminal session ── */
   const createSession = useCallback(async () => {
@@ -94,10 +124,21 @@ export const Terminal: React.FC = () => {
 
     // Connect shell
     const connectShell = async () => {
+      const isolation = checkCrossOriginIsolation();
+      if (!isolation.ok) {
+        setStatus('error');
+        xterm.writeln('\x1b[31m● WebContainer requires cross-origin isolation\x1b[0m\r\n');
+        xterm.writeln('\x1b[33m  This page is embedded in an iframe (e.g. Replit IDE preview),');
+        xterm.writeln('  which prevents SharedArrayBuffer from being available.\x1b[0m\r\n');
+        xterm.writeln('\x1b[32m  ✓ Fix: Open the app in a standalone browser tab\x1b[0m');
+        xterm.writeln('\x1b[2m    Click the ↗ external-link button in the preview pane header.\x1b[0m');
+        return;
+      }
+
       setStatus('booting');
       xterm.writeln('\x1b[33m⏳ Booting WebContainer…\x1b[0m');
       try {
-        await getWebContainer();
+        await spawnShell(80, 24); // kicks off boot
         setStatus('connecting');
         xterm.clear();
         xterm.writeln('\x1b[32m● WebContainer ready — opening shell…\x1b[0m\r\n');
@@ -105,31 +146,41 @@ export const Terminal: React.FC = () => {
         const shell = await spawnShell(xterm.cols || 80, xterm.rows || 24);
         session.kill = () => shell.kill();
 
-        // Pipe output to terminal
+        // Accumulate output to detect git clone completion
+        let outputBuf = '';
         shell.output.pipeTo(new WritableStream({
-          write(data) { xterm.write(data); },
+          write(data) {
+            xterm.write(data);
+            // Accumulate recent output (keep last 500 chars)
+            outputBuf = (outputBuf + data).slice(-500);
+            // Detect git clone completion from our shim
+            const cloneMatch = outputBuf.match(/Cloned \d+ files? into \.\/(\S+)/);
+            if (cloneMatch) {
+              const dir = cloneMatch[1];
+              outputBuf = ''; // reset so it doesn't re-trigger
+              // Small delay to let filesystem writes settle
+              setTimeout(() => syncFromWC(dir), 800);
+            }
+          },
         })).catch(() => {
           setStatus('exited');
           xterm.writeln('\r\n\x1b[31m● Shell exited\x1b[0m');
         });
 
-        // Send input to shell
         xterm.onData(data => shell.input.write(data).catch(() => {}));
-
-        // Handle resize
         xterm.onResize(({ cols, rows }) => shell.resize(cols, rows));
 
         setStatus('connected');
       } catch (err) {
         setStatus('error');
         xterm.writeln(`\r\n\x1b[31m● Failed: ${String(err)}\x1b[0m`);
-        xterm.writeln('\x1b[2m  Make sure COOP/COEP headers are set in vite.config.ts\x1b[0m');
+        xterm.writeln('\x1b[2m  WebContainer boot failed — check browser console for details.\x1b[0m');
       }
     };
 
     connectShell();
     return id;
-  }, [addPort, removePort]);
+  }, [addPort, removePort, syncFromWC]);
 
   /* ── Mount xterm into DOM when active session changes ── */
   useEffect(() => {
@@ -137,11 +188,9 @@ export const Terminal: React.FC = () => {
     const session = sessionsRef.current.find(s => s.id === activeId);
     if (!session) return;
 
-    // Clear container and open terminal
     containerRef.current.innerHTML = '';
     session.xterm.open(containerRef.current);
 
-    // Small delay to let DOM settle, then fit
     requestAnimationFrame(() => {
       try { session.fitAddon.fit(); } catch { /* ignore */ }
     });
@@ -205,7 +254,7 @@ export const Terminal: React.FC = () => {
         borderBottom: `1px solid ${T.border}`,
         padding: '0 8px', gap: 4,
       }}>
-        {/* Status */}
+        {/* Status dot */}
         <span
           title={STATUS_LABEL[status]}
           style={{
@@ -250,7 +299,34 @@ export const Terminal: React.FC = () => {
           ))}
         </div>
 
-        {/* Right-side buttons */}
+        {/* Sync message */}
+        {syncMsg && (
+          <span style={{ fontSize: 10, color: syncMsg.startsWith('✓') ? T.green : '#888', flexShrink: 0 }}>
+            {syncMsg}
+          </span>
+        )}
+
+        {/* Sync real FS → Explorer button */}
+        <button
+          onClick={() => syncFromWC()}
+          disabled={syncing || status !== 'connected'}
+          title="Sync WebContainer filesystem → Explorer"
+          style={{
+            background: 'none',
+            border: `1px solid ${syncing ? 'rgba(229,164,90,0.3)' : 'transparent'}`,
+            cursor: syncing || status !== 'connected' ? 'not-allowed' : 'pointer',
+            color: syncing ? T.accent : status !== 'connected' ? '#444' : '#888',
+            fontSize: 10, borderRadius: 3, padding: '2px 7px',
+            fontFamily: 'inherit', flexShrink: 0,
+            display: 'flex', alignItems: 'center', gap: 3,
+          }}
+          onMouseEnter={e => { if (!syncing && status === 'connected') { e.currentTarget.style.color = T.accent; e.currentTarget.style.borderColor = 'rgba(229,164,90,0.3)'; } }}
+          onMouseLeave={e => { if (!syncing) { e.currentTarget.style.color = status === 'connected' ? '#888' : '#444'; e.currentTarget.style.borderColor = 'transparent'; } }}
+        >
+          {syncing ? '⟳ Syncing…' : '⇡ Sync'}
+        </button>
+
+        {/* Clear */}
         <button
           onClick={clearActive}
           title="Clear terminal"
@@ -264,6 +340,8 @@ export const Terminal: React.FC = () => {
         >
           Clear
         </button>
+
+        {/* New terminal tab */}
         <button
           onClick={createSession}
           title="New terminal tab"

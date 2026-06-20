@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { dataUrlToBase64 } from '../utils/projectFiles';
 import { getCookie, setCookie } from '../utils/cookies';
+import { getWebContainer, WC_META_PATH, scanWCFilesystem } from '../utils/webcontainer';
 
 export interface FileItem {
   id: string;
@@ -232,15 +233,15 @@ interface EditorStore {
   unsavedFileIds: string[];
   markFileSaved: (id: string) => void;
   markAllSaved: () => void;
+
+  wcBootStatus: 'idle' | 'booting' | 'ready' | 'failed';
+  initFromWebContainer: () => Promise<void>;
 }
 
 const DEFAULT_HTML = ``;
 const DEFAULT_CSS = ``;
 const DEFAULT_JS = ``;
 
-/* ─────────────────────────────────────────────────────────────
-   Default boilerplate templates for different languages
-   ───────────────────────────────────────────────────────────── */
 export const LANGUAGE_BOILERPLATES: Record<string, string> = {};
 
 export function getDefaultContentForLanguage(language: string): string {
@@ -266,16 +267,35 @@ export function getLanguageFromFileName(fileName: string): string {
   return langMap[ext] || 'plaintext';
 }
 
-const FILES_STORAGE_KEY    = 'html-editor-files-v1';
-const FOLDERS_STORAGE_KEY  = 'html-editor-folders-v1';
-const ACTIVE_FILE_KEY      = 'html-editor-active-file-v1';
-const TIMELINE_STORAGE_KEY = 'html-editor-timeline-state-v1';
-const EVENT_BINDINGS_STORAGE_KEY = 'html-editor-event-bindings-v1';
+/* ─────────────────────────────────────────────────────────────
+   WebContainer Real Filesystem Persistence
+   ─────────────────────────────────────────────────────────────
+   Files are stored as actual files at their real paths inside
+   the WebContainer virtual filesystem (e.g. /index.html,
+   /src/App.tsx). The WC FS persists across page reloads via
+   the browser's built-in storage (managed by WebContainer).
+
+   Non-file state (active file, timeline, event bindings, and
+   binary/image files) is kept in a single hidden metadata file
+   at /.editor-meta.json.
+
+   UI preferences (mode, panels, etc.) remain in cookies since
+   they are session-level config, not project data.
+   ───────────────────────────────────────────────────────────── */
+
+/** Metadata stored alongside the real files in WC FS. */
+interface WCMeta {
+  activeFileId: string | null;
+  timelineState: TimelineState;
+  eventBindings: EventBinding[];
+  /** Image files (binary) cannot live as text on the real FS, so kept here. */
+  imageFiles: FileItem[];
+}
+
 const USER_CONFIG_COOKIE_KEY = 'html-editor-user-config-v1';
-const DEFAULT_TIMELINE_TRACKS: TimelineTrack[] = [];
 
 const DEFAULT_TIMELINE_STATE: TimelineState = {
-  tracks: DEFAULT_TIMELINE_TRACKS,
+  tracks: [],
   playing: false,
   currentTime: 0,
   animationsApplied: false,
@@ -314,199 +334,209 @@ interface UserConfigCookie {
   autoSave?: boolean;
 }
 
-/* ─── Files persistence ─── */
 const DEFAULT_FILES: FileItem[] = [
   { id: 'index.html', name: 'index.html', type: 'html', content: DEFAULT_HTML },
-  { id: 'styles.css', name: 'styles.css', type: 'css', content: DEFAULT_CSS },
-  { id: 'script.js',  name: 'script.js',  type: 'js',  content: DEFAULT_JS  },
+  { id: 'styles.css', name: 'styles.css', type: 'css',  content: DEFAULT_CSS  },
+  { id: 'script.js',  name: 'script.js',  type: 'js',   content: DEFAULT_JS   },
 ];
 
-function isKnownStarterProject(files: FileItem[]): boolean {
-  if (files.length !== 3) return false;
-  const html = files.find(f => f.id === 'index.html' && f.type === 'html');
-  const css = files.find(f => f.id === 'styles.css' && f.type === 'css');
-  const js = files.find(f => f.id === 'script.js' && f.type === 'js');
-  if (!html || !css || !js) return false;
-  if (![html, css, js].every(f => !f.folder)) return false;
-
-  const htmlMarkers = [
-    'Build a sharper presence for your brand.',
-    'Welcome to HTML Editor',
-    'Build Amazing Websites',
-  ];
-  const jsMarkers = ['Brand starter ready', 'Page ready!'];
-  return htmlMarkers.some(marker => html.content.includes(marker)) ||
-    jsMarkers.some(marker => js.content.includes(marker));
-}
-
-function serializeFiles(files: FileItem[]): FileItem[] {
-  return files.map(f => {
-    if (f.type === 'image' && f.url?.startsWith('data:')) {
-      return { ...f, content: f.content || dataUrlToBase64(f.url), url: undefined };
-    }
-    // Note: blob: URLs cannot be serialized. They should be converted to base64 
-    // before being added to the store if persistence is required.
-    // We remove them to avoid saving invalid/expired URLs.
-    if (f.url?.startsWith('blob:')) {
-      return { ...f, url: undefined };
-    }
-    return f;
-  });
-}
-
-function saveFiles(files: FileItem[]) {
-  try {
-    localStorage.setItem(FILES_STORAGE_KEY, JSON.stringify(serializeFiles(files)));
-  } catch { /* quota exceeded — ignore */ }
-}
-
-function loadFiles(): FileItem[] {
-  try {
-    const raw = localStorage.getItem(FILES_STORAGE_KEY);
-    if (!raw) return DEFAULT_FILES;
-    const parsed = JSON.parse(raw) as FileItem[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_FILES;
-    // Removed automatic starter project overwrite to prevent data loss
-    return parsed;
-  } catch {
-    return DEFAULT_FILES;
-  }
-}
-
-function saveFolders(folders: FolderItem[]) {
-  try { localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders)); } catch {}
-}
-
-function loadFolders(): FolderItem[] {
-  try {
-    const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'string') {
-      return (parsed as string[]).map((name: string) => ({ id: name, name, parentId: null }));
-    }
-    return parsed as FolderItem[];
-  } catch { return []; }
-}
-
-function saveActiveFile(id: string | null) {
-  try { localStorage.setItem(ACTIVE_FILE_KEY, id ?? ''); } catch {}
-}
-
-let saveFilesTimer: ReturnType<typeof setTimeout> | null = null;
-function debouncedSaveFiles(files: FileItem[]) {
-  if (saveFilesTimer) clearTimeout(saveFilesTimer);
-  saveFilesTimer = setTimeout(() => {
-    saveFiles(files);
-    saveFilesTimer = null;
-  }, 1000);
-}
-
-function loadActiveFile(files: FileItem[]): string | null {
-  try {
-    const id = localStorage.getItem(ACTIVE_FILE_KEY);
-    if (id && files.find(f => f.id === id)) return id;
-    return files[0]?.id ?? null;
-  } catch {
-    return files[0]?.id ?? null;
-  }
-}
-
-function loadTimelineState(): TimelineState {
-  try {
-    const raw = localStorage.getItem(TIMELINE_STORAGE_KEY);
-    if (!raw) return DEFAULT_TIMELINE_STATE;
-    const parsed = JSON.parse(raw) as Partial<TimelineState>;
-    if (!parsed || !Array.isArray(parsed.tracks)) return DEFAULT_TIMELINE_STATE;
-    return {
-      tracks: parsed.tracks,
-      playing: !!parsed.playing,
-      currentTime: typeof parsed.currentTime === 'number' ? parsed.currentTime : 0,
-      animationsApplied: !!parsed.animationsApplied,
-      customAnimations: Array.isArray(parsed.customAnimations) ? parsed.customAnimations : [],
-    };
-  } catch {
-    return DEFAULT_TIMELINE_STATE;
-  }
-}
-
-function saveTimelineState(state: TimelineState) {
-  try {
-    localStorage.setItem(TIMELINE_STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore quota/storage errors
-  }
-}
-
-function saveEventBindings(bindings: EventBinding[]) {
-  try {
-    localStorage.setItem(EVENT_BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
-  } catch {
-    // ignore quota/storage errors
-  }
-}
-
-function loadEventBindings(): EventBinding[] {
-  try {
-    const raw = localStorage.getItem(EVENT_BINDINGS_STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as EventBinding[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
+/* ─── Cookie helpers (UI config only) ─── */
 
 function loadUserConfigCookie(): UserConfigCookie {
   try {
     const raw = getCookie(USER_CONFIG_COOKIE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as UserConfigCookie;
-    if (!parsed || typeof parsed !== 'object') return {};
-    return parsed;
-  } catch {
-    return {};
-  }
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch { return {}; }
 }
 
 function saveUserConfigCookie(config: UserConfigCookie) {
-  try {
-    setCookie(USER_CONFIG_COOKIE_KEY, JSON.stringify(config));
-  } catch {
-    // Ignore invalid cookie or quota errors; the app still works with defaults.
-  }
+  try { setCookie(USER_CONFIG_COOKIE_KEY, JSON.stringify(config)); } catch {}
 }
 
 function patchUserConfigCookie(patch: UserConfigCookie) {
   saveUserConfigCookie({ ...loadUserConfigCookie(), ...patch });
 }
 
-const _initFiles = loadFiles();
-const _initActiveFileId = loadActiveFile(_initFiles);
-const _initFolders = loadFolders();
 const _initUserConfig = loadUserConfigCookie();
 
+/* ─── Real FS helpers ─── */
+
+function fileToWCPath(file: Pick<FileItem, 'name' | 'folder'>): string {
+  return file.folder ? `/${file.folder}/${file.name}` : `/${file.name}`;
+}
+
+async function ensureWCDirs(
+  instance: Awaited<ReturnType<typeof getWebContainer>>,
+  folderPath: string,
+): Promise<void> {
+  const parts = folderPath.split('/').filter(Boolean);
+  let cur = '';
+  for (const part of parts) {
+    cur += '/' + part;
+    try { await instance.fs.mkdir(cur); } catch { /* exists */ }
+  }
+}
+
+async function writeFileToWC(file: FileItem): Promise<void> {
+  if (file.type === 'image') return; // images stored in metadata
+  try {
+    const instance = await getWebContainer();
+    if (file.folder) await ensureWCDirs(instance, file.folder);
+    await instance.fs.writeFile(fileToWCPath(file), file.content ?? '');
+  } catch { /* WC not ready or not cross-origin isolated */ }
+}
+
+const _fileWriteTimers = new Map<string, ReturnType<typeof setTimeout>>();
+function debouncedWriteFileToWC(file: FileItem) {
+  const existing = _fileWriteTimers.get(file.id);
+  if (existing) clearTimeout(existing);
+  const t = setTimeout(() => {
+    writeFileToWC(file);
+    _fileWriteTimers.delete(file.id);
+  }, 800);
+  _fileWriteTimers.set(file.id, t);
+}
+
+async function deleteFileFromWC(file: FileItem): Promise<void> {
+  if (file.type === 'image') return;
+  try {
+    const instance = await getWebContainer();
+    await instance.fs.rm(fileToWCPath(file));
+  } catch { /* WC not ready or file not found */ }
+}
+
+async function createFolderInWC(folderId: string): Promise<void> {
+  try {
+    const instance = await getWebContainer();
+    await ensureWCDirs(instance, folderId);
+  } catch { /* WC not ready */ }
+}
+
+async function deleteFolderFromWC(folderId: string): Promise<void> {
+  try {
+    const instance = await getWebContainer();
+    await instance.fs.rm('/' + folderId, { recursive: true });
+  } catch { /* WC not ready or not found */ }
+}
+
+async function copyWCDir(
+  instance: Awaited<ReturnType<typeof getWebContainer>>,
+  srcPath: string,
+  dstPath: string,
+): Promise<void> {
+  try { await instance.fs.mkdir(dstPath); } catch { /* exists */ }
+  let entries: { name: string; isFile: () => boolean; isDirectory: () => boolean }[] = [];
+  try {
+    entries = await instance.fs.readdir(srcPath, { withFileTypes: true }) as typeof entries;
+  } catch { return; }
+  for (const entry of entries) {
+    const src = srcPath + '/' + entry.name;
+    const dst = dstPath + '/' + entry.name;
+    if (entry.isDirectory()) {
+      await copyWCDir(instance, src, dst);
+    } else {
+      try {
+        const content = await instance.fs.readFile(src, 'utf-8') as string;
+        await instance.fs.writeFile(dst, content);
+      } catch { /* binary file — skip */ }
+    }
+  }
+}
+
+async function moveWCDir(oldId: string, newId: string): Promise<void> {
+  try {
+    const instance = await getWebContainer();
+    await copyWCDir(instance, '/' + oldId, '/' + newId);
+    await instance.fs.rm('/' + oldId, { recursive: true });
+  } catch { /* WC not ready */ }
+}
+
+async function moveFileInWC(
+  oldFile: Pick<FileItem, 'name' | 'folder' | 'type'>,
+  newFile: Pick<FileItem, 'name' | 'folder' | 'type' | 'content'>,
+): Promise<void> {
+  if (oldFile.type === 'image') return;
+  try {
+    const instance = await getWebContainer();
+    const oldPath = fileToWCPath(oldFile);
+    const newPath = fileToWCPath(newFile);
+    if (oldPath === newPath) return;
+    if (newFile.folder) await ensureWCDirs(instance, newFile.folder);
+    await instance.fs.writeFile(newPath, newFile.content ?? '');
+    await instance.fs.rm(oldPath);
+  } catch { /* WC not ready */ }
+}
+
+/* ─── Metadata helpers ─── */
+
+let _metaSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function debouncedSaveMeta(meta: WCMeta) {
+  if (_metaSaveTimer) clearTimeout(_metaSaveTimer);
+  _metaSaveTimer = setTimeout(async () => {
+    try {
+      const instance = await getWebContainer();
+      await instance.fs.writeFile(WC_META_PATH, JSON.stringify({
+        ...meta,
+        imageFiles: meta.imageFiles.map(f => {
+          if (f.url?.startsWith('data:')) return { ...f, content: f.content || dataUrlToBase64(f.url), url: undefined };
+          if (f.url?.startsWith('blob:')) return { ...f, url: undefined };
+          return f;
+        }),
+      }));
+    } catch { /* WC not ready */ }
+    _metaSaveTimer = null;
+  }, 500);
+}
+
+async function saveMetaImmediate(meta: WCMeta): Promise<void> {
+  try {
+    const instance = await getWebContainer();
+    await instance.fs.writeFile(WC_META_PATH, JSON.stringify(meta));
+  } catch { /* WC not ready */ }
+}
+
+function buildMeta(s: Pick<EditorStore, 'activeFileId' | 'timelineState' | 'eventBindings' | 'files'>): WCMeta {
+  return {
+    activeFileId: s.activeFileId,
+    timelineState: s.timelineState,
+    eventBindings: s.eventBindings,
+    imageFiles: s.files.filter(f => f.type === 'image'),
+  };
+}
+
+/* ─── Store ─── */
+
 export const useEditorStore = create<EditorStore>((set, get) => ({
-  files: _initFiles,
-  activeFileId: _initActiveFileId,
+  /* Start with defaults in memory — real data loads once WC boots via initFromWebContainer() */
+  files: DEFAULT_FILES,
+  activeFileId: DEFAULT_FILES[0].id,
 
   addFile: (file) => set((s) => {
     const next = s.files.some(f => f.id === file.id)
       ? s.files.map(f => f.id === file.id ? file : f)
       : [...s.files, file];
-    saveFiles(next);
+    // Write to real WC FS (images go into metadata)
+    if (file.type === 'image') {
+      debouncedSaveMeta(buildMeta({ ...s, files: next }));
+    } else {
+      writeFileToWC(file);
+    }
     return { files: next };
   }),
-  removeFile: (id) => set((s) => {
-    const next = s.files.filter(f => f.id !== id);
-    const nextActive = s.activeFileId === id ? (next.find(f => f.id !== id)?.id ?? next[0]?.id ?? null) : s.activeFileId;
 
-    // Also close any preview tabs associated with this file
+  removeFile: (id) => set((s) => {
+    const fileToRemove = s.files.find(f => f.id === id);
+    const next = s.files.filter(f => f.id !== id);
+    const nextActive = s.activeFileId === id
+      ? (next.find(f => f.id !== id)?.id ?? next[0]?.id ?? null)
+      : s.activeFileId;
+
     const nextTabs = s.previewTabs.filter(t => t.fileId !== id && t.imageFileId !== id);
     let nextActiveTabId = s.activePreviewTabId;
-
     if (nextTabs.length === 0) {
-      // Keep at least one tab if possible, or reset to default
       nextTabs.push({ id: 'tab-1', title: 'Brand', favicon: '', active: true, previewType: 'page', fileId: 'index.html' });
       nextActiveTabId = 'tab-1';
     } else if (!nextTabs.find(t => t.id === s.activePreviewTabId)) {
@@ -515,47 +545,69 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
     const updatedTabs = nextTabs.map(t => ({ ...t, active: t.id === nextActiveTabId }));
 
-    saveFiles(next);
-    saveActiveFile(nextActive);
+    // Remove from real WC FS
+    if (fileToRemove) deleteFileFromWC(fileToRemove);
+    debouncedSaveMeta(buildMeta({ ...s, files: next, activeFileId: nextActive }));
+
     return {
       files: next,
       activeFileId: nextActive,
       previewTabs: updatedTabs,
-      activePreviewTabId: nextActiveTabId
+      activePreviewTabId: nextActiveTabId,
     };
   }),
+
   updateFileContent: (id, content) => set((s) => {
     const next = s.files.map(f => f.id === id ? { ...f, content } : f);
+    const updatedFile = next.find(f => f.id === id);
     const autoSave = s.autoSave;
-    if (autoSave) debouncedSaveFiles(next);
+
+    // Write to real WC FS (debounced for performance)
+    if (updatedFile) debouncedWriteFileToWC(updatedFile);
+
     const unsavedFileIds = autoSave
       ? s.unsavedFileIds.filter(uid => uid !== id)
       : s.unsavedFileIds.includes(id) ? s.unsavedFileIds : [...s.unsavedFileIds, id];
+
     return {
       files: next,
       unsavedFileIds,
       ...(autoSave ? { previewRefreshKey: s.previewRefreshKey + 1 } : {}),
     };
   }),
+
   setActiveFile: (id) => {
-    saveActiveFile(id);
+    const s = get();
+    debouncedSaveMeta(buildMeta({ ...s, activeFileId: id }));
     set({ activeFileId: id });
   },
+
   moveFileToFolder: (fileId, folder) => set((s) => {
-    const next = s.files.map(f => f.id === fileId ? { ...f, folder } : f);
-    saveFiles(next);
+    const oldFile = s.files.find(f => f.id === fileId);
+    const newId = folder ? `${folder}/${oldFile?.name ?? fileId}` : (oldFile?.name ?? fileId);
+    const next = s.files.map(f => {
+      if (f.id !== fileId) return f;
+      const updated = { ...f, folder, id: newId };
+      // Move file in WC FS
+      if (oldFile) moveFileInWC(oldFile, updated);
+      return updated;
+    });
+    debouncedSaveMeta(buildMeta({ ...s, files: next }));
     return { files: next };
   }),
 
-  folders: _initFolders,
+  folders: [],
+
   addFolder: (name, parentId = null) => set((s) => {
     const id = parentId ? `${parentId}/${name}` : name;
     if (s.folders.some(f => f.id === id)) return s;
     const newFolder: FolderItem = { id, name, parentId };
     const next = [...s.folders, newFolder];
-    saveFolders(next);
+    // Create real directory in WC FS
+    createFolderInWC(id);
     return { folders: next };
   }),
+
   removeFolder: (folderId) => set((s) => {
     const getAllSubfolderIds = (parentId: string): string[] => {
       const children = s.folders.filter(f => f.parentId === parentId).map(f => f.id);
@@ -566,14 +618,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const nextFiles = s.files.filter(
       f => !toDelete.has(f.folder ?? '') && !Array.from(toDelete).some(d => f.folder?.startsWith(d + '/'))
     );
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+    // Delete real directory (recursive) in WC FS
+    deleteFolderFromWC(folderId);
+    debouncedSaveMeta(buildMeta({ ...s, files: nextFiles }));
     return { folders: nextFolders, files: nextFiles };
   }),
+
   renameFolder: (folderId, newName) => set((s) => {
     const folder = s.folders.find(f => f.id === folderId);
     if (!folder) return s;
     const newId = folder.parentId ? `${folder.parentId}/${newName}` : newName;
+
     const nextFolders = s.folders.map(f => {
       if (f.id === folderId) return { ...f, id: newId, name: newName };
       if (f.id.startsWith(folderId + '/')) {
@@ -585,19 +640,27 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       if (f.parentId === folderId) return { ...f, parentId: newId };
       return f;
     });
+
     const nextFiles = s.files.map(f => {
       if (!f.folder) return f;
-      if (f.folder === folderId) return { ...f, folder: newId };
-      if (f.folder.startsWith(folderId + '/')) return { ...f, folder: newId + f.folder.slice(folderId.length) };
+      if (f.folder === folderId) return { ...f, folder: newId, id: newId + '/' + f.name };
+      if (f.folder.startsWith(folderId + '/')) {
+        const newFolder = newId + f.folder.slice(folderId.length);
+        return { ...f, folder: newFolder, id: newFolder + '/' + f.name };
+      }
       return f;
     });
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+
+    // Move the directory in real WC FS (copy + delete)
+    moveWCDir(folderId, newId);
+
     return { folders: nextFolders, files: nextFiles };
   }),
+
   moveFolder: (folderId, newParentId) => set((s) => {
     const folder = s.folders.find(f => f.id === folderId);
     if (!folder) return s;
+
     const isDescendant = (potentialParent: string, ofFolder: string): boolean => {
       if (potentialParent === ofFolder) return true;
       const parent = s.folders.find(f => f.id === potentialParent);
@@ -608,24 +671,34 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       console.warn('Cannot move folder into its own descendant');
       return s;
     }
+
     const newId = newParentId ? `${newParentId}/${folder.name}` : folder.name;
     const oldId = folderId;
+
     const nextFolders = s.folders.map(f => {
       if (f.id === oldId) return { ...f, id: newId, parentId: newParentId };
       if (f.id.startsWith(oldId + '/')) {
-        return { ...f, id: newId + f.id.slice(oldId.length),
-          parentId: f.parentId === oldId ? newId : newId + (f.parentId?.slice(oldId.length) ?? '') };
+        return { ...f,
+          id: newId + f.id.slice(oldId.length),
+          parentId: f.parentId === oldId ? newId : newId + (f.parentId?.slice(oldId.length) ?? ''),
+        };
       }
       return f;
     });
+
     const nextFiles = s.files.map(f => {
       if (!f.folder) return f;
-      if (f.folder === oldId) return { ...f, folder: newId };
-      if (f.folder.startsWith(oldId + '/')) return { ...f, folder: newId + f.folder.slice(oldId.length) };
+      if (f.folder === oldId) return { ...f, folder: newId, id: newId + '/' + f.name };
+      if (f.folder.startsWith(oldId + '/')) {
+        const newFolder = newId + f.folder.slice(oldId.length);
+        return { ...f, folder: newFolder, id: newFolder + '/' + f.name };
+      }
       return f;
     });
-    saveFolders(nextFolders);
-    saveFiles(nextFiles);
+
+    // Move the directory in real WC FS
+    moveWCDir(oldId, newId);
+
     return { folders: nextFolders, files: nextFiles };
   }),
 
@@ -637,16 +710,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   })),
 
   mode: _initUserConfig.mode ?? 'split',
-  setMode: (mode) => {
-    patchUserConfigCookie({ mode });
-    set({ mode });
-  },
+  setMode: (mode) => { patchUserConfigCookie({ mode }); set({ mode }); },
 
   visualPreviewDevice: _initUserConfig.visualPreviewDevice ?? 'desktop',
-  setVisualPreviewDevice: (device) => {
-    patchUserConfigCookie({ visualPreviewDevice: device });
-    set({ visualPreviewDevice: device });
-  },
+  setVisualPreviewDevice: (device) => { patchUserConfigCookie({ visualPreviewDevice: device }); set({ visualPreviewDevice: device }); },
 
   selectedSelector: null,
   setSelectedSelector: (selector) => set({ selectedSelector: selector }),
@@ -666,9 +733,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   },
 
   applySelectedContent: (html) => {
-    const bridge = get().visualBridge;
-    if (!bridge) return;
-    bridge.applyContent(html);
+    get().visualBridge?.applyContent(html);
   },
 
   pseudoState: '',
@@ -700,7 +765,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   consoleEntries: [],
   addConsoleEntry: (entry) => set((s) => {
     const next = [...s.consoleEntries, { ...entry, id: Math.random().toString(36).slice(2) }];
-    // Limit to 1000 entries to prevent memory leak
     if (next.length > 1000) next.shift();
     return { consoleEntries: next };
   }),
@@ -710,12 +774,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   activePreviewTabId: 'tab-1',
   addPreviewTab: (opts) => {
     const { previewTabs } = get();
-    // Check if a tab for this file already exists
     const existing = previewTabs.find(t =>
       (opts?.fileId && t.fileId === opts.fileId) ||
       (opts?.imageFileId && t.imageFileId === opts.imageFileId)
     );
-
     if (existing) {
       set((s) => ({
         previewTabs: s.previewTabs.map(t => ({ ...t, active: t.id === existing.id })),
@@ -723,16 +785,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       }));
       return;
     }
-
     const id = `tab-${Date.now()}`;
     const newTab: PreviewTab = {
-      id,
-      title: opts?.title ?? 'New Tab',
-      favicon: '',
-      active: true,
+      id, title: opts?.title ?? 'New Tab', favicon: '', active: true,
       previewType: opts?.previewType ?? 'page',
-      imageFileId: opts?.imageFileId,
-      fileId: opts?.fileId,
+      imageFileId: opts?.imageFileId, fileId: opts?.fileId,
     };
     set((s) => ({
       previewTabs: [...s.previewTabs.map(t => ({ ...t, active: false })), newTab],
@@ -760,30 +817,27 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   notification: null,
   showNotification: (msg) => {
     set({ notification: msg });
-    // Use a unique ID to avoid clearing a newer notification
     const currentMsg = msg;
-    setTimeout(() => {
-      set((s) => s.notification === currentMsg ? { notification: null } : {});
-    }, 2800);
+    setTimeout(() => { set((s) => s.notification === currentMsg ? { notification: null } : {}); }, 2800);
   },
 
   previewRefreshKey: 0,
   refreshPreview: () => set((s) => ({ previewRefreshKey: s.previewRefreshKey + 1 })),
 
   timelineAnimationStyle: '',
-  setTimelineAnimationStyle: (css: string) => set({ timelineAnimationStyle: css }),
+  setTimelineAnimationStyle: (css) => set({ timelineAnimationStyle: css }),
 
   timelineRestartKey: 0,
   triggerTimelineRestart: () => set((s) => ({ timelineRestartKey: s.timelineRestartKey + 1 })),
 
-  timelineState: loadTimelineState(),
+  timelineState: DEFAULT_TIMELINE_STATE,
   setTimelineState: (update) => set((s) => {
     const nextState = typeof update === 'function' ? update(s.timelineState) : { ...s.timelineState, ...update };
-    saveTimelineState(nextState);
+    debouncedSaveMeta(buildMeta({ ...s, timelineState: nextState }));
     return { timelineState: nextState };
   }),
-  resetTimelineState: () => set(() => {
-    saveTimelineState(DEFAULT_TIMELINE_STATE);
+  resetTimelineState: () => set((s) => {
+    debouncedSaveMeta(buildMeta({ ...s, timelineState: DEFAULT_TIMELINE_STATE }));
     return { timelineState: DEFAULT_TIMELINE_STATE };
   }),
 
@@ -792,12 +846,38 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   clearProject: () => set((s) => {
     const newFiles: FileItem[] = DEFAULT_FILES.map(f => ({ ...f }));
-    saveFiles(newFiles);
-    saveActiveFile(newFiles[0].id);
     const clearedTimeline: TimelineState = { ...DEFAULT_TIMELINE_STATE };
-    saveTimelineState(clearedTimeline);
-    saveFolders([]);
-    saveEventBindings([]);
+
+    // Delete all existing user files from WC FS, then write defaults
+    (async () => {
+      try {
+        const instance = await getWebContainer();
+        // Remove old files from WC FS
+        for (const f of s.files) {
+          if (f.type !== 'image') {
+            try { await instance.fs.rm(fileToWCPath(f)); } catch {}
+          }
+        }
+        // Remove old folders
+        for (const folder of s.folders) {
+          if (!folder.parentId) {
+            try { await instance.fs.rm('/' + folder.id, { recursive: true }); } catch {}
+          }
+        }
+        // Write default files
+        for (const f of newFiles) {
+          await instance.fs.writeFile(fileToWCPath(f), f.content ?? '');
+        }
+        // Update metadata
+        await saveMetaImmediate({
+          activeFileId: newFiles[0].id,
+          timelineState: clearedTimeline,
+          eventBindings: [],
+          imageFiles: [],
+        });
+      } catch { /* WC not ready */ }
+    })();
+
     return {
       files: newFiles,
       activeFileId: newFiles[0].id,
@@ -809,55 +889,127 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     };
   }),
 
-  eventBindings: loadEventBindings(),
+  eventBindings: [],
   addEventBinding: (b) => set((s) => {
     const next = [...s.eventBindings, b];
-    saveEventBindings(next);
+    debouncedSaveMeta(buildMeta({ ...s, eventBindings: next }));
     return { eventBindings: next };
   }),
   removeEventBinding: (id) => set((s) => {
     const next = s.eventBindings.filter(binding => binding.id !== id);
-    saveEventBindings(next);
+    debouncedSaveMeta(buildMeta({ ...s, eventBindings: next }));
     return { eventBindings: next };
   }),
   updateEventBinding: (id, updates) => set((s) => {
     const next = s.eventBindings.map(binding => binding.id === id ? { ...binding, ...updates } : binding);
-    saveEventBindings(next);
+    debouncedSaveMeta(buildMeta({ ...s, eventBindings: next }));
     return { eventBindings: next };
   }),
   setEventBindings: (bindings) => {
-    saveEventBindings(bindings);
+    const s = get();
+    debouncedSaveMeta(buildMeta({ ...s, eventBindings: bindings }));
     set({ eventBindings: bindings });
   },
 
   liveServer: _initUserConfig.liveServer ?? true,
-  setLiveServer: (v) => {
-    patchUserConfigCookie({ liveServer: v });
-    set({ liveServer: v });
-  },
+  setLiveServer: (v) => { patchUserConfigCookie({ liveServer: v }); set({ liveServer: v }); },
 
   autoSave: _initUserConfig.autoSave ?? true,
   setAutoSave: (v) => {
     patchUserConfigCookie({ autoSave: v });
     set((s) => {
-      if (v) saveFiles(s.files);
+      if (v) {
+        // Flush any unsaved files to WC FS
+        s.files.filter(f => s.unsavedFileIds.includes(f.id)).forEach(f => writeFileToWC(f));
+      }
       return { autoSave: v, unsavedFileIds: v ? [] : s.unsavedFileIds };
     });
   },
 
   unsavedFileIds: [],
   markFileSaved: (id) => set((s) => {
-    saveFiles(s.files);
+    // Immediately flush this file to WC FS
+    const file = s.files.find(f => f.id === id);
+    if (file) writeFileToWC(file);
     return {
       unsavedFileIds: s.unsavedFileIds.filter(uid => uid !== id),
       previewRefreshKey: s.previewRefreshKey + 1,
     };
   }),
   markAllSaved: () => set((s) => {
-    saveFiles(s.files);
+    // Flush all unsaved files to WC FS
+    s.files.filter(f => s.unsavedFileIds.includes(f.id)).forEach(f => writeFileToWC(f));
     return {
       unsavedFileIds: [],
       previewRefreshKey: s.previewRefreshKey + 1,
     };
   }),
+
+  /* ── WebContainer Real FS initialization ── */
+  wcBootStatus: 'idle',
+  initFromWebContainer: async () => {
+    set({ wcBootStatus: 'booting' });
+    try {
+      const instance = await getWebContainer();
+
+      // Read metadata (non-file state)
+      let meta: WCMeta = {
+        activeFileId: null,
+        timelineState: DEFAULT_TIMELINE_STATE,
+        eventBindings: [],
+        imageFiles: [],
+      };
+      try {
+        const rawMeta = await instance.fs.readFile(WC_META_PATH, 'utf-8') as string;
+        const parsed = JSON.parse(rawMeta) as Partial<WCMeta>;
+        meta = {
+          activeFileId: parsed.activeFileId ?? null,
+          timelineState: parsed.timelineState ?? DEFAULT_TIMELINE_STATE,
+          eventBindings: Array.isArray(parsed.eventBindings) ? parsed.eventBindings : [],
+          imageFiles: Array.isArray(parsed.imageFiles) ? parsed.imageFiles : [],
+        };
+      } catch { /* no metadata yet — first run */ }
+
+      // Scan real WC FS for all text files and directories
+      const scan = await scanWCFilesystem();
+
+      if (scan.files.length === 0) {
+        // Fresh WC FS — seed with default project files
+        for (const f of DEFAULT_FILES) {
+          await instance.fs.writeFile(fileToWCPath(f), f.content ?? '');
+        }
+        meta.activeFileId = DEFAULT_FILES[0].id;
+        await saveMetaImmediate(meta);
+
+        set({
+          files: [...DEFAULT_FILES, ...meta.imageFiles],
+          folders: [],
+          activeFileId: DEFAULT_FILES[0].id,
+          timelineState: meta.timelineState,
+          eventBindings: meta.eventBindings,
+          wcBootStatus: 'ready',
+        });
+        return;
+      }
+
+      // Merge text files from real FS + image files from metadata
+      const allFiles = [...scan.files, ...meta.imageFiles];
+      const activeFileId = (meta.activeFileId && allFiles.find(f => f.id === meta.activeFileId))
+        ? meta.activeFileId
+        : allFiles[0]?.id ?? null;
+
+      set({
+        files: allFiles,
+        folders: scan.folders,
+        activeFileId,
+        timelineState: meta.timelineState,
+        eventBindings: meta.eventBindings,
+        wcBootStatus: 'ready',
+      });
+    } catch (e) {
+      // WC unavailable (no cross-origin isolation, etc.) — fall back to in-memory defaults
+      console.warn('[EditorStore] WebContainer real FS unavailable:', e);
+      set({ wcBootStatus: 'failed' });
+    }
+  },
 }));

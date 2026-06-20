@@ -115,7 +115,7 @@ const PrivacyPolicy: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-6 pt-4">
                   <div className="p-6 bg-[#0a0a0a] rounded-2xl border border-[#1a1a1a]">
                     <h4 className="text-white font-bold mb-2 flex items-center gap-2"><FiLock className="text-green-500" /> Local Storage</h4>
-                    <p className="text-xs">Your files are stored directly in your browser's <b>IndexedDB</b> and <b>LocalStorage</b>. They never leave your device unless you export them.</p>
+                    <p className="text-xs">Your files are stored directly in the <b>WebContainer virtual filesystem</b> — a sandboxed Node.js environment running entirely in your browser. They never leave your device unless you export them.</p>
                   </div>
                   <div className="p-6 bg-[#0a0a0a] rounded-2xl border border-[#1a1a1a]">
                     <h4 className="text-white font-bold mb-2 flex items-center gap-2"><FiEyeOff className="text-blue-500" /> No Cloud Sync</h4>

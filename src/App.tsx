@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Router as WouterRouter, Route, Switch } from 'wouter';
+import { registerWCListeners } from './utils/webcontainer';
 
 /* ── Legacy type re-exports (MenuBar still imports these) ── */
 export type WinId = 'files' | 'code' | 'preview' | 'properties' | 'timeline' | 'events' | 'console' | 'anim-presets' | 'anim-config' | 'anim-tracks' | 'vanta-editor' | 'ogl-editor';
@@ -154,6 +155,162 @@ function AiStatusButton() {
   );
 }
 
+/* ─────────────────────────────────────────────────────────────
+   WC Boot Splash
+   Shown while WebContainer boots and reads its real filesystem.
+   Also handles the "failed" state (e.g. inside an iframe where
+   cross-origin isolation is blocked) with a clear error + two
+   action buttons: open in new tab, or continue in memory mode.
+   ───────────────────────────────────────────────────────────── */
+function WCBootSplash({ onContinue }: { onContinue: () => void }) {
+  const wcBootStatus = useEditorStore(s => s.wcBootStatus);
+  const [logLine, setLogLine] = useState('Starting WebContainer…');
+  const [dots, setDots] = useState('.');
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => setVisible(true));
+    const dotsTimer = setInterval(() => setDots(d => d.length >= 3 ? '.' : d + '.'), 420);
+    registerWCListeners({ onLog: (msg) => setLogLine(msg) });
+    return () => clearInterval(dotsTimer);
+  }, []);
+
+  const failed = wcBootStatus === 'failed';
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', width: '100vw',
+      background: 'linear-gradient(160deg,#141417 0%,#1a1a1f 100%)',
+      color: '#d4d4d4', fontFamily: "'Inter', -apple-system, sans-serif",
+      opacity: visible ? 1 : 0, transition: 'opacity 0.3s ease',
+      userSelect: 'none',
+    }}>
+      {/* Logo */}
+      <div style={{
+        width: 56, height: 56, borderRadius: 14, flexShrink: 0, marginBottom: 20,
+        background: failed
+          ? 'linear-gradient(145deg,#2a1200 0%,#3a1800 50%,#220f00 100%)'
+          : 'linear-gradient(145deg,#cc3300 0%,#e34c26 50%,#aa2200 100%)',
+        border: `1px solid ${failed ? 'rgba(229,164,90,0.3)' : 'rgba(0,0,0,0.5)'}`,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15),0 8px 32px rgba(0,0,0,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 26, fontWeight: 900,
+        color: failed ? '#e5a45a' : '#fff',
+        textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+        transition: 'all 0.4s ease',
+      }}>H</div>
+
+      <div style={{ fontSize: 18, fontWeight: 700, color: '#e8e8e8', marginBottom: 6, letterSpacing: '-0.02em' }}>
+        HTML Editor
+      </div>
+      <div style={{ fontSize: 11, color: '#555', marginBottom: 32, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>
+        WebContainer IDE
+      </div>
+
+      {failed ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, maxWidth: 360, textAlign: 'center' }}>
+          <div style={{
+            background: 'rgba(229,164,90,0.07)', border: '1px solid rgba(229,164,90,0.2)',
+            borderRadius: 10, padding: '16px 20px',
+          }}>
+            <div style={{ fontSize: 13, color: '#e5a45a', fontWeight: 600, marginBottom: 8 }}>
+              ⚠ WebContainer requires a standalone tab
+            </div>
+            <div style={{ fontSize: 11, color: '#777', lineHeight: 1.6 }}>
+              This page is embedded in an iframe which blocks SharedArrayBuffer
+              (required by WebContainer). Open in a new tab for full real-filesystem support.
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a
+              href={window.location.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '7px 16px', fontSize: 12, borderRadius: 6, cursor: 'pointer',
+                background: 'linear-gradient(145deg,#c8913c 0%,#e5a45a 50%,#c8913c 100%)',
+                border: '1px solid rgba(0,0,0,0.3)', color: '#1a0d00', fontWeight: 700,
+                textDecoration: 'none', display: 'inline-block',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.2),0 2px 8px rgba(0,0,0,0.4)',
+              }}
+            >
+              ↗ Open in New Tab
+            </a>
+            <button
+              onClick={onContinue}
+              style={{
+                padding: '7px 16px', fontSize: 12, borderRadius: 6, cursor: 'pointer',
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#888', fontFamily: 'inherit',
+              }}
+            >
+              Continue in Memory Mode
+            </button>
+          </div>
+
+          <div style={{ fontSize: 10, color: '#3a3a3a', lineHeight: 1.5 }}>
+            Memory mode: edits are not persisted to the filesystem and are lost on refresh.
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{
+            width: 220, height: 2, background: 'rgba(255,255,255,0.06)', borderRadius: 2,
+            overflow: 'hidden', marginBottom: 20,
+          }}>
+            <div style={{
+              height: '100%', borderRadius: 2,
+              background: 'linear-gradient(90deg,#e5a45a,#f0bc7a,#e5a45a)',
+              animation: 'wcScan 1.4s linear infinite',
+            }} />
+          </div>
+          <style>{`
+            @keyframes wcScan {
+              0%   { width: 35%; margin-left: 0%; }
+              50%  { width: 60%; }
+              100% { width: 35%; margin-left: 65%; }
+            }
+          `}</style>
+          <div style={{
+            fontSize: 11, color: '#555', maxWidth: 300, textAlign: 'center',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {logLine}{dots}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   EditorWithBoot — boots WC first, THEN mounts the editor.
+   Explorer, Code Editor, and Preview only mount after WC FS
+   is initialized so they always read from the real filesystem.
+   ───────────────────────────────────────────────────────────── */
+function EditorWithBoot() {
+  const isMobile = useIsMobile();
+  const wcBootStatus = useEditorStore(s => s.wcBootStatus);
+  const initFromWebContainer = useEditorStore(s => s.initFromWebContainer);
+  const [failedDismissed, setFailedDismissed] = useState(false);
+
+  useEffect(() => {
+    initFromWebContainer();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Block the editor until WC finishes booting (or user explicitly continues after failure)
+  if (wcBootStatus === 'idle' || wcBootStatus === 'booting' ||
+      (wcBootStatus === 'failed' && !failedDismissed)) {
+    return <WCBootSplash onContinue={() => setFailedDismissed(true)} />;
+  }
+
+  // WC ready (or user chose memory mode) — mount the full editor
+  return isMobile ? <MobileApp /> : <DesktopApp />;
+}
+
 /* ─── Mobile hook ─── */
 function useIsMobile() {
   const [mobile, setMobile] = useState(() => window.innerWidth < BREAKPOINTS.MOBILE);
@@ -291,17 +448,10 @@ function MobileApp() {
 
 /* ─── App router ─── */
 export default function App() {
-  const isMobile = useIsMobile();
-
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = () => {
       const state = useEditorStore.getState();
-      if (state.unsavedFileIds.length > 0) {
-        state.markAllSaved();
-        // Optional: Some browsers might need this to show a confirmation dialog
-        // e.preventDefault();
-        // e.returnValue = '';
-      }
+      if (state.unsavedFileIds.length > 0) state.markAllSaved();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -314,7 +464,7 @@ export default function App() {
         <Route path="/privacy" component={PrivacyPolicy} />
         <Route path="/terms" component={TermsOfService} />
         <Route path="/">
-          {isMobile ? <MobileApp /> : <DesktopApp />}
+          <EditorWithBoot />
         </Route>
         <Route component={NotFound} />
       </Switch>
@@ -358,7 +508,8 @@ function DesktopApp() {
       }
       if (mod && e.key === 'e') { e.preventDefault(); exportProject(files).then(() => showNotification('Exported project.zip')); }
       if (mod && e.key === 'r') { e.preventDefault(); useEditorStore.getState().refreshPreview(); }
-      if (mod && e.key === '`') { e.preventDefault(); handlePanelToggle('console'); }
+      if (mod && e.key === '`' && !e.shiftKey) { e.preventDefault(); handlePanelToggle('terminal'); }
+      if (mod && e.key === '`' && e.shiftKey) { e.preventDefault(); handlePanelToggle('console'); }
       if (mod && e.key === '0') { e.preventDefault(); glRef.current?.resetLayout(); }
       if (e.key === 'Escape') { useEditorStore.getState().setSelectedElement(null); }
     };
@@ -373,6 +524,7 @@ function DesktopApp() {
     { type: 'code',         icon: <FiCode size={12} />,     label: 'Code',        title: 'Code Editor' },
     { type: 'preview',      icon: <FiMonitor size={12} />,  label: 'Preview',     title: 'Preview' },
     { type: 'console',      icon: <FiTerminal size={12} />, label: 'Console',     title: 'Console' },
+    { type: 'terminal',     icon: <FiTerminal size={12} />, label: 'Terminal',    title: 'Terminal (WebContainer)' },
     { type: 'properties',   icon: <FiSliders size={12} />,  label: 'Properties',  title: 'Properties' },
     { type: 'timeline',     icon: <FiClock size={12} />,    label: 'Timeline',    title: 'Timeline' },
     { type: 'events',       icon: <FiZap size={12} />,      label: 'Events',      title: 'Event Listeners' },

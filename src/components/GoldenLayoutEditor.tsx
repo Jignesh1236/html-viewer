@@ -315,7 +315,7 @@ const GoldenLayoutEditor = forwardRef<GoldenLayoutEditorHandle, GoldenLayoutEdit
       const gl = new GoldenLayout(containerRef.current);
       glRef.current = gl;
 
-      const TYPES: PanelType[] = ['files', 'code', 'preview', 'properties', 'timeline', 'events', 'console', 'anim-presets', 'anim-config', 'anim-tracks', 'vanta-editor', 'ogl-editor'];
+      const TYPES: PanelType[] = ['files', 'code', 'preview', 'properties', 'timeline', 'events', 'console', 'anim-presets', 'anim-config', 'anim-tracks', 'vanta-editor', 'ogl-editor', 'ports', 'terminal'];
       TYPES.forEach(type => {
         gl.registerComponentFactoryFunction(type, (container) => {
           (container as any)._myType = type;

@@ -8,7 +8,7 @@ import {
 import { VscFileCode, VscDebugAlt } from 'react-icons/vsc';
 import { buildProjectHtml, getTargetHtmlFile, imageSource, insertBeforeClosingTag } from '../utils/projectFiles';
 import {
-  detectFramework, startDevServer, syncFileToWebContainer,
+  detectFramework, startDevServer, syncFileToWebContainer, checkCrossOriginIsolation,
 } from '../utils/webcontainer';
 
 const PreviewPane: React.FC = () => {
@@ -84,6 +84,19 @@ const PreviewPane: React.FC = () => {
     setWcLoading(true);
     setWcError(null);
     setWcLogs([]);
+
+    const isolation = checkCrossOriginIsolation();
+    if (!isolation.ok) {
+      setWcError(
+        'Cross-origin isolation required.\n\n' +
+        'Open this app in a standalone browser tab (click the ↗ button in the preview header) — ' +
+        'WebContainer needs COOP + COEP headers which only apply outside an iframe.'
+      );
+      setWcLoading(false);
+      wcStartedRef.current = false;
+      return;
+    }
+
     try {
       await startDevServer({
         files,
