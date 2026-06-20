@@ -89,6 +89,7 @@
     "@webcontainer/api": "^1.6.4",
     "console-feed": "^3.8.0",
     "emmet-monaco-es": "^5.7.0",
+    "esbuild": "^0.28.1",
     "golden-layout": "^2.6.0",
     "isomorphic-git": "^1.38.5",
     "monaco-languageclient": "^10.7.0",
