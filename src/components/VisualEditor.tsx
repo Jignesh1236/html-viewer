@@ -1559,7 +1559,7 @@ const VisualEditor: React.FC = () => {
             }}
             onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
             srcDoc={srcDoc}
-            sandbox="allow-same-origin"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-pointer-lock"
             style={{ width:'100%', height:'100%', border:'none', background:'#fff', display:'block' }}
           />
           {visualPreviewDevice !== 'custom' && (
