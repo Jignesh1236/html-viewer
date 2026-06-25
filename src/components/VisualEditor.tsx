@@ -216,9 +216,11 @@ interface SelectionOverlayProps {
   refreshTick: number;
   /** When true, dragging reparents elements in the DOM instead of moving via CSS. */
   reorderMode: boolean;
+  /** Called when user clicks the selection border without moving (to cycle to child elements). */
+  onSelectChild?: (clientX: number, clientY: number) => void;
 }
 
-const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCommit, onReorderCommit, refreshTick, reorderMode }) => {
+const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCommit, onReorderCommit, refreshTick, reorderMode, onSelectChild }) => {
   const [dragTick, setDragTick] = useState(0);
   const [activeGuides, setActiveGuides] = useState<{ v: number[]; h: number[] }>({ v: [], h: [] });
   const guideLinesRef = useRef<{ v: number[]; h: number[] }>({ v: [], h: [] });
@@ -481,7 +483,12 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
       document.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerup', onUp);
       document.removeEventListener('pointercancel', onUp);
-      if (moved || prepared) onCommit();
+      if (moved || prepared) {
+        onCommit();
+      } else if (!moved && !prepared && onSelectChild && type === 'move') {
+        /* User clicked but didn't drag — cycle to child/sibling element underneath */
+        onSelectChild(sx, sy);
+      }
       setActiveGuides({ v: [], h: [] });
       setDragTick(t => t + 1);
     };
@@ -516,7 +523,10 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
 
   return createPortal(
     <>
-      {/* Selection border / drag-to-move zone */}
+      {/* Selection border + drag zone.
+          pointer-events:auto so the user can click-and-drag anywhere on the element to move it.
+          A simple click (no drag) falls through via onSelectChild — which uses elementsFromPoint
+          to cycle to the child / overlapping element at that spot. */}
       <div
         onPointerDown={e => startInteraction(e, 'move')}
         style={{
@@ -879,9 +889,15 @@ const VisualEditor: React.FC = () => {
 
   const { show: showCtx, element: ctxMenuElement } = useContextMenu();
 
+  /** Set true before updateFileContent for style-only changes to skip iframe rebuild */
+  const skipRebuildRef = useRef(false);
+  /** Always-current interaction mode for use inside event listener closures */
+  const interactionRef = useRef<'select'|'interact'>('select');
+
   useEffect(() => { selElRef.current = selEl; }, [selEl]);
   useEffect(() => { hovElRef.current = hovEl; }, [hovEl]);
   useEffect(() => { animStyleRef.current = timelineAnimationStyle; }, [timelineAnimationStyle]);
+  useEffect(() => { interactionRef.current = interaction; }, [interaction]);
   useEffect(() => () => { eventsCleanupRef.current?.(); }, []);
 
   /* ── track iframe position ── */
@@ -933,7 +949,7 @@ const VisualEditor: React.FC = () => {
     redoStackRef.current = [];
   }, []);
 
-  const updateSource = useCallback((el: HTMLElement, fn: (t: HTMLElement) => void) => {
+  const updateSource = useCallback((el: HTMLElement, fn: (t: HTMLElement) => void, skipRebuild = false) => {
     const state = useEditorStore.getState();
     const htmlFile = getTargetHtmlFile(state.files, state.activeFileId);
     if (!htmlFile) return;
@@ -945,6 +961,7 @@ const VisualEditor: React.FC = () => {
     const updated = serializeDoc(parsed);
     if (updated !== htmlFile.content) {
       pushVisualHistory({ fileId: htmlFile.id, before: htmlFile.content, after: updated, selector: selectedSelectorRef.current || sel });
+      if (skipRebuild) skipRebuildRef.current = true;
       state.updateFileContent(htmlFile.id, updated);
     }
   }, [pushVisualHistory]);
@@ -1035,7 +1052,7 @@ const VisualEditor: React.FC = () => {
       let ps = t.ownerDocument.getElementById('__tl-pseudo-rules') as HTMLStyleElement | null;
       if (!ps && pseudoCss) { ps = t.ownerDocument.createElement('style'); ps.id = '__tl-pseudo-rules'; t.ownerDocument.head.appendChild(ps); }
       if (ps) { if (pseudoCss) ps.textContent = pseudoCss; else ps.remove(); }
-    });
+    }, true); // skip iframe rebuild — DOM is already patched live
   }, [updateSource]);
 
   const refreshSnapshot = useCallback((el: HTMLElement) => {
@@ -1126,7 +1143,8 @@ const VisualEditor: React.FC = () => {
     selectedSelectorRef.current = sel;
     setSelEl(el);
     setHovEl(null);
-    setShowQuickBar(true);
+    /* QuickBar is intentionally NOT auto-shown here.
+       It appears only when the user right-clicks (context menu) or clicks the Edit button. */
     setSelectedSelector(sel);
     setSelectedElement({
       tagName: el.tagName.toLowerCase(), id: el.id,
@@ -1142,9 +1160,26 @@ const VisualEditor: React.FC = () => {
     const htmlFile = getTargetHtmlFile(files, activeFileId);
     if (!htmlFile) return '<html><body style="padding:40px;font-family:sans-serif;color:#999">No HTML file</body></html>';
     let html = buildProjectHtml(files, htmlFile);
-    const editorCss = `<style>*{cursor:${interaction === 'select' ? 'crosshair' : 'default'}!important;user-select:${interaction === 'select' ? 'none' : 'auto'}!important}</style>`;
+    /* cursor style is injected/patched dynamically via __editor-cursor-style — NOT baked into srcDoc
+       so toggling interact mode never triggers an iframe reload */
+    const editorCss = `<style id="__editor-cursor-style">*{cursor:crosshair!important;user-select:none!important}</style>`;
     return insertBeforeClosingTag(html, 'head', editorCss);
-  }, [files, activeFileId, interaction]);
+  }, [files, activeFileId]); // ← interaction intentionally excluded
+
+  /* ── patch cursor style in live iframe when interaction mode changes (no reload) ── */
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    let sEl = doc.getElementById('__editor-cursor-style') as HTMLStyleElement | null;
+    if (!sEl) {
+      sEl = doc.createElement('style');
+      sEl.id = '__editor-cursor-style';
+      doc.head?.appendChild(sEl);
+    }
+    sEl.textContent = interaction === 'select'
+      ? '*{cursor:crosshair!important;user-select:none!important}'
+      : '';
+  }, [interaction]);
 
   const scheduleRebuild = useCallback(() => {
     const now = Date.now();
@@ -1161,6 +1196,24 @@ const VisualEditor: React.FC = () => {
   useEffect(() => {
     const prev = prevFilesRef.current;
     prevFilesRef.current = files;
+
+    /* Visual-only change (inline style / attribute update via syncToSource).
+       The DOM is already patched live — just skip the iframe rebuild.
+       Also cancel any rebuild queued by scheduleRebuild (which fires first, before this effect). */
+    if (skipRebuildRef.current) {
+      skipRebuildRef.current = false;
+      if (rebuildTimerRef.current) { clearTimeout(rebuildTimerRef.current); rebuildTimerRef.current = null; }
+      // Still patch any CSS files live
+      const doc = iframeRef.current?.contentDocument;
+      if (doc) {
+        files.filter(f => f.type === 'css').forEach(css => {
+          const sEl = doc.querySelector(`style[data-src="${css.id}"]`) as HTMLStyleElement | null;
+          if (sEl) sEl.textContent = css.content;
+        });
+      }
+      return;
+    }
+
     const doc      = iframeRef.current?.contentDocument;
     const loaded   = !!doc?.body;
     const phChanged = getTargetHtmlFile(prev, activeFileId)?.content !== getTargetHtmlFile(files, activeFileId)?.content;
@@ -1198,10 +1251,24 @@ const VisualEditor: React.FC = () => {
     };
 
     const onClick = (e: MouseEvent) => {
-      if (interaction !== 'select') return;
+      if (interactionRef.current !== 'select') return;
       e.preventDefault(); e.stopPropagation();
-      const t = e.target as HTMLElement | null;
+      let t = e.target as HTMLElement | null;
       if (!t || SKIP_TAGS.has(t.tagName.toLowerCase())) return;
+
+      /* If clicking the already-selected element (or Alt is held), cycle through
+         elements at this point so users can reach nested / overlapping elements. */
+      if (t === selElRef.current || e.altKey) {
+        const allEls = (doc.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[]);
+        const next = allEls.find(el =>
+          el !== selElRef.current &&
+          !SKIP_TAGS.has(el.tagName.toLowerCase()) &&
+          el.tagName.toLowerCase() !== 'html' &&
+          el.tagName.toLowerCase() !== 'body'
+        );
+        if (next) t = next;
+      }
+
       selectElement(t);
     };
 
@@ -1215,7 +1282,7 @@ const VisualEditor: React.FC = () => {
       if (noText.includes(t.tagName.toLowerCase()) || !t.textContent?.trim()) return;
 
       setIsEditingText(true);
-      setShowQuickBar(false);
+      setShowQuickBar(false); // hide quick bar while inline-editing text
       t.contentEditable = 'true';
       t.style.cursor = 'text';
       t.focus();
@@ -1239,6 +1306,8 @@ const VisualEditor: React.FC = () => {
       e.preventDefault();
       const t = e.target as HTMLElement | null;
       if (!t || SKIP_TAGS.has(t.tagName.toLowerCase())) return;
+      /* Right-click selects the element; QuickBar is NOT opened here to avoid overlap with context menu */
+      selectElement(t);
 
       const qa = (prop: string, val: string) => {
         t.style.setProperty(prop, val);
@@ -1335,7 +1404,8 @@ const VisualEditor: React.FC = () => {
       doc.removeEventListener('scroll',      onScroll,      true);
       win.removeEventListener('resize',      onScroll);
     };
-  }, [interaction, selectElement, syncToSource, refreshSnapshot, updateSource, injectAnimStyle, showCtx, handleVisualUndoRedoKey]);
+  // interaction removed from deps — we use interactionRef inside the closure instead
+  }, [selectElement, syncToSource, refreshSnapshot, updateSource, injectAnimStyle, showCtx, handleVisualUndoRedoKey]);
 
   /* ── Escape + Arrow key nudging ── */
   useEffect(() => {
@@ -1510,19 +1580,24 @@ const VisualEditor: React.FC = () => {
           )}
         </div>
       </div>
-      <div style={{ flexShrink: 0, padding: '6px 8px', background: reorderMode ? '#0e1a0b' : '#151517', borderBottom: `1px solid ${reorderMode ? 'rgba(82,196,64,0.15)' : 'rgba(255,255,255,0.05)'}`, color: '#999', fontSize: 10, display: 'flex', alignItems: 'center', gap: 10, transition: 'background 0.2s' }}>
-        {reorderMode ? (
-          <>
-            <span style={{ color: '#7de062', fontWeight: 600 }}>↕ Reorder Mode</span>
-            <span style={{ color: '#555' }}>|</span>
-            <span>Select an element · Drag to reparent it in the DOM tree · Orange line = insertion point · Dashed box = drop container · Ctrl/Cmd+Z to undo</span>
-          </>
-        ) : (
-          <span>Click to select · Double-click to edit · Esc to deselect · Ctrl/Cmd+Z undo</span>
-        )}
-        <span style={{ color: '#777' }}>|</span>
-        <span>Viewing as: <strong style={{ color: '#e5a45a' }}>{visualPreviewDevice === 'custom' ? 'Fit view' : visualPreviewDevice}</strong></span>
-      </div>
+      {/* Status bar — only shown in special modes (interact / reorder) to save space */}
+      {(interaction === 'interact' || reorderMode) && (
+        <div style={{ flexShrink: 0, padding: '4px 8px', background: interaction === 'interact' ? '#0e1220' : '#0e1a0b', borderBottom: `1px solid ${interaction === 'interact' ? 'rgba(91,159,214,0.2)' : 'rgba(82,196,64,0.15)'}`, color: '#999', fontSize: 10, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s' }}>
+          {interaction === 'interact' ? (
+            <>
+              <span style={{ color: '#7ab8f5', fontWeight: 600 }}>🖱 Interact Mode</span>
+              <span style={{ color: '#444' }}>·</span>
+              <span>Buttons &amp; links are fully interactive · Click <strong style={{ color: '#7ab8f5' }}>Select</strong> to return to editing</span>
+            </>
+          ) : (
+            <>
+              <span style={{ color: '#7de062', fontWeight: 600 }}>↕ Reorder Mode</span>
+              <span style={{ color: '#444' }}>·</span>
+              <span>Drag to reparent · Orange line = insertion point · Ctrl/Cmd+Z to undo</span>
+            </>
+          )}
+        </div>
+      )}
 
       {/* ── Preview ── */}
       <div ref={wrapRef} style={{ flex:1, position:'relative', overflow:'auto', background:'#111113', display:'flex', justifyContent:'center', alignItems:'center' }}>
@@ -1575,8 +1650,8 @@ const VisualEditor: React.FC = () => {
 
         </div>
 
-        {/* Hover highlight */}
-        {HR && !isEditingText && (
+        {/* Hover highlight — hidden in interact mode */}
+        {HR && !isEditingText && interaction === 'select' && (
           <div style={{
             position:'fixed', left:HR.left, top:HR.top, width:HR.width, height:HR.height,
             outline:'1.5px dashed rgba(229,164,90,0.4)',
@@ -1597,7 +1672,7 @@ const VisualEditor: React.FC = () => {
       </div>
 
       {/* ── Selection overlay (drag / resize / rotate / reorder) ── */}
-      {selEl?.isConnected && iframeRef.current && !isEditingText && (
+      {interaction === 'select' && selEl?.isConnected && iframeRef.current && !isEditingText && (
         <SelectionOverlay
           selEl={selEl}
           iframe={iframeRef.current}
@@ -1611,11 +1686,25 @@ const VisualEditor: React.FC = () => {
             refreshSnapshot(el);
             setTick(t => t + 1);
           }}
+          onSelectChild={(cx, cy) => {
+            const doc = iframeRef.current?.contentDocument;
+            if (!doc || !ifrRect) return;
+            const ifrX = cx - ifrRect.left;
+            const ifrY = cy - ifrRect.top;
+            const allEls = doc.elementsFromPoint(ifrX, ifrY) as HTMLElement[];
+            const next = allEls.find(el =>
+              el !== selEl &&
+              !SKIP_TAGS.has(el.tagName.toLowerCase()) &&
+              el.tagName.toLowerCase() !== 'html' &&
+              el.tagName.toLowerCase() !== 'body'
+            );
+            if (next) selectElement(next);
+          }}
         />
       )}
 
-      {/* ── Floating Quick Edit Bar ── */}
-      {showQuickBar && selEl?.isConnected && ifrRect && elRect && !isEditingText && (
+      {/* ── Floating Quick Edit Bar — only in select mode, only when explicitly opened ── */}
+      {showQuickBar && interaction === 'select' && selEl?.isConnected && ifrRect && elRect && !isEditingText && (
         <QuickToolbar
           selEl={selEl}
           ifrRect={ifrRect}
