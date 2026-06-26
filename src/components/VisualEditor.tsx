@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useEditorStore } from '../store/editorStore';
 import { useContextMenu } from './ContextMenu';
 import { buildProjectHtml, getTargetHtmlFile, getTargetJsFile, insertBeforeClosingTag } from '../utils/projectFiles';
+import { openFileInGLPanel } from '../lib/fileEditorBridge';
 import {
   getDropTarget,
   ensureDropIndicator,
@@ -321,8 +322,10 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
 
       // The last valid drop target detected during this drag
       let currentTarget: ReturnType<typeof getDropTarget> = null;
+      let reorderMoved = false;
 
       const onReorderMove = (ev: PointerEvent) => {
+        reorderMoved = true;
         // Convert outer-document mouse coords → iframe-viewport coords
         const ifrX = ev.clientX - ifrRect.left;
         const ifrY = ev.clientY - ifrRect.top;
@@ -347,6 +350,14 @@ const SelectionOverlay: React.FC<SelectionOverlayProps> = ({ selEl, iframe, onCo
         document.removeEventListener('pointermove', onReorderMove);
         document.removeEventListener('pointerup',   onReorderUp);
         document.removeEventListener('pointercancel', onReorderUp);
+
+        if (!reorderMoved && onSelectChild) {
+          /* Pure click with no drag — cycle to child / overlapping element */
+          removeDropIndicators(doc);
+          setDragTick(t => t + 1);
+          onSelectChild(sx, sy);
+          return;
+        }
 
         if (currentTarget) {
           // Build the replay function BEFORE mutating the live DOM so that
@@ -853,7 +864,7 @@ const TB: React.CSSProperties = {
 /* ═══════════════════════════════════════════════════════════════ */
 const VisualEditor: React.FC = () => {
   const {
-    files, activeFileId,
+    files, activeFileId, setActiveFileId,
     setSelectedElement, timelineAnimationStyle,
     setSelectedSelector, setVisualBridge, selectedSelector,
     showNotification, visualPreviewDevice, setVisualPreviewDevice,
@@ -885,7 +896,7 @@ const VisualEditor: React.FC = () => {
   const [isEditingText, setIsEditingText] = useState(false);
   const [showQuickBar, setShowQuickBar]   = useState(false);
   /** When true, dragging the move handle reparents elements in the DOM tree. */
-  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderMode, setReorderMode] = useState(true);
 
   const { show: showCtx, element: ctxMenuElement } = useContextMenu();
 
@@ -1580,6 +1591,52 @@ const VisualEditor: React.FC = () => {
           )}
         </div>
       </div>
+      {/* ── HTML file tabs (shown only when project has 2+ HTML files) ── */}
+      {(() => {
+        const htmlFiles = files.filter(f => f.type === 'html');
+        if (htmlFiles.length < 2) return null;
+        const activeHtmlId = htmlFiles.find(f => f.id === activeFileId)?.id ?? htmlFiles[0].id;
+        return (
+          <div style={{
+            flexShrink: 0, display: 'flex', alignItems: 'stretch',
+            background: '#1a1a1e', borderBottom: '1px solid rgba(0,0,0,0.5)',
+            overflowX: 'auto', gap: 0,
+          }}>
+            {htmlFiles.map(f => {
+              const active = f.id === activeHtmlId;
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setActiveFileId(f.id);
+                    /* Also open in GoldenLayout editor tab */
+                    openFileInGLPanel(f.id, f.name);
+                    /* Deselect element — it belongs to the old document */
+                    setSelEl(null); setHovEl(null);
+                    setSelectedElement(null); setSelectedSelector(null);
+                    selectedSelectorRef.current = null;
+                    setShowQuickBar(false);
+                  }}
+                  title={f.name}
+                  style={{
+                    padding: '4px 14px', fontSize: 11, cursor: 'pointer',
+                    background: active ? '#252529' : 'transparent',
+                    borderTop: 'none', borderLeft: 'none',
+                    borderRight: '1px solid rgba(0,0,0,0.35)',
+                    borderBottom: active ? `2px solid ${ACCENT}` : '2px solid transparent',
+                    color: active ? '#f0ead8' : '#666672',
+                    fontWeight: active ? 600 : 400,
+                    whiteSpace: 'nowrap', flexShrink: 0,
+                  }}
+                >
+                  {f.name}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
       {/* Status bar — only shown in special modes (interact / reorder) to save space */}
       {(interaction === 'interact' || reorderMode) && (
         <div style={{ flexShrink: 0, padding: '4px 8px', background: interaction === 'interact' ? '#0e1220' : '#0e1a0b', borderBottom: `1px solid ${interaction === 'interact' ? 'rgba(91,159,214,0.2)' : 'rgba(82,196,64,0.15)'}`, color: '#999', fontSize: 10, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.2s' }}>
@@ -1688,15 +1745,19 @@ const VisualEditor: React.FC = () => {
           }}
           onSelectChild={(cx, cy) => {
             const doc = iframeRef.current?.contentDocument;
-            if (!doc || !ifrRect) return;
-            const ifrX = cx - ifrRect.left;
-            const ifrY = cy - ifrRect.top;
+            if (!doc) return;
+            const liveRect = iframeRef.current?.getBoundingClientRect();
+            if (!liveRect) return;
+            const ifrX = cx - liveRect.left;
+            const ifrY = cy - liveRect.top;
             const allEls = doc.elementsFromPoint(ifrX, ifrY) as HTMLElement[];
+            const selElTag = selEl?.tagName?.toLowerCase();
             const next = allEls.find(el =>
               el !== selEl &&
               !SKIP_TAGS.has(el.tagName.toLowerCase()) &&
               el.tagName.toLowerCase() !== 'html' &&
-              el.tagName.toLowerCase() !== 'body'
+              el.tagName.toLowerCase() !== 'body' &&
+              !(selElTag && el.tagName.toLowerCase() === selElTag && el === selEl)
             );
             if (next) selectElement(next);
           }}
